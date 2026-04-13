@@ -3,7 +3,14 @@ import csv
 total_depenses = 0
 nombre_transactions = 0
 plus_grosse_depense = 0
+nombre_transactions_cooltra = 0
+total_depenses_cooltra = 0
+premier_cooltra = ""
+dernier_cooltra = ""  
+
+
 description_plus_grosse = ""
+
 
 with open ("revolut.csv", "r", encoding="utf-8") as fichier:
     lecteur = csv.reader(fichier)
@@ -21,14 +28,22 @@ with open ("revolut.csv", "r", encoding="utf-8") as fichier:
             total_depenses = total_depenses +montant_positif
             nombre_transactions = nombre_transactions + 1
 
-            if montant_positif > plus_grosse_depense:
-                plus_grosse_depense = montant_positif
-                description_plus_grosse = description
+            if description == "Cooltra" :
+                total_depenses_cooltra = total_depenses_cooltra + montant_positif
+                nombre_transactions_cooltra = nombre_transactions_cooltra + 1
 
-moyenne = total_depenses / nombre_transactions
+                if premier_cooltra == "":
+                    premier_cooltra = ligne [2]
+
+                dernier_cooltra = ligne [2]
+
+moyenne = total_depenses_cooltra / nombre_transactions_cooltra
 
 print("--- ANALYSE REVOLUT ---")
 print("Nombre de paiements par carte :", nombre_transactions)
 print("Total dépensé :", round(total_depenses,2), "€")
-print("Dépense moyenne :", round(moyenne, 2), "€")
-print("Plus grosse dépnese :", round(plus_grosse_depense,2), "€", "chez", description_plus_grosse)
+print("Dépenses Cooltra :", round(total_depenses_cooltra,2), "€")
+print("nombre de déplacements Cooltra :", nombre_transactions_cooltra)
+print("moyenne :", round(total_depenses_cooltra / nombre_transactions_cooltra,2) )
+print("premier cooltra :", premier_cooltra)
+print("dernier cooltra :", dernier_cooltra)
