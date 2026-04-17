@@ -1,0 +1,702 @@
+Type,Produit,Date de début,Date de fin,Description,Montant,Frais,Devise,État,Solde
+Virement,Épargne,2025-01-29 16:48:01,2025-01-29 16:48:01,Sur la Pocket EUR Mariage  depuis EUR,400.00,0.00,EUR,TERMINÉ,750.00
+Virement,Épargne,2025-01-29 16:49:21,2025-01-29 16:49:21,Sur la Pocket EUR Mariage  depuis EUR,300.00,0.00,EUR,TERMINÉ,1050.00
+Virement,Épargne,2025-02-09 18:22:48,2025-02-09 18:22:48,Retrait depuis une Pocket,-200.00,0.00,EUR,TERMINÉ,850.00
+Virement,Épargne,2025-02-26 20:22:16,2025-02-26 20:22:16,Retrait depuis une Pocket,-150.00,0.00,EUR,TERMINÉ,700.00
+Virement,Épargne,2025-02-28 13:27:38,2025-02-28 13:27:38,Retrait depuis une Pocket,-600.00,0.00,EUR,TERMINÉ,100.00
+Virement,Épargne,2025-09-11 18:40:29,2025-09-11 18:40:29,Retrait depuis une Pocket,-100.00,0.00,EUR,TERMINÉ,0.00
+Paiement par carte,Valeur actuelle,2024-12-31 16:54:33,2025-01-02 11:05:01,Martik Souvenirs,-18.00,0.00,EUR,TERMINÉ,11.47
+Ajout de fonds,Valeur actuelle,2025-01-02 22:49:07,2025-01-02 22:49:10,Recharge via *2840,100.00,0.00,EUR,TERMINÉ,111.47
+Virement,Valeur actuelle,2025-01-02 22:52:01,2025-01-02 22:52:01,Virement de : Laetitia VERONIQUE GUISLAINE Raphael,300.00,0.00,EUR,TERMINÉ,411.47
+Remboursement sur carte,Valeur actuelle,2025-01-02 12:02:26,2025-01-03 11:33:54,Zara,99.90,0.00,EUR,TERMINÉ,511.37
+Paiement par carte,Valeur actuelle,2025-01-02 23:05:58,2025-01-03 12:59:14,Cooltra,-3.68,0.00,EUR,TERMINÉ,507.69
+Paiement par carte,Valeur actuelle,2025-01-02 22:50:31,2025-01-03 12:59:20,Cooltra,-11.66,0.00,EUR,TERMINÉ,496.03
+Virement,Valeur actuelle,2025-01-07 10:16:45,2025-01-07 10:16:45,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-300.00,0.00,EUR,TERMINÉ,196.03
+Virement,Valeur actuelle,2025-01-09 01:00:00,2025-01-09 12:46:50,To EDF clients particuliers,-121.37,0.00,EUR,TERMINÉ,74.66
+Paiement par carte,Valeur actuelle,2025-01-10 12:32:31,2025-01-12 14:29:47,Smile Bar,-18.63,0.00,EUR,TERMINÉ,56.03
+Paiement par carte,Valeur actuelle,2025-01-23 16:31:00,2025-01-24 10:40:02,Elite Primeur,-23.61,0.00,EUR,TERMINÉ,32.42
+Paiement par carte,Valeur actuelle,2025-01-21 23:07:47,2025-01-25 15:59:12,SMRT Corporation,-2.42,0.00,EUR,TERMINÉ,30.00
+Paiement par carte,Valeur actuelle,2025-01-27 17:11:57,2025-01-28 10:30:05,Cooltra,-5.98,0.00,EUR,TERMINÉ,24.02
+Virement,Valeur actuelle,2025-01-29 16:46:44,2025-01-29 16:46:44,Virement de : Laetitia VERONIQUE GUISLAINE Raphael,900.00,0.00,EUR,TERMINÉ,924.02
+Virement,Valeur actuelle,2025-01-29 16:48:01,2025-01-29 16:48:01,Sur la Pocket EUR Mariage  depuis EUR,-400.00,0.00,EUR,TERMINÉ,524.02
+Ajout de fonds,Valeur actuelle,2025-01-29 16:48:59,2025-01-29 16:49:00,Paiement envoyé par M JULIEN RAPHAEL,300.00,0.00,EUR,TERMINÉ,824.02
+Virement,Valeur actuelle,2025-01-29 16:49:00,2025-01-29 16:49:00,Virement de : Laetitia VERONIQUE GUISLAINE Raphael,400.00,0.00,EUR,TERMINÉ,1224.02
+Virement,Valeur actuelle,2025-01-29 16:49:21,2025-01-29 16:49:21,Sur la Pocket EUR Mariage  depuis EUR,-300.00,0.00,EUR,TERMINÉ,924.02
+Paiement par carte,Valeur actuelle,2025-01-24 17:13:12,2025-01-31 15:35:38,Memoryos,-23.89,0.00,EUR,TERMINÉ,900.13
+Paiement par carte,Valeur actuelle,2025-01-30 13:25:41,2025-01-31 16:47:04,Carrefour,-86.71,0.00,EUR,TERMINÉ,813.42
+Paiement par carte,Valeur actuelle,2025-01-31 14:02:19,2025-02-01 09:47:02,SNCF,-257.20,0.00,EUR,TERMINÉ,556.22
+Paiement par carte,Valeur actuelle,2025-01-31 13:24:54,2025-02-01 16:38:34,La Redoute,-25.49,0.00,EUR,TERMINÉ,530.73
+Paiement par carte,Valeur actuelle,2025-01-31 15:49:59,2025-02-01 17:50:11,Franprix,-14.42,0.00,EUR,TERMINÉ,516.31
+Paiement par carte,Valeur actuelle,2025-02-01 18:10:51,2025-02-02 10:03:51,Cooltra,-10.58,0.00,EUR,TERMINÉ,505.73
+Paiement par carte,Valeur actuelle,2025-01-31 16:18:45,2025-02-02 10:08:45,La Tisanerie,-9.72,0.00,EUR,TERMINÉ,496.01
+Paiement par carte,Valeur actuelle,2025-01-31 16:16:54,2025-02-02 10:08:50,La Tisanerie,-191.25,0.00,EUR,TERMINÉ,304.76
+Paiement par carte,Valeur actuelle,2025-02-01 23:30:18,2025-02-02 17:29:13,Cooltra,-6.44,0.00,EUR,TERMINÉ,298.32
+Paiement par carte,Valeur actuelle,2025-02-02 10:10:15,2025-02-03 10:47:28,Franprix,-37.13,0.00,EUR,TERMINÉ,261.19
+Paiement par carte,Valeur actuelle,2025-02-02 10:02:26,2025-02-03 10:48:57,Maison Arnaud Delmontel,-20.20,0.00,EUR,TERMINÉ,240.99
+Paiement par carte,Valeur actuelle,2025-02-02 10:00:30,2025-02-03 14:08:59,La Brûlerie de Montmartre,-19.80,0.00,EUR,TERMINÉ,221.19
+Paiement par carte,Valeur actuelle,2025-02-03 05:31:00,2025-02-04 12:19:40,SNCF,-154.00,0.00,EUR,TERMINÉ,67.19
+Paiement par carte,Valeur actuelle,2025-02-03 11:42:57,2025-02-05 13:46:28,Fnac,-14.40,0.00,EUR,TERMINÉ,52.79
+Paiement par carte,Valeur actuelle,2025-02-05 11:54:11,2025-02-06 14:20:13,Heetch,-30.00,0.00,EUR,TERMINÉ,22.79
+Paiement par carte,Valeur actuelle,2025-02-07 14:40:07,2025-02-08 10:27:21,Carrefour,-10.62,0.00,EUR,TERMINÉ,12.17
+Paiement par carte,Valeur actuelle,2025-02-07 23:42:22,2025-02-08 10:39:51,Apple,-4.99,0.00,EUR,TERMINÉ,7.18
+Ajout de fonds,Valeur actuelle,2025-02-08 16:41:23,2025-02-08 16:41:26,Recharge via *2840,100.00,0.00,EUR,TERMINÉ,107.18
+Paiement par carte,Valeur actuelle,2025-02-08 16:41:36,2025-02-09 16:52:45,Pathé,-24.00,0.00,EUR,TERMINÉ,83.18
+Virement,Valeur actuelle,2025-02-09 18:22:48,2025-02-09 18:22:48,Retrait depuis une Pocket,200.00,0.00,EUR,TERMINÉ,283.18
+Virement,Valeur actuelle,2025-02-09 18:22:58,2025-02-09 18:22:59,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-200.00,0.00,EUR,TERMINÉ,83.18
+Paiement par carte,Valeur actuelle,2025-02-09 12:44:07,2025-02-10 09:42:34,Maison Arnaud Delmontel,-6.20,0.00,EUR,TERMINÉ,76.98
+Virement,Valeur actuelle,2025-02-10 10:57:36,2025-02-10 10:57:36,Virement de : Laetitia VERONIQUE GUISLAINE Raphael,200.00,0.00,EUR,TERMINÉ,276.98
+Paiement par carte,Valeur actuelle,2025-02-08 19:04:28,2025-02-10 11:14:40,Cocci Market,-19.80,0.00,EUR,TERMINÉ,257.18
+Paiement par carte,Valeur actuelle,2025-02-11 20:40:28,2025-02-12 11:34:51,Cooltra,-4.14,0.00,EUR,TERMINÉ,253.04
+Paiement par carte,Valeur actuelle,2025-02-11 18:41:05,2025-02-12 12:03:11,Cooltra,-5.52,0.00,EUR,TERMINÉ,247.52
+Paiement par carte,Valeur actuelle,2025-02-13 11:57:01,2025-02-14 12:05:02,La Dinette De Lo,-23.40,0.00,EUR,TERMINÉ,224.12
+Paiement par carte,Valeur actuelle,2025-02-13 15:13:26,2025-02-14 14:43:04,Apple,-4.99,0.00,EUR,TERMINÉ,219.13
+Paiement par carte,Valeur actuelle,2025-02-14 17:57:11,2025-02-15 09:57:45,Cooltra,-4.14,0.00,EUR,TERMINÉ,214.99
+Paiement par carte,Valeur actuelle,2025-02-14 18:02:42,2025-02-15 10:47:09,Olivier Damremo,-45.00,0.00,EUR,TERMINÉ,169.99
+Paiement par carte,Valeur actuelle,2025-02-14 19:59:46,2025-02-15 10:57:16,Deliveroo,-58.56,0.00,EUR,TERMINÉ,111.43
+Paiement par carte,Valeur actuelle,2025-02-14 17:38:35,2025-02-15 17:18:41,Cooltra,-4.60,0.00,EUR,TERMINÉ,106.83
+Paiement par carte,Valeur actuelle,2025-02-21 11:01:52,2025-02-22 09:55:25,RATP,-2.50,0.00,EUR,TERMINÉ,104.33
+Paiement par carte,Valeur actuelle,2025-02-21 11:01:36,2025-02-22 13:03:31,Cooltra,-3.68,0.00,EUR,TERMINÉ,100.65
+Paiement par carte,Valeur actuelle,2025-02-22 19:44:27,2025-02-23 13:43:25,Cooltra,-5.06,0.00,EUR,TERMINÉ,95.59
+Paiement par carte,Valeur actuelle,2025-02-24 17:37:03,2025-02-25 13:30:03,Cooltra,-8.74,0.00,EUR,TERMINÉ,86.85
+Paiement par carte,Valeur actuelle,2025-02-24 16:50:53,2025-02-25 13:30:04,Cooltra,-10.12,0.00,EUR,TERMINÉ,76.73
+Virement,Valeur actuelle,2025-02-26 20:22:16,2025-02-26 20:22:16,Retrait depuis une Pocket,150.00,0.00,EUR,TERMINÉ,226.73
+Paiement par carte,Valeur actuelle,2025-02-26 20:30:32,,www.lesparesseux.fr,-160.00,0.00,EUR,RENVOYÉ,
+Paiement par carte,Valeur actuelle,2025-02-26 20:36:09,2025-02-27 11:45:34,Cooltra,-4.60,0.00,EUR,TERMINÉ,222.13
+Paiement par carte,Valeur actuelle,2025-02-26 17:57:34,2025-02-27 11:59:07,Cooltra,-9.20,0.00,EUR,TERMINÉ,212.93
+Virement,Valeur actuelle,2025-02-28 13:27:38,2025-02-28 13:27:38,Retrait depuis une Pocket,600.00,0.00,EUR,TERMINÉ,812.93
+Virement,Valeur actuelle,2025-02-28 13:28:26,2025-02-28 13:28:26,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-600.00,0.00,EUR,TERMINÉ,212.93
+Paiement par carte,Valeur actuelle,2025-02-28 19:55:07,2025-03-01 11:01:13,Cooltra,-2.30,0.00,EUR,TERMINÉ,210.63
+Ajout de fonds,Valeur actuelle,2025-03-01 12:47:58,2025-03-01 12:48:35,Recharge via *2840,150.00,0.00,EUR,TERMINÉ,360.63
+Virement,Valeur actuelle,2025-03-01 12:49:42,2025-03-01 12:49:42,Virement à : Guillaume Jacques Andre Coutant,-172.00,0.00,EUR,TERMINÉ,188.63
+Paiement par carte,Valeur actuelle,2025-02-23 17:13:14,2025-03-01 15:27:11,Memoryos,-23.97,0.24,EUR,TERMINÉ,164.42
+Virement,Valeur actuelle,2025-03-05 01:00:00,2025-03-05 12:42:07,To EDF clients particuliers,-121.37,0.00,EUR,TERMINÉ,43.05
+Ajout de fonds,Valeur actuelle,2025-03-05 15:33:03,2025-03-05 15:33:04,Paiement envoyé par M JULIEN RAPHAEL,1100.00,0.00,EUR,TERMINÉ,1143.05
+Paiement par carte,Valeur actuelle,2025-03-05 13:48:07,2025-03-06 14:33:51,Cooltra,-8.28,0.00,EUR,TERMINÉ,1134.77
+Paiement par carte,Valeur actuelle,2025-03-05 16:03:07,2025-03-06 14:34:51,Cooltra,-9.66,0.00,EUR,TERMINÉ,1125.11
+Paiement par carte,Valeur actuelle,2025-03-10 12:27:31,2025-03-11 13:46:21,Carrefour,-78.76,0.00,EUR,TERMINÉ,1046.35
+Paiement par carte,Valeur actuelle,2025-03-11 16:14:17,2025-03-12 10:33:20,Franprix,-18.24,0.00,EUR,TERMINÉ,1028.11
+Paiement par carte,Valeur actuelle,2025-03-11 16:05:57,2025-03-12 10:33:38,Maison Arnaud Delmontel,-2.10,0.00,EUR,TERMINÉ,1026.01
+Paiement par carte,Valeur actuelle,2025-03-11 15:59:43,2025-03-12 13:04:29,Boucherie Nouvelle,-12.90,0.00,EUR,TERMINÉ,1013.11
+Paiement par carte,Valeur actuelle,2025-03-11 15:51:19,2025-03-13 12:53:21,La Tisanerie,-73.35,0.00,EUR,TERMINÉ,939.76
+Paiement par carte,Valeur actuelle,2025-03-11 16:04:53,2025-03-13 12:54:42,Elite Primeur,-23.81,0.00,EUR,TERMINÉ,915.95
+Paiement par carte,Valeur actuelle,2025-03-12 13:22:13,2025-03-13 14:43:54,Hotel Mistral,-322.50,0.00,EUR,TERMINÉ,593.45
+Paiement par carte,Valeur actuelle,2025-03-12 21:26:10,2025-03-13 14:45:44,Franprix,-27.77,0.00,EUR,TERMINÉ,565.68
+Paiement par carte,Valeur actuelle,2025-03-12 18:57:08,2025-03-13 14:57:23,La Piscine,-13.80,0.00,EUR,TERMINÉ,551.88
+Paiement par carte,Valeur actuelle,2025-03-13 09:55:56,2025-03-14 10:44:55,Cooltra,-4.14,0.00,EUR,TERMINÉ,547.74
+Paiement par carte,Valeur actuelle,2025-03-13 22:59:13,2025-03-14 11:23:48,Uber,-18.63,0.00,EUR,TERMINÉ,529.11
+Paiement par carte,Valeur actuelle,2025-03-13 11:41:01,2025-03-14 11:56:22,Newrest,-4.90,0.00,EUR,TERMINÉ,524.21
+Paiement par carte,Valeur actuelle,2025-03-13 15:17:16,2025-03-14 12:23:17,La Meulerie,-25.05,0.00,EUR,TERMINÉ,499.16
+Paiement par carte,Valeur actuelle,2025-03-14 19:45:11,2025-03-15 10:14:03,Deliveroo,-27.59,0.00,EUR,TERMINÉ,471.57
+Paiement par carte,Valeur actuelle,2025-03-13 18:58:27,2025-03-15 17:38:58,Tani Para,-12.50,0.00,EUR,TERMINÉ,459.07
+Virement,Valeur actuelle,2025-03-15 18:44:20,2025-03-15 18:44:20,Virement de : STEPHANIE GENEVIEVE ANNE MARIE MESSIAN,80.00,0.00,EUR,TERMINÉ,539.07
+Paiement par carte,Valeur actuelle,2025-03-15 17:44:39,2025-03-16 17:03:27,Uber,-25.79,0.00,EUR,TERMINÉ,513.28
+Paiement par carte,Valeur actuelle,2025-03-15 22:54:25,2025-03-16 17:13:04,Cooltra,-4.14,0.00,EUR,TERMINÉ,509.14
+Paiement par carte,Valeur actuelle,2025-03-15 20:32:47,2025-03-16 17:24:32,Newrest,-15.38,0.00,EUR,TERMINÉ,493.76
+Paiement par carte,Valeur actuelle,2025-03-15 18:40:17,2025-03-17 13:25:21,RELAY,-32.60,0.00,EUR,TERMINÉ,461.16
+Paiement par carte,Valeur actuelle,2025-03-19 11:22:46,2025-03-20 11:41:11,Uber,-27.28,0.00,EUR,TERMINÉ,433.88
+Paiement par carte,Valeur actuelle,2025-03-19 17:48:20,2025-03-20 11:55:07,SNCF,-276.00,0.00,EUR,TERMINÉ,157.88
+Remboursement sur carte,Valeur actuelle,2025-03-20 01:00:00,2025-03-20 11:58:32,SNCF,17.60,0.00,EUR,TERMINÉ,175.48
+Remboursement sur carte,Valeur actuelle,2025-03-20 01:00:00,2025-03-20 11:58:32,SNCF,200.00,0.00,EUR,TERMINÉ,375.48
+Remboursement sur carte,Valeur actuelle,2025-03-20 01:00:00,2025-03-20 11:58:35,SNCF,17.60,0.00,EUR,TERMINÉ,393.08
+Paiement par carte,Valeur actuelle,2025-03-18 13:22:38,2025-03-20 12:38:46,La Tisanerie,-71.10,0.00,EUR,TERMINÉ,321.98
+Paiement par carte,Valeur actuelle,2025-03-20 00:30:02,2025-03-20 13:51:55,Sonali Alim,-10.48,0.00,EUR,TERMINÉ,311.50
+Paiement par carte,Valeur actuelle,2025-03-19 21:32:31,2025-03-21 10:11:46,Gourmandises,-23.00,0.00,EUR,TERMINÉ,288.50
+Paiement par carte,Valeur actuelle,2025-03-20 20:24:14,2025-03-21 10:19:25,Cooltra,-8.74,0.00,EUR,TERMINÉ,279.76
+Paiement par carte,Valeur actuelle,2025-03-20 22:34:04,2025-03-21 12:19:24,Cooltra,-7.82,0.00,EUR,TERMINÉ,271.94
+Paiement par carte,Valeur actuelle,2025-03-20 11:38:08,2025-03-21 13:26:12,Franprix,-11.37,0.00,EUR,TERMINÉ,260.57
+Paiement par carte,Valeur actuelle,2025-03-20 11:35:51,2025-03-21 13:26:14,Franprix,-22.05,0.00,EUR,TERMINÉ,238.52
+Paiement par carte,Valeur actuelle,2025-03-21 21:28:18,2025-03-22 10:14:50,Cooltra,-3.68,0.00,EUR,TERMINÉ,234.84
+Paiement par carte,Valeur actuelle,2025-03-21 23:55:27,2025-03-22 13:23:57,Odds,-35.00,0.00,EUR,TERMINÉ,199.84
+Paiement par carte,Valeur actuelle,2025-03-21 22:42:06,2025-03-22 13:23:58,Odds,-37.00,0.00,EUR,TERMINÉ,162.84
+Paiement par carte,Valeur actuelle,2025-03-21 23:25:47,2025-03-22 13:23:58,Odds,-40.00,0.00,EUR,TERMINÉ,122.84
+Paiement par carte,Valeur actuelle,2025-03-22 00:07:16,2025-03-22 13:56:47,Easy Food,-15.00,0.00,EUR,TERMINÉ,107.84
+Paiement par carte,Valeur actuelle,2025-03-21 13:31:50,2025-03-22 14:02:18,Franprix,-25.80,0.00,EUR,TERMINÉ,82.04
+Paiement par carte,Valeur actuelle,2025-03-22 15:42:16,2025-03-23 15:25:11,Phie La Rotonde,-11.90,0.00,EUR,TERMINÉ,70.14
+Paiement par carte,Valeur actuelle,2025-03-24 10:36:02,2025-03-25 11:17:17,Carrefour,-27.50,0.00,EUR,TERMINÉ,42.64
+Paiement par carte,Valeur actuelle,2025-03-25 20:21:21,2025-03-26 12:16:46,Cooltra,-2.76,0.00,EUR,TERMINÉ,39.88
+Paiement par carte,Valeur actuelle,2025-03-26 18:24:05,2025-03-27 12:38:34,Cooltra,-2.76,0.00,EUR,TERMINÉ,37.12
+Paiement par carte,Valeur actuelle,2025-03-26 21:11:03,2025-03-27 12:55:59,Cooltra,-3.68,0.00,EUR,TERMINÉ,33.44
+Paiement par carte,Valeur actuelle,2025-03-29 14:18:32,2025-03-30 18:00:10,Cooltra,-4.14,0.00,EUR,TERMINÉ,29.30
+Virement,Valeur actuelle,2025-03-30 18:30:52,2025-03-30 18:30:53,Virement de : Laetitia VERONIQUE GUISLAINE Raphael,1000.00,0.00,EUR,TERMINÉ,1029.30
+Paiement par carte,Valeur actuelle,2025-03-25 17:13:16,2025-03-31 18:23:59,Memoryos,-23.24,0.00,EUR,TERMINÉ,1006.06
+Paiement par carte,Valeur actuelle,2025-04-01 15:17:51,2025-04-02 10:21:48,Phie La Rotonde,-33.40,0.00,EUR,TERMINÉ,972.66
+Paiement par carte,Valeur actuelle,2025-04-01 11:22:00,2025-04-02 14:55:31,Uber,-9.14,0.00,EUR,TERMINÉ,963.52
+Paiement par carte,Valeur actuelle,2025-04-01 14:12:50,2025-04-02 16:29:30,Brasserie de la Porte Dauphine,-28.50,0.00,EUR,TERMINÉ,935.02
+Paiement par carte,Valeur actuelle,2025-04-02 10:27:04,2025-04-03 11:53:17,Le Nord Sud,-6.00,0.00,EUR,TERMINÉ,929.02
+Paiement par carte,Valeur actuelle,2025-04-02 09:41:06,2025-04-03 12:35:53,La Civette Boutique,-15.50,0.00,EUR,TERMINÉ,913.52
+Paiement par carte,Valeur actuelle,2025-04-03 20:09:20,2025-04-04 15:08:23,La Tisanerie,-116.10,0.00,EUR,TERMINÉ,797.42
+Paiement par carte,Valeur actuelle,2025-04-03 11:45:35,2025-04-04 16:27:17,Lydia,-54.00,0.00,EUR,TERMINÉ,743.42
+Paiement par carte,Valeur actuelle,2025-04-03 16:13:00,2025-04-04 17:11:44,La Piscine,-64.00,0.00,EUR,TERMINÉ,679.42
+Paiement par carte,Valeur actuelle,2025-04-04 14:24:58,2025-04-05 10:04:20,Cooltra,-1.38,0.00,EUR,TERMINÉ,678.04
+Paiement par carte,Valeur actuelle,2025-04-03 23:16:55,2025-04-05 10:05:26,Cocci Market,-6.47,0.00,EUR,TERMINÉ,671.57
+Paiement par carte,Valeur actuelle,2025-04-04 13:00:57,2025-04-05 12:22:42,Elite Primeur,-49.66,0.00,EUR,TERMINÉ,621.91
+Paiement par carte,Valeur actuelle,2025-04-04 15:23:41,2025-04-05 12:25:30,Le Lamarck,-19.40,0.00,EUR,TERMINÉ,602.51
+Paiement par carte,Valeur actuelle,2025-04-04 15:26:05,2025-04-05 12:26:05,Dose Lamarck,-2.80,0.00,EUR,TERMINÉ,599.71
+Paiement par carte,Valeur actuelle,2025-04-04 12:51:20,2025-04-05 14:16:19,Boucherie Nouvelle,-70.47,0.00,EUR,TERMINÉ,529.24
+Paiement par carte,Valeur actuelle,2025-04-04 18:03:13,2025-04-05 14:16:26,La Civette Boutique,-16.50,0.00,EUR,TERMINÉ,512.74
+Paiement par carte,Valeur actuelle,2025-04-04 16:20:39,2025-04-05 14:18:56,Franprix,-12.53,0.00,EUR,TERMINÉ,500.21
+Paiement par carte,Valeur actuelle,2025-04-04 12:45:58,2025-04-05 15:01:37,Monoprix,-133.48,0.00,EUR,TERMINÉ,366.73
+Paiement par carte,Valeur actuelle,2025-04-05 14:31:50,2025-04-06 09:45:49,Cooltra,-3.68,0.00,EUR,TERMINÉ,363.05
+Paiement par carte,Valeur actuelle,2025-04-05 18:23:54,2025-04-06 09:50:49,Treatwell,-129.00,0.00,EUR,TERMINÉ,234.05
+Paiement par carte,Valeur actuelle,2025-04-04 13:11:21,2025-04-06 09:51:10,Picard,-18.58,0.00,EUR,TERMINÉ,215.47
+Paiement par carte,Valeur actuelle,2025-04-05 10:20:51,2025-04-06 09:54:15,Cooltra,-4.14,0.00,EUR,TERMINÉ,211.33
+Paiement par carte,Valeur actuelle,2025-04-04 13:19:48,2025-04-06 09:56:15,Gourmandises,-16.00,0.00,EUR,TERMINÉ,195.33
+Paiement par carte,Valeur actuelle,2025-04-05 23:57:32,2025-04-06 13:15:47,Etsy,-65.00,0.00,EUR,TERMINÉ,130.33
+Paiement par carte,Valeur actuelle,2025-04-05 20:30:12,2025-04-06 15:51:05,Deliveroo,-28.05,0.00,EUR,TERMINÉ,102.28
+Virement,Valeur actuelle,2025-04-06 22:23:01,2025-04-06 22:23:01,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-8.00,0.00,EUR,TERMINÉ,94.28
+Paiement par carte,Valeur actuelle,2025-04-06 17:29:02,2025-04-07 09:49:44,Carrefour,-36.79,0.00,EUR,TERMINÉ,57.49
+Paiement par carte,Valeur actuelle,2025-04-06 16:00:23,2025-04-07 13:54:35,Cooltra,-3.68,0.00,EUR,TERMINÉ,53.81
+Paiement par carte,Valeur actuelle,2025-04-08 21:12:59,2025-04-09 16:14:41,Cooltra,-4.60,0.00,EUR,TERMINÉ,49.21
+Paiement par carte,Valeur actuelle,2025-04-08 18:51:41,2025-04-09 16:18:51,Cooltra,-5.52,0.00,EUR,TERMINÉ,43.69
+Paiement par carte,Valeur actuelle,2025-04-11 11:49:21,2025-04-12 11:49:27,Cooltra,-4.60,0.00,EUR,TERMINÉ,39.09
+Paiement par carte,Valeur actuelle,2025-04-16 18:49:14,2025-04-17 13:31:02,Sonali Alim,-7.50,0.00,EUR,TERMINÉ,31.59
+Paiement par carte,Valeur actuelle,2025-04-17 19:10:32,2025-04-18 12:45:05,Cooltra,-9.66,0.00,EUR,TERMINÉ,21.93
+Paiement par carte,Valeur actuelle,2025-04-18 16:30:08,2025-04-19 11:33:39,Cooltra,-5.98,0.00,EUR,TERMINÉ,15.95
+Paiement par carte,Valeur actuelle,2025-04-18 14:59:18,2025-04-19 11:56:57,Cooltra,-10.12,0.00,EUR,TERMINÉ,5.83
+Paiement par carte,Valeur actuelle,2025-04-19 16:08:10,2025-04-20 10:52:53,Cooltra,-5.06,0.00,EUR,TERMINÉ,0.77
+Ajout de fonds,Valeur actuelle,2025-04-27 12:47:14,2025-04-27 12:47:15,Recharge sur Apple Pay via *6632,150.00,0.00,EUR,TERMINÉ,150.77
+Paiement par carte,Valeur actuelle,2025-04-27 15:00:23,2025-04-28 12:43:27,Cooltra,-6.44,0.00,EUR,TERMINÉ,144.33
+Paiement par carte,Valeur actuelle,2025-04-27 12:47:26,2025-04-28 12:53:21,Cooltra,-3.22,0.00,EUR,TERMINÉ,141.11
+Paiement par carte,Valeur actuelle,2025-04-27 13:06:52,2025-04-28 12:53:21,Cooltra,-7.36,0.00,EUR,TERMINÉ,133.75
+Paiement par carte,Valeur actuelle,2025-04-28 22:58:15,2025-04-29 12:41:57,Cooltra,-8.28,0.00,EUR,TERMINÉ,125.47
+Paiement par carte,Valeur actuelle,2025-04-28 20:37:56,2025-04-29 13:20:43,Cooltra,-7.36,0.00,EUR,TERMINÉ,118.11
+Paiement par carte,Valeur actuelle,2025-04-30 15:53:57,2025-05-01 10:26:58,Cooltra,-20.72,0.00,EUR,TERMINÉ,97.39
+Paiement par carte,Valeur actuelle,2025-04-30 15:05:31,2025-05-01 10:30:42,Cooltra,-1.38,0.00,EUR,TERMINÉ,96.01
+Virement,Valeur actuelle,2025-05-01 11:07:20,2025-05-01 11:07:21,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-4.00,0.00,EUR,TERMINÉ,92.01
+Virement,Valeur actuelle,2025-05-01 11:07:53,2025-05-01 11:07:53,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-20.00,0.00,EUR,TERMINÉ,72.01
+Virement,Valeur actuelle,2025-05-01 11:20:57,2025-05-01 11:20:58,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-22.00,0.00,EUR,TERMINÉ,50.01
+Paiement par carte,Valeur actuelle,2025-05-01 07:35:12,2025-05-02 11:00:29,Pret,-29.50,0.00,EUR,TERMINÉ,20.51
+Paiement par carte,Valeur actuelle,2025-04-30 23:23:18,2025-05-02 13:41:44,Au Marché Montmartre,-20.49,0.00,EUR,TERMINÉ,0.02
+Ajout de fonds,Valeur actuelle,2025-05-06 15:42:41,2025-05-06 15:42:42,Paiement envoyé par M JULIEN RAPHAEL,500.00,0.00,EUR,TERMINÉ,500.02
+Paiement par carte,Valeur actuelle,2025-05-06 18:13:42,2025-05-07 13:21:02,Franprix,-12.23,0.00,EUR,TERMINÉ,487.79
+Paiement par carte,Valeur actuelle,2025-05-07 18:47:11,2025-05-08 10:33:20,Cooltra,-6.46,0.00,EUR,TERMINÉ,481.33
+Paiement par carte,Valeur actuelle,2025-05-06 18:09:48,2025-05-08 10:43:23,Picard,-31.28,0.00,EUR,TERMINÉ,450.05
+Paiement par carte,Valeur actuelle,2025-05-07 14:43:47,2025-05-08 13:11:45,Cooltra,-5.98,0.00,EUR,TERMINÉ,444.07
+Paiement par carte,Valeur actuelle,2025-05-07 15:00:38,2025-05-08 13:11:47,Cooltra,-2.76,0.00,EUR,TERMINÉ,441.31
+Paiement par carte,Valeur actuelle,2025-05-07 16:22:37,2025-05-08 13:11:57,Cooltra,-5.06,0.00,EUR,TERMINÉ,436.25
+Paiement par carte,Valeur actuelle,2025-05-08 08:31:08,2025-05-09 20:58:09,Cooltra,-5.52,0.00,EUR,TERMINÉ,430.73
+Virement,Valeur actuelle,2025-05-12 02:00:00,2025-05-12 13:10:21,To EDF clients particuliers,-157.62,0.00,EUR,TERMINÉ,273.11
+Paiement par carte,Valeur actuelle,2025-05-11 12:32:52,2025-05-12 14:53:00,Franprix,-40.48,0.00,EUR,TERMINÉ,232.63
+Paiement par carte,Valeur actuelle,2025-05-11 18:37:50,2025-05-12 14:53:00,Franprix,-45.39,0.00,EUR,TERMINÉ,187.24
+Paiement par carte,Valeur actuelle,2025-05-11 12:34:38,2025-05-12 14:55:46,Maison Arnaud Delmontel,-15.20,0.00,EUR,TERMINÉ,172.04
+Paiement par carte,Valeur actuelle,2025-05-12 16:33:17,2025-05-13 11:53:37,Monoprix,-86.10,0.00,EUR,TERMINÉ,85.94
+Paiement par carte,Valeur actuelle,2025-05-12 12:17:50,2025-05-13 11:54:53,Carrefour,-9.44,0.00,EUR,TERMINÉ,76.50
+Paiement par carte,Valeur actuelle,2025-05-12 16:43:28,2025-05-13 11:55:11,Pharmacie Radja,-17.36,0.00,EUR,TERMINÉ,59.14
+Paiement par carte,Valeur actuelle,2025-05-13 10:48:46,2025-05-14 11:57:40,Vergers Idf,-10.98,0.00,EUR,TERMINÉ,48.16
+Ajout de fonds,Valeur actuelle,2025-05-14 15:55:29,2025-05-14 15:55:30,Recharge sur Apple Pay via *6632,150.00,0.00,EUR,TERMINÉ,198.16
+Paiement par carte,Valeur actuelle,2025-05-13 14:54:00,2025-05-14 18:36:21,Cooltra,-4.14,0.00,EUR,TERMINÉ,194.02
+Paiement par carte,Valeur actuelle,2025-05-13 15:27:02,2025-05-14 18:36:24,Cooltra,-5.52,0.00,EUR,TERMINÉ,188.50
+Paiement par carte,Valeur actuelle,2025-05-12 16:40:04,2025-05-14 18:40:29,Ali Bava,-9.80,0.00,EUR,TERMINÉ,178.70
+Paiement par carte,Valeur actuelle,2025-05-13 10:43:48,2025-05-15 19:24:37,Picard,-19.99,0.00,EUR,TERMINÉ,158.71
+Paiement par carte,Valeur actuelle,2025-05-14 15:55:43,2025-05-15 19:29:42,Cooltra,-9.20,0.00,EUR,TERMINÉ,149.51
+Paiement par carte,Valeur actuelle,2025-05-14 16:12:21,2025-05-15 19:29:42,Cooltra,-7.82,0.00,EUR,TERMINÉ,141.69
+Paiement par carte,Valeur actuelle,2025-05-09 18:13:56,2025-05-15 21:09:22,Memoryos,-5.57,0.00,EUR,TERMINÉ,136.12
+Paiement par carte,Valeur actuelle,2025-05-15 19:52:56,2025-05-16 14:24:56,Sushi Totoro,-31.95,0.00,EUR,TERMINÉ,104.17
+Paiement par carte,Valeur actuelle,2025-05-16 14:46:06,2025-05-17 19:21:09,Monoprix,-67.32,0.00,EUR,TERMINÉ,36.85
+Paiement par carte,Valeur actuelle,2025-05-22 22:25:12,2025-05-23 14:08:52,Cooltra,-11.04,0.00,EUR,TERMINÉ,25.81
+Paiement par carte,Valeur actuelle,2025-05-22 12:10:20,2025-05-23 14:29:16,Elite Primeur,-8.04,0.00,EUR,TERMINÉ,17.77
+Paiement par carte,Valeur actuelle,2025-05-22 20:02:32,2025-05-23 14:57:21,Cooltra,-16.10,0.00,EUR,TERMINÉ,1.67
+Ajout de fonds,Valeur actuelle,2025-05-23 18:22:23,2025-05-23 18:22:24,Recharge sur Apple Pay via *6632,50.00,0.00,EUR,TERMINÉ,51.67
+Paiement par carte,Valeur actuelle,2025-05-23 18:22:39,2025-05-24 10:09:57,Cooltra,-8.28,0.00,EUR,TERMINÉ,43.39
+Paiement par carte,Valeur actuelle,2025-05-23 18:39:12,2025-05-24 10:09:58,Cooltra,-7.36,0.00,EUR,TERMINÉ,36.03
+Paiement par carte,Valeur actuelle,2025-05-24 14:16:21,2025-05-25 18:33:10,Cooltra,-2.30,0.00,EUR,TERMINÉ,33.73
+Paiement par carte,Valeur actuelle,2025-05-24 14:22:06,2025-05-25 19:37:32,Félicité,-2.70,0.00,EUR,TERMINÉ,31.03
+Paiement par carte,Valeur actuelle,2025-05-24 13:52:30,2025-05-26 14:56:36,Le Brio,-28.00,0.00,EUR,TERMINÉ,3.03
+Ajout de fonds,Valeur actuelle,2025-06-02 10:46:53,2025-06-02 10:46:54,Recharge sur Apple Pay via *6632,100.00,0.00,EUR,TERMINÉ,103.03
+Virement,Valeur actuelle,2025-06-02 10:47:15,2025-06-02 10:47:16,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-6.00,0.00,EUR,TERMINÉ,97.03
+Paiement par carte,Valeur actuelle,2025-06-07 15:59:14,2025-06-08 11:47:49,Cooltra,-5.06,0.00,EUR,TERMINÉ,91.97
+Paiement par carte,Valeur actuelle,2025-06-09 18:33:25,2025-06-10 11:19:24,Cooltra,-9.70,0.00,EUR,TERMINÉ,82.27
+Paiement par carte,Valeur actuelle,2025-06-11 19:51:49,2025-06-12 10:04:02,Cooltra,-12.34,0.00,EUR,TERMINÉ,69.93
+Paiement par carte,Valeur actuelle,2025-06-11 08:49:36,2025-06-12 13:14:43,Cooltra,-9.66,0.00,EUR,TERMINÉ,60.27
+Ajout de fonds,Valeur actuelle,2025-06-12 15:04:24,2025-06-12 15:04:25,Paiement envoyé par M JULIEN RAPHAEL,200.00,0.00,EUR,TERMINÉ,260.27
+Paiement par carte,Valeur actuelle,2025-06-12 19:56:37,2025-06-13 11:04:30,Cooltra,-17.94,0.00,EUR,TERMINÉ,242.33
+Paiement par carte,Valeur actuelle,2025-06-13 12:23:18,2025-06-14 11:05:22,Cooltra,-16.56,0.00,EUR,TERMINÉ,225.77
+Paiement par carte,Valeur actuelle,2025-06-08 18:14:01,2025-06-14 16:42:13,Memoryos,-22.01,0.22,EUR,TERMINÉ,203.54
+Paiement par carte,Valeur actuelle,2025-06-14 11:48:42,2025-06-15 12:56:22,Cooltra,-3.22,0.00,EUR,TERMINÉ,200.32
+Paiement par carte,Valeur actuelle,2025-06-16 20:28:27,2025-06-17 11:33:33,Mademoiselle Ray,-12.00,0.00,EUR,TERMINÉ,188.32
+Paiement par carte,Valeur actuelle,2025-06-17 19:58:46,2025-06-18 10:24:36,Cooltra,-10.58,0.00,EUR,TERMINÉ,177.74
+Paiement par carte,Valeur actuelle,2025-06-17 23:05:31,2025-06-18 14:08:06,Cooltra,-6.90,0.00,EUR,TERMINÉ,170.84
+Paiement par carte,Valeur actuelle,2025-06-18 17:34:42,2025-06-19 10:21:42,Le Brio,-5.00,0.00,EUR,TERMINÉ,165.84
+Paiement par carte,Valeur actuelle,2025-06-18 14:00:00,2025-06-19 10:21:55,Franprix,-18.27,0.00,EUR,TERMINÉ,147.57
+Paiement par carte,Valeur actuelle,2025-06-18 12:51:26,2025-06-19 13:21:18,Le Lamarck,-16.40,0.00,EUR,TERMINÉ,131.17
+Paiement par carte,Valeur actuelle,2025-06-18 13:52:30,2025-06-19 13:34:32,Phie La Rotonde,-23.98,0.00,EUR,TERMINÉ,107.19
+Paiement par carte,Valeur actuelle,2025-06-18 13:55:55,2025-06-19 14:20:04,La Dinette De Lo,-23.40,0.00,EUR,TERMINÉ,83.79
+Paiement par carte,Valeur actuelle,2025-06-18 17:43:53,2025-06-19 14:21:51,Droguerie damremont,-15.10,0.00,EUR,TERMINÉ,68.69
+Paiement par carte,Valeur actuelle,2025-06-19 18:40:49,2025-06-20 10:39:07,Cooltra,-1.84,0.00,EUR,TERMINÉ,66.85
+Paiement par carte,Valeur actuelle,2025-06-19 18:56:01,2025-06-20 10:43:56,Cooltra,-3.68,0.00,EUR,TERMINÉ,63.17
+Paiement par carte,Valeur actuelle,2025-06-29 14:17:37,2025-06-30 14:15:18,LA CIVETTE DU 18EME,-26.00,0.00,EUR,TERMINÉ,37.17
+Paiement par carte,Valeur actuelle,2025-06-30 19:13:07,2025-07-01 11:32:14,Phie La Rotonde,-27.90,0.00,EUR,TERMINÉ,9.27
+Paiement par carte,Valeur actuelle,2025-07-12 11:12:15,2025-07-13 10:21:34,Cooltra,-9.20,0.00,EUR,TERMINÉ,0.07
+Ajout de fonds,Valeur actuelle,2025-07-19 17:31:09,2025-07-19 17:31:10,Recharge sur Apple Pay via *6632,50.00,0.00,EUR,TERMINÉ,50.07
+Paiement par carte,Valeur actuelle,2025-07-19 17:31:26,2025-07-20 09:28:13,Cooltra,-3.68,0.00,EUR,TERMINÉ,46.39
+Paiement par carte,Valeur actuelle,2025-07-22 18:23:53,2025-07-23 10:55:10,Cooltra,-3.68,0.00,EUR,TERMINÉ,42.71
+Virement,Valeur actuelle,2025-07-23 21:00:01,2025-07-23 21:00:01,Virement de : Laetitia VERONIQUE GUISLAINE Raphael,60.00,0.00,EUR,TERMINÉ,102.71
+Paiement par carte,Valeur actuelle,2025-07-23 21:00:35,2025-07-24 12:09:49,Deliveroo,-72.78,0.00,EUR,TERMINÉ,29.93
+Paiement par carte,Valeur actuelle,2025-07-23 10:19:45,2025-07-24 12:18:46,Uber,-24.06,0.00,EUR,TERMINÉ,5.87
+Ajout de fonds,Valeur actuelle,2025-07-25 17:08:19,2025-07-25 17:08:21,Paiement envoyé par M JULIEN RAPHAEL,500.00,0.00,EUR,TERMINÉ,505.87
+Virement,Valeur actuelle,2025-07-25 17:52:29,2025-07-25 17:52:29,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-82.00,0.00,EUR,TERMINÉ,423.87
+Paiement par carte,Valeur actuelle,2025-07-25 17:20:04,2025-07-26 09:46:39,Cooltra,-3.22,0.00,EUR,TERMINÉ,420.65
+Paiement par carte,Valeur actuelle,2025-07-25 17:29:00,2025-07-26 09:46:39,Cooltra,-4.14,0.00,EUR,TERMINÉ,416.51
+Paiement par carte,Valeur actuelle,2025-07-25 17:17:58,2025-07-26 12:55:49,La Premiere,-5.80,0.00,EUR,TERMINÉ,410.71
+Ajout de fonds,Valeur actuelle,2025-07-27 01:09:08,2025-07-27 01:09:08,Paiement envoyé par M JULIEN RAPHAEL,300.00,0.00,EUR,TERMINÉ,710.71
+Paiement par carte,Valeur actuelle,2025-07-26 14:07:55,2025-07-27 10:21:58,Cooltra,-5.06,0.00,EUR,TERMINÉ,705.65
+Paiement par carte,Valeur actuelle,2025-07-24 20:01:13,2025-07-27 10:23:09,Lime,-6.48,0.00,EUR,TERMINÉ,699.17
+Paiement par carte,Valeur actuelle,2025-07-25 17:11:28,2025-07-27 10:49:25,Franprix,-18.01,0.00,EUR,TERMINÉ,681.16
+Paiement par carte,Valeur actuelle,2025-07-26 14:34:37,2025-07-27 10:53:12,Printemps,-235.00,0.00,EUR,TERMINÉ,446.16
+Paiement par carte,Valeur actuelle,2025-07-26 17:58:34,2025-07-27 10:54:39,La Tisanerie,-42.55,0.00,EUR,TERMINÉ,403.61
+Paiement par carte,Valeur actuelle,2025-07-27 01:10:36,2025-07-27 11:08:10,Sunset,-156.50,0.00,EUR,TERMINÉ,247.11
+Paiement par carte,Valeur actuelle,2025-07-26 13:53:02,2025-07-27 11:55:51,Le Brio,-44.00,0.00,EUR,TERMINÉ,203.11
+Paiement par carte,Valeur actuelle,2025-07-26 14:01:24,2025-07-27 11:57:04,La Civette Boutique,-34.84,0.00,EUR,TERMINÉ,168.27
+Paiement par carte,Valeur actuelle,2025-07-26 17:11:38,2025-07-28 10:07:07,Lime,-2.96,0.00,EUR,TERMINÉ,165.31
+Paiement par carte,Valeur actuelle,2025-07-27 10:58:37,2025-07-28 10:27:27,Maison Arnaud Delmontel,-16.10,0.00,EUR,TERMINÉ,149.21
+Paiement par carte,Valeur actuelle,2025-07-27 11:01:57,2025-07-28 13:34:41,Franprix,-4.90,0.00,EUR,TERMINÉ,144.31
+Paiement par carte,Valeur actuelle,2025-07-28 09:50:28,2025-07-29 10:23:33,Le Pigalle,-9.00,0.00,EUR,TERMINÉ,135.31
+Paiement par carte,Valeur actuelle,2025-07-28 15:30:51,2025-07-29 11:29:40,Bistrot Smiley,-24.00,0.00,EUR,TERMINÉ,111.31
+Paiement par carte,Valeur actuelle,2025-07-28 10:45:08,2025-07-29 15:05:31,Le Balto,-16.00,0.00,EUR,TERMINÉ,95.31
+Paiement par carte,Valeur actuelle,2025-07-28 14:41:00,2025-07-29 15:06:50,RATP,-2.00,0.00,EUR,TERMINÉ,93.31
+Ajout de fonds,Valeur actuelle,2025-07-29 19:04:22,2025-07-29 19:04:23,Paiement envoyé par M JULIEN RAPHAEL,200.00,0.00,EUR,TERMINÉ,293.31
+Paiement par carte,Valeur actuelle,2025-07-29 18:52:09,2025-07-30 12:09:37,La Tisanerie,-40.05,0.00,EUR,TERMINÉ,253.26
+Paiement par carte,Valeur actuelle,2025-07-29 19:02:55,2025-07-30 13:13:10,Franprix,-52.23,0.00,EUR,TERMINÉ,201.03
+Paiement par carte,Valeur actuelle,2025-07-29 19:10:42,2025-07-30 13:14:51,Maison Arnaud Delmontel,-8.90,0.00,EUR,TERMINÉ,192.13
+Paiement par carte,Valeur actuelle,2025-07-30 22:09:06,2025-08-01 12:59:31,Cretecos Market,-2.00,0.00,EUR,TERMINÉ,190.13
+Paiement par carte,Valeur actuelle,2025-07-30 22:17:01,2025-08-01 13:21:49,Petros Petovits Mono,-25.00,0.00,EUR,TERMINÉ,165.13
+Paiement par carte,Valeur actuelle,2025-07-31 13:12:38,2025-08-01 13:22:27,REMOUNDOS IOANNIS A.,-12.00,0.00,EUR,TERMINÉ,153.13
+Paiement par carte,Valeur actuelle,2025-07-29 20:14:37,2025-08-01 13:43:20,Amazon,-97.79,0.00,EUR,TERMINÉ,55.34
+Paiement par carte,Valeur actuelle,2025-07-31 13:08:47,2025-08-02 12:03:31,POSTO,-16.00,0.00,EUR,TERMINÉ,39.34
+Ajout de fonds,Valeur actuelle,2025-08-02 19:30:15,2025-08-02 19:30:15,Paiement envoyé par M JULIEN RAPHAEL,140.00,0.00,EUR,TERMINÉ,179.34
+Virement,Valeur actuelle,2025-08-02 19:30:58,2025-08-02 19:30:59,Virement à : MARIANNA ANASTASOPOULOU,-140.00,0.00,EUR,TERMINÉ,39.34
+Paiement par carte,Valeur actuelle,2025-08-08 17:31:16,2025-08-09 10:59:30,Cooltra,-17.96,0.00,EUR,TERMINÉ,21.38
+Paiement par carte,Valeur actuelle,2025-08-08 16:26:35,2025-08-09 11:08:42,Cooltra,-5.06,0.00,EUR,TERMINÉ,16.32
+Paiement par carte,Valeur actuelle,2025-08-09 11:34:07,2025-08-10 11:29:21,Cooltra,-3.22,0.00,EUR,TERMINÉ,13.10
+Paiement par carte,Valeur actuelle,2025-08-09 14:33:48,2025-08-10 11:31:37,Cooltra,-3.22,0.00,EUR,TERMINÉ,9.88
+Virement,Valeur actuelle,2025-08-14 21:57:35,2025-08-14 21:57:35,Virement de : VICTOIRE MARIE DELPHINE MESSIAN IMBERT,14.00,0.00,EUR,TERMINÉ,23.88
+Paiement par carte,Valeur actuelle,2025-08-17 22:02:46,2025-08-18 13:39:13,Deliveroo,-3.28,0.00,EUR,TERMINÉ,20.60
+Paiement par carte,Valeur actuelle,2025-08-18 18:19:31,2025-08-19 13:28:46,Cooltra,-4.14,0.00,EUR,TERMINÉ,16.46
+Paiement par carte,Valeur actuelle,2025-08-20 18:08:17,2025-08-21 10:06:48,Cooltra,-9.20,0.00,EUR,TERMINÉ,7.26
+Paiement par carte,Valeur actuelle,2025-08-29 19:01:57,2025-08-30 14:10:15,Cooltra,-3.68,0.00,EUR,TERMINÉ,3.58
+Paiement par carte,Valeur actuelle,2025-08-31 11:50:40,2025-09-01 13:14:12,Cooltra,-3.22,0.00,EUR,TERMINÉ,0.36
+Virement,Valeur actuelle,2025-09-05 18:25:26,2025-09-05 18:25:26,Virement de : Laetitia VERONIQUE GUISLAINE Raphael,500.00,0.00,EUR,TERMINÉ,500.36
+Paiement par carte,Valeur actuelle,2025-09-06 02:07:51,2025-09-06 15:30:52,Path,-2.58,0.03,EUR,TERMINÉ,497.75
+Paiement par carte,Valeur actuelle,2025-09-05 20:45:33,2025-09-06 15:32:18,Retrography,-10.29,0.00,EUR,TERMINÉ,487.46
+Paiement par carte,Valeur actuelle,2025-09-06 04:07:11,2025-09-07 17:20:25,Scarr's Pizza,-21.70,0.22,EUR,TERMINÉ,465.54
+Paiement par carte,Valeur actuelle,2025-09-06 14:34:31,2025-09-07 17:20:48,MTA,-2.49,0.02,EUR,TERMINÉ,463.03
+Paiement par carte,Valeur actuelle,2025-09-06 02:10:24,2025-09-07 17:21:13,MTA,-2.49,0.02,EUR,TERMINÉ,460.52
+Paiement par carte,Valeur actuelle,2025-09-07 16:14:25,2025-09-08 14:30:19,Cooltra,-4.14,0.00,EUR,TERMINÉ,456.38
+Paiement par carte,Valeur actuelle,2025-09-06 16:49:08,2025-09-08 16:47:24,Jfk T5 Ec Attached Mkt,-5.10,0.05,EUR,TERMINÉ,451.23
+Paiement par carte,Valeur actuelle,2025-09-09 01:09:34,2025-09-09 14:25:22,Smith's,-24.12,0.00,EUR,TERMINÉ,427.11
+Paiement par carte,Valeur actuelle,2025-09-09 02:52:34,2025-09-09 14:26:21,Tank & Martys World,-10.25,0.00,EUR,TERMINÉ,416.86
+Paiement par carte,Valeur actuelle,2025-09-09 05:37:21,2025-09-09 14:26:22,Tank & Martys World,-35.11,0.00,EUR,TERMINÉ,381.75
+Paiement par carte,Valeur actuelle,2025-09-08 22:13:17,2025-09-09 14:30:59,First Class Vending,-2.65,0.00,EUR,TERMINÉ,379.10
+Paiement par carte,Valeur actuelle,2025-09-08 22:13:52,2025-09-09 14:30:59,First Class Vending,-2.65,0.00,EUR,TERMINÉ,376.45
+Paiement par carte,Valeur actuelle,2025-09-11 01:57:03,2025-09-11 14:20:30,Dragon Breath Smoke Shop,-7.60,0.00,EUR,TERMINÉ,368.85
+Virement,Valeur actuelle,2025-09-11 18:40:29,2025-09-11 18:40:29,Retrait depuis une Pocket,100.00,0.00,EUR,TERMINÉ,468.85
+Changes,Valeur actuelle,2025-09-11 18:42:03,2025-09-11 18:42:03,Change en USD,-300.00,0.00,EUR,TERMINÉ,168.85
+Paiement par carte,Valeur actuelle,2025-09-24 01:22:05,2025-09-25 21:38:50,Only In San Francisco,-42.68,0.00,EUR,TERMINÉ,126.17
+Changes,Valeur actuelle,2025-09-25 21:58:48,2025-09-25 21:58:48,Change en USD,-120.00,0.00,EUR,TERMINÉ,6.17
+Changes,Valeur actuelle,2025-09-27 02:59:06,2025-09-27 02:59:06,Change en USD,-6.17,0.00,EUR,TERMINÉ,0.00
+Virement,Valeur actuelle,2025-09-29 14:36:01,2025-09-29 14:36:01,Virement de : Laetitia VERONIQUE GUISLAINE Raphael,500.00,0.00,EUR,TERMINÉ,500.00
+Changes,Valeur actuelle,2025-09-29 14:36:02,2025-09-29 14:36:02,Change en USD,-0.11,0.00,EUR,TERMINÉ,499.89
+Paiement par carte,Valeur actuelle,2025-10-02 14:35:32,2025-10-03 11:30:31,Monoprix,-69.12,0.00,EUR,TERMINÉ,430.77
+Paiement par carte,Valeur actuelle,2025-10-02 17:28:36,2025-10-03 15:24:19,Carrefour,-74.06,0.00,EUR,TERMINÉ,356.71
+Paiement par carte,Valeur actuelle,2025-10-03 14:45:59,2025-10-04 11:40:52,Franprix,-4.55,0.00,EUR,TERMINÉ,352.16
+Paiement par carte,Valeur actuelle,2025-10-03 14:43:57,2025-10-05 13:37:58,Picard,-16.06,0.00,EUR,TERMINÉ,336.10
+Paiement par carte,Valeur actuelle,2025-10-04 16:04:42,2025-10-05 13:40:30,La Tisanerie,-40.05,0.00,EUR,TERMINÉ,296.05
+Paiement par carte,Valeur actuelle,2025-10-05 18:26:32,2025-10-06 11:55:29,Carrefour,-46.86,0.00,EUR,TERMINÉ,249.19
+Ajout de fonds,Valeur actuelle,2025-10-06 22:10:01,2025-10-06 22:10:02,Recharge sur Apple Pay via *6632,400.00,0.00,EUR,TERMINÉ,649.19
+Virement,Valeur actuelle,2025-10-06 22:10:22,2025-10-06 22:10:23,Virement à : JULIEN GASTON ROBERT ALPHONSE RAPHAEL & Laetitia VERONIQUE GUISLAINE Raphael,-494.16,0.00,EUR,TERMINÉ,155.03
+Paiement par carte,Valeur actuelle,2025-10-06 18:11:06,2025-10-07 13:37:03,Le Depanneur,-13.00,0.00,EUR,TERMINÉ,142.03
+Paiement par carte,Valeur actuelle,2025-10-06 12:38:43,2025-10-07 13:37:44,Animalis,-90.43,0.00,EUR,TERMINÉ,51.60
+Paiement par carte,Valeur actuelle,2025-10-06 17:32:37,2025-10-07 13:42:54,Zen Garden,-45.00,0.00,EUR,TERMINÉ,6.60
+Paiement par carte,Valeur actuelle,2025-10-06 17:25:11,2025-10-07 13:47:21,Aux Merveilleux de Fred,-6.60,0.00,EUR,TERMINÉ,0.00
+Ajout de fonds,Valeur actuelle,2025-10-12 15:37:39,2025-10-12 15:37:40,Recharge sur Apple Pay via *6632,50.00,0.00,EUR,TERMINÉ,50.00
+Paiement par carte,Valeur actuelle,2025-10-12 16:00:38,2025-10-13 13:12:52,Cooltra,-7.82,0.00,EUR,TERMINÉ,42.18
+Paiement par carte,Valeur actuelle,2025-10-12 15:37:51,2025-10-13 13:15:58,Cooltra,-9.66,0.00,EUR,TERMINÉ,32.52
+Paiement par carte,Valeur actuelle,2025-10-15 13:11:21,2025-10-16 10:22:11,Cooltra,-2.76,0.00,EUR,TERMINÉ,29.76
+Paiement par carte,Valeur actuelle,2025-10-15 13:49:16,2025-10-16 10:22:21,Cooltra,-3.22,0.00,EUR,TERMINÉ,26.54
+Paiement par carte,Valeur actuelle,2025-10-18 12:54:22,2025-10-19 09:56:08,Cooltra,-10.12,0.00,EUR,TERMINÉ,16.42
+Paiement par carte,Valeur actuelle,2025-10-18 16:36:29,2025-10-19 10:02:36,Cooltra,-9.20,0.00,EUR,TERMINÉ,7.22
+Paiement par carte,Valeur actuelle,2025-10-19 12:25:26,2025-10-20 09:51:33,Cooltra,-3.68,0.00,EUR,TERMINÉ,3.54
+Virement,Valeur actuelle,2025-10-20 21:51:41,2025-10-20 21:51:42,Virement de : JULIEN GASTON ROBERT ALPHONSE RAPHAEL & Laetitia VERONIQUE GUISLAINE Raphael,50.00,0.00,EUR,TERMINÉ,53.54
+Paiement par carte,Valeur actuelle,2025-10-20 18:42:30,2025-10-21 14:31:47,Cooltra,-3.22,0.00,EUR,TERMINÉ,50.32
+Paiement par carte,Valeur actuelle,2025-10-20 22:04:34,2025-10-21 14:32:51,Cooltra,-4.60,0.00,EUR,TERMINÉ,45.72
+Paiement par carte,Valeur actuelle,2025-10-20 21:51:51,2025-10-21 14:32:56,Cooltra,-6.90,0.00,EUR,TERMINÉ,38.82
+Paiement par carte,Valeur actuelle,2025-10-21 22:38:08,2025-10-22 10:33:17,Cooltra,-5.52,0.00,EUR,TERMINÉ,33.30
+Paiement par carte,Valeur actuelle,2025-10-25 01:42:25,2025-10-25 09:51:09,Cooltra,-5.06,0.00,EUR,TERMINÉ,28.24
+Paiement par carte,Valeur actuelle,2025-10-24 20:23:45,2025-10-25 13:17:43,Cooltra,-9.20,0.00,EUR,TERMINÉ,19.04
+Paiement par carte,Valeur actuelle,2025-10-24 17:17:05,2025-10-25 13:54:13,Cooltra,-5.98,0.00,EUR,TERMINÉ,13.06
+Paiement par carte,Valeur actuelle,2025-10-25 15:46:59,2025-10-26 09:11:55,Cooltra,-2.76,0.00,EUR,TERMINÉ,10.30
+Paiement par carte,Valeur actuelle,2025-10-27 17:37:24,2025-10-28 14:04:09,Cooltra,-7.84,0.00,EUR,TERMINÉ,2.46
+Ajout de fonds,Valeur actuelle,2025-10-29 16:32:21,2025-10-29 16:32:21,Paiement envoyé par M JULIEN RAPHAEL,2000.00,0.00,EUR,TERMINÉ,2002.46
+Virement,Valeur actuelle,2025-10-29 16:33:05,2025-10-29 16:33:05,Virement à : JULIEN GASTON ROBERT ALPHONSE RAPHAEL & Laetitia VERONIQUE GUISLAINE Raphael,-2000.00,0.00,EUR,TERMINÉ,2.46
+Virement,Valeur actuelle,2025-11-01 21:13:53,2025-11-01 21:13:53,Virement de : JULIEN GASTON ROBERT ALPHONSE RAPHAEL & Laetitia VERONIQUE GUISLAINE Raphael,20.00,0.00,EUR,TERMINÉ,22.46
+Paiement par carte,Valeur actuelle,2025-11-01 21:14:02,2025-11-02 11:58:07,Cooltra,-8.76,0.00,EUR,TERMINÉ,13.70
+Paiement par carte,Valeur actuelle,2025-11-01 21:35:24,2025-11-02 11:58:07,Cooltra,-7.36,0.00,EUR,TERMINÉ,6.34
+Paiement par carte,Valeur actuelle,2025-11-07 14:48:00,2025-11-08 10:29:44,Cooltra,-5.06,0.00,EUR,TERMINÉ,1.28
+Virement,Valeur actuelle,2025-11-08 19:30:38,2025-11-08 19:30:38,Virement de : JULIEN GASTON ROBERT ALPHONSE RAPHAEL & Laetitia VERONIQUE GUISLAINE Raphael,10.00,0.00,EUR,TERMINÉ,11.28
+Paiement par carte,Valeur actuelle,2025-11-08 19:30:43,2025-11-09 12:27:14,Cooltra,-3.68,0.00,EUR,TERMINÉ,7.60
+Paiement par carte,Valeur actuelle,2025-11-08 19:38:13,2025-11-09 12:27:22,Cooltra,-3.22,0.00,EUR,TERMINÉ,4.38
+Virement,Valeur actuelle,2025-11-11 15:59:32,2025-11-11 15:59:33,Virement de : JULIEN GASTON ROBERT ALPHONSE RAPHAEL & Laetitia VERONIQUE GUISLAINE Raphael,10.00,0.00,EUR,TERMINÉ,14.38
+Paiement par carte,Valeur actuelle,2025-11-11 15:59:43,2025-11-12 13:07:45,Cooltra,-11.04,0.00,EUR,TERMINÉ,3.34
+Virement,Valeur actuelle,2025-11-13 23:02:42,2025-11-13 23:02:43,Virement de : JULIEN GASTON ROBERT ALPHONSE RAPHAEL & Laetitia VERONIQUE GUISLAINE Raphael,10.00,0.00,EUR,TERMINÉ,13.34
+Paiement par carte,Valeur actuelle,2025-11-13 23:02:52,2025-11-14 11:00:12,Cooltra,-8.28,0.00,EUR,TERMINÉ,5.06
+Virement,Valeur actuelle,2025-11-14 15:09:34,2025-11-14 15:09:34,Virement de : JULIEN GASTON ROBERT ALPHONSE RAPHAEL & Laetitia VERONIQUE GUISLAINE Raphael,20.00,0.00,EUR,TERMINÉ,25.06
+Paiement par carte,Valeur actuelle,2025-11-14 15:09:40,2025-11-15 13:32:44,Cooltra,-13.80,0.00,EUR,TERMINÉ,11.26
+Paiement par carte,Valeur actuelle,2025-11-14 15:25:43,2025-11-15 13:32:44,Cooltra,-5.52,0.00,EUR,TERMINÉ,5.74
+Virement,Valeur actuelle,2025-11-19 15:17:47,2025-11-19 15:17:48,Virement de : Laetitia VERONIQUE GUISLAINE Raphael,200.00,0.00,EUR,TERMINÉ,205.74
+Paiement par carte,Valeur actuelle,2025-11-19 16:04:23,2025-11-20 12:07:30,Cooltra,-6.44,0.00,EUR,TERMINÉ,199.30
+Paiement par carte,Valeur actuelle,2025-11-19 15:29:13,2025-11-20 12:13:31,Cooltra,-6.90,0.00,EUR,TERMINÉ,192.40
+Paiement par carte,Valeur actuelle,2025-11-20 23:49:43,2025-11-21 10:56:36,Taxi,-21.80,0.00,EUR,TERMINÉ,170.60
+Paiement par carte,Valeur actuelle,2025-11-20 12:03:10,2025-11-21 14:59:57,Maison Larher,-71.00,0.00,EUR,TERMINÉ,99.60
+Paiement par carte,Valeur actuelle,2025-11-20 12:10:44,2025-11-21 15:14:22,Franprix,-15.76,0.00,EUR,TERMINÉ,83.84
+Paiement par carte,Valeur actuelle,2025-11-20 12:04:18,2025-11-21 15:15:24,Maison Arnaud Delmontel,-8.00,0.00,EUR,TERMINÉ,75.84
+Paiement par carte,Valeur actuelle,2025-11-22 14:52:23,2025-11-23 10:10:28,Cooltra,-2.76,0.00,EUR,TERMINÉ,73.08
+Paiement par carte,Valeur actuelle,2025-11-22 14:56:56,2025-11-23 14:40:43,Pleincoeur,-64.90,0.00,EUR,TERMINÉ,8.18
+Ajout de fonds,Valeur actuelle,2025-11-25 23:25:39,2025-11-25 23:25:39,Paiement envoyé par M JULIEN RAPHAEL,200.00,0.00,EUR,TERMINÉ,208.18
+Virement,Valeur actuelle,2025-11-25 23:26:28,2025-11-25 23:26:28,Virement à : JULIEN GASTON ROBERT ALPHONSE RAPHAEL & Laetitia VERONIQUE GUISLAINE Raphael,-200.00,0.00,EUR,TERMINÉ,8.18
+Paiement par carte,Valeur actuelle,2025-11-25 17:53:29,2025-11-26 10:32:27,Cooltra,-6.90,0.00,EUR,TERMINÉ,1.28
+Virement,Valeur actuelle,2025-11-27 16:30:28,2025-11-27 16:30:29,Virement de : JULIEN GASTON ROBERT ALPHONSE RAPHAEL & Laetitia VERONIQUE GUISLAINE Raphael,20.00,0.00,EUR,TERMINÉ,21.28
+Paiement par carte,Valeur actuelle,2025-11-27 16:30:35,2025-11-28 14:42:13,Cooltra,-6.90,0.00,EUR,TERMINÉ,14.38
+Paiement par carte,Valeur actuelle,2025-11-27 16:53:30,2025-11-28 14:45:11,Cooltra,-9.66,0.00,EUR,TERMINÉ,4.72
+Virement,Valeur actuelle,2025-12-02 09:50:05,2025-12-02 09:50:05,Virement de : JULIEN GASTON ROBERT ALPHONSE RAPHAEL & Laetitia VERONIQUE GUISLAINE Raphael,20.00,0.00,EUR,TERMINÉ,24.72
+Virement,Valeur actuelle,2025-12-02 12:02:42,2025-12-02 12:02:42,Virement de : JULIEN GASTON ROBERT ALPHONSE RAPHAEL & Laetitia VERONIQUE GUISLAINE Raphael,20.00,0.00,EUR,TERMINÉ,44.72
+Paiement par carte,Valeur actuelle,2025-12-02 12:03:01,2025-12-03 13:39:56,Cooltra,-9.66,0.00,EUR,TERMINÉ,35.06
+Paiement par carte,Valeur actuelle,2025-12-02 12:29:57,2025-12-03 13:40:06,Cooltra,-11.96,0.00,EUR,TERMINÉ,23.10
+Paiement par carte,Valeur actuelle,2025-12-02 09:50:16,2025-12-03 13:42:01,Cooltra,-16.10,0.00,EUR,TERMINÉ,7.00
+Paiement par carte,Valeur actuelle,2025-12-06 12:33:37,2025-12-07 15:10:43,Cooltra,-3.22,0.00,EUR,TERMINÉ,3.78
+Virement,Valeur actuelle,2025-12-07 17:15:45,2025-12-07 17:15:46,Virement de : Laetitia VERONIQUE GUISLAINE Raphael,30.00,0.00,EUR,TERMINÉ,33.78
+Paiement par carte,Valeur actuelle,2025-12-07 17:59:13,2025-12-08 14:02:10,Cooltra,-13.24,0.00,EUR,TERMINÉ,20.54
+Paiement par carte,Valeur actuelle,2025-12-07 17:15:56,2025-12-08 14:12:44,Cooltra,-5.06,0.00,EUR,TERMINÉ,15.48
+Paiement par carte,Valeur actuelle,2025-12-09 18:01:28,2025-12-10 09:43:18,Cooltra,-7.82,0.00,EUR,TERMINÉ,7.66
+Paiement par carte,Valeur actuelle,2025-12-09 08:59:10,2025-12-10 13:22:25,Cooltra,-7.36,0.00,EUR,TERMINÉ,0.30
+Ajout de fonds,Valeur actuelle,2025-12-10 17:10:26,2025-12-10 17:10:27,Recharge sur Apple Pay via *6632,50.00,0.00,EUR,TERMINÉ,50.30
+Paiement par carte,Valeur actuelle,2025-12-10 17:19:59,2025-12-11 11:24:12,Cooltra,-4.60,0.00,EUR,TERMINÉ,45.70
+Paiement par carte,Valeur actuelle,2025-12-10 17:10:36,2025-12-11 11:24:14,Cooltra,-6.44,0.00,EUR,TERMINÉ,39.26
+Paiement par carte,Valeur actuelle,2025-12-11 16:32:10,2025-12-12 12:12:20,Cooltra,-4.14,0.00,EUR,TERMINÉ,35.12
+Paiement par carte,Valeur actuelle,2025-12-11 13:36:55,2025-12-12 12:20:46,Cooltra,-6.44,0.00,EUR,TERMINÉ,28.68
+Virement,Valeur actuelle,2025-12-14 11:28:39,2025-12-14 11:28:40,Virement de : Laetitia VERONIQUE GUISLAINE Raphael,200.00,0.00,EUR,TERMINÉ,228.68
+Paiement par carte,Valeur actuelle,2025-12-14 17:47:16,2025-12-15 13:14:57,Cooltra,-9.84,0.00,EUR,TERMINÉ,218.84
+Paiement par carte,Valeur actuelle,2025-12-14 17:50:23,2025-12-15 13:57:22,Franprix,-8.23,0.00,EUR,TERMINÉ,210.61
+Virement,Valeur actuelle,2025-12-15 23:20:57,2025-12-15 23:20:57,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-100.00,0.00,EUR,TERMINÉ,110.61
+Virement,Valeur actuelle,2025-12-16 10:17:47,2025-12-16 10:17:48,Virement de : Laetitia VERONIQUE GUISLAINE Raphael,500.00,0.00,EUR,TERMINÉ,610.61
+Paiement par carte,Valeur actuelle,2025-12-16 20:06:24,2025-12-17 11:29:06,De Verre En Vers,-27.60,0.00,EUR,TERMINÉ,583.01
+Paiement par carte,Valeur actuelle,2025-12-16 20:01:56,2025-12-17 12:15:52,La Tisanerie,-40.05,0.00,EUR,TERMINÉ,542.96
+Paiement par carte,Valeur actuelle,2025-12-17 13:44:20,2025-12-18 13:48:44,Le Brio,-45.00,0.00,EUR,TERMINÉ,497.96
+Paiement par carte,Valeur actuelle,2025-12-18 18:14:05,2025-12-19 10:25:59,Cooltra,-5.52,0.00,EUR,TERMINÉ,492.44
+Paiement par carte,Valeur actuelle,2025-12-18 20:36:11,2025-12-19 13:31:40,La Tisanerie,-53.13,0.00,EUR,TERMINÉ,439.31
+Paiement par carte,Valeur actuelle,2025-12-18 20:13:55,2025-12-19 14:44:06,Le Tabac De L Eu,-83.40,0.00,EUR,TERMINÉ,355.91
+Paiement par carte,Valeur actuelle,2025-12-20 10:28:27,2025-12-21 10:39:58,Pierre Herme,-8.50,0.00,EUR,TERMINÉ,347.41
+Paiement par carte,Valeur actuelle,2025-12-20 10:50:52,2025-12-21 12:04:08,RELAY,-8.80,0.00,EUR,TERMINÉ,338.61
+Paiement par carte,Valeur actuelle,2025-12-20 17:47:20,2025-12-21 12:11:01,Chateau De Vaux,-34.40,0.00,EUR,TERMINÉ,304.21
+Paiement par carte,Valeur actuelle,2025-12-20 20:47:51,2025-12-22 10:42:43,Le Vinodurum,-12.00,0.00,EUR,TERMINÉ,292.21
+Paiement par carte,Valeur actuelle,2025-12-21 15:05:59,2025-12-22 11:16:11,Newrest,-9.10,0.00,EUR,TERMINÉ,283.11
+Paiement par carte,Valeur actuelle,2025-12-21 16:59:18,2025-12-22 11:24:42,Cooltra,-6.90,0.00,EUR,TERMINÉ,276.21
+Paiement par carte,Valeur actuelle,2025-12-22 15:42:43,2025-12-23 13:12:59,Deliveroo,-12.52,0.00,EUR,TERMINÉ,263.69
+Paiement par carte,Valeur actuelle,2025-12-22 14:55:48,2025-12-23 16:40:04,Malleauxtres,-53.90,0.00,EUR,TERMINÉ,209.79
+Paiement par carte,Valeur actuelle,2025-12-22 18:36:59,2025-12-23 16:56:11,Maison Arnaud Delmontel,-11.20,0.00,EUR,TERMINÉ,198.59
+Paiement par carte,Valeur actuelle,2025-12-22 15:01:54,2025-12-23 16:56:12,Franprix,-29.95,0.00,EUR,TERMINÉ,168.64
+Paiement par carte,Valeur actuelle,2025-12-22 15:49:28,2025-12-24 09:40:46,Galeries Lafayette,-25.00,0.00,EUR,TERMINÉ,143.64
+Paiement par carte,Valeur actuelle,2025-12-22 14:39:51,2025-12-24 14:18:23,Ltdn,-10.00,0.00,EUR,TERMINÉ,133.64
+Paiement par carte,Valeur actuelle,2025-12-22 14:09:56,2025-12-24 14:18:25,Ltdn,-20.00,0.00,EUR,TERMINÉ,113.64
+Paiement par carte,Valeur actuelle,2025-12-23 12:28:05,2025-12-24 14:32:50,Atelier Amaya,-25.00,0.00,EUR,TERMINÉ,88.64
+Paiement par carte,Valeur actuelle,2025-12-23 16:53:21,2025-12-24 14:36:21,Compass Group,-8.40,0.00,EUR,TERMINÉ,80.24
+Paiement par carte,Valeur actuelle,2025-12-23 14:14:15,2025-12-24 14:36:32,Compass Group,-10.20,0.00,EUR,TERMINÉ,70.04
+Paiement par carte,Valeur actuelle,2025-12-23 16:12:24,2025-12-24 14:36:39,Compass Group,-11.55,0.00,EUR,TERMINÉ,58.49
+Paiement par carte,Valeur actuelle,2025-12-22 17:24:34,2025-12-24 15:44:15,La Laverie,-1.30,0.00,EUR,TERMINÉ,57.19
+Paiement par carte,Valeur actuelle,2025-12-22 17:24:17,2025-12-24 15:44:16,La Laverie,-1.30,0.00,EUR,TERMINÉ,55.89
+Paiement par carte,Valeur actuelle,2025-12-24 19:15:18,2025-12-25 12:39:20,Uber,-26.92,0.00,EUR,TERMINÉ,28.97
+Paiement par carte,Valeur actuelle,2025-12-24 14:27:04,2025-12-25 13:16:47,Librairie Montmartre,-25.75,0.00,EUR,TERMINÉ,3.22
+Ajout de fonds,Valeur actuelle,2025-12-25 18:02:45,2025-12-25 18:02:45,Paiement envoyé par M JULIEN RAPHAEL,200.00,0.00,EUR,TERMINÉ,203.22
+Paiement par carte,Valeur actuelle,2025-12-25 18:03:11,2025-12-26 10:30:52,Dalyloc,-30.00,0.00,EUR,TERMINÉ,173.22
+Paiement par carte,Valeur actuelle,2025-12-26 19:38:44,2025-12-27 09:35:03,Deliveroo,-48.18,0.00,EUR,TERMINÉ,125.04
+Paiement par carte,Valeur actuelle,2025-12-27 18:32:36,2025-12-28 10:11:32,Cooltra,-10.60,0.00,EUR,TERMINÉ,114.44
+Virement,Valeur actuelle,2025-12-28 11:28:11,2025-12-28 11:28:12,Virement de : Laetitia VERONIQUE GUISLAINE Raphael,85.00,0.00,EUR,TERMINÉ,199.44
+Paiement par carte,Valeur actuelle,2025-12-27 18:22:11,2025-12-28 11:29:19,Phrg,-50.00,0.00,EUR,TERMINÉ,149.44
+Paiement par carte,Valeur actuelle,2025-12-27 18:40:29,2025-12-28 11:30:24,Franprix,-21.64,0.00,EUR,TERMINÉ,127.80
+Paiement par carte,Valeur actuelle,2025-12-27 19:03:26,2025-12-28 11:40:57,La Civette Boutique,-12.00,0.00,EUR,TERMINÉ,115.80
+Paiement par carte,Valeur actuelle,2025-12-28 11:47:51,2025-12-29 11:05:34,Picard,-7.98,0.00,EUR,TERMINÉ,107.82
+Paiement par carte,Valeur actuelle,2025-12-28 11:44:10,2025-12-29 11:40:28,Franprix,-15.52,0.00,EUR,TERMINÉ,92.30
+Paiement par carte,Valeur actuelle,2025-12-28 11:41:05,2025-12-29 11:40:35,Maison Arnaud Delmontel,-1.40,0.00,EUR,TERMINÉ,90.90
+Paiement par carte,Valeur actuelle,2025-12-28 11:37:12,2025-12-29 11:41:26,Boucherie Nouvelle,-37.32,0.00,EUR,TERMINÉ,53.58
+Paiement par carte,Valeur actuelle,2025-12-29 18:40:05,2025-12-30 10:27:54,Carrefour,-34.75,0.00,EUR,TERMINÉ,18.83
+Paiement par carte,Valeur actuelle,2025-12-29 18:52:27,2025-12-30 16:06:28,Franprix,-2.45,0.00,EUR,TERMINÉ,16.38
+Ajout de fonds,Valeur actuelle,2025-12-30 18:36:36,2025-12-30 18:36:36,Paiement envoyé par M JULIEN RAPHAEL,800.00,0.00,EUR,TERMINÉ,816.38
+Paiement par carte,Valeur actuelle,2025-12-30 18:57:42,2025-12-31 15:59:33,Donna Veronica,-30.00,0.00,EUR,TERMINÉ,786.38
+Paiement par carte,Valeur actuelle,2025-12-30 18:54:19,2025-12-31 16:17:17,La Tisanerie,-56.25,0.00,EUR,TERMINÉ,730.13
+Paiement par carte,Valeur actuelle,2025-12-31 10:14:36,2026-01-01 12:29:42,Uber,-28.93,0.00,EUR,TERMINÉ,701.20
+Paiement par carte,Valeur actuelle,2025-12-31 17:47:07,2026-01-01 12:48:12,Fromagerie,-70.00,0.00,EUR,TERMINÉ,631.20
+Paiement par carte,Valeur actuelle,2025-12-31 17:56:50,2026-01-01 13:17:35,Franprix,-21.65,0.00,EUR,TERMINÉ,609.55
+Paiement par carte,Valeur actuelle,2025-12-31 15:56:34,2026-01-02 09:23:01,Gourmandises,-8.50,0.00,EUR,TERMINÉ,601.05
+Paiement par carte,Valeur actuelle,2026-01-02 16:08:53,2026-01-03 14:44:08,Uber,-21.95,0.00,EUR,TERMINÉ,579.10
+Paiement par carte,Valeur actuelle,2026-01-02 12:43:24,2026-01-03 14:44:16,Uber,-26.91,0.00,EUR,TERMINÉ,552.19
+Virement,Valeur actuelle,2026-01-03 14:51:32,2026-01-03 14:51:32,Virement de : VICTOIRE MARIE DELPHINE MESSIAN IMBERT,29.00,0.00,EUR,TERMINÉ,581.19
+Paiement par carte,Valeur actuelle,2026-01-03 13:46:29,2026-01-04 09:32:46,Uber,-13.93,0.00,EUR,TERMINÉ,567.26
+Paiement par carte,Valeur actuelle,2026-01-03 14:11:51,2026-01-04 09:33:10,Uber,-14.93,0.00,EUR,TERMINÉ,552.33
+Paiement par carte,Valeur actuelle,2026-01-04 13:21:09,2026-01-05 10:09:00,Franprix,-12.82,0.00,EUR,TERMINÉ,539.51
+Paiement par carte,Valeur actuelle,2026-01-04 13:17:51,2026-01-05 10:09:10,Maison Arnaud Delmontel,-3.10,0.00,EUR,TERMINÉ,536.41
+Paiement par carte,Valeur actuelle,2026-01-05 16:59:48,2026-01-06 15:11:40,Argos,-60.00,0.00,EUR,TERMINÉ,476.41
+Paiement par carte,Valeur actuelle,2026-01-06 12:57:01,2026-01-07 10:31:36,L'Orvier de Montmartre,-30.70,0.00,EUR,TERMINÉ,445.71
+Ajout de fonds,Valeur actuelle,2026-01-08 11:21:29,2026-01-08 11:21:29,Paiement envoyé par M JULIEN RAPHAEL,3900.00,0.00,EUR,TERMINÉ,4345.71
+Paiement par carte,Valeur actuelle,2026-01-07 20:19:42,2026-01-08 14:31:19,La Tisanerie,-27.00,0.00,EUR,TERMINÉ,4318.71
+Paiement par carte,Valeur actuelle,2026-01-07 21:01:37,2026-01-08 14:37:21,Ladern,-12.00,0.00,EUR,TERMINÉ,4306.71
+Paiement par carte,Valeur actuelle,2026-01-08 10:58:20,2026-01-09 10:43:14,Carrefour,-25.40,0.00,EUR,TERMINÉ,4281.31
+Paiement par carte,Valeur actuelle,2026-01-08 19:13:03,2026-01-09 11:37:35,La Civette Boutique,-27.00,0.00,EUR,TERMINÉ,4254.31
+Paiement par carte,Valeur actuelle,2026-01-08 19:06:37,2026-01-09 11:37:38,Arkose,-23.00,0.00,EUR,TERMINÉ,4231.31
+Paiement par carte,Valeur actuelle,2026-01-08 20:08:01,2026-01-09 11:40:55,Mle Raymonde,-11.00,0.00,EUR,TERMINÉ,4220.31
+Paiement par carte,Valeur actuelle,2026-01-09 20:11:52,2026-01-10 11:07:21,Deliveroo,-45.78,0.00,EUR,TERMINÉ,4174.53
+Paiement par carte,Valeur actuelle,2026-01-10 16:49:31,2026-01-11 11:19:26,Darty,-52.98,0.00,EUR,TERMINÉ,4121.55
+Paiement par carte,Valeur actuelle,2026-01-10 16:21:56,2026-01-11 11:19:30,Argos,-57.10,0.00,EUR,TERMINÉ,4064.45
+Paiement par carte,Valeur actuelle,2026-01-10 16:53:59,2026-01-11 14:43:03,La Perle Sucree,-9.00,0.00,EUR,TERMINÉ,4055.45
+Paiement par carte,Valeur actuelle,2026-01-10 16:58:13,2026-01-11 14:43:05,La Perle Sucree,-9.00,0.00,EUR,TERMINÉ,4046.45
+Paiement par carte,Valeur actuelle,2026-01-10 11:42:24,2026-01-11 14:47:01,Maison Arnaud Delmontel,-2.90,0.00,EUR,TERMINÉ,4043.55
+Paiement par carte,Valeur actuelle,2026-01-10 11:46:46,2026-01-11 14:47:06,Franprix,-16.87,0.00,EUR,TERMINÉ,4026.68
+Paiement par carte,Valeur actuelle,2026-01-10 17:15:05,2026-01-11 14:47:17,Boulangerie,-20.20,0.00,EUR,TERMINÉ,4006.48
+Paiement par carte,Valeur actuelle,2026-01-11 18:40:44,,Uber,-15.95,0.00,EUR,RENVOYÉ,
+Paiement par carte,Valeur actuelle,2026-01-10 22:27:19,2026-01-12 03:37:30,Steam,-9.99,0.00,EUR,TERMINÉ,3996.49
+Paiement par carte,Valeur actuelle,2026-01-10 12:05:40,2026-01-12 10:00:50,Avec Ceux Ci,-31.99,0.00,EUR,TERMINÉ,3964.50
+Paiement par carte,Valeur actuelle,2026-01-11 16:09:37,2026-01-12 10:14:29,La Bande A Ludo,-60.00,0.00,EUR,TERMINÉ,3904.50
+Paiement par carte,Valeur actuelle,2026-01-11 18:42:36,2026-01-12 10:26:45,Uber,-18.91,0.00,EUR,TERMINÉ,3885.59
+Virement,Valeur actuelle,2026-01-12 12:34:46,2026-01-12 12:34:48,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-30.00,0.00,EUR,TERMINÉ,3855.59
+Virement,Valeur actuelle,2026-01-12 16:13:44,2026-01-12 16:13:45,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-555.00,0.00,EUR,TERMINÉ,3300.59
+Virement,Valeur actuelle,2026-01-12 16:13:58,2026-01-12 16:13:59,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-375.00,0.00,EUR,TERMINÉ,2925.59
+Virement,Valeur actuelle,2026-01-12 16:14:08,2026-01-12 16:14:09,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-350.00,0.00,EUR,TERMINÉ,2575.59
+Virement,Valeur actuelle,2026-01-12 16:17:21,2026-01-12 16:17:22,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-1500.00,0.00,EUR,TERMINÉ,1075.59
+Virement,Valeur actuelle,2026-01-12 17:40:54,2026-01-12 17:40:55,Virement de : Laetitia VERONIQUE GUISLAINE Raphael,30.00,0.00,EUR,TERMINÉ,1105.59
+Paiement par carte,Valeur actuelle,2026-01-13 19:37:30,2026-01-14 12:23:36,Franprix,-33.42,0.00,EUR,TERMINÉ,1072.17
+Paiement par carte,Valeur actuelle,2026-01-13 19:26:28,2026-01-14 13:24:07,La Tisanerie,-79.00,0.00,EUR,TERMINÉ,993.17
+Paiement par carte,Valeur actuelle,2026-01-13 19:51:52,2026-01-14 13:30:00,Deliveroo,-39.29,0.00,EUR,TERMINÉ,953.88
+DAB,Valeur actuelle,2026-01-13 19:13:39,2026-01-14 13:38:05,Retrait d'espèces à La Banque Postal,-150.00,0.00,EUR,TERMINÉ,803.88
+Paiement par carte,Valeur actuelle,2026-01-14 16:27:49,2026-01-15 12:40:57,Lounge Floreo,-30.80,0.00,EUR,TERMINÉ,773.08
+Paiement par carte,Valeur actuelle,2026-01-14 19:50:20,2026-01-15 12:42:19,Arkose,-10.00,0.00,EUR,TERMINÉ,763.08
+Paiement par carte,Valeur actuelle,2026-01-14 23:22:11,2026-01-15 13:17:01,Ladern,-18.50,0.00,EUR,TERMINÉ,744.58
+Paiement par carte,Valeur actuelle,2026-01-15 21:28:54,2026-01-16 11:18:06,Cooltra,-5.52,0.00,EUR,TERMINÉ,739.06
+Paiement par carte,Valeur actuelle,2026-01-15 19:26:56,2026-01-16 11:29:23,Cooltra,-5.52,0.00,EUR,TERMINÉ,733.54
+Paiement par carte,Valeur actuelle,2026-01-15 13:37:27,2026-01-16 12:01:15,Le Nord Sud,-45.00,0.00,EUR,TERMINÉ,688.54
+Paiement par carte,Valeur actuelle,2026-01-15 12:18:19,2026-01-16 12:27:21,Komma,-8.50,0.00,EUR,TERMINÉ,680.04
+Paiement par carte,Valeur actuelle,2026-01-17 19:07:45,2026-01-18 13:04:24,Cooltra,-8.16,0.00,EUR,TERMINÉ,671.88
+Paiement par carte,Valeur actuelle,2026-01-17 18:55:27,2026-01-18 13:08:35,La Tisanerie,-31.04,0.00,EUR,TERMINÉ,640.84
+Paiement par carte,Valeur actuelle,2026-01-18 14:01:37,2026-01-19 11:07:17,Franprix,-27.43,0.00,EUR,TERMINÉ,613.41
+Paiement par carte,Valeur actuelle,2026-01-18 13:55:04,2026-01-19 11:07:24,Maison Arnaud Delmontel,-5.60,0.00,EUR,TERMINÉ,607.81
+Paiement par carte,Valeur actuelle,2026-01-17 18:45:01,2026-01-19 13:11:56,Le Terminus,-27.00,0.00,EUR,TERMINÉ,580.81
+Paiement par carte,Valeur actuelle,2026-01-18 03:49:01,2026-01-19 13:15:56,Uber,-12.94,0.00,EUR,TERMINÉ,567.87
+Paiement par carte,Valeur actuelle,2026-01-19 17:06:47,2026-01-20 13:34:41,Argos,-138.50,0.00,EUR,TERMINÉ,429.37
+Paiement par carte,Valeur actuelle,2026-01-20 20:56:43,2026-01-21 09:19:28,Cooltra,-3.68,0.00,EUR,TERMINÉ,425.69
+Paiement par carte,Valeur actuelle,2026-01-20 16:57:46,2026-01-21 11:59:35,Cooltra,-3.68,0.00,EUR,TERMINÉ,422.01
+Paiement par carte,Valeur actuelle,2026-01-20 21:04:54,2026-01-21 12:22:39,Franprix,-9.90,0.00,EUR,TERMINÉ,412.11
+Paiement par carte,Valeur actuelle,2026-01-20 21:05:13,2026-01-21 12:22:39,Franprix,-1.99,0.00,EUR,TERMINÉ,410.12
+Virement,Valeur actuelle,2026-01-22 10:11:27,2026-01-22 10:11:28,Virement à : Guillaume Jacques Andre Coutant,-90.00,0.00,EUR,TERMINÉ,320.12
+Paiement par carte,Valeur actuelle,2026-01-20 21:00:06,2026-01-22 11:31:01,Gourmandises,-18.30,0.00,EUR,TERMINÉ,301.82
+Paiement par carte,Valeur actuelle,2026-01-22 16:12:55,2026-01-23 11:03:22,Maison Arnaud Delmontel,-14.80,0.00,EUR,TERMINÉ,287.02
+Virement,Valeur actuelle,2026-01-23 11:50:52,2026-01-23 11:50:53,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-100.00,0.00,EUR,TERMINÉ,187.02
+Paiement par carte,Valeur actuelle,2026-01-22 16:18:27,2026-01-23 12:11:54,Le Terminus,-39.90,0.00,EUR,TERMINÉ,147.12
+Paiement par carte,Valeur actuelle,2026-01-23 14:14:53,2026-01-24 10:37:42,Carrefour,-14.50,0.00,EUR,TERMINÉ,132.62
+Paiement par carte,Valeur actuelle,2026-01-23 19:34:28,2026-01-24 10:45:27,Deliveroo,-9.69,0.00,EUR,TERMINÉ,122.93
+Paiement par carte,Valeur actuelle,2026-01-23 19:08:37,2026-01-24 11:12:54,Franprix,-9.34,0.00,EUR,TERMINÉ,113.59
+Virement,Valeur actuelle,2026-01-24 16:06:43,2026-01-24 16:06:43,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-30.00,0.00,EUR,TERMINÉ,83.59
+Paiement par carte,Valeur actuelle,2026-01-24 18:11:38,2026-01-25 10:07:50,Cooltra,-4.14,0.00,EUR,TERMINÉ,79.45
+Paiement par carte,Valeur actuelle,2026-01-23 19:22:38,2026-01-25 10:13:45,Jk2a Superette,-10.76,0.00,EUR,TERMINÉ,68.69
+Paiement par carte,Valeur actuelle,2026-01-24 17:00:49,2026-01-25 13:05:30,Pathé,-21.57,0.00,EUR,TERMINÉ,47.12
+Ajout de fonds,Valeur actuelle,2026-01-25 15:05:47,2026-01-25 15:05:48,Paiement envoyé par M JULIEN RAPHAEL,77.00,0.00,EUR,TERMINÉ,124.12
+Virement,Valeur actuelle,2026-01-25 15:26:20,2026-01-25 15:26:21,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-2.55,0.00,EUR,TERMINÉ,121.57
+Paiement par carte,Valeur actuelle,2026-01-25 12:30:37,2026-01-26 12:35:48,Cooltra,-3.68,0.00,EUR,TERMINÉ,117.89
+Paiement par carte,Valeur actuelle,2026-01-25 15:53:53,2026-01-26 12:40:14,Phrg,-50.00,0.00,EUR,TERMINÉ,67.89
+Paiement par carte,Valeur actuelle,2026-01-25 16:59:30,2026-01-26 12:44:08,Cooltra,-7.82,0.00,EUR,TERMINÉ,60.07
+Ajout de fonds,Valeur actuelle,2026-01-26 18:08:24,2026-01-26 18:08:25,Paiement envoyé par M JULIEN RAPHAEL,90.00,0.00,EUR,TERMINÉ,150.07
+Paiement par carte,Valeur actuelle,2026-01-26 12:25:59,2026-01-27 10:56:51,La Dinette De Lo,-27.80,0.00,EUR,TERMINÉ,122.27
+Paiement par carte,Valeur actuelle,2026-01-26 12:23:37,2026-01-27 14:44:52,Franprix,-12.13,0.00,EUR,TERMINÉ,110.14
+Paiement par carte,Valeur actuelle,2026-01-26 18:08:39,2026-01-27 14:44:53,Franprix,-18.82,0.00,EUR,TERMINÉ,91.32
+Paiement par carte,Valeur actuelle,2026-01-26 18:04:21,2026-01-27 14:45:57,L'Orvier de Montmartre,-8.10,0.00,EUR,TERMINÉ,83.22
+Paiement par carte,Valeur actuelle,2026-01-27 19:55:56,2026-01-28 11:34:33,Franprix,-10.43,0.00,EUR,TERMINÉ,72.79
+Paiement par carte,Valeur actuelle,2026-01-27 19:51:51,2026-01-28 11:36:58,Avec Ceux Ci,-35.50,0.00,EUR,TERMINÉ,37.29
+Ajout de fonds,Valeur actuelle,2026-01-28 17:56:19,2026-01-28 17:56:19,Paiement envoyé par M JULIEN RAPHAEL,89.00,0.00,EUR,TERMINÉ,126.29
+Paiement par carte,Valeur actuelle,2026-01-28 14:35:59,2026-01-29 10:48:29,Le Terminus,-26.50,0.00,EUR,TERMINÉ,99.79
+Paiement par carte,Valeur actuelle,2026-01-28 18:04:31,2026-01-29 11:00:10,Franprix,-55.45,0.00,EUR,TERMINÉ,44.34
+Paiement par carte,Valeur actuelle,2026-01-28 18:05:59,2026-01-29 11:00:30,Lounge Floreo,-19.00,0.00,EUR,TERMINÉ,25.34
+Paiement par carte,Valeur actuelle,2026-01-29 11:40:37,2026-01-30 15:13:21,Mr. Bricolage,-7.50,0.00,EUR,TERMINÉ,17.84
+Paiement par carte,Valeur actuelle,2026-01-29 14:20:48,2026-01-30 15:23:34,Maison Arnaud Delmontel,-7.10,0.00,EUR,TERMINÉ,10.74
+Paiement par carte,Valeur actuelle,2026-01-29 11:49:08,2026-01-30 15:41:04,Café Dose,-10.50,0.00,EUR,TERMINÉ,0.24
+Ajout de fonds,Valeur actuelle,2026-01-31 19:06:04,2026-01-31 19:06:05,Paiement envoyé par M JULIEN RAPHAEL,3000.00,0.00,EUR,TERMINÉ,3000.24
+Paiement par carte,Valeur actuelle,2026-02-01 15:42:45,2026-02-02 09:33:23,Cooltra,-6.14,0.00,EUR,TERMINÉ,2994.10
+DAB,Valeur actuelle,2026-01-31 19:09:34,2026-02-03 12:48:24,Retrait d'espèces à Caulaincourt Ext,-200.00,3.00,EUR,TERMINÉ,2791.10
+Paiement par carte,Valeur actuelle,2026-02-02 19:38:55,2026-02-03 13:04:29,Deliveroo,-4.09,0.00,EUR,TERMINÉ,2787.01
+Paiement par carte,Valeur actuelle,2026-02-03 19:31:34,2026-02-04 10:44:56,Cooltra,-11.96,0.00,EUR,TERMINÉ,2775.05
+Paiement par carte,Valeur actuelle,2026-02-02 15:57:01,2026-02-04 10:46:55,Franprix,-20.88,0.00,EUR,TERMINÉ,2754.17
+Paiement par carte,Valeur actuelle,2026-02-02 18:22:45,2026-02-04 11:36:40,Steam,-2.99,0.00,EUR,TERMINÉ,2751.18
+Paiement par carte,Valeur actuelle,2026-02-03 22:34:00,2026-02-04 11:47:14,Pa.super Marche,-13.90,0.00,EUR,TERMINÉ,2737.28
+Paiement par carte,Valeur actuelle,2026-02-03 22:02:49,2026-02-04 12:03:54,Uber,-16.93,0.00,EUR,TERMINÉ,2720.35
+Paiement par carte,Valeur actuelle,2026-02-04 13:15:53,2026-02-05 18:02:19,Avec Ceux Ci,-14.50,0.00,EUR,TERMINÉ,2705.85
+Paiement par carte,Valeur actuelle,2026-02-04 11:45:37,2026-02-05 18:13:59,Mr. Bricolage,-7.50,0.00,EUR,TERMINÉ,2698.35
+Paiement par carte,Valeur actuelle,2026-02-05 14:16:46,2026-02-06 09:46:06,Cooltra,-6.44,0.00,EUR,TERMINÉ,2691.91
+Paiement par carte,Valeur actuelle,2026-02-05 17:36:39,2026-02-06 12:37:39,Cooltra,-6.90,0.00,EUR,TERMINÉ,2685.01
+Paiement par carte,Valeur actuelle,2026-02-05 17:12:28,2026-02-06 13:17:36,Maison Lemaire,-30.20,0.00,EUR,TERMINÉ,2654.81
+Paiement par carte,Valeur actuelle,2026-02-05 21:42:32,2026-02-07 10:59:29,El Tequila,-50.00,0.00,EUR,TERMINÉ,2604.81
+Paiement par carte,Valeur actuelle,2026-02-06 19:20:35,2026-02-07 12:05:01,Franprix,-2.25,0.00,EUR,TERMINÉ,2602.56
+DAB,Valeur actuelle,2026-02-06 10:21:44,2026-02-07 12:12:01,Retrait d'espèces à Caulaincourt Ext,-50.00,0.00,EUR,TERMINÉ,2552.56
+Paiement par carte,Valeur actuelle,2026-02-06 19:19:01,2026-02-07 12:14:34,Avec Ceux Ci,-65.65,0.00,EUR,TERMINÉ,2486.91
+Paiement par carte,Valeur actuelle,2026-02-08 20:18:34,2026-02-09 10:01:50,Deliveroo,-31.22,0.00,EUR,TERMINÉ,2455.69
+Paiement par carte,Valeur actuelle,2026-02-07 20:03:40,2026-02-09 12:25:07,Gourmandises,-38.91,0.00,EUR,TERMINÉ,2416.78
+Paiement par carte,Valeur actuelle,2026-02-09 19:54:41,2026-02-10 10:46:40,Carrefour,-29.22,0.00,EUR,TERMINÉ,2387.56
+Paiement par carte,Valeur actuelle,2026-02-09 19:47:56,2026-02-10 11:03:04,Le Terminus,-27.00,0.00,EUR,TERMINÉ,2360.56
+Virement,Valeur actuelle,2026-02-10 13:34:11,2026-02-10 13:34:12,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-2000.00,0.00,EUR,TERMINÉ,360.56
+Paiement par carte,Valeur actuelle,2026-02-10 12:45:49,2026-02-11 10:15:29,Cooltra,-2.76,0.00,EUR,TERMINÉ,357.80
+Paiement par carte,Valeur actuelle,2026-02-10 18:15:53,2026-02-11 10:15:47,Cooltra,-6.44,0.00,EUR,TERMINÉ,351.36
+Paiement par carte,Valeur actuelle,2026-02-10 12:46:55,2026-02-11 11:04:36,RATP,-2.55,0.00,EUR,TERMINÉ,348.81
+Paiement par carte,Valeur actuelle,2026-02-10 16:42:44,2026-02-11 11:04:37,RATP,-2.55,0.00,EUR,TERMINÉ,346.26
+Paiement par carte,Valeur actuelle,2026-02-10 16:49:08,2026-02-11 14:00:08,Tabac De La Gare,-32.30,0.00,EUR,TERMINÉ,313.96
+Paiement par carte,Valeur actuelle,2026-02-11 14:08:05,2026-02-12 13:45:06,Torres Barber Studio,-30.00,0.00,EUR,TERMINÉ,283.96
+Paiement par carte,Valeur actuelle,2026-02-11 20:39:02,2026-02-12 13:48:40,RELAY,-131.68,0.00,EUR,TERMINÉ,152.28
+Paiement par carte,Valeur actuelle,2026-02-11 14:12:46,2026-02-12 13:50:31,Carrefour,-20.40,0.00,EUR,TERMINÉ,131.88
+Paiement par carte,Valeur actuelle,2026-02-11 20:11:36,2026-02-13 15:34:47,McDonald's,-29.30,0.00,EUR,TERMINÉ,102.58
+Paiement par carte,Valeur actuelle,2026-02-12 14:44:16,2026-02-13 16:51:16,Ubigi,-10.15,0.00,EUR,TERMINÉ,92.43
+Paiement par carte,Valeur actuelle,2026-02-19 12:04:02,2026-02-20 15:01:50,Transatel,-12.00,0.00,EUR,TERMINÉ,80.43
+Ajout de fonds,Valeur actuelle,2026-02-21 09:08:15,2026-02-21 09:08:15,Paiement envoyé par M JULIEN RAPHAEL,650.00,0.00,EUR,TERMINÉ,730.43
+Changes,Valeur actuelle,2026-02-21 09:10:24,2026-02-21 09:10:24,Change en JPY,-439.65,4.40,EUR,TERMINÉ,286.38
+Paiement par carte,Valeur actuelle,2026-02-22 19:30:29,2026-02-23 13:13:13,Deliveroo,-2.99,0.00,EUR,TERMINÉ,283.39
+Paiement par carte,Valeur actuelle,2026-02-23 12:03:23,2026-02-24 10:58:25,Deliveroo,-12.49,0.00,EUR,TERMINÉ,270.90
+Paiement par carte,Valeur actuelle,2026-02-23 13:44:24,2026-02-24 11:22:57,Carrefour,-37.76,0.00,EUR,TERMINÉ,233.14
+Paiement par carte,Valeur actuelle,2026-02-23 07:18:11,2026-02-24 11:59:22,Rolo Da Cunha,-56.00,0.00,EUR,TERMINÉ,177.14
+Paiement par carte,Valeur actuelle,2026-02-24 17:42:55,2026-02-25 12:41:01,La Tisanerie,-17.01,0.00,EUR,TERMINÉ,160.13
+Paiement par carte,Valeur actuelle,2026-02-24 17:57:31,2026-02-25 13:30:34,Franprix,-18.36,0.00,EUR,TERMINÉ,141.77
+Paiement par carte,Valeur actuelle,2026-02-24 17:49:25,2026-02-25 13:31:09,Maison Arnaud Delmontel,-6.65,0.00,EUR,TERMINÉ,135.12
+Paiement par carte,Valeur actuelle,2026-02-22 09:11:03,2026-02-25 14:23:05,FamilyMart,-98.94,0.99,EUR,TERMINÉ,35.19
+Paiement par carte,Valeur actuelle,2026-02-25 20:26:08,2026-02-26 10:50:10,Deliveroo,-2.49,0.00,EUR,TERMINÉ,32.70
+Ajout de fonds,Valeur actuelle,2026-02-26 11:17:53,2026-02-26 11:17:54,Paiement envoyé par M JULIEN RAPHAEL,2500.00,0.00,EUR,TERMINÉ,2532.70
+Paiement par carte,Valeur actuelle,2026-02-25 20:28:56,2026-02-27 13:08:41,Cocci Market,-6.14,0.00,EUR,TERMINÉ,2526.56
+Paiement par carte,Valeur actuelle,2026-02-26 16:01:07,2026-02-27 14:31:25,Le Brio,-47.00,0.00,EUR,TERMINÉ,2479.56
+Virement,Valeur actuelle,2026-02-27 15:53:54,2026-02-27 15:53:55,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-100.00,0.00,EUR,TERMINÉ,2379.56
+DAB,Valeur actuelle,2026-02-27 15:58:24,2026-02-28 11:30:10,Retrait d'espèces à Caulaincourt Ext,-100.00,2.00,EUR,TERMINÉ,2277.56
+Paiement par carte,Valeur actuelle,2026-03-01 13:47:47,2026-03-02 12:02:07,Cooltra,-4.60,0.00,EUR,TERMINÉ,2272.96
+Paiement par carte,Valeur actuelle,2026-03-01 17:09:28,2026-03-02 12:07:57,Cooltra,-11.96,0.00,EUR,TERMINÉ,2261.00
+Paiement par carte,Valeur actuelle,2026-03-01 14:05:54,2026-03-02 12:20:51,Aux Trois Obus,-17.00,0.00,EUR,TERMINÉ,2244.00
+Paiement par carte,Valeur actuelle,2026-03-01 14:38:04,2026-03-02 12:20:53,Aux Trois Obus,-10.00,0.00,EUR,TERMINÉ,2234.00
+Paiement par carte,Valeur actuelle,2026-03-01 13:49:14,2026-03-02 12:22:40,Uber,-13.25,0.00,EUR,TERMINÉ,2220.75
+Paiement par carte,Valeur actuelle,2026-03-01 20:40:43,2026-03-02 12:48:05,Deliveroo,-48.49,0.00,EUR,TERMINÉ,2172.26
+Virement,Valeur actuelle,2026-03-03 17:57:15,2026-03-03 17:57:16,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-250.00,0.00,EUR,TERMINÉ,1922.26
+Paiement par carte,Valeur actuelle,2026-03-03 11:41:16,2026-03-04 10:37:56,La Civette Boutique,-20.00,0.00,EUR,TERMINÉ,1902.26
+Paiement par carte,Valeur actuelle,2026-03-04 13:51:33,2026-03-05 10:18:01,Cooltra,-3.22,0.00,EUR,TERMINÉ,1899.04
+Paiement par carte,Valeur actuelle,2026-03-04 15:00:11,2026-03-05 10:25:57,Cooltra,-4.30,0.00,EUR,TERMINÉ,1894.74
+Paiement par carte,Valeur actuelle,2026-03-04 14:45:30,2026-03-05 10:57:23,Solam Villiers,-77.00,0.00,EUR,TERMINÉ,1817.74
+Paiement par carte,Valeur actuelle,2026-03-05 11:21:00,2026-03-06 12:11:32,Lydia,-30.00,0.00,EUR,TERMINÉ,1787.74
+Paiement par carte,Valeur actuelle,2026-03-05 17:44:35,2026-03-06 12:16:37,Franprix,-12.89,0.00,EUR,TERMINÉ,1774.85
+Paiement par carte,Valeur actuelle,2026-03-05 17:46:03,2026-03-06 12:17:01,Lounge Floreo,-17.00,0.00,EUR,TERMINÉ,1757.85
+Paiement par carte,Valeur actuelle,2026-03-05 17:40:32,2026-03-06 12:18:27,L'Orvier de Montmartre,-9.30,0.00,EUR,TERMINÉ,1748.55
+Paiement par carte,Valeur actuelle,2026-03-05 23:10:50,2026-03-06 12:21:57,Lepic,-50.00,0.00,EUR,TERMINÉ,1698.55
+Paiement par carte,Valeur actuelle,2026-03-05 22:49:26,2026-03-06 12:22:00,Lepic,-20.00,0.00,EUR,TERMINÉ,1678.55
+Paiement par carte,Valeur actuelle,2026-03-05 10:58:04,2026-03-06 12:31:49,Argos,-139.70,0.00,EUR,TERMINÉ,1538.85
+DAB,Valeur actuelle,2026-03-04 20:42:18,2026-03-06 12:50:00,Retrait d'espèces à Caulaincourt Ext,-100.00,2.00,EUR,TERMINÉ,1436.85
+Paiement par carte,Valeur actuelle,2026-03-05 17:38:33,2026-03-06 13:34:57,Phie La Rotonde,-15.28,0.00,EUR,TERMINÉ,1421.57
+Paiement par carte,Valeur actuelle,2026-03-05 11:04:06,2026-03-06 13:37:32,Laposte G756230,-7.76,0.00,EUR,TERMINÉ,1413.81
+Virement,Valeur actuelle,2026-03-06 22:59:26,2026-03-06 22:59:27,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-100.00,0.00,EUR,TERMINÉ,1313.81
+Paiement par carte,Valeur actuelle,2026-03-06 00:23:20,2026-03-07 12:18:35,Le Lucky,-20.00,0.00,EUR,TERMINÉ,1293.81
+Paiement par carte,Valeur actuelle,2026-03-05 20:03:16,2026-03-07 12:35:29,Le Lipstick,-18.00,0.00,EUR,TERMINÉ,1275.81
+Paiement par carte,Valeur actuelle,2026-03-05 20:34:30,2026-03-07 12:36:27,Le Lipstick,-60.00,0.00,EUR,TERMINÉ,1215.81
+Paiement par carte,Valeur actuelle,2026-03-05 20:13:07,2026-03-07 13:04:18,Grinzing Bar,-6.00,0.00,EUR,TERMINÉ,1209.81
+Paiement par carte,Valeur actuelle,2026-03-06 20:44:45,2026-03-07 13:06:57,Deliveroo,-20.49,0.00,EUR,TERMINÉ,1189.32
+Paiement par carte,Valeur actuelle,2026-03-06 19:28:09,2026-03-07 13:08:53,Carrefour,-21.56,0.00,EUR,TERMINÉ,1167.76
+Paiement par carte,Valeur actuelle,2026-03-06 17:51:02,2026-03-07 15:09:31,Nintendo,-39.99,0.00,EUR,TERMINÉ,1127.77
+Paiement par carte,Valeur actuelle,2026-03-07 16:41:14,2026-03-08 09:59:53,Cooltra,-4.60,0.00,EUR,TERMINÉ,1123.17
+Paiement par carte,Valeur actuelle,2026-03-07 15:57:46,2026-03-08 10:01:46,Cooltra,-3.22,0.00,EUR,TERMINÉ,1119.95
+Paiement par carte,Valeur actuelle,2026-03-06 00:38:19,2026-03-08 10:19:38,Lime,-2.50,0.00,EUR,TERMINÉ,1117.45
+Paiement par carte,Valeur actuelle,2026-03-07 16:24:36,2026-03-08 10:42:33,Non Coupable,-30.00,0.00,EUR,TERMINÉ,1087.45
+Paiement par carte,Valeur actuelle,2026-03-07 16:52:25,2026-03-08 10:47:15,La Tisanerie,-26.73,0.00,EUR,TERMINÉ,1060.72
+Paiement par carte,Valeur actuelle,2026-03-07 16:57:04,2026-03-08 11:07:13,Irimak,-10.50,0.00,EUR,TERMINÉ,1050.22
+Paiement par carte,Valeur actuelle,2026-03-08 15:32:45,2026-03-09 12:46:48,Cooltra,-7.36,0.00,EUR,TERMINÉ,1042.86
+Paiement par carte,Valeur actuelle,2026-03-08 13:03:10,2026-03-09 12:52:30,Cooltra,-14.26,0.00,EUR,TERMINÉ,1028.60
+Virement,Valeur actuelle,2026-03-09 16:51:15,2026-03-09 16:51:16,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-100.00,0.00,EUR,TERMINÉ,928.60
+Paiement par carte,Valeur actuelle,2026-03-11 18:05:20,2026-03-12 11:17:39,Franprix,-5.50,0.00,EUR,TERMINÉ,923.10
+Paiement par carte,Valeur actuelle,2026-03-11 18:03:34,2026-03-12 11:18:11,Maison Arnaud Delmontel,-7.90,0.00,EUR,TERMINÉ,915.20
+Paiement par carte,Valeur actuelle,2026-03-12 14:00:58,2026-03-13 10:07:11,Cooltra,-12.42,0.00,EUR,TERMINÉ,902.78
+Paiement par carte,Valeur actuelle,2026-03-12 19:56:35,2026-03-13 10:08:42,Cooltra,-4.60,0.00,EUR,TERMINÉ,898.18
+Paiement par carte,Valeur actuelle,2026-03-12 18:43:11,2026-03-13 10:59:02,Le Laffitte,-15.00,0.00,EUR,TERMINÉ,883.18
+Paiement par carte,Valeur actuelle,2026-03-12 19:21:47,2026-03-13 10:59:09,Le Laffitte,-24.00,0.00,EUR,TERMINÉ,859.18
+Virement,Valeur actuelle,2026-03-14 20:01:19,2026-03-14 20:01:19,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-50.00,0.00,EUR,TERMINÉ,809.18
+Virement,Valeur actuelle,2026-03-14 23:19:49,2026-03-14 23:19:49,Virement de : THIBAULT CLARENCE JEROME MARQUE,24.00,0.00,EUR,TERMINÉ,833.18
+Paiement par carte,Valeur actuelle,2026-03-14 15:42:23,2026-03-15 12:19:32,Cooltra,-3.68,0.00,EUR,TERMINÉ,829.50
+Paiement par carte,Valeur actuelle,2026-03-14 12:34:44,2026-03-15 12:21:57,Cooltra,-2.76,0.00,EUR,TERMINÉ,826.74
+Paiement par carte,Valeur actuelle,2026-03-14 12:35:18,2026-03-15 12:40:22,RATP,-2.55,0.00,EUR,TERMINÉ,824.19
+Paiement par carte,Valeur actuelle,2026-03-14 15:17:47,2026-03-15 12:40:25,RATP,-2.55,0.00,EUR,TERMINÉ,821.64
+Paiement par carte,Valeur actuelle,2026-03-14 15:45:48,2026-03-16 12:27:39,Maison Arnaud Delmontel,-26.50,0.00,EUR,TERMINÉ,795.14
+Paiement par carte,Valeur actuelle,2026-03-15 13:52:27,2026-03-16 12:30:06,Deliveroo,-17.55,0.00,EUR,TERMINÉ,777.59
+Paiement par carte,Valeur actuelle,2026-03-15 17:20:47,2026-03-16 12:49:56,Carrefour,-55.14,0.00,EUR,TERMINÉ,722.45
+Paiement par carte,Valeur actuelle,2026-03-14 23:20:51,2026-03-16 12:52:58,Billetweb,-37.23,0.00,EUR,TERMINÉ,685.22
+Paiement par carte,Valeur actuelle,2026-03-13 20:55:00,2026-03-16 13:16:24,El Tequila,-47.00,0.00,EUR,TERMINÉ,638.22
+Paiement par carte,Valeur actuelle,2026-03-15 20:04:36,2026-03-17 10:01:39,El Tequila,-55.50,0.00,EUR,TERMINÉ,582.72
+Virement,Valeur actuelle,2026-03-17 21:37:34,2026-03-17 21:37:35,Virement de : Laetitia VERONIQUE GUISLAINE Raphael,80.00,0.00,EUR,TERMINÉ,662.72
+Paiement par carte,Valeur actuelle,2026-03-17 19:52:38,2026-03-18 12:32:40,Cooltra,-4.14,0.00,EUR,TERMINÉ,658.58
+Paiement par carte,Valeur actuelle,2026-03-17 21:51:21,2026-03-18 12:36:57,Cooltra,-5.52,0.00,EUR,TERMINÉ,653.06
+Paiement par carte,Valeur actuelle,2026-03-17 21:30:24,2026-03-18 12:59:12,Villa Punjab,-133.50,0.00,EUR,TERMINÉ,519.56
+Paiement par carte,Valeur actuelle,2026-03-18 15:02:33,2026-03-19 11:13:57,Le Brio,-30.00,0.00,EUR,TERMINÉ,489.56
+Paiement par carte,Valeur actuelle,2026-03-18 12:19:31,2026-03-19 11:14:30,Franprix,-17.16,0.00,EUR,TERMINÉ,472.40
+Paiement par carte,Valeur actuelle,2026-03-19 22:31:45,2026-03-20 12:59:48,Mle Raymonde,-15.00,0.00,EUR,TERMINÉ,457.40
+Paiement par carte,Valeur actuelle,2026-03-19 22:25:30,2026-03-20 13:21:07,Deliveroo,-21.60,0.00,EUR,TERMINÉ,435.80
+Paiement par carte,Valeur actuelle,2026-03-20 18:50:52,2026-03-21 10:34:14,Franprix,-4.94,0.00,EUR,TERMINÉ,430.86
+Paiement par carte,Valeur actuelle,2026-03-20 18:45:50,2026-03-21 10:34:14,Maison Arnaud Delmontel,-4.80,0.00,EUR,TERMINÉ,426.06
+Paiement par carte,Valeur actuelle,2026-03-20 18:43:34,2026-03-21 10:38:10,Boucherie Nouvelle,-22.17,0.00,EUR,TERMINÉ,403.89
+Paiement par carte,Valeur actuelle,2026-03-20 18:47:34,2026-03-21 10:38:10,La Civette Boutique,-15.00,0.00,EUR,TERMINÉ,388.89
+Paiement par carte,Valeur actuelle,2026-03-20 18:56:02,2026-03-21 10:54:34,Picard,-7.39,0.00,EUR,TERMINÉ,381.50
+Virement,Valeur actuelle,2026-03-21 16:17:19,2026-03-21 16:17:19,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-100.00,0.00,EUR,TERMINÉ,281.50
+Virement,Valeur actuelle,2026-03-21 19:21:24,2026-03-21 19:21:24,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-10.00,0.00,EUR,TERMINÉ,271.50
+Paiement par carte,Valeur actuelle,2026-03-21 16:12:14,2026-03-22 12:10:14,Cooltra,-12.42,0.00,EUR,TERMINÉ,259.08
+Paiement par carte,Valeur actuelle,2026-03-21 12:40:31,2026-03-22 12:10:28,Cooltra,-3.68,0.00,EUR,TERMINÉ,255.40
+Paiement par carte,Valeur actuelle,2026-03-21 16:24:00,2026-03-22 12:33:24,Panier Gaïa,-4.90,0.00,EUR,TERMINÉ,250.50
+Paiement par carte,Valeur actuelle,2026-03-21 16:23:32,2026-03-22 12:33:28,Panier Gaïa,-19.07,0.00,EUR,TERMINÉ,231.43
+Paiement par carte,Valeur actuelle,2026-03-21 12:38:54,2026-03-22 12:33:53,RATP,-2.55,0.00,EUR,TERMINÉ,228.88
+Ajout de fonds,Valeur actuelle,2026-03-22 13:30:35,2026-03-22 13:30:35,Paiement envoyé par M JULIEN RAPHAEL,500.00,0.00,EUR,TERMINÉ,728.88
+Virement,Valeur actuelle,2026-03-22 13:30:54,2026-03-22 13:30:54,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-100.00,0.00,EUR,TERMINÉ,628.88
+Paiement par carte,Valeur actuelle,2026-03-22 19:30:35,2026-03-23 13:43:32,Deliveroo,-2.99,0.00,EUR,TERMINÉ,625.89
+Paiement par carte,Valeur actuelle,2026-03-22 14:33:03,2026-03-23 14:00:50,Chez Frezet,-131.00,0.00,EUR,TERMINÉ,494.89
+Paiement par carte,Valeur actuelle,2026-03-21 16:39:32,2026-03-23 14:21:24,Fromagerie,-29.28,0.00,EUR,TERMINÉ,465.61
+Paiement par carte,Valeur actuelle,2026-03-23 17:09:22,2026-03-24 10:36:18,Argos,-108.40,0.00,EUR,TERMINÉ,357.21
+Paiement par carte,Valeur actuelle,2026-03-23 14:54:25,2026-03-24 10:45:40,L'Orvier de Montmartre,-13.25,0.00,EUR,TERMINÉ,343.96
+Paiement par carte,Valeur actuelle,2026-03-23 20:51:00,2026-03-24 10:54:14,Deliveroo,-57.69,0.00,EUR,TERMINÉ,286.27
+Paiement par carte,Valeur actuelle,2026-03-23 14:33:51,2026-03-24 11:21:01,Le Reinitas,-6.00,0.00,EUR,TERMINÉ,280.27
+Paiement par carte,Valeur actuelle,2026-03-24 19:00:17,2026-03-25 09:59:58,Cooltra,-5.06,0.00,EUR,TERMINÉ,275.21
+Paiement par carte,Valeur actuelle,2026-03-24 19:49:10,2026-03-25 10:04:19,Cooltra,-14.26,0.00,EUR,TERMINÉ,260.95
+Paiement par carte,Valeur actuelle,2026-03-24 22:51:13,2026-03-25 10:21:04,Uber,-16.95,0.00,EUR,TERMINÉ,244.00
+Paiement par carte,Valeur actuelle,2026-03-24 19:01:42,2026-03-25 10:26:36,RATP,-2.55,0.00,EUR,TERMINÉ,241.45
+Changes,Valeur actuelle,2026-03-26 13:44:55,2026-03-26 13:44:55,Change en EUR,31.90,0.00,EUR,TERMINÉ,273.35
+Paiement par carte,Valeur actuelle,2026-03-25 13:07:10,2026-03-26 14:27:25,Avec Ceux Ci,-7.90,0.00,EUR,TERMINÉ,265.45
+Paiement par carte,Valeur actuelle,2026-03-26 19:31:58,2026-03-27 17:04:38,Fromagerie,-13.18,0.00,EUR,TERMINÉ,252.27
+Paiement par carte,Valeur actuelle,2026-03-26 19:51:43,2026-03-27 17:18:17,Franprix,-26.77,0.00,EUR,TERMINÉ,225.50
+Paiement par carte,Valeur actuelle,2026-03-26 15:11:01,2026-03-27 17:18:17,Le Brio,-45.00,0.00,EUR,TERMINÉ,180.50
+Paiement par carte,Valeur actuelle,2026-03-26 19:44:51,2026-03-27 17:20:03,L'Orvier de Montmartre,-12.70,0.00,EUR,TERMINÉ,167.80
+DAB,Valeur actuelle,2026-03-26 19:25:52,2026-03-28 10:08:32,Retrait d'espèces à Caulaincourt Int.,-100.00,0.00,EUR,TERMINÉ,67.80
+Paiement par carte,Valeur actuelle,2026-03-29 13:02:10,2026-03-30 12:46:16,Cooltra,-10.58,0.00,EUR,TERMINÉ,57.22
+Paiement par carte,Valeur actuelle,2026-03-27 22:28:05,2026-03-30 13:42:31,El Tequila,-51.60,0.00,EUR,TERMINÉ,5.62
+Ajout de fonds,Valeur actuelle,2026-04-02 13:36:12,2026-04-02 13:36:13,Paiement envoyé par M JULIEN RAPHAEL,2000.00,0.00,EUR,TERMINÉ,2005.62
+Changes,Valeur actuelle,2026-04-03 14:34:05,2026-04-03 14:34:05,Change en GBP,-500.00,0.00,EUR,TERMINÉ,1505.62
+Paiement par carte,Valeur actuelle,2026-04-02 20:05:41,2026-04-03 16:07:34,Deliveroo,-3.39,0.00,EUR,TERMINÉ,1502.23
+Paiement par carte,Valeur actuelle,2026-04-02 20:51:36,2026-04-03 16:25:19,Deliveroo,-10.00,0.00,EUR,TERMINÉ,1492.23
+Paiement par carte,Valeur actuelle,2026-04-02 13:41:41,2026-04-03 17:00:43,Franprix,-2.29,0.00,EUR,TERMINÉ,1489.94
+Paiement par carte,Valeur actuelle,2026-04-02 13:38:53,2026-04-03 17:06:40,L'Orvier de Montmartre,-13.50,0.00,EUR,TERMINÉ,1476.44
+Paiement par carte,Valeur actuelle,2026-04-02 13:36:34,2026-04-03 17:07:16,Mle Raymonde,-7.50,0.00,EUR,TERMINÉ,1468.94
+Paiement par carte,Valeur actuelle,2026-04-03 16:31:48,2026-04-04 10:30:26,RELAY,-7.00,0.00,EUR,TERMINÉ,1461.94
+Paiement par carte,Valeur actuelle,2026-04-03 15:36:45,2026-04-04 11:04:29,Starbucks,-4.85,0.00,EUR,TERMINÉ,1457.09
+Virement,Valeur actuelle,2026-04-05 15:15:36,2026-04-05 15:15:37,Virement de : Laetitia VERONIQUE GUISLAINE Raphael,100.00,0.00,EUR,TERMINÉ,1557.09
+Virement,Valeur actuelle,2026-04-05 16:22:28,2026-04-05 16:22:29,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-24.00,0.00,EUR,TERMINÉ,1533.09
+Paiement par carte,Valeur actuelle,2026-04-05 20:17:48,2026-04-06 10:28:19,Deliveroo,-29.69,0.00,EUR,TERMINÉ,1503.40
+Paiement par carte,Valeur actuelle,2026-04-05 16:21:25,2026-04-06 16:01:06,Avolta,-131.05,1.31,EUR,TERMINÉ,1371.04
+Paiement par carte,Valeur actuelle,2026-04-05 20:08:26,2026-04-07 10:14:06,Snc Mukeba,-56.00,0.00,EUR,TERMINÉ,1315.04
+Paiement par carte,Valeur actuelle,2026-04-06 12:32:45,2026-04-07 10:37:52,Zara,-46.10,0.00,EUR,TERMINÉ,1268.94
+Paiement par carte,Valeur actuelle,2026-04-06 20:16:09,2026-04-07 10:47:36,Deliveroo,-63.34,0.00,EUR,TERMINÉ,1205.60
+Paiement par carte,Valeur actuelle,2026-04-06 14:38:15,2026-04-07 11:35:12,Franprix,-11.27,0.00,EUR,TERMINÉ,1194.33
+Paiement par carte,Valeur actuelle,2026-04-06 14:31:43,2026-04-07 11:35:17,Le Brio,-47.00,0.00,EUR,TERMINÉ,1147.33
+Paiement par carte,Valeur actuelle,2026-04-07 18:12:00,2026-04-08 11:27:18,Elite Primeur,-18.17,0.00,EUR,TERMINÉ,1129.16
+Paiement par carte,Valeur actuelle,2026-04-07 18:22:37,2026-04-08 11:59:47,Franprix,-26.88,0.00,EUR,TERMINÉ,1102.28
+Paiement par carte,Valeur actuelle,2026-04-08 18:59:39,2026-04-09 10:56:17,CLAUDE,-21.60,0.00,EUR,TERMINÉ,1080.68
+Paiement par carte,Valeur actuelle,2026-04-08 16:28:24,2026-04-09 16:48:51,Le Brio,-29.00,0.00,EUR,TERMINÉ,1051.68
+Paiement par carte,Valeur actuelle,2026-04-08 20:56:39,2026-04-09 17:34:03,Ladern,-4.50,0.00,EUR,TERMINÉ,1047.18
+Paiement par carte,Valeur actuelle,2026-04-09 15:17:53,2026-04-10 11:15:23,Cooltra,-2.28,0.00,EUR,TERMINÉ,1044.90
+Paiement par carte,Valeur actuelle,2026-04-08 17:01:21,2026-04-10 11:18:47,French Touche,-119.50,0.00,EUR,TERMINÉ,925.40
+Paiement par carte,Valeur actuelle,2026-04-10 17:53:46,2026-04-11 11:04:38,CLAUDE,-45.90,0.00,EUR,TERMINÉ,879.50
+Virement,Valeur actuelle,2026-04-11 15:37:45,2026-04-11 15:37:46,Virement à : Laetitia VERONIQUE GUISLAINE Raphael,-150.00,0.00,EUR,TERMINÉ,729.50
+Paiement par carte,Valeur actuelle,2026-04-11 21:59:16,,Cooltra,-49.22,0.00,EUR,RENVOYÉ,
+Paiement par carte,Valeur actuelle,2026-04-11 22:19:55,,RATP Habitat,-2.55,0.00,EUR,EN ATTENTE,
+Paiement par carte,Valeur actuelle,2026-04-11 23:59:23,,Jk2a Superette,-4.86,0.00,EUR,EN ATTENTE,
+Paiement par carte,Valeur actuelle,2026-04-12 00:20:09,2026-04-12 11:50:18,Cooltra,-5.06,0.00,EUR,TERMINÉ,724.44
+Paiement par carte,Valeur actuelle,2026-04-11 22:35:41,2026-04-12 12:35:36,Maric,-11.00,0.00,EUR,TERMINÉ,713.44
+Paiement par carte,Valeur actuelle,2026-04-12 13:00:21,,Primeur,-28.84,0.00,EUR,EN ATTENTE,
+Paiement par carte,Valeur actuelle,2026-04-12 13:08:23,,Au Bon Port Damr,-20.00,0.00,EUR,EN ATTENTE,
+Paiement par carte,Valeur actuelle,2026-04-12 13:13:21,,Maison Arnaud Delmontel,-2.90,0.00,EUR,EN ATTENTE,
+Paiement par carte,Valeur actuelle,2026-04-12 15:50:56,,Ali Bava,-31.10,0.00,EUR,EN ATTENTE,
+Paiement par carte,Valeur actuelle,2026-04-12 16:26:42,,Monoprix,-106.40,0.00,EUR,EN ATTENTE,
+Paiement par carte,Valeur actuelle,2026-04-12 18:16:28,,CLAUDE,-25.78,0.26,EUR,EN ATTENTE,
