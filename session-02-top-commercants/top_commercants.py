@@ -28,8 +28,10 @@ with open ("revolut.csv", "r", encoding="utf-8") as fichier:
             nombre_transactions = nombre_transactions + 1
 
             if description not in depenses_par_commercant:
-                depenses_par_commercant[description] = 0
-            depenses_par_commercant[description] = depenses_par_commercant[description] + montant_positif
+                depenses_par_commercant[description] = [0,0]
+            depenses_par_commercant[description][0] = depenses_par_commercant[description][0] + montant_positif
+            depenses_par_commercant[description][1] = depenses_par_commercant[description][1] + 1
+
 
             if description == "Cooltra" :
                 total_depenses_cooltra = total_depenses_cooltra + montant_positif
@@ -56,4 +58,4 @@ top_20 = sorted(depenses_par_commercant.items(), key=lambda x: x[1], reverse=Tru
 
 print("\n--- TOP 20 COMMERCANTS ---")
 for i, (nom, total) in enumerate(top_20):
-    print(f"{i+1}. {nom} : {round(total, 2)} €")
+    print(f"{i+1}. {nom} : {round(total[0], 2)} €")

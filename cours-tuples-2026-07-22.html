@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Les tuples expliqués simplement</title>
+<style>
+  :root {
+    --bg: #f4f6fb;
+    --card: #ffffff;
+    --ink: #1c2434;
+    --muted: #5b6b86;
+    --accent: #3454d1;
+    --accent-soft: #e8edff;
+    --code-bg: #0f172a;
+    --code-ink: #e2e8f0;
+    --code-key: #7dd3fc;
+    --code-str: #86efac;
+    --code-com: #64748b;
+    --warn-bg: #fff4e5;
+    --warn-border: #f59e0b;
+    --recall-bg: #eafaf1;
+    --recall-border: #2fb673;
+    --quiz-bg: #f3effe;
+    --quiz-border: #8b5cf6;
+    --line: #e4e8f2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0c1120;
+      --card: #151c2e;
+      --ink: #e8edf7;
+      --muted: #9aa7c2;
+      --accent: #7d95ff;
+      --accent-soft: #1e2947;
+      --warn-bg: #33260f;
+      --warn-border: #f59e0b;
+      --recall-bg: #102a1e;
+      --recall-border: #2fb673;
+      --quiz-bg: #201a38;
+      --quiz-border: #a78bfa;
+      --line: #26304a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 32px 20px 80px; }
+  header.hero {
+    text-align: center;
+    padding: 28px 20px;
+    background: var(--accent-soft);
+    border-radius: 20px;
+    margin-bottom: 12px;
+  }
+  header.hero h1 { margin: 0 0 6px; font-size: 1.9rem; }
+  header.hero p { margin: 0; color: var(--muted); font-size: 1.02rem; }
+  .intro {
+    color: var(--muted);
+    font-size: 0.98rem;
+    text-align: center;
+    margin: 18px 8px 26px;
+  }
+  details.concept {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    margin: 14px 0;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(20,30,60,.05);
+  }
+  details.concept > summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 18px 22px;
+    font-weight: 650;
+    font-size: 1.12rem;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    user-select: none;
+  }
+  details.concept > summary::-webkit-details-marker { display: none; }
+  details.concept > summary .num {
+    flex: 0 0 auto;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    display: grid; place-items: center;
+    font-size: 0.9rem; font-weight: 700;
+  }
+  details.concept > summary .chev {
+    margin-left: auto;
+    transition: transform .2s ease;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+  details.concept[open] > summary .chev { transform: rotate(90deg); }
+  .body { padding: 4px 22px 22px; }
+  .body p { margin: 12px 0; }
+  .analogy {
+    background: var(--accent-soft);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin: 14px 0;
+    font-size: 1.02rem;
+  }
+  .analogy .tag { font-weight: 700; }
+  pre.diagram, pre.code {
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    border-radius: 12px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin: 14px 0;
+  }
+  pre.diagram {
+    background: var(--bg);
+    border: 1px dashed var(--line);
+    color: var(--ink);
+  }
+  pre.code { background: var(--code-bg); color: var(--code-ink); }
+  pre.code .k { color: var(--code-key); }
+  pre.code .s { color: var(--code-str); }
+  pre.code .c { color: var(--code-com); }
+  .box {
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin: 14px 0;
+    font-size: 0.97rem;
+  }
+  .box .head { font-weight: 700; display: block; margin-bottom: 4px; }
+  .warn { background: var(--warn-bg); border-left: 4px solid var(--warn-border); }
+  .recall { background: var(--recall-bg); border-left: 4px solid var(--recall-border); }
+  table.cmp {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+    font-size: 0.92rem;
+  }
+  table.cmp th, table.cmp td {
+    border: 1px solid var(--line);
+    padding: 9px 11px;
+    text-align: left;
+  }
+  table.cmp th { background: var(--accent-soft); }
+  code.inl {
+    background: var(--accent-soft);
+    padding: 1px 6px;
+    border-radius: 6px;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 0.9em;
+  }
+  .quiz {
+    background: var(--quiz-bg);
+    border-left: 4px solid var(--quiz-border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin: 16px 0 4px;
+  }
+  .quiz .q { font-weight: 650; margin-bottom: 8px; }
+  .quiz button {
+    background: var(--quiz-border);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .quiz button:hover { filter: brightness(1.08); }
+  .quiz .answer {
+    display: none;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--quiz-border);
+  }
+  .quiz.reveal .answer { display: block; }
+  .quiz.reveal button { display: none; }
+  footer { text-align: center; color: var(--muted); font-size: 0.85rem; margin-top: 36px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <h1>🥚 Les tuples, pour de vrai</h1>
+    <p>Le cours de l'exo <strong>tisbury-treasure-hunt</strong>, mais expliqué comme à un gamin de 10 ans.</p>
+  </header>
+
+  <p class="intro">Clique sur chaque bloc pour le déplier. Avance une brique à la fois — pas besoin de tout lire d'un coup. À la fin de chaque section, un petit quiz pour vérifier que c'est rentré.</p>
+
+  <!-- 1 -->
+  <details class="concept" open>
+    <summary><span class="num">1</span> C'est quoi un tuple ? <span class="chev">▶</span></summary>
+    <div class="body">
+      <div class="analogy">
+        <span class="tag">🥚 L'image :</span> un tuple, c'est une <strong>boîte d'œufs scellée</strong>. Une fois fermée, tu ne peux ni ajouter, ni enlever, ni remplacer un œuf. L'ordre est figé pour toujours.
+      </div>
+      <p>À l'opposé, une <strong>liste</strong> c'est ta <strong>trousse</strong> 🎒 : tu ajoutes un stylo, tu en enlèves un, tu réorganises — quand tu veux.</p>
+      <p>Ce mot compliqué pour "on peut plus le changer" : <strong>immuable</strong>. Un tuple est immuable. Une liste, non.</p>
+
+      <p>On reconnaît un tuple à ses <strong>parenthèses</strong> <code class="inl">( )</code>. C'était ta question de tout à l'heure — voici les 3 boîtes de Python :</p>
+      <table class="cmp">
+        <tr><th>Symbole</th><th>Nom</th><th>On peut le modifier ?</th><th>Ça sert à…</th></tr>
+        <tr><td><code class="inl">( )</code></td><td>tuple</td><td>❌ non (scellé)</td><td>des données figées, dans l'ordre</td></tr>
+        <tr><td><code class="inl">[ ]</code></td><td>liste</td><td>✅ oui</td><td>une collection qui bouge</td></tr>
+        <tr><td><code class="inl">{ }</code></td><td>dict / set</td><td>✅ oui</td><td>paires <code class="inl">clé: valeur</code> (dict) ou éléments uniques (set)</td></tr>
+      </table>
+
+      <div class="box recall">
+        <span class="head">✅ Dans ton exo</span>
+        Chaque <code class="inl">record</code> comme <code class="inl">('Scrimshawed Whale Tooth', '2A')</code> était un tuple. Tu ne l'as jamais modifié — tu as juste lu dedans. Normal : il est scellé.
+      </div>
+
+      <div class="quiz" id="q1">
+        <div class="q">🤔 <code class="inl">('chat', 'chien')</code> — tuple ou liste ? Et est-ce que je peux y ajouter <code class="inl">'oiseau'</code> ?</div>
+        <button onclick="reveal('q1')">Voir la réponse</button>
+        <div class="answer">C'est un <strong>tuple</strong> (parenthèses). Et non, tu ne peux <strong>pas</strong> y ajouter <code class="inl">'oiseau'</code> : il est scellé. Il faudrait en construire un nouveau.</div>
+      </div>
+    </div>
+  </details>
+
+  <!-- 2 -->
+  <details class="concept">
+    <summary><span class="num">2</span> Construire un tuple <span class="chev">▶</span></summary>
+    <div class="body">
+      <p>Deux façons de fabriquer une boîte scellée.</p>
+
+      <p><strong>Façon simple (le littéral)</strong> — tu écris juste les valeurs entre parenthèses :</p>
+      <pre class="code"><span class="c"># Tu poses les œufs, tu ferme la boîte</span>
+fruits = (<span class="s">"pomme"</span>, <span class="s">"kiwi"</span>, <span class="s">"guava"</span>)</pre>
+
+      <p><strong>Façon usine (le constructeur <code class="inl">tuple()</code>)</strong> — tu donnes une collection existante et il la transforme en tuple :</p>
+      <pre class="code">tuple([<span class="s">"pomme"</span>, <span class="s">"kiwi"</span>])   <span class="c"># une liste -> un tuple</span></pre>
+
+      <div class="box warn">
+        <span class="head">⚠️ Piège n°1 — le tuple à UN seul élément</span>
+        Pour une boîte avec un seul œuf, la virgule est <strong>obligatoire</strong>, sinon Python croit que ce sont juste des parenthèses de calcul.
+        <pre class="code" style="margin-top:10px;">une = (<span class="s">"guava"</span>)    <span class="c"># ❌ ça, c'est juste le texte "guava"</span>
+une = (<span class="s">"guava"</span>,)   <span class="c"># ✅ ÇA, c'est un tuple à 1 élément</span></pre>
+      </div>
+
+      <div class="box warn">
+        <span class="head">⚠️ Piège n°2 — donner un mot à <code class="inl">tuple()</code></span>
+        Un mot (string), pour Python, c'est déjà une suite de lettres. Si tu le donnes au constructeur, il éclate le mot lettre par lettre :
+        <pre class="code" style="margin-top:10px;">tuple(<span class="s">"chat"</span>)
+<span class="c"># -> ('c', 'h', 'a', 't')  😱 pas ce que tu voulais</span></pre>
+      </div>
+
+      <div class="quiz" id="q2">
+        <div class="q">🤔 Que vaut <code class="inl">("solo")</code> ? Et <code class="inl">("solo",)</code> ?</div>
+        <button onclick="reveal('q2')">Voir la réponse</button>
+        <div class="answer"><code class="inl">("solo")</code> = juste le mot <strong>"solo"</strong> (pas un tuple). <code class="inl">("solo",)</code> = un <strong>tuple d'un élément</strong>. Toute la différence est dans la virgule.</div>
+      </div>
+    </div>
+  </details>
+
+  <!-- 3 -->
+  <details class="concept">
+    <summary><span class="num">3</span> Des boîtes dans des boîtes <span class="chev">▶</span></summary>
+    <div class="body">
+      <div class="analogy">
+        <span class="tag">📦 L'image :</span> une boîte scellée peut contenir <strong>n'importe quoi</strong> — même d'autres boîtes, ou un tiroir (dict), ou une trousse (liste).
+      </div>
+      <p>C'était ta question sur cette ligne. On la lit de l'extérieur vers l'intérieur :</p>
+      <pre class="code">donnees = ({<span class="s">"fish"</span>: <span class="s">"gold"</span>, <span class="s">"monkey"</span>: <span class="s">"brown"</span>}, (<span class="s">"fish"</span>, <span class="s">"bird"</span>))</pre>
+      <pre class="diagram">(  {...dict...}  ,  (...tuple...)  )
+└─ les ( ) autour = 1 TUPLE de 2 éléments
+   ├─ élément 0 : { "fish":"gold", ... }  -> un dict (il y a des « : »)
+   └─ élément 1 : ( "fish", "bird" )      -> un tuple</pre>
+      <p>Le signal <code class="inl">:</code> = dict. Pas de <code class="inl">:</code> dans des accolades = set. Les parenthèses = tuple.</p>
+
+      <div class="quiz" id="q3">
+        <div class="q">🤔 <code class="inl">(["a", "b"], "c")</code> — combien d'éléments dans le tuple extérieur, et de quel type est le premier ?</div>
+        <button onclick="reveal('q3')">Voir la réponse</button>
+        <div class="answer"><strong>2 éléments.</strong> Le premier <code class="inl">["a", "b"]</code> est une <strong>liste</strong> (crochets), le second <code class="inl">"c"</code> est un string.</div>
+      </div>
+    </div>
+  </details>
+
+  <!-- 4 -->
+  <details class="concept">
+    <summary><span class="num">4</span> Coller deux boîtes ensemble <span class="chev">▶</span></summary>
+    <div class="body">
+      <div class="analogy">
+        <span class="tag">➕ L'image :</span> tu prends deux boîtes scellées et tu les mets bout à bout pour en faire <strong>une seule plus grande</strong>. C'est le <strong>+</strong>.
+      </div>
+      <pre class="code">(<span class="s">"George"</span>, 5) + (<span class="s">"cat"</span>, <span class="s">"Tabby"</span>)
+<span class="c"># -> ("George", 5, "cat", "Tabby")</span></pre>
+      <p>Et le <code class="inl">*</code>, c'est "répète cette boîte N fois" :</p>
+      <pre class="code">(<span class="s">"cat"</span>,) * 3
+<span class="c"># -> ("cat", "cat", "cat")</span></pre>
+
+      <div class="box recall">
+        <span class="head">✅ Dans ton exo</span>
+        Ta fonction <code class="inl">create_record</code> faisait exactement ça : <code class="inl">azara_record + rui_record</code> pour coller les deux enregistrements en un seul gros tuple.
+      </div>
+
+      <div class="quiz" id="q4">
+        <div class="q">🤔 Que donne <code class="inl">(1, 2) + (3,)</code> ?</div>
+        <button onclick="reveal('q4')">Voir la réponse</button>
+        <div class="answer"><code class="inl">(1, 2, 3)</code> — les deux boîtes collées bout à bout.</div>
+      </div>
+    </div>
+  </details>
+
+  <!-- 5 -->
+  <details class="concept">
+    <summary><span class="num">5</span> Attraper un élément par son numéro <span class="chev">▶</span></summary>
+    <div class="body">
+      <div class="analogy">
+        <span class="tag">🔢 L'image :</span> chaque case de la boîte a un <strong>numéro de place</strong> (un "index"). Tu peux compter depuis la gauche (en partant de <strong>0</strong>) ou depuis la droite (en partant de <strong>-1</strong>).
+      </div>
+      <pre class="diagram">coord = ( "2"  ,  "A" )
+          [0]     [1]     &lt;- on compte depuis la gauche (à partir de 0)
+         [-2]    [-1]     &lt;- ou depuis la droite (à partir de -1)</pre>
+      <pre class="code">coord[0]    <span class="c"># -> "2"</span>
+coord[1]    <span class="c"># -> "A"</span>
+coord[-1]   <span class="c"># -> "A"  (le dernier)</span></pre>
+
+      <div class="box warn">
+        <span class="head">⚠️ Le piège qui t'a eu</span>
+        Ça commence à <strong>0</strong>, pas à 1. Sur <code class="inl">"2A"</code> (2 cases), les seuls numéros valides sont <code class="inl">0</code> et <code class="inl">1</code>. Demander <code class="inl">[2]</code> → <em>IndexError</em>, la case n'existe pas.
+      </div>
+
+      <div class="box recall">
+        <span class="head">✅ Dans ton exo</span>
+        <code class="inl">get_coordinate</code> utilisait <code class="inl">record[-1]</code> (le dernier = la coordonnée). <code class="inl">convert_coordinate</code> utilisait <code class="inl">coordinate[0]</code> et <code class="inl">coordinate[1]</code> pour séparer <code class="inl">"2"</code> et <code class="inl">"A"</code>.
+      </div>
+
+      <div class="quiz" id="q5">
+        <div class="q">🤔 Sur <code class="inl">lettres = ("x", "y", "z")</code>, que valent <code class="inl">lettres[0]</code> et <code class="inl">lettres[-1]</code> ?</div>
+        <button onclick="reveal('q5')">Voir la réponse</button>
+        <div class="answer"><code class="inl">lettres[0]</code> → <strong>"x"</strong> (le premier). <code class="inl">lettres[-1]</code> → <strong>"z"</strong> (le dernier).</div>
+      </div>
+    </div>
+  </details>
+
+  <!-- 6 -->
+  <details class="concept">
+    <summary><span class="num">6</span> Passer sur chaque élément (la boucle) <span class="chev">▶</span></summary>
+    <div class="body">
+      <div class="analogy">
+        <span class="tag">🚶 L'image :</span> tu ouvres la boîte et tu passes devant chaque case, une par une, pour faire quelque chose avec.
+      </div>
+      <pre class="code"><span class="k">for</span> item <span class="k">in</span> student_info:
+    print(item)
+<span class="c"># affiche chaque élément l'un après l'autre</span></pre>
+
+      <p>Et si tu veux <strong>aussi le numéro de place</strong> en même temps que la valeur, tu utilises <code class="inl">enumerate</code> :</p>
+      <pre class="code"><span class="k">for</span> index, item <span class="k">in</span> enumerate(student_info):
+    print(index, item)
+<span class="c"># 0 Alyssa / 1 grade 3 / 2 female ...</span></pre>
+
+      <div class="box recall">
+        <span class="head">✅ Rappel d'hier</span>
+        <code class="inl">enumerate</code>, tu l'as déjà croisé dans <code class="inl">student_ranking</code> (exo making-the-grade) pour avoir le rang <em>et</em> le nom en même temps.
+      </div>
+
+      <div class="quiz" id="q6">
+        <div class="q">🤔 Pourquoi utiliser <code class="inl">enumerate</code> plutôt que juste <code class="inl">for item in ...</code> ?</div>
+        <button onclick="reveal('q6')">Voir la réponse</button>
+        <div class="answer">Quand tu as besoin du <strong>numéro de place (l'index) EN PLUS de la valeur</strong>. Sinon, un simple <code class="inl">for item in ...</code> suffit.</div>
+      </div>
+    </div>
+  </details>
+
+  <!-- 7 -->
+  <details class="concept">
+    <summary><span class="num">7</span> Est-ce que c'est dedans ? <span class="chev">▶</span></summary>
+    <div class="body">
+      <div class="analogy">
+        <span class="tag">🔍 L'image :</span> tu demandes "est-ce que cet œuf est dans la boîte ?" et Python répond juste <strong>oui</strong> (<code class="inl">True</code>) ou <strong>non</strong> (<code class="inl">False</code>).
+      </div>
+      <pre class="code">animaux = (<span class="s">"Parrot"</span>, <span class="s">"Bird"</span>)
+<span class="s">"Parrot"</span> <span class="k">in</span> animaux   <span class="c"># -> True</span>
+<span class="s">"Cat"</span> <span class="k">in</span> animaux      <span class="c"># -> False</span></pre>
+
+      <div class="quiz" id="q7">
+        <div class="q">🤔 <code class="inl">3 in (1, 2, 4)</code> renvoie quoi ?</div>
+        <button onclick="reveal('q7')">Voir la réponse</button>
+        <div class="answer"><strong>False</strong> — 3 n'est pas dans la boîte.</div>
+      </div>
+    </div>
+  </details>
+
+  <footer>
+    Fiche perso · exo tisbury-treasure-hunt · 22 juil. 2026<br>
+    Complément de <code class="inl">reference-fonctions-boucles-2026-07-21.md</code>
+  </footer>
+
+</div>
+
+<script>
+  function reveal(id) {
+    document.getElementById(id).classList.add('reveal');
+  }
+</script>
+</body>
+</html>

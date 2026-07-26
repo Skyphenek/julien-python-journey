@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Python Progress — Julien</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f7f7f5; color: #1a1a1a; padding: 2rem; max-width: 760px; margin: 0 auto; }
+
+  h1 { font-size: 22px; font-weight: 500; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #888; margin-bottom: 2rem; }
+
+  .global-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 2rem; padding: 14px 16px; background: #fff; border-radius: 12px; border: 0.5px solid #e0e0dc; }
+  .global-label { font-size: 13px; color: #666; min-width: 80px; }
+  .bar-bg { flex: 1; height: 6px; background: #e8e8e4; border-radius: 99px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 99px; background: #1a1a1a; transition: width 0.4s; }
+  .global-pct { font-size: 14px; font-weight: 500; min-width: 36px; text-align: right; }
+
+  .session { margin-bottom: 1.5rem; }
+  .session-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .session-tag { font-size: 11px; font-weight: 500; padding: 2px 10px; border-radius: 99px; }
+  .s1 { background: #E1F5EE; color: #085041; }
+  .s2 { background: #FAEEDA; color: #633806; }
+  .s3 { background: #E6F1FB; color: #0C447C; }
+  .s4 { background: #FBEAF0; color: #72243E; }
+  .session-title { font-size: 14px; font-weight: 500; }
+  .session-pct { font-size: 12px; color: #999; margin-left: auto; }
+
+  .concepts { display: flex; flex-direction: column; gap: 6px; }
+  .concept { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #fff; border-radius: 10px; border: 0.5px solid #e0e0dc; cursor: pointer; transition: border-color 0.15s; user-select: none; }
+  .concept:hover { border-color: #bbb; }
+  .concept.mastered { border-color: #1a1a1a; background: #f0f0ee; }
+
+  .concept-name { font-size: 13px; flex: 1; }
+  .concept-file { font-size: 11px; color: #aaa; font-family: monospace; }
+
+  .status-group { display: flex; gap: 4px; }
+  .level-btn { font-size: 11px; padding: 2px 8px; border-radius: 99px; border: 0.5px solid #ddd; background: transparent; color: #aaa; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .level-btn:hover { border-color: #999; color: #666; }
+  .level-btn.active-1 { background: #FFF3CD; color: #856404; border-color: #F0AD00; }
+  .level-btn.active-2 { background: #CCE5FF; color: #004085; border-color: #004085; }
+  .level-btn.active-3 { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+
+  .legend { display: flex; gap: 16px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-0 { background: #e8e8e4; }
+  .dot-1 { background: #F0AD00; }
+  .dot-2 { background: #004085; }
+  .dot-3 { background: #1a1a1a; }
+
+  .save-btn { margin-top: 2rem; padding: 8px 20px; border-radius: 8px; border: 0.5px solid #ccc; background: #fff; font-size: 13px; cursor: pointer; font-family: inherit; }
+  .save-btn:hover { background: #f0f0ee; }
+  .save-note { font-size: 11px; color: #aaa; margin-top: 6px; }
+
+  .congrats { display: none; margin-top: 1rem; padding: 12px 16px; background: #f0f7ee; border: 0.5px solid #8bc98b; border-radius: 10px; font-size: 13px; color: #2d6a2d; }
+</style>
+</head>
+<body>
+
+<h1>Python Progress</h1>
+<p class="subtitle">Clique sur les niveaux pour marquer ta progression. Sauvegardé dans le navigateur.</p>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot dot-0"></div> Non commencé</div>
+  <div class="legend-item"><div class="legend-dot dot-1"></div> Niveau 1 (trous)</div>
+  <div class="legend-item"><div class="legend-dot dot-2"></div> Niveau 2 (zéro)</div>
+  <div class="legend-item"><div class="legend-dot dot-3"></div> Niveau 3 (maîtrisé)</div>
+</div>
+
+<div class="global-bar">
+  <span class="global-label">Progression</span>
+  <div class="bar-bg"><div class="bar-fill" id="global-fill" style="width:0%"></div></div>
+  <span class="global-pct" id="global-pct">0%</span>
+</div>
+
+<div id="sessions"></div>
+
+<button class="save-btn" onclick="save()">Sauvegarder la progression</button>
+<p class="save-note">La progression est aussi sauvegardée automatiquement à chaque clic.</p>
+
+<div class="congrats" id="congrats">Concept maîtrisé — passe au suivant.</div>
+
+<script>
+const curriculum = [
+  {
+    session: 'S1', title: 'Setup + bases + CSV',
+    concepts: [
+      { name: 'Variables et types', file: 's1/01_variables.py' },
+      { name: 'Boucle for + accumulateur', file: 's1/02_boucles.py' },
+      { name: 'Conditions if / elif / else', file: 's1/03_conditions.py' },
+      { name: 'CSV DictReader + f-strings', file: 's1/04_csv_fstrings.py' },
+    ]
+  },
+  {
+    session: 'S2', title: 'Dicts, regroupements, tri',
+    concepts: [
+      { name: 'Dictionnaire — pattern GROUP BY', file: 's2/01_dicts_groupby.py' },
+      { name: 'sorted() + lambda + slices', file: 's2/02_sorted_lambda.py' },
+    ]
+  },
+  {
+    session: 'S3', title: 'pandas + fichiers + erreurs',
+    concepts: [
+      { name: 'pandas — lecture, groupby, export Excel', file: 's3/01_pandas.py' },
+      { name: 'try / except — gestion des erreurs', file: 's3/02_try_except.py' },
+    ]
+  },
+  {
+    session: 'S4', title: 'APIs + JSON',
+    concepts: [
+      { name: 'APIs REST + JSON parsing', file: 's4/01_apis_json.py' },
+    ]
+  },
+];
+
+let progress = JSON.parse(localStorage.getItem('python-progress') || '{}');
+
+function save() {
+  localStorage.setItem('python-progress', JSON.stringify(progress));
+  const btn = document.querySelector('.save-btn');
+  btn.textContent = 'Sauvegardé !';
+  setTimeout(() => btn.textContent = 'Sauvegarder la progression', 1500);
+}
+
+function setLevel(key, level) {
+  const current = progress[key] || 0;
+  progress[key] = current === level ? level - 1 : level;
+  localStorage.setItem('python-progress', JSON.stringify(progress));
+  render();
+  if (progress[key] === 3) {
+    const c = document.getElementById('congrats');
+    c.style.display = 'block';
+    setTimeout(() => c.style.display = 'none', 2000);
+  }
+}
+
+function render() {
+  const container = document.getElementById('sessions');
+  let totalConcepts = 0;
+  let totalDone = 0;
+
+  container.innerHTML = curriculum.map(s => {
+    const sessionDone = s.concepts.filter(c => (progress[c.file] || 0) >= 3).length;
+    const sessionPct = Math.round(sessionDone / s.concepts.length * 100);
+    totalConcepts += s.concepts.length * 3;
+    totalDone += s.concepts.reduce((acc, c) => acc + (progress[c.file] || 0), 0);
+
+    return `
+<div class="session">
+  <div class="session-header">
+    <span class="session-tag ${s.session.toLowerCase()}">${s.session}</span>
+    <span class="session-title">${s.title}</span>
+    <span class="session-pct">${sessionDone}/${s.concepts.length} maîtrisés</span>
+  </div>
+  <div class="concepts">
+    ${s.concepts.map(c => {
+      const lvl = progress[c.file] || 0;
+      return `
+<div class="concept ${lvl >= 3 ? 'mastered' : ''}">
+  <span class="concept-name">${c.name}</span>
+  <span class="concept-file">${c.file}</span>
+  <div class="status-group">
+    <button class="level-btn ${lvl >= 1 ? 'active-1' : ''}" onclick="setLevel('${c.file}', 1)">N1</button>
+    <button class="level-btn ${lvl >= 2 ? 'active-2' : ''}" onclick="setLevel('${c.file}', 2)">N2</button>
+    <button class="level-btn ${lvl >= 3 ? 'active-3' : ''}" onclick="setLevel('${c.file}', 3)">N3</button>
+  </div>
+</div>`;
+    }).join('')}
+  </div>
+</div>`;
+  }).join('');
+
+  const pct = Math.round(totalDone / totalConcepts * 100);
+  document.getElementById('global-fill').style.width = pct + '%';
+  document.getElementById('global-pct').textContent = pct + '%';
+}
+
+render();
+</script>
+</body>
+</html>

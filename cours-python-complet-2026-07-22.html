@@ -1,0 +1,1281 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Le cours Python, expliqué simplement</title>
+<style>
+  :root {
+    --bg: #f4f6fb;
+    --card: #ffffff;
+    --ink: #1c2434;
+    --muted: #5b6b86;
+    --accent: #3454d1;
+    --accent-soft: #e8edff;
+    --code-bg: #0f172a;
+    --code-ink: #e2e8f0;
+    --code-key: #7dd3fc;
+    --code-str: #86efac;
+    --code-com: #64748b;
+    --warn-bg: #fff4e5;
+    --warn-border: #f59e0b;
+    --recall-bg: #eafaf1;
+    --recall-border: #2fb673;
+    --quiz-bg: #f3effe;
+    --quiz-border: #8b5cf6;
+    --line: #e4e8f2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0c1120;
+      --card: #151c2e;
+      --ink: #e8edf7;
+      --muted: #9aa7c2;
+      --accent: #7d95ff;
+      --accent-soft: #1e2947;
+      --warn-bg: #33260f;
+      --warn-border: #f59e0b;
+      --recall-bg: #102a1e;
+      --recall-border: #2fb673;
+      --quiz-bg: #201a38;
+      --quiz-border: #a78bfa;
+      --line: #26304a;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 800px; margin: 0 auto; padding: 28px 20px 90px; }
+  header.hero {
+    text-align: center;
+    padding: 30px 20px;
+    background: var(--accent-soft);
+    border-radius: 20px;
+    margin-bottom: 8px;
+  }
+  header.hero h1 { margin: 0 0 6px; font-size: 2rem; }
+  header.hero p { margin: 0; color: var(--muted); font-size: 1.02rem; }
+
+  /* Sommaire */
+  nav.toc {
+    position: sticky; top: 0; z-index: 20;
+    background: var(--bg);
+    padding: 12px 0 10px;
+    margin: 6px 0 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  nav.toc .lbl { font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin: 0 2px 8px; }
+  nav.toc .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  nav.toc a {
+    display: inline-flex; align-items: center; gap: 6px;
+    text-decoration: none;
+    background: var(--card);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 5px 11px;
+    font-size: .82rem;
+    font-weight: 600;
+  }
+  nav.toc a:hover { border-color: var(--accent); color: var(--accent); }
+  nav.toc a .n {
+    background: var(--accent); color: #fff; border-radius: 50%;
+    width: 19px; height: 19px; display: grid; place-items: center;
+    font-size: .72rem; font-weight: 700;
+  }
+
+  .chapter { margin: 30px 0 8px; scroll-margin-top: 90px; }
+  .chapter-head {
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px 18px;
+    background: linear-gradient(90deg, var(--accent-soft), transparent);
+    border-left: 5px solid var(--accent);
+    border-radius: 12px;
+    margin-bottom: 6px;
+  }
+  .chapter-head .big {
+    flex: 0 0 auto; width: 42px; height: 42px; border-radius: 12px;
+    background: var(--accent); color: #fff; display: grid; place-items: center;
+    font-size: 1.15rem; font-weight: 800;
+  }
+  .chapter-head h2 { margin: 0; font-size: 1.25rem; }
+  .chapter-head .sub { margin: 2px 0 0; color: var(--muted); font-size: .9rem; }
+
+  details.concept {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    margin: 10px 0;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(20,30,60,.05);
+  }
+  details.concept > summary {
+    cursor: pointer; list-style: none;
+    padding: 15px 20px;
+    font-weight: 640; font-size: 1.04rem;
+    display: flex; align-items: center; gap: 11px; user-select: none;
+  }
+  details.concept > summary::-webkit-details-marker { display: none; }
+  details.concept > summary .dot { font-size: 1.15rem; }
+  details.concept > summary .chev { margin-left: auto; transition: transform .2s ease; color: var(--muted); font-size: .8rem; }
+  details.concept[open] > summary .chev { transform: rotate(90deg); }
+  .body { padding: 2px 20px 20px; }
+  .body p { margin: 11px 0; }
+  .analogy { background: var(--accent-soft); border-radius: 11px; padding: 13px 15px; margin: 13px 0; font-size: 1rem; }
+  .analogy .tag { font-weight: 700; }
+  pre.diagram, pre.code {
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    border-radius: 11px; padding: 13px 15px; overflow-x: auto;
+    font-size: .88rem; line-height: 1.5; margin: 13px 0;
+  }
+  pre.diagram { background: var(--bg); border: 1px dashed var(--line); color: var(--ink); }
+  pre.code { background: var(--code-bg); color: var(--code-ink); }
+  pre.code .k { color: var(--code-key); }
+  pre.code .s { color: var(--code-str); }
+  pre.code .c { color: var(--code-com); }
+  .box { border-radius: 11px; padding: 11px 15px; margin: 13px 0; font-size: .95rem; }
+  .box .head { font-weight: 700; display: block; margin-bottom: 3px; }
+  .warn { background: var(--warn-bg); border-left: 4px solid var(--warn-border); }
+  .recall { background: var(--recall-bg); border-left: 4px solid var(--recall-border); }
+  table.cmp { width: 100%; border-collapse: collapse; margin: 13px 0; font-size: .9rem; }
+  table.cmp th, table.cmp td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; }
+  table.cmp th { background: var(--accent-soft); }
+  code.inl { background: var(--accent-soft); padding: 1px 6px; border-radius: 6px; font-family: "SF Mono", Menlo, monospace; font-size: .9em; }
+  .quiz { background: var(--quiz-bg); border-left: 4px solid var(--quiz-border); border-radius: 11px; padding: 13px 15px; margin: 15px 0 4px; }
+  .quiz .q { font-weight: 640; margin-bottom: 8px; }
+  .quiz button { background: var(--quiz-border); color: #fff; border: none; border-radius: 8px; padding: 6px 13px; font-size: .88rem; cursor: pointer; font-weight: 600; }
+  .quiz button:hover { filter: brightness(1.08); }
+  .quiz .answer { display: none; margin-top: 9px; padding-top: 9px; border-top: 1px dashed var(--quiz-border); }
+  .quiz.reveal .answer { display: block; }
+  .quiz.reveal button { display: none; }
+  .top { display: inline-block; margin-top: 8px; font-size: .8rem; color: var(--muted); text-decoration: none; }
+  .top:hover { color: var(--accent); }
+  footer { text-align: center; color: var(--muted); font-size: .85rem; margin-top: 40px; }
+</style>
+</head>
+<body>
+<div class="wrap" id="top">
+
+  <header class="hero">
+    <h1>🐍 Python, expliqué pour de vrai</h1>
+    <p>Les 15 premiers exos d'Exercism, un chapitre chacun. Analogies, schémas, quiz. Zéro jargon non traduit.</p>
+  </header>
+
+  <nav class="toc">
+    <div class="lbl">Sommaire — clique pour sauter</div>
+    <div class="chips">
+      <a href="#exo-01"><span class="n">1</span> Fonctions &amp; variables</a>
+      <a href="#exo-02"><span class="n">2</span> Booléens</a>
+      <a href="#exo-03"><span class="n">3</span> Nombres</a>
+      <a href="#exo-04"><span class="n">4</span> Comparaisons</a>
+      <a href="#exo-05"><span class="n">5</span> Strings (texte)</a>
+      <a href="#exo-06"><span class="n">6</span> Méthodes de texte</a>
+      <a href="#exo-07"><span class="n">7</span> Listes</a>
+      <a href="#exo-08"><span class="n">8</span> Méthodes de liste</a>
+      <a href="#exo-09"><span class="n">9</span> if / elif / else</a>
+      <a href="#exo-10"><span class="n">10</span> Boucles</a>
+      <a href="#exo-11"><span class="n">11</span> Tuples</a>
+      <a href="#exo-12"><span class="n">12</span> Dictionnaires</a>
+      <a href="#exo-13"><span class="n">13</span> Dict avancé</a>
+      <a href="#exo-14"><span class="n">14</span> ★ Emballage</a>
+      <a href="#exo-15"><span class="n">15</span> Sets</a>
+      <a href="#exo-16"><span class="n">16</span> ★ Classes (POO)</a>
+      <a href="#exo-17"><span class="n">17</span> ★ Générateurs</a>
+    </div>
+  </nav>
+
+  <!-- ============ 01 ============ -->
+  <section class="chapter" id="exo-01">
+    <div class="chapter-head">
+      <span class="big">1</span>
+      <div><h2>Fonctions &amp; variables</h2><p class="sub">guido's gorgeous lasagna · <code class="inl">def</code>, <code class="inl">return</code>, <code class="inl">=</code></p></div>
+    </div>
+
+    <details class="concept" open>
+      <summary><span class="dot">🏷️</span> Une variable = une étiquette sur une boîte <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">🏷️ L'image :</span> une variable, c'est une <strong>étiquette</strong> que tu colles sur une valeur pour la retrouver. Le signe <code class="inl">=</code> veut dire "colle cette étiquette sur cette valeur" (ce n'est PAS l'égalité des maths).</div>
+        <pre class="code">age = 43            <span class="c"># l'étiquette "age" pointe sur 43</span>
+age = <span class="s">"quarante-trois"</span>  <span class="c"># tu peux la recoller ailleurs quand tu veux</span></pre>
+        <p>Une <strong>constante</strong>, c'est une étiquette qu'on promet de ne jamais recoller. Convention : on l'écrit tout en majuscules → <code class="inl">TAUX_TVA = 0.20</code>.</p>
+        <div class="quiz" id="q0101">
+          <div class="q">🤔 Après <code class="inl">x = 5</code> puis <code class="inl">x = 9</code>, que vaut <code class="inl">x</code> ?</div>
+          <button onclick="reveal('q0101')">Réponse</button>
+          <div class="answer"><strong>9</strong>. La dernière étiquette collée gagne.</div>
+        </div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">⚙️</span> Une fonction = une machine <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">⚙️ L'image :</span> une fonction, c'est une <strong>machine</strong>. Tu y mets des <strong>ingrédients</strong> (les paramètres), elle fait son travail, et elle te <strong>rend un résultat</strong> (le <code class="inl">return</code>).</div>
+        <pre class="code"><span class="k">def</span> additionne(a, b):   <span class="c"># def = "je fabrique la machine", a et b = ingrédients</span>
+    <span class="k">return</span> a + b        <span class="c"># return = "voilà le plat servi"</span>
+
+additionne(3, 4)          <span class="c"># -> 7  (on met 3 et 4, elle rend 7)</span></pre>
+        <pre class="diagram">   3 ┐
+     ├──►[ additionne ]──► 7
+   4 ┘   (la machine)   (résultat)</pre>
+        <div class="box warn"><span class="head">⚠️ Piège : pas de <code class="inl">return</code> = la machine rend <code class="inl">None</code></span>
+        Si tu oublies <code class="inl">return</code>, la fonction calcule peut-être un truc, mais elle ne te rend <strong>rien</strong> (<code class="inl">None</code> = "rien"). C'est l'erreur n°1 du débutant.</div>
+        <div class="box recall"><span class="head">🎯 Où ça sert</span> Tout Exercism, c'est ça : on te donne une machine vide (<code class="inl">def ...: pass</code>) et tu écris ce qu'elle doit faire + ce qu'elle doit <code class="inl">return</code>.</div>
+        <div class="quiz" id="q0102">
+          <div class="q">🤔 <code class="inl">def f(x): x + 1</code> (sans return). Que rend <code class="inl">f(10)</code> ?</div>
+          <button onclick="reveal('q0102')">Réponse</button>
+          <div class="answer"><strong>None</strong>. Elle calcule <code class="inl">x + 1</code> mais ne le rend pas, faute de <code class="inl">return</code>.</div>
+        </div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">💬</span> Commentaires &amp; docstrings <span class="chev">▶</span></summary>
+      <div class="body">
+        <p>Un <strong>commentaire</strong> commence par <code class="inl">#</code> : Python l'ignore, c'est une note pour les humains. Une ligne = un <code class="inl">#</code> (pas de commentaire multi-lignes en Python).</p>
+        <p>Une <strong>docstring</strong>, c'est le petit texte entre <code class="inl">"""triple guillemets"""</code> juste sous le <code class="inl">def</code> : elle explique ce que fait la machine. C'est ce que tu vois en haut de chaque exo Exercism.</p>
+        <pre class="code"><span class="k">def</span> aire(cote):
+    <span class="s">"""Calcule l'aire d'un carré."""</span>   <span class="c"># docstring</span>
+    <span class="k">return</span> cote * cote</pre>
+      </div>
+    </details>
+    <a class="top" href="#top">↑ sommaire</a>
+  </section>
+
+  <!-- ============ 02 ============ -->
+  <section class="chapter" id="exo-02">
+    <div class="chapter-head">
+      <span class="big">2</span>
+      <div><h2>Les booléens (vrai / faux)</h2><p class="sub">ghost gobble · <code class="inl">True</code>, <code class="inl">False</code>, <code class="inl">and</code>, <code class="inl">or</code>, <code class="inl">not</code></p></div>
+    </div>
+
+    <details class="concept" open>
+      <summary><span class="dot">💡</span> Un booléen = un interrupteur <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">💡 L'image :</span> un booléen n'a que deux positions, comme un interrupteur : <strong>allumé</strong> (<code class="inl">True</code>) ou <strong>éteint</strong> (<code class="inl">False</code>). Attention à la majuscule : <code class="inl">True</code>/<code class="inl">False</code>, jamais <code class="inl">true</code>.</div>
+        <pre class="code">porte_ouverte = <span class="k">True</span>
+alarme = <span class="k">False</span></pre>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🔀</span> Combiner : <code class="inl">and</code>, <code class="inl">or</code>, <code class="inl">not</code> <span class="chev">▶</span></summary>
+      <div class="body">
+        <ul>
+          <li><strong><code class="inl">and</code></strong> → vrai seulement si les <strong>DEUX</strong> sont vrais. (il faut la clé <em>et</em> le code)</li>
+          <li><strong><code class="inl">or</code></strong> → vrai si <strong>AU MOINS UN</strong> est vrai. (le train <em>ou</em> le bus)</li>
+          <li><strong><code class="inl">not</code></strong> → l'<strong>inverse</strong>. (<code class="inl">not True</code> → <code class="inl">False</code>)</li>
+        </ul>
+        <pre class="code"><span class="k">True</span> <span class="k">and</span> <span class="k">False</span>   <span class="c"># -> False (l'un des deux est éteint)</span>
+<span class="k">False</span> <span class="k">or</span> <span class="k">True</span>    <span class="c"># -> True  (au moins un est allumé)</span>
+<span class="k">not</span> <span class="k">False</span>       <span class="c"># -> True  (on inverse)</span></pre>
+        <div class="box recall"><span class="head">🎯 Où ça sert</span> Dans ghost-gobble : "Pac-Man peut manger le fantôme" = vrai seulement si <code class="inl">pac-man a mangé la pastille</code> <strong>and</strong> <code class="inl">le fantôme est bleu</code>.</div>
+        <div class="quiz" id="q0201">
+          <div class="q">🤔 <code class="inl">(True and False) or not False</code> vaut quoi ?</div>
+          <button onclick="reveal('q0201')">Réponse</button>
+          <div class="answer"><strong>True</strong>. <code class="inl">True and False</code> → False ; <code class="inl">not False</code> → True ; <code class="inl">False or True</code> → <strong>True</strong>.</div>
+        </div>
+      </div>
+    </details>
+    <a class="top" href="#top">↑ sommaire</a>
+  </section>
+
+  <!-- ============ 03 ============ -->
+  <section class="chapter" id="exo-03">
+    <div class="chapter-head">
+      <span class="big">3</span>
+      <div><h2>Les nombres</h2><p class="sub">currency exchange · <code class="inl">int</code>, <code class="inl">float</code>, <code class="inl">//</code>, <code class="inl">%</code></p></div>
+    </div>
+
+    <details class="concept" open>
+      <summary><span class="dot">🔢</span> Deux familles : <code class="inl">int</code> et <code class="inl">float</code> <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">🔢 L'image :</span> un <strong>int</strong> = des <strong>billes entières</strong> (1, -10, 42), tu ne peux pas en avoir 3,5. Un <strong>float</strong> = un <strong>volume avec décimales</strong> (3.14, 0.0, -9.01), il a une virgule (un point en anglais).</div>
+        <div class="quiz" id="q0301">
+          <div class="q">🤔 <code class="inl">7</code> et <code class="inl">7.0</code>, même type ?</div>
+          <button onclick="reveal('q0301')">Réponse</button>
+          <div class="answer">Non : <code class="inl">7</code> est un <strong>int</strong>, <code class="inl">7.0</code> est un <strong>float</strong>. Même valeur, familles différentes.</div>
+        </div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">➗</span> Les deux divisions : <code class="inl">/</code> et <code class="inl">//</code> <span class="chev">▶</span></summary>
+      <div class="body">
+        <p>La division normale <code class="inl">/</code> rend <strong>toujours un float</strong>, même sur des entiers ronds :</p>
+        <pre class="code">6 / 2     <span class="c"># -> 3.0  (float ! pas 3)</span>
+7 / 4     <span class="c"># -> 1.75</span></pre>
+        <p>La division <strong>entière</strong> <code class="inl">//</code> coupe et jette les décimales (elle "tronque") :</p>
+        <pre class="code">7 // 4    <span class="c"># -> 1   (1.75, on jette le ,75)</span>
+6 // 2    <span class="c"># -> 3</span></pre>
+        <div class="box recall"><span class="head">✅ Rappel making-the-grade</span> C'est exactement le <code class="inl">//</code> que tu as utilisé pour <code class="inl">(highest - 40) // 4</code> : tu voulais un pas <strong>entier</strong> pour tes tranches de notes, pas un 1.75 qui casse <code class="inl">range()</code>.</div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🍰</span> Le reste : <code class="inl">%</code> (modulo) <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">🍰 L'image :</span> <code class="inl">%</code> te donne <strong>ce qui reste</strong> après avoir partagé. 7 bonbons pour 4 enfants → chacun 1, il <strong>reste 3</strong>.</div>
+        <pre class="code">7 % 4     <span class="c"># -> 3  (le reste)</span>
+10 % 2    <span class="c"># -> 0  (pile poil, donc 10 est pair)</span></pre>
+        <div class="box recall"><span class="head">🎯 Où ça sert</span> Test pair/impair : <code class="inl">n % 2 == 0</code> = "reste nul" = pair. Tu le reverras dans les boucles.</div>
+        <div class="quiz" id="q0302">
+          <div class="q">🤔 <code class="inl">13 % 5</code> = ? et <code class="inl">13 // 5</code> = ?</div>
+          <button onclick="reveal('q0302')">Réponse</button>
+          <div class="answer"><code class="inl">13 % 5</code> → <strong>3</strong> (le reste). <code class="inl">13 // 5</code> → <strong>2</strong> (combien de fois 5 rentre).</div>
+        </div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🔄</span> Changer de famille : <code class="inl">int()</code> et <code class="inl">float()</code> <span class="chev">▶</span></summary>
+      <div class="body">
+        <pre class="code">int(3.9)    <span class="c"># -> 3   (coupe les décimales, ne s'arrondit PAS)</span>
+float(5)    <span class="c"># -> 5.0</span></pre>
+        <div class="box warn"><span class="head">⚠️ Piège</span> <code class="inl">int()</code> <strong>tronque</strong>, il n'arrondit pas : <code class="inl">int(3.9)</code> donne 3, pas 4. Pour arrondir, c'est <code class="inl">round(3.9)</code> → 4.</div>
+      </div>
+    </details>
+    <a class="top" href="#top">↑ sommaire</a>
+  </section>
+
+  <!-- ============ 04 ============ -->
+  <section class="chapter" id="exo-04">
+    <div class="chapter-head">
+      <span class="big">4</span>
+      <div><h2>Les comparaisons</h2><p class="sub">black jack · <code class="inl">&gt;</code> <code class="inl">&lt;</code> <code class="inl">==</code> <code class="inl">is</code> <code class="inl">in</code></p></div>
+    </div>
+
+    <details class="concept" open>
+      <summary><span class="dot">⚖️</span> La balance : <code class="inl">&gt;</code> <code class="inl">&lt;</code> <code class="inl">==</code> <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">⚖️ L'image :</span> une comparaison, c'est une <strong>question</strong> à laquelle Python répond par oui (<code class="inl">True</code>) ou non (<code class="inl">False</code>).</div>
+        <table class="cmp">
+          <tr><th>Signe</th><th>Question</th></tr>
+          <tr><td><code class="inl">&gt;</code> / <code class="inl">&lt;</code></td><td>strictement plus grand / plus petit</td></tr>
+          <tr><td><code class="inl">&gt;=</code> / <code class="inl">&lt;=</code></td><td>plus grand/petit <strong>ou égal</strong></td></tr>
+          <tr><td><code class="inl">==</code></td><td>est égal à ? (deux <code class="inl">=</code> !)</td></tr>
+          <tr><td><code class="inl">!=</code></td><td>est différent de ?</td></tr>
+        </table>
+        <div class="box warn"><span class="head">⚠️ Le piège classique</span> <code class="inl">=</code> (un seul) = "colle une étiquette". <code class="inl">==</code> (double) = "est-ce égal ?". Dans un <code class="inl">if</code>, c'est toujours <code class="inl">==</code>.</div>
+        <div class="box recall"><span class="head">✅ Rappel making-the-grade</span> <code class="inl">&lt;=</code> vs <code class="inl">&lt;</code> t'a piégé : "au plus 40" (échec) c'est <code class="inl">note &lt;= 40</code>, le 40 est inclus. Le "ou égal" compte.</div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🔗</span> Enchaîner : <code class="inl">x &lt; y &lt; z</code> <span class="chev">▶</span></summary>
+      <div class="body">
+        <p>Python autorise le langage des maths : <code class="inl">18 &lt;= age &lt; 65</code> se lit "âge entre 18 et 65". Pas besoin de <code class="inl">and</code>.</p>
+        <pre class="code">x, y, z = 2, 5, 10
+x &lt; y &lt; z    <span class="c"># -> True   (2 &lt; 5 ET 5 &lt; 10)</span></pre>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">👯</span> <code class="inl">==</code> vs <code class="inl">is</code> : même valeur ≠ même objet <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">👯 L'image :</span> deux vrais jumeaux ont la <strong>même apparence</strong> (<code class="inl">==</code>, même valeur) mais ce ne sont <strong>pas la même personne</strong> (<code class="inl">is</code>, même objet exact en mémoire).</div>
+        <p>En pratique de débutant : utilise <code class="inl">==</code> pour comparer des valeurs. Réserve <code class="inl">is</code> à un seul cas : <code class="inl">x is None</code>.</p>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🔍</span> <code class="inl">in</code> : est-ce dedans ? <span class="chev">▶</span></summary>
+      <div class="body">
+        <pre class="code"><span class="s">"Bat"</span> <span class="k">in</span> <span class="s">"Super Batman"</span>   <span class="c"># -> True  (sous-texte présent)</span>
+22 <span class="k">in</span> [11, 22, 33]         <span class="c"># -> True  (élément présent)</span></pre>
+        <div class="quiz" id="q0401">
+          <div class="q">🤔 Dans un <code class="inl">if</code> pour tester l'égalité, j'écris <code class="inl">=</code> ou <code class="inl">==</code> ?</div>
+          <button onclick="reveal('q0401')">Réponse</button>
+          <div class="answer"><strong><code class="inl">==</code></strong> (double). Le simple <code class="inl">=</code> sert à assigner et fera une erreur dans un <code class="inl">if</code>.</div>
+        </div>
+      </div>
+    </details>
+    <a class="top" href="#top">↑ sommaire</a>
+  </section>
+
+  <!-- ============ 05 ============ -->
+  <section class="chapter" id="exo-05">
+    <div class="chapter-head">
+      <span class="big">5</span>
+      <div><h2>Les strings (le texte)</h2><p class="sub">little sister's vocab · index, slicing, <code class="inl">+</code>, <code class="inl">.split()</code>, <code class="inl">.join()</code></p></div>
+    </div>
+
+    <details class="concept" open>
+      <summary><span class="dot">📿</span> Un string = un collier de perles <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">📿 L'image :</span> un texte, c'est un <strong>collier</strong> où chaque perle est un caractère, rangé dans l'ordre. On l'écrit entre guillemets <code class="inl">'...'</code> ou <code class="inl">"..."</code>.</div>
+        <p>Chaque perle a un numéro de place (index), depuis la gauche (0) ou la droite (-1) — exactement comme les tuples :</p>
+        <pre class="diagram">m  o  t
+[0][1][2]      &lt;- depuis la gauche
+[-3][-2][-1]   &lt;- depuis la droite</pre>
+        <pre class="code">mot = <span class="s">"chat"</span>
+mot[0]    <span class="c"># -> "c"</span>
+mot[-1]   <span class="c"># -> "t"</span></pre>
+        <div class="box recall"><span class="head">✅ Rappel tisbury</span> Ton <code class="inl">convert_coordinate</code> faisait <code class="inl">coordinate[0], coordinate[1]</code> pour séparer <code class="inl">"2"</code> et <code class="inl">"A"</code>. Même principe.</div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">✂️</span> Couper un bout : le slicing <code class="inl">[début:fin]</code> <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">✂️ L'image :</span> le slicing coupe une <strong>tranche</strong> du collier. <code class="inl">[2:5]</code> = "de la perle 2 jusqu'AVANT la 5".</div>
+        <pre class="code">mot = <span class="s">"exercism"</span>
+mot[0:4]   <span class="c"># -> "exer"  (0,1,2,3 — le 4 est exclu)</span>
+mot[:3]    <span class="c"># -> "exe"   (début omis = depuis 0)</span>
+mot[3:]    <span class="c"># -> "rcism" (fin omise = jusqu'au bout)</span></pre>
+        <div class="box warn"><span class="head">⚠️ La règle en or</span> La borne de fin est <strong>toujours exclue</strong>. <code class="inl">[0:4]</code> te donne 4 perles (0 à 3), pas 5. C'est LE même piège que <code class="inl">range()</code>.</div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🧩</span> Coller &amp; découper : <code class="inl">+</code>, <code class="inl">.split()</code>, <code class="inl">.join()</code> <span class="chev">▶</span></summary>
+      <div class="body">
+        <p><strong>Coller</strong> deux textes avec <code class="inl">+</code> :</p>
+        <pre class="code"><span class="s">"bon"</span> + <span class="s">"jour"</span>   <span class="c"># -> "bonjour"</span></pre>
+        <p><strong>Découper</strong> un texte en liste de mots avec <code class="inl">.split()</code> :</p>
+        <pre class="code"><span class="s">"le chat dort"</span>.split()      <span class="c"># -> ["le", "chat", "dort"]</span>
+<span class="s">"a,b,c"</span>.split(<span class="s">","</span>)         <span class="c"># -> ["a", "b", "c"]</span></pre>
+        <p><strong>Ré-assembler</strong> une liste en texte avec <code class="inl">.join()</code> (l'inverse de split). Attention : le séparateur est <strong>devant</strong> le <code class="inl">.join</code> :</p>
+        <pre class="code"><span class="s">" "</span>.join([<span class="s">"le"</span>, <span class="s">"chat"</span>])   <span class="c"># -> "le chat"</span>
+<span class="s">"-"</span>.join([<span class="s">"06"</span>, <span class="s">"12"</span>, <span class="s">"34"</span>]) <span class="c"># -> "06-12-34"</span></pre>
+        <div class="quiz" id="q0501">
+          <div class="q">🤔 <code class="inl">"2026-07-22".split("-")</code> rend quoi ?</div>
+          <button onclick="reveal('q0501')">Réponse</button>
+          <div class="answer"><code class="inl">["2026", "07", "22"]</code> — une liste de 3 morceaux, coupés sur le tiret.</div>
+        </div>
+      </div>
+    </details>
+    <a class="top" href="#top">↑ sommaire</a>
+  </section>
+
+  <!-- ============ 06 ============ -->
+  <section class="chapter" id="exo-06">
+    <div class="chapter-head">
+      <span class="big">6</span>
+      <div><h2>Les méthodes de texte</h2><p class="sub">little sister's essay · <code class="inl">.title()</code>, <code class="inl">.strip()</code>, <code class="inl">.replace()</code>, <code class="inl">.endswith()</code></p></div>
+    </div>
+
+    <details class="concept" open>
+      <summary><span class="dot">🧰</span> Une méthode = un outil collé au texte <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">🧰 L'image :</span> une <strong>fonction</strong> est une machine à part (<code class="inl">round(x)</code>). Une <strong>méthode</strong> est un outil <strong>attaché</strong> à l'objet, avec un point : <code class="inl">"texte".title()</code>. Le point = "applique ton outil sur moi".</div>
+        <div class="box warn"><span class="head">⚠️ Immuable</span> Le texte de départ ne change JAMAIS. Une méthode rend une <strong>copie</strong> modifiée. <code class="inl">"abc".upper()</code> te donne <code class="inl">"ABC"</code> mais <code class="inl">"abc"</code> reste <code class="inl">"abc"</code>. Il faut récupérer le résultat dans une variable.</div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🔧</span> Les 4 outils de l'exo <span class="chev">▶</span></summary>
+      <div class="body">
+        <table class="cmp">
+          <tr><th>Outil</th><th>Ce qu'il fait</th><th>Exemple</th></tr>
+          <tr><td><code class="inl">.title()</code></td><td>Majuscule à chaque mot</td><td><code class="inl">"le chat".title()</code> → <code class="inl">"Le Chat"</code></td></tr>
+          <tr><td><code class="inl">.strip()</code></td><td>Enlève les espaces au bord</td><td><code class="inl">"  hi  ".strip()</code> → <code class="inl">"hi"</code></td></tr>
+          <tr><td><code class="inl">.replace(a, b)</code></td><td>Remplace a par b partout</td><td><code class="inl">"aaa".replace("a","b")</code> → <code class="inl">"bbb"</code></td></tr>
+          <tr><td><code class="inl">.endswith(x)</code></td><td>Se termine par x ? (vrai/faux)</td><td><code class="inl">"chat.".endswith(".")</code> → <code class="inl">True</code></td></tr>
+        </table>
+        <div class="box warn"><span class="head">⚠️ La ponctuation compte</span> <code class="inl">.endswith("chat")</code> sur <code class="inl">"le chat."</code> → <strong>False</strong>, à cause du point final. Le texte, c'est au caractère près.</div>
+        <div class="quiz" id="q0601">
+          <div class="q">🤔 Après <code class="inl">nom = "  julien  "</code> et <code class="inl">nom.strip()</code>, que vaut <code class="inl">nom</code> ?</div>
+          <button onclick="reveal('q0601')">Réponse</button>
+          <div class="answer">Toujours <code class="inl">"  julien  "</code> ! <code class="inl">.strip()</code> rend une copie mais ne modifie pas l'original. Il fallait écrire <code class="inl">nom = nom.strip()</code>.</div>
+        </div>
+      </div>
+    </details>
+    <a class="top" href="#top">↑ sommaire</a>
+  </section>
+
+  <!-- ============ 07 ============ -->
+  <section class="chapter" id="exo-07">
+    <div class="chapter-head">
+      <span class="big">7</span>
+      <div><h2>Les listes</h2><p class="sub">card games · <code class="inl">[ ]</code>, index, slicing, <code class="inl">len()</code>, <code class="inl">sum()</code></p></div>
+    </div>
+
+    <details class="concept" open>
+      <summary><span class="dot">🛒</span> Une liste = un chariot de courses <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">🛒 L'image :</span> une liste, c'est ta <strong>trousse</strong> ou ton <strong>chariot</strong> : des éléments dans l'ordre, entre crochets <code class="inl">[ ]</code>, et surtout tu peux <strong>ajouter / enlever / changer</strong> (contrairement au tuple scellé).</div>
+        <pre class="code">courses = [<span class="s">"pain"</span>, <span class="s">"lait"</span>, <span class="s">"œufs"</span>]
+courses[0]    <span class="c"># -> "pain"  (index comme partout : 0 à gauche, -1 à droite)</span>
+courses[-1]   <span class="c"># -> "œufs"</span></pre>
+        <div class="box recall"><span class="head">🧠 À retenir</span> Liste <code class="inl">[ ]</code> = modifiable. Tuple <code class="inl">( )</code> = scellé. String <code class="inl">"..."</code> = scellé. Même notation d'index pour les trois.</div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">📏</span> Mesurer &amp; additionner : <code class="inl">len()</code>, <code class="inl">sum()</code> <span class="chev">▶</span></summary>
+      <div class="body">
+        <pre class="code">len([<span class="s">"a"</span>, <span class="s">"b"</span>, <span class="s">"c"</span>])   <span class="c"># -> 3   (combien d'éléments)</span>
+sum([10, 20, 30])   <span class="c"># -> 60  (somme, si ce sont des nombres)</span></pre>
+        <div class="box warn"><span class="head">⚠️ Piège d'index</span> Une liste de 3 éléments a les index 0, 1, 2. Le dernier index = <code class="inl">len - 1</code>, pas <code class="inl">len</code>. Demander <code class="inl">liste[3]</code> ici → <em>IndexError</em>.</div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">✂️</span> Slicing &amp; collage : <code class="inl">[a:b]</code>, <code class="inl">+</code>, <code class="inl">*</code> <span class="chev">▶</span></summary>
+      <div class="body">
+        <p>Comme sur le texte : on coupe des tranches, la fin est exclue.</p>
+        <pre class="code">nums = [10, 20, 30, 40, 50]
+nums[1:3]   <span class="c"># -> [20, 30]</span>
+nums[::2]   <span class="c"># -> [10, 30, 50]  (un sur deux)</span>
+[1, 2] + [3]  <span class="c"># -> [1, 2, 3]  (coller)</span></pre>
+        <div class="quiz" id="q0701">
+          <div class="q">🤔 <code class="inl">len(["x", "y"])</code> vaut 2. Quel est l'index du dernier élément ?</div>
+          <button onclick="reveal('q0701')">Réponse</button>
+          <div class="answer"><strong>1</strong> (et non 2). Les index vont de 0 à <code class="inl">len - 1</code>.</div>
+        </div>
+      </div>
+    </details>
+    <a class="top" href="#top">↑ sommaire</a>
+  </section>
+
+  <!-- ============ 08 ============ -->
+  <section class="chapter" id="exo-08">
+    <div class="chapter-head">
+      <span class="big">8</span>
+      <div><h2>Les méthodes de liste</h2><p class="sub">chaitana's coaster · <code class="inl">.append()</code>, <code class="inl">.pop()</code>, <code class="inl">.sort()</code>…</p></div>
+    </div>
+
+    <details class="concept" open>
+      <summary><span class="dot">✋</span> Ces outils modifient le chariot SUR PLACE <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="box warn"><span class="head">⚠️ La grande différence avec le texte</span> Les méthodes de liste <strong>changent la liste d'origine</strong> (elle est modifiable). Pas besoin de <code class="inl">ma_liste = ma_liste.append(...)</code> — d'ailleurs ça casse tout (voir piège plus bas).</div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">➕</span> Ajouter : <code class="inl">.append()</code>, <code class="inl">.insert()</code>, <code class="inl">.extend()</code> <span class="chev">▶</span></summary>
+      <div class="body">
+        <pre class="code">nums = [1, 2, 3]
+nums.append(9)      <span class="c"># -> [1, 2, 3, 9]   ajoute 1 élément à la fin</span>
+nums.insert(0, -2)  <span class="c"># -> [-2, 1, 2, 3, 9]  ajoute à un index précis</span>
+nums.extend([7, 8]) <span class="c"># -> [..., 7, 8]  ajoute PLUSIEURS éléments</span></pre>
+        <div class="box warn"><span class="head">⚠️ append vs extend</span> <code class="inl">.append([7,8])</code> ajoute la liste <strong>entière comme UN seul élément</strong> → <code class="inl">[..., [7,8]]</code>. <code class="inl">.extend([7,8])</code> ajoute 7 puis 8 séparément. C'est la cause de tes "crochets en trop".</div>
+        <div class="box recall"><span class="head">✅ Rappel making-the-grade</span> Tu bâtissais tes résultats avec <code class="inl">resultat.append(...)</code>, un élément à la fois. Et le bug de <code class="inl">perfect_score</code> ([['Joci',100]] au lieu de ['Joci',100]) venait exactement d'un niveau de crochets en trop.</div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">➖</span> Enlever : <code class="inl">.remove()</code>, <code class="inl">.pop()</code>, <code class="inl">.clear()</code> <span class="chev">▶</span></summary>
+      <div class="body">
+        <pre class="code">nums = [1, 2, 3]
+nums.remove(2)   <span class="c"># enlève la VALEUR 2 -> [1, 3]</span>
+nums.pop(0)      <span class="c"># enlève par INDEX et te rend l'élément -> renvoie 1</span>
+nums.clear()     <span class="c"># vide tout -> []</span></pre>
+        <p><code class="inl">.remove()</code> vise une <strong>valeur</strong>, <code class="inl">.pop()</code> vise une <strong>place (index)</strong> et te <strong>rend</strong> ce qu'il retire.</p>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🔀</span> Ranger : <code class="inl">.sort()</code>, <code class="inl">.reverse()</code>, <code class="inl">.count()</code> <span class="chev">▶</span></summary>
+      <div class="body">
+        <pre class="code">noms = [<span class="s">"Tony"</span>, <span class="s">"Bruce"</span>, <span class="s">"Thor"</span>]
+noms.sort()              <span class="c"># range dans l'ordre -> ['Bruce','Thor','Tony']</span>
+noms.sort(reverse=<span class="k">True</span>)  <span class="c"># ordre inverse</span>
+[1,1,2,1].count(1)       <span class="c"># -> 3   combien de fois 1 apparaît</span></pre>
+        <div class="box warn"><span class="head">⚠️ Le piège qui déroute tout le monde</span> <code class="inl">.sort()</code> range sur place et rend <code class="inl">None</code>. Donc <code class="inl">ma_liste = ma_liste.sort()</code> détruit ta liste (elle devient <code class="inl">None</code>) ! Écris juste <code class="inl">ma_liste.sort()</code>. Pour garder l'original, utilise la fonction <code class="inl">sorted(ma_liste)</code> qui, elle, rend une copie triée.</div>
+        <div class="quiz" id="q0801">
+          <div class="q">🤔 <code class="inl">scores = [3, 1, 2]</code> puis <code class="inl">scores = scores.sort()</code>. Que vaut <code class="inl">scores</code> ?</div>
+          <button onclick="reveal('q0801')">Réponse</button>
+          <div class="answer"><strong>None</strong> 😱. <code class="inl">.sort()</code> trie sur place et ne rend rien. Il fallait juste <code class="inl">scores.sort()</code> tout court.</div>
+        </div>
+      </div>
+    </details>
+    <a class="top" href="#top">↑ sommaire</a>
+  </section>
+
+  <!-- ============ 09 ============ -->
+  <section class="chapter" id="exo-09">
+    <div class="chapter-head">
+      <span class="big">9</span>
+      <div><h2>if / elif / else</h2><p class="sub">meltdown mitigation · prendre des décisions</p></div>
+    </div>
+
+    <details class="concept" open>
+      <summary><span class="dot">🚦</span> Un <code class="inl">if</code> = un aiguillage <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">🚦 L'image :</span> <code class="inl">if</code>, c'est un <strong>aiguillage de train</strong>. Selon que la condition est vraie ou fausse, le train part sur une voie ou une autre.</div>
+        <pre class="code"><span class="k">if</span> temperature &gt; 100:
+    print(<span class="s">"trop chaud"</span>)
+<span class="k">else</span>:
+    print(<span class="s">"ça va"</span>)</pre>
+        <p>La condition doit répondre <strong>vrai ou faux</strong> (souvent une comparaison du chapitre 4).</p>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🪜</span> <code class="inl">elif</code> : plusieurs voies <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">🪜 L'image :</span> <code class="inl">elif</code> = "sinon, essaie plutôt ça". Python teste les conditions <strong>de haut en bas</strong> et s'arrête à la <strong>première vraie</strong>. Le <code class="inl">else</code> attrape tout le reste.</div>
+        <pre class="code"><span class="k">if</span> note &gt;= 85:
+    lettre = <span class="s">"A"</span>
+<span class="k">elif</span> note &gt;= 70:
+    lettre = <span class="s">"B"</span>
+<span class="k">else</span>:
+    lettre = <span class="s">"échec"</span></pre>
+        <div class="box warn"><span class="head">⚠️ L'ordre compte</span> Comme Python s'arrête à la première condition vraie, va du plus strict au plus large. Si tu mets <code class="inl">note &gt;= 70</code> en premier, un 90 tomberait dedans et n'atteindrait jamais le "A".</div>
+        <div class="quiz" id="q0901">
+          <div class="q">🤔 Avec le code ci-dessus, quelle lettre pour <code class="inl">note = 90</code> ?</div>
+          <button onclick="reveal('q0901')">Réponse</button>
+          <div class="answer"><strong>"A"</strong>. 90 ≥ 85 est vrai dès la 1re ligne, Python s'arrête là.</div>
+        </div>
+      </div>
+    </details>
+    <a class="top" href="#top">↑ sommaire</a>
+  </section>
+
+  <!-- ============ 10 ============ -->
+  <section class="chapter" id="exo-10">
+    <div class="chapter-head">
+      <span class="big">10</span>
+      <div><h2>Les boucles</h2><p class="sub">making the grade · <code class="inl">for</code>, <code class="inl">while</code>, <code class="inl">range()</code>, <code class="inl">enumerate()</code></p></div>
+    </div>
+
+    <details class="concept" open>
+      <summary><span class="dot">🎞️</span> <code class="inl">for</code> = passer sur chaque élément <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">🎞️ L'image :</span> <code class="inl">for</code>, c'est un <strong>tapis roulant</strong> : chaque élément passe devant toi, un par un, et tu fais quelque chose avec.</div>
+        <pre class="code"><span class="k">for</span> note <span class="k">in</span> [12, 8, 15]:
+    print(note)     <span class="c"># affiche 12, puis 8, puis 15</span></pre>
+        <div class="box recall"><span class="head">✅ Ton squelette making-the-grade</span> accumulateur vide → <code class="inl">for</code> → filtre avec <code class="inl">if</code> → <code class="inl">.append()</code> → <code class="inl">return</code> APRÈS la boucle. Ce moule marche pour 90% des exos.</div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🔢</span> <code class="inl">range()</code> = un compteur <span class="chev">▶</span></summary>
+      <div class="body">
+        <pre class="code">range(4)        <span class="c"># 0, 1, 2, 3</span>
+range(1, 7)     <span class="c"># 1, 2, 3, 4, 5, 6</span>
+range(3, 15, 2) <span class="c"># 3, 5, 7, 9, 11, 13  (pas de 2)</span></pre>
+        <div class="box warn"><span class="head">⚠️ La borne de fin est exclue</span> <code class="inl">range(1, 7)</code> s'arrête <strong>avant</strong> 7. Même règle que le slicing. C'est ce qui t'a créé une 5e tranche en trop dans <code class="inl">letter_grades</code> — tu as basculé sur <code class="inl">range(4)</code> + formule pour avoir pile 4 valeurs.</div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🔗</span> <code class="inl">enumerate()</code> = numéro + valeur <span class="chev">▶</span></summary>
+      <div class="body">
+        <p>Quand tu as besoin de la <strong>place ET</strong> de la valeur en même temps :</p>
+        <pre class="code"><span class="k">for</span> index, mot <span class="k">in</span> enumerate([<span class="s">"a"</span>, <span class="s">"b"</span>]):
+    print(index, mot)   <span class="c"># 0 a  /  1 b</span></pre>
+        <div class="box recall"><span class="head">✅ Rappel</span> Tu as réécrit <code class="inl">student_ranking</code> avec <code class="inl">enumerate</code> pour avoir le rang (index) et le nom ensemble — c'est aussi ce que Pylint te réclamait (C0200).</div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🔁</span> <code class="inl">while</code>, <code class="inl">break</code>, <code class="inl">continue</code> <span class="chev">▶</span></summary>
+      <div class="body">
+        <p><code class="inl">while</code> = "répète <strong>tant que</strong> c'est vrai". <code class="inl">break</code> = "sors de la boucle maintenant". <code class="inl">continue</code> = "saute au tour suivant".</p>
+        <pre class="code"><span class="k">for</span> n <span class="k">in</span> range(10):
+    <span class="k">if</span> n == 5:
+        <span class="k">break</span>       <span class="c"># stoppe tout à 5</span>
+    <span class="k">if</span> n % 2 == 0:
+        <span class="k">continue</span>    <span class="c"># saute les pairs</span>
+    print(n)        <span class="c"># 1, 3</span></pre>
+        <div class="quiz" id="q1001">
+          <div class="q">🤔 Combien de nombres produit <code class="inl">range(2, 8)</code> ?</div>
+          <button onclick="reveal('q1001')">Réponse</button>
+          <div class="answer"><strong>6</strong> : 2, 3, 4, 5, 6, 7. Le 8 est exclu.</div>
+        </div>
+      </div>
+    </details>
+    <a class="top" href="#top">↑ sommaire</a>
+  </section>
+
+  <!-- ============ 11 ============ -->
+  <section class="chapter" id="exo-11">
+    <div class="chapter-head">
+      <span class="big">11</span>
+      <div><h2>Les tuples</h2><p class="sub">tisbury treasure hunt · la boîte scellée</p></div>
+    </div>
+
+    <details class="concept" open>
+      <summary><span class="dot">🥚</span> Un tuple = une boîte d'œufs scellée <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">🥚 L'image :</span> une <strong>boîte d'œufs scellée</strong> : une fois fermée, tu ne peux ni ajouter, ni enlever, ni remplacer. L'ordre est figé. On le reconnaît à ses parenthèses <code class="inl">( )</code>. C'est le contraire de la liste (la trousse, modifiable).</div>
+        <table class="cmp">
+          <tr><th>Symbole</th><th>Nom</th><th>Modifiable ?</th></tr>
+          <tr><td><code class="inl">( )</code></td><td>tuple</td><td>❌ scellé</td></tr>
+          <tr><td><code class="inl">[ ]</code></td><td>liste</td><td>✅ oui</td></tr>
+          <tr><td><code class="inl">{ }</code></td><td>dict (avec <code class="inl">:</code>) / set (sans)</td><td>✅ oui</td></tr>
+        </table>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">⚠️</span> Le piège du tuple à 1 élément <span class="chev">▶</span></summary>
+      <div class="body">
+        <pre class="code">(<span class="s">"guava"</span>)     <span class="c"># ❌ juste le mot "guava"</span>
+(<span class="s">"guava"</span>,)    <span class="c"># ✅ un tuple à 1 élément (la virgule !)</span></pre>
+        <p>Et coller deux tuples se fait avec <code class="inl">+</code>, comme partout :</p>
+        <pre class="code">(<span class="s">"a"</span>, <span class="s">"b"</span>) + (<span class="s">"c"</span>,)   <span class="c"># -> ("a", "b", "c")</span></pre>
+        <div class="box recall"><span class="head">✅ Rappel tisbury</span> <code class="inl">create_record</code> collait <code class="inl">azara_record + rui_record</code>. <code class="inl">get_coordinate</code> lisait <code class="inl">record[-1]</code>. Tu n'as jamais modifié un tuple — normal, il est scellé.</div>
+        <div class="quiz" id="q1101">
+          <div class="q">🤔 <code class="inl">("solo")</code> vs <code class="inl">("solo",)</code> : lequel est un tuple ?</div>
+          <button onclick="reveal('q1101')">Réponse</button>
+          <div class="answer">Le second, <code class="inl">("solo",)</code>, grâce à la virgule. Le premier est juste le texte "solo".</div>
+        </div>
+        <p style="margin-top:14px; font-size:.9rem; color:var(--muted);">💡 Version détaillée dédiée : <code class="inl">cours-tuples-2026-07-22.html</code>.</p>
+      </div>
+    </details>
+    <a class="top" href="#top">↑ sommaire</a>
+  </section>
+
+  <!-- ============ 12 ============ -->
+  <section class="chapter" id="exo-12">
+    <div class="chapter-head">
+      <span class="big">12</span>
+      <div><h2>Les dictionnaires</h2><p class="sub">inventory management · <code class="inl">{ }</code>, clé/valeur, <code class="inl">.items()</code></p></div>
+    </div>
+
+    <details class="concept" open>
+      <summary><span class="dot">🗄️</span> Un dict = un meuble à tiroirs étiquetés <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">🗄️ L'image :</span> un dictionnaire, c'est un <strong>meuble à tiroirs étiquetés</strong>. Chaque tiroir a une <strong>étiquette</strong> (la <em>clé</em>) et un <strong>contenu</strong> (la <em>valeur</em>). Tu ranges et retrouves par le nom de l'étiquette, pas par un numéro de place.</div>
+        <p><strong>Le problème que ça règle :</strong> avec une liste <code class="inl">[7, 11, 2]</code>, le 7 c'est le stock de quoi ? Mystère. Le dict colle une étiquette sur chaque nombre :</p>
+        <pre class="code">stock = {<span class="s">"coal"</span>: 7, <span class="s">"wood"</span>: 11, <span class="s">"diamond"</span>: 2}
+             <span class="c">▲étiquette  ▲contenu</span>
+             <span class="c">  (clé)     (valeur)</span></pre>
+        <div class="box recall"><span class="head">🧠 Les 3 boîtes, au complet</span> Liste <code class="inl">[ ]</code> = rangé par numéro. Tuple <code class="inl">( )</code> = pareil mais scellé. Dict <code class="inl">{ }</code> = rangé par <strong>étiquette</strong>. Le <code class="inl">:</code> entre clé et valeur = la marque du dict.</div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🔑</span> Lire, créer, changer un tiroir <span class="chev">▶</span></summary>
+      <div class="body">
+        <p>On écrit un dict "à la main" (un <em>dict littéral</em> — juste du jargon pour "écrit dans le code avec des accolades") :</p>
+        <pre class="code">stock = {<span class="s">"coal"</span>: 7, <span class="s">"wood"</span>: 11}
+
+stock[<span class="s">"coal"</span>]        <span class="c"># -> 7    LIRE le tiroir "coal"</span>
+stock[<span class="s">"gold"</span>] = 5      <span class="c"># CRÉER le tiroir "gold" à 5</span>
+stock[<span class="s">"coal"</span>] = 99     <span class="c"># CHANGER le contenu de "coal"</span></pre>
+        <div class="box warn"><span class="head">⚠️ Piège : lire un tiroir qui n'existe pas</span> <code class="inl">stock["argent"]</code> quand le tiroir n'existe pas → <strong>KeyError</strong>, ça plante. Pour tester avant, utilise <code class="inl">"argent" in stock</code> (rend <code class="inl">True</code>/<code class="inl">False</code>).</div>
+        <div class="quiz" id="q1201">
+          <div class="q">🤔 Avec <code class="inl">stock = {"pomme": 4}</code>, que fait <code class="inl">stock["kiwi"] = 7</code> ?</div>
+          <button onclick="reveal('q1201')">Réponse</button>
+          <div class="answer">Ça <strong>crée</strong> un nouveau tiroir "kiwi" avec la valeur 7 → <code class="inl">{"pomme": 4, "kiwi": 7}</code>. Écrire dans un tiroir inexistant le crée (contrairement à la lecture, qui plante).</div>
+        </div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🔢</span> Le pattern "compter" (ta fonction 1) <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">🎯 L'usage star du dict :</span> compter des choses. Tu passes sur une liste, et pour chaque élément tu montes son compteur d'un cran.</div>
+        <pre class="code">inventaire = {}                       <span class="c"># meuble vide</span>
+<span class="k">for</span> article <span class="k">in</span> items:
+    <span class="k">if</span> article <span class="k">in</span> inventaire:          <span class="c"># tiroir déjà là ?</span>
+        inventaire[article] += 1      <span class="c"># +1</span>
+    <span class="k">else</span>:
+        inventaire[article] = 1       <span class="c"># sinon on le crée à 1</span>
+<span class="k">return</span> inventaire</pre>
+        <div class="box warn"><span class="head">⚠️ Le piège que tu as repéré tout seul</span> La 1re fois qu'on voit un article, son tiroir n'existe PAS encore. Faire directement <code class="inl">+1</code> dessus → KeyError. D'où le <code class="inl">if / else</code> : on crée à 1, ou on incrémente.</div>
+        <div class="box recall"><span class="head">✅ Dans ton exo</span> C'est exactement <code class="inl">create_inventory</code>. Et <code class="inl">add_items</code>, c'était le même corps sans le <code class="inl">inventaire = {}</code> (le meuble arrivait déjà rempli).</div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🚪</span> Vérifier &amp; retirer : <code class="inl">in</code>, <code class="inl">.pop()</code> <span class="chev">▶</span></summary>
+      <div class="body">
+        <pre class="code"><span class="s">"coal"</span> <span class="k">in</span> stock      <span class="c"># -> True/False   le tiroir existe ?</span>
+stock.pop(<span class="s">"coal"</span>)     <span class="c"># retire le tiroir ENTIER (clé + valeur)</span></pre>
+        <p>Nuance avec les listes : sur une liste, <code class="inl">.pop(2)</code> visait un <strong>index</strong>. Sur un dict, <code class="inl">.pop("coal")</code> vise une <strong>clé</strong>.</p>
+        <div class="box recall"><span class="head">✅ Dans ton exo</span> <code class="inl">remove_item</code> : <code class="inl">if item in inventory: inventory.pop(item)</code>. Le <code class="inl">if</code> évite le KeyError si l'article n'est pas là.</div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🔁</span> Parcourir : clés seules vs <code class="inl">.items()</code> <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="box warn"><span class="head">⚠️ Le piège de la boucle sur un dict</span> Un <code class="inl">for</code> classique sur un dict ne te donne QUE les <strong>étiquettes</strong> (les clés), jamais le contenu :</div>
+        <pre class="code"><span class="k">for</span> x <span class="k">in</span> stock:
+    print(x)     <span class="c"># affiche coal, wood... PAS 7, 11</span></pre>
+        <p>Pour avoir l'étiquette <strong>ET</strong> le contenu ensemble, il faut <code class="inl">.items()</code> :</p>
+        <pre class="code"><span class="k">for</span> cle, valeur <span class="k">in</span> stock.items():
+    print(cle, valeur)   <span class="c"># coal 7  /  wood 11</span></pre>
+        <div class="box recall"><span class="head">✅ Dans ton exo</span> <code class="inl">list_inventory</code> : <code class="inl">for article, quantite in inventory.items()</code> pour construire la liste de tuples <code class="inl">(article, quantite)</code>, en gardant seulement les quantités &gt; 0.</div>
+        <div class="quiz" id="q1202">
+          <div class="q">🤔 Pour parcourir un dict et récupérer le nom ET la quantité, j'utilise quoi ?</div>
+          <button onclick="reveal('q1202')">Réponse</button>
+          <div class="answer"><code class="inl">.items()</code> → <code class="inl">for cle, valeur in stock.items()</code>. Un <code class="inl">for</code> tout simple ne donnerait que les clés.</div>
+        </div>
+      </div>
+    </details>
+    <a class="top" href="#top">↑ sommaire</a>
+  </section>
+
+  <!-- ============ 13 ============ -->
+  <section class="chapter" id="exo-13">
+    <div class="chapter-head">
+      <span class="big">13</span>
+      <div><h2>Dictionnaires — le niveau au-dessus</h2><p class="sub">mecha munch · <code class="inl">fromkeys</code>, tri, déballage, dicts imbriqués</p></div>
+    </div>
+
+    <details class="concept" open>
+      <summary><span class="dot">🏭</span> <code class="inl">dict.fromkeys()</code> : fabriquer un dict d'un coup <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">🏭 L'image :</span> une machine à étiqueteuse. Tu lui donnes une liste de noms et une valeur unique, elle te sort tout le meuble d'un coup, tous les tiroirs remplis pareil.</div>
+        <pre class="code">dict.fromkeys([<span class="s">"a"</span>, <span class="s">"b"</span>, <span class="s">"c"</span>], 1)
+<span class="c"># -> {"a": 1, "b": 1, "c": 1}</span></pre>
+        <div class="box warn"><span class="head">⚠️ Le piège des crochets (que tu as vécu)</span> Si ta liste est déjà dans une variable <code class="inl">notes</code>, tu passes <code class="inl">notes</code> <strong>nu</strong> : <code class="inl">dict.fromkeys(notes, 1)</code>. Écrire <code class="inl">[notes]</code> emballe toute la liste comme UNE seule clé. Règle : on met des crochets seulement quand on <strong>crée</strong> une liste, pas quand on en a déjà une.</div>
+        <div class="box recall"><span class="head">✅ Dans ton exo</span> <code class="inl">read_notes</code> tient en une ligne : <code class="inl">return dict.fromkeys(notes, 1)</code>.</div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">📦</span> Le déballage (unpacking) dans un <code class="inl">for</code> <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">📦 L'image :</span> chaque tour de boucle te tend un <strong>paquet</strong> (un tuple à 2 cases). Mettre deux noms à gauche du <code class="inl">in</code> ouvre le paquet et distribue les cases automatiquement.</div>
+        <pre class="code"><span class="c"># version longue</span>
+<span class="k">for</span> paquet <span class="k">in</span> data:
+    nom = paquet[0]
+    valeur = paquet[1]
+
+<span class="c"># version courte (déballage) — exactement pareil</span>
+<span class="k">for</span> nom, valeur <span class="k">in</span> data:
+    ...</pre>
+        <div class="box warn"><span class="head">⚠️ Un tour = UN paquet</span> Dans <code class="inl">for a, b in [(1, 2), (3, 4)]</code>, au 1er tour <code class="inl">a=1, b=2</code> (le paquet entier), PAS <code class="inl">a=1, b=3</code>. On avance paquet par paquet, jamais case par case entre paquets.</div>
+        <div class="box recall"><span class="head">✅ Dans ton exo</span> <code class="inl">for nom, ingredient in recipe_updates</code> et <code class="inl">for article, quantite in cart.items()</code> — c'est le même déballage. <code class="inl">.items()</code> te sert justement des paquets <code class="inl">(clé, valeur)</code>.</div>
+        <div class="quiz" id="q1301">
+          <div class="q">🤔 <code class="inl">for x, y in [("a", 1), ("b", 2)]</code> — au 2e tour, x et y valent ?</div>
+          <button onclick="reveal('q1301')">Réponse</button>
+          <div class="answer"><code class="inl">x = "b"</code>, <code class="inl">y = 2</code> (le 2e paquet, déballé).</div>
+        </div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🔤</span> Trier un dict : <code class="inl">dict(sorted(d.items()))</code> <span class="chev">▶</span></summary>
+      <div class="body">
+        <p>Un dict n'a pas de bouton "trier". On passe par 3 poupées russes, lues de l'intérieur vers l'extérieur :</p>
+        <pre class="diagram">d.items()      →  liste de tuples (clé, valeur)   [désordonnée]
+sorted( ... )  →  même liste triée A→Z sur la clé
+dict( ... )    →  on reconstruit un dict trié</pre>
+        <pre class="code"><span class="k">return</span> dict(sorted(cart.items()))               <span class="c"># A→Z</span>
+<span class="k">return</span> dict(sorted(cart.items(), reverse=<span class="k">True</span>))  <span class="c"># Z→A</span></pre>
+        <div class="box warn"><span class="head">⚠️ Où va <code class="inl">reverse=True</code> ?</span> Dans <code class="inl">sorted(...)</code> (c'est lui qui trie), jamais dans <code class="inl">dict(...)</code>.</div>
+        <div class="box recall"><span class="head">✅ Dans ton exo</span> <code class="inl">sort_entries</code> (A→Z) et <code class="inl">send_to_store</code> (Z→A avec <code class="inl">reverse=True</code>).</div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🪆</span> Dicts imbriqués &amp; le double crochet <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">🪆 L'image :</span> un tiroir peut contenir un <strong>autre meuble</strong> (dict de dict) ou une <strong>liste</strong> (dict de liste). Pour aller au fond, on enchaîne les crochets, de gauche à droite.</div>
+        <pre class="code">stock = {<span class="s">"Milk"</span>: [4, <span class="s">"Aisle 2"</span>, <span class="k">True</span>]}
+
+stock[<span class="s">"Milk"</span>]        <span class="c"># -> [4, "Aisle 2", True]  (la liste entière)</span>
+stock[<span class="s">"Milk"</span>][0]     <span class="c"># -> 4  (case 0 de cette liste)</span></pre>
+        <pre class="diagram">stock[ "Milk" ][ 0 ]
+      ▲          ▲
+   1er crochet   2e crochet
+   "va au        "prends la case 0
+    tiroir Milk"  de la liste trouvée"</pre>
+        <p>Et pour <strong>modifier</strong> une case en profondeur, même chose à gauche du <code class="inl">=</code> :</p>
+        <pre class="code">stock[<span class="s">"Milk"</span>][0] = 2              <span class="c"># remplace le stock par 2</span>
+stock[<span class="s">"Milk"</span>][0] = <span class="s">"Out of Stock"</span> <span class="c"># ou par un texte</span></pre>
+        <div class="box recall"><span class="head">✅ Dans ton exo</span> <code class="inl">update_store_inventory</code> : <code class="inl">store_inventory[article][0]</code> pour lire ET réécrire le stock au fond de la liste.</div>
+        <div class="quiz" id="q1302">
+          <div class="q">🤔 Avec <code class="inl">d = {"x": [9, "A", False]}</code>, que vaut <code class="inl">d["x"][1]</code> ?</div>
+          <button onclick="reveal('q1302')">Réponse</button>
+          <div class="answer"><code class="inl">"A"</code> — le tiroir "x" donne la liste <code class="inl">[9, "A", False]</code>, puis la case 1 de cette liste.</div>
+        </div>
+      </div>
+    </details>
+    <a class="top" href="#top">↑ sommaire</a>
+  </section>
+
+  <!-- ============ 14 ============ -->
+  <section class="chapter" id="exo-14">
+    <div class="chapter-head">
+      <span class="big">14</span>
+      <div><h2>Emballage &amp; déballage — <code class="inl">*</code> et <code class="inl">**</code></h2><p class="sub">locomotive engineer · le double rôle de l'étoile</p></div>
+    </div>
+
+    <details class="concept" open>
+      <summary><span class="dot">⭐</span> La règle d'or : le double rôle de l'étoile <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">⭐ L'idée :</span> la même étoile <code class="inl">*</code> fait deux choses <strong>opposées</strong> selon où elle est. C'est LE piège de tout cet exo.</div>
+        <table class="cmp">
+          <tr><th>Où</th><th>Rôle</th></tr>
+          <tr><td>dans les <strong>paramètres</strong> <code class="inl">def f(*x)</code></td><td>EMBALLE — attrape tout dans un sac</td></tr>
+          <tr><td><strong>partout ailleurs</strong> <code class="inl">f(*liste)</code></td><td>DÉBALLE — ressort les éléments un par un</td></tr>
+        </table>
+        <p>Et le nombre d'étoiles indique le type de sac :</p>
+        <table class="cmp">
+          <tr><th>Signe</th><th>Concerne</th><th>Range dans</th></tr>
+          <tr><td><code class="inl">*</code></td><td>listes / tuples (positionnels)</td><td>un tuple</td></tr>
+          <tr><td><code class="inl">**</code></td><td>dicts (arguments nommés)</td><td>un dict</td></tr>
+        </table>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🎒</span> <code class="inl">*args</code> : le sac à arguments <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">🎒 L'image :</span> tu ne sais pas combien d'arguments on va te donner. <code class="inl">*args</code> dans les paramètres = un sac qui les attrape TOUS, dans un tuple.</div>
+        <pre class="code"><span class="k">def</span> f(*trucs):
+    print(trucs)
+
+f(1, 2, 3)     <span class="c"># trucs vaut (1, 2, 3)</span>
+f()            <span class="c"># trucs vaut ()</span></pre>
+        <div class="box recall"><span class="head">✅ Dans ton exo</span> <code class="inl">get_list_of_wagons(*wagons)</code> puis <code class="inl">return list(wagons)</code>. Sans l'étoile, la fonction n'accepte qu'UN argument → l'erreur "takes 1 positional argument but 5 were given".</div>
+        <div class="quiz" id="q1401">
+          <div class="q">🤔 <code class="inl">def f(*x)</code>, puis <code class="inl">f("a", "b")</code> — que vaut <code class="inl">x</code> ?</div>
+          <button onclick="reveal('q1401')">Réponse</button>
+          <div class="answer"><code class="inl">("a", "b")</code> — un tuple contenant les deux arguments.</div>
+        </div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🗂️</span> <code class="inl">**kwargs</code> : le sac à arguments nommés <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">🗂️ L'image :</span> pareil, mais pour les arguments <strong>nommés</strong> <code class="inl">clé=valeur</code>. <code class="inl">**kwargs</code> les emballe dans un dict.</div>
+        <pre class="code"><span class="k">def</span> f(**kwargs):
+    print(kwargs)
+
+f(a=1, b=2)    <span class="c"># kwargs vaut {"a": 1, "b": 2}</span></pre>
+        <div class="box recall"><span class="head">✅ Dans ton exo</span> <code class="inl">add_missing_stops(route, **kwargs)</code> : les <code class="inl">stop_1="..."</code> sont emballés dans un dict, puis <code class="inl">list(kwargs.values())</code> en sort les villes dans l'ordre.</div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">✂️</span> Déballer avec <code class="inl">*</code> : couper une liste <span class="chev">▶</span></summary>
+      <div class="body">
+        <p>À gauche d'un <code class="inl">=</code>, <code class="inl">*</code> ramasse "tout le reste" dans une liste :</p>
+        <pre class="code">premier, *reste = [10, 20, 30, 40]
+<span class="c"># premier = 10</span>
+<span class="c"># reste   = [20, 30, 40]</span>
+
+x, *milieu, y = [1, 2, 3, 4, 5]
+<span class="c"># x = 1, y = 5, milieu = [2, 3, 4]</span></pre>
+        <div class="box recall"><span class="head">✅ Dans ton exo</span> <code class="inl">premier, second, loco, *rest = each_wagons_id</code> — une ligne pour découper la liste, au lieu de plein de <code class="inl">[0]</code>, <code class="inl">[1]</code>… Puis on recolle avec <code class="inl">+</code>.</div>
+        <div class="quiz" id="q1402">
+          <div class="q">🤔 <code class="inl">a, *b = [1, 2, 3]</code> — que valent <code class="inl">a</code> et <code class="inl">b</code> ?</div>
+          <button onclick="reveal('q1402')">Réponse</button>
+          <div class="answer"><code class="inl">a = 1</code>, <code class="inl">b = [2, 3]</code>. L'étoile ramasse le reste dans une liste (même s'il n'y a qu'un élément).</div>
+        </div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🔗</span> Fusionner &amp; transposer : <code class="inl">{**a, **b}</code> et <code class="inl">zip(*grille)</code> <span class="chev">▶</span></summary>
+      <div class="body">
+        <p><strong>Fusionner deux dicts</strong> — <code class="inl">**</code> vide chaque dict dans un nouveau :</p>
+        <pre class="code">{**{<span class="s">"x"</span>: 1}, **{<span class="s">"y"</span>: 2}}
+<span class="c"># -> {"x": 1, "y": 2}</span></pre>
+        <p><strong>Déballer dans un appel</strong> — <code class="inl">*</code> sert les éléments séparément à une fonction :</p>
+        <pre class="code">grille = [ligne1, ligne2, ligne3]
+zip(grille)    <span class="c"># ❌ zip reçoit 1 argument (la grille entière)</span>
+zip(*grille)   <span class="c"># ✅ zip reçoit ligne1, ligne2, ligne3 séparément</span></pre>
+        <p><code class="inl">zip</code> regroupe par position (le 1er de chaque ligne ensemble…) = une <strong>transposition</strong> (lignes ↔ colonnes).</p>
+        <div class="box recall"><span class="head">✅ Dans ton exo</span> <code class="inl">fix_wagon_depot</code> : <code class="inl">for rangee in zip(*wagons_rows)</code> transpose la grille ; <code class="inl">list(rangee)</code> reconvertit chaque rangée (zip rend des tuples).</div>
+      </div>
+    </details>
+    <a class="top" href="#top">↑ sommaire</a>
+  </section>
+
+  <!-- ============ 15 ============ -->
+  <section class="chapter" id="exo-15">
+    <div class="chapter-head">
+      <span class="big">15</span>
+      <div><h2>Les sets (ensembles)</h2><p class="sub">cater waiter · <code class="inl">&amp;</code> <code class="inl">|</code> <code class="inl">-</code> <code class="inl">.issubset()</code></p></div>
+    </div>
+
+    <details class="concept" open>
+      <summary><span class="dot">🎯</span> Un set = la boîte anti-doublons <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">🎯 L'image :</span> un sac où chaque objet ne peut être présent qu'<strong>une seule fois</strong>. Tu y jettes deux "tofu" → il n'en reste qu'un. C'est la 4e boîte, en accolades <code class="inl">{ }</code> avec juste des valeurs (pas de <code class="inl">:</code>, sinon c'est un dict).</div>
+        <pre class="code">{<span class="s">"pomme"</span>, <span class="s">"kiwi"</span>, <span class="s">"pomme"</span>}
+<span class="c"># -> {"pomme", "kiwi"}   les doublons disparaissent</span>
+
+set([<span class="s">"a"</span>, <span class="s">"b"</span>, <span class="s">"a"</span>])   <span class="c"># -> {"a", "b"}  nettoie une liste</span></pre>
+        <p>Ses 3 règles : <strong>pas de doublons</strong>, <strong>pas d'ordre</strong> (donc pas d'index <code class="inl">set[0]</code>), et le set <strong>vide</strong> s'écrit <code class="inl">set()</code>.</p>
+        <div class="box warn"><span class="head">⚠️ Le piège du set vide</span> <code class="inl">{}</code> est le <strong>dict</strong> vide, pas le set vide. Pour un set vide c'est <code class="inl">set()</code>. (Retenu en fonction 5 : l'accumulateur <code class="inl">resultat = set()</code>.)</div>
+        <div class="quiz" id="q1501">
+          <div class="q">🤔 Que vaut <code class="inl">set(["x", "y", "x", "x"])</code> ?</div>
+          <button onclick="reveal('q1501')">Réponse</button>
+          <div class="answer"><code class="inl">{"x", "y"}</code> — chaque élément une seule fois, l'ordre n'est pas garanti.</div>
+        </div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🔗</span> Les 3 opérateurs : <code class="inl">&amp;</code> <code class="inl">|</code> <code class="inl">-</code> <span class="chev">▶</span></summary>
+      <div class="body">
+        <p>Trois façons de croiser deux sets (façon diagrammes de Venn) :</p>
+        <table class="cmp">
+          <tr><th>Signe</th><th>Nom</th><th>Donne</th></tr>
+          <tr><td><code class="inl">&amp;</code></td><td>intersection</td><td>ce qui est dans les <strong>DEUX</strong></td></tr>
+          <tr><td><code class="inl">|</code></td><td>union</td><td><strong>tout</strong> regrouper (sans doublon)</td></tr>
+          <tr><td><code class="inl">-</code></td><td>différence</td><td>ce qui est dans A mais <strong>PAS</strong> dans B</td></tr>
+        </table>
+        <pre class="code">{<span class="s">"a"</span>, <span class="s">"b"</span>, <span class="s">"c"</span>} & {<span class="s">"b"</span>, <span class="s">"c"</span>, <span class="s">"d"</span>}   <span class="c"># -> {"b", "c"}</span>
+{<span class="s">"a"</span>, <span class="s">"b"</span>} | {<span class="s">"b"</span>, <span class="s">"c"</span>}          <span class="c"># -> {"a", "b", "c"}</span>
+{<span class="s">"a"</span>, <span class="s">"b"</span>, <span class="s">"c"</span>} - {<span class="s">"b"</span>, <span class="s">"c"</span>}      <span class="c"># -> {"a"}</span></pre>
+        <div class="box recall"><span class="head">✅ Dans ton exo</span> <code class="inl">&amp;</code> pour détecter l'alcool (check_drinks) et les allergènes (tag_special) ; <code class="inl">|</code> pour la liste maîtresse (compile_ingredients) ; <code class="inl">-</code> pour retirer les amuse-bouches (separate_appetizers) et isoler les singletons (union puis différence).</div>
+        <div class="quiz" id="q1502">
+          <div class="q">🤔 Quel opérateur pour "les ingrédients communs à deux plats" ?</div>
+          <button onclick="reveal('q1502')">Réponse</button>
+          <div class="answer"><code class="inl">&amp;</code> (intersection) — ce qui est présent dans les deux sets.</div>
+        </div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🎒</span> <code class="inl">.issubset()</code> : tout rentre-t-il dedans ? <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">🎒 L'image :</span> "est-ce que mon petit sac rentre <strong>entièrement</strong> dans le grand sac ?" — vrai seulement si <strong>tous</strong> mes éléments sont dans l'autre.</div>
+        <pre class="code">{<span class="s">"tofu"</span>, <span class="s">"sel"</span>}.issubset({<span class="s">"tofu"</span>, <span class="s">"sel"</span>, <span class="s">"riz"</span>})
+<span class="c"># -> True</span>
+{<span class="s">"tofu"</span>, <span class="s">"bacon"</span>}.issubset({<span class="s">"tofu"</span>, <span class="s">"sel"</span>})
+<span class="c"># -> False   (bacon manque)</span></pre>
+        <div class="box recall"><span class="head">✅ Dans ton exo</span> <code class="inl">categorize_dish</code> : un plat est VEGAN si <code class="inl">dish_ingredients.issubset(VEGAN)</code>. On teste chaque catégorie dans une boucle et on renvoie la première qui contient tout le plat.</div>
+        <div class="box warn"><span class="head">⚠️ Piège Pylint R1710 — une boucle qui <code class="inl">return</code> a besoin d'un <code class="inl">return</code> final</span>
+        Si ton seul <code class="inl">return</code> est <strong>dans</strong> le <code class="inl">if</code> de la boucle, et que la boucle se termine sans rien trouver, la fonction renvoie <code class="inl">None</code> en douce. Un chemin rend une valeur, l'autre <code class="inl">None</code> → Pylint lève <strong>R1710</strong> (inconsistent-return-statements). Fix : un <code class="inl">return</code> après la boucle (aligné avec le <code class="inl">for</code>) pour que TOUS les chemins renvoient le même genre.
+        <pre class="code" style="margin-top:10px;"><span class="k">for</span> nom, sac <span class="k">in</span> categories.items():
+    <span class="k">if</span> dish_ingredients.issubset(sac):
+        <span class="k">return</span> f<span class="s">"{dish_name}: {nom}"</span>
+<span class="k">return</span> <span class="s">""</span>   <span class="c"># filet de sécurité — jamais atteint, mais rend Pylint content</span></pre>
+        </div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">❄️</span> Un set non-vide = "vrai" <span class="chev">▶</span></summary>
+      <div class="body">
+        <p>Comme les listes, un set <strong>vide</strong> compte comme "faux" dans un <code class="inl">if</code>, un set <strong>non-vide</strong> comme "vrai". Pas besoin de comparer à <code class="inl">set()</code> :</p>
+        <pre class="code">alcool = set(ingredients) & ALCOHOLS
+<span class="k">if</span> alcool:              <span class="c"># vrai s'il y a au moins un alcool</span>
+    <span class="k">return</span> <span class="s">"... Cocktail"</span></pre>
+        <div class="box recall"><span class="head">✅ Dans ton exo</span> C'est le cœur de <code class="inl">check_drinks</code> : si l'intersection avec les alcools n'est pas vide → Cocktail.</div>
+      </div>
+    </details>
+    <a class="top" href="#top">↑ sommaire</a>
+  </section>
+
+  <section class="chapter" id="exo-16">
+    <div class="chapter-head">
+      <span class="big">16</span>
+      <div><h2>Les classes (POO)</h2><p class="sub">ellen's alien game · <code class="inl">class</code> <code class="inl">__init__</code> <code class="inl">self</code> · attribut de classe vs instance</p></div>
+    </div>
+
+    <details class="concept" open>
+      <summary><span class="dot">🧇</span> Une classe = un moule à gaufres <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">🧇 L'image :</span> jusqu'ici tu écrivais des fonctions posées à plat. Une <strong>classe</strong>, c'est un <strong>moule</strong> : le plan, qui ne se mange pas. Chaque objet que tu fabriques avec le moule est une <strong>instance</strong> (une gaufre). Toutes ont la même forme, mais chacune est indépendante — tu en manges une sans toucher les autres.</div>
+        <pre class="code"><span class="k">class</span> <span class="fn">Alien</span>:          <span class="c"># le moule</span>
+    <span class="k">def</span> <span class="fn">__init__</span>(self, x, y):   <span class="c"># la "chaîne de montage" (constructeur)</span>
+        self.x_coordinate = x      <span class="c"># une gaufre reçoit ses garnitures</span>
+
+alien = Alien(2, 0)     <span class="c"># on sort une gaufre du moule = instancier</span></pre>
+        <p><strong><code class="inl">self</code></strong> = "cette gaufre-ci", l'objet en cours. <code class="inl">self.health = 3</code> veut dire "range 3 dans le tiroir <em>health</em> de <em>cet objet précis</em>".</p>
+        <div class="quiz" id="q1601">
+          <div class="q">🤔 Différence entre la classe <code class="inl">Alien</code> et un objet <code class="inl">Alien(2, 0)</code> ?</div>
+          <button onclick="reveal('q1601')">Réponse</button>
+          <div class="answer">La classe est le <strong>moule</strong> (le plan, écrit une fois). <code class="inl">Alien(2, 0)</code> fabrique une <strong>instance</strong> concrète à partir du moule. Un moule → autant d'objets qu'on veut.</div>
+        </div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🏗️</span> <code class="inl">__init__</code> : le constructeur, lancé à chaque naissance <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">🏗️ L'image :</span> <code class="inl">__init__</code> ("dunder init", pour <em>double underscore</em>) est la <strong>chaîne de garnissage</strong> : Python la lance <strong>tout seul</strong> à chaque <code class="inl">Alien(...)</code>. Son 1er paramètre est toujours <code class="inl">self</code> (la gaufre en cours) — mais tu ne le passes jamais, Python s'en charge.</div>
+        <pre class="code"><span class="k">def</span> <span class="fn">__init__</span>(self, x_coordinate, y_coordinate):
+    self.x_coordinate = x_coordinate   <span class="c"># passé par l'appelant → varie</span>
+    self.y_coordinate = y_coordinate
+    self.health = 3                    <span class="c"># en dur → pareil pour tous</span></pre>
+        <div class="box warn"><span class="head">⚠️ Paramètre ou valeur en dur ?</span> <code class="inl">x</code>/<code class="inl">y</code> changent d'un alien à l'autre → <strong>paramètres</strong> (<code class="inl">Alien(2, 0)</code>). La santé démarre <strong>toujours</strong> à 3 → écrite <strong>en dur</strong>, pas de paramètre <code class="inl">health</code>. Règle : on ne demande à l'appelant que ce qui varie.</div>
+        <div class="box recall"><span class="head">✅ Dans ton exo</span> <code class="inl">Alien(2, 0)</code> → <code class="inl">.x_coordinate = 2</code>, <code class="inl">.y_coordinate = 0</code>, <code class="inl">.health = 3</code>.</div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">⚙️</span> Les méthodes : des fonctions attachées à l'objet <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">⚙️ L'image :</span> une <strong>méthode</strong> est une fonction <strong>dans</strong> la classe, avec <code class="inl">self</code> en 1er paramètre. C'est un bouton d'action que l'objet sait actionner sur lui-même. On l'appelle avec un point : <code class="inl">alien.hit()</code>.</div>
+        <pre class="code"><span class="k">def</span> <span class="fn">hit</span>(self):
+    self.health = self.health - 1    <span class="c"># lit le tiroir, enlève 1, le repose</span>
+
+<span class="k">def</span> <span class="fn">is_alive</span>(self):
+    <span class="k">return</span> self.health > 0         <span class="c"># une comparaison EST déjà un booléen</span></pre>
+        <div class="box warn"><span class="head">⚠️ Le point, pas le tiret bas</span> <code class="inl">self.health</code> (point = "le tiroir health de l'objet"). <code class="inl">self_health</code> = un mot collé qui n'existe pas → <code class="inl">NameError</code>. Idem : sans <code class="inl">self.</code>, Python ne sait pas d'où lire la valeur.</div>
+        <div class="box recall"><span class="head">✅ Dans ton exo</span> <code class="inl">hit</code> (−1 vie), <code class="inl">is_alive</code> (santé &gt; 0), <code class="inl">teleport</code> (remplace les coords). Toutes prennent <code class="inl">self</code>, certaines des paramètres en plus comme <code class="inl">__init__</code>.</div>
+        <div class="quiz" id="q1602">
+          <div class="q">🤔 Pourquoi <code class="inl">is_alive</code> ne s'écrit-il pas <code class="inl">if self.health > 0: return True else: return False</code> ?</div>
+          <button onclick="reveal('q1602')">Réponse</button>
+          <div class="answer"><code class="inl">self.health > 0</code> vaut <strong>déjà</strong> <code class="inl">True</code> ou <code class="inl">False</code>. Le <code class="inl">if/else</code> est redondant (et Pylint le signale). On renvoie directement la comparaison.</div>
+        </div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🔢</span> Attribut de CLASSE vs attribut d'INSTANCE <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">🔢 L'image :</span> le <strong>compteur mécanique collé sur le moule</strong>. Il n'appartient à aucune gaufre — il appartient au moule, et fait <strong>+1</strong> à chaque gaufre produite. Toutes les gaufres regardent le même cadran.</div>
+        <table class="cmp">
+          <tr><th>Type</th><th>Où / comment</th><th>Portée</th></tr>
+          <tr><td>attribut de <strong>classe</strong></td><td><code class="inl">total_aliens_created = 0</code>, dans le corps de la classe, <strong>sans</strong> <code class="inl">self</code></td><td><strong>partagé</strong> par tous</td></tr>
+          <tr><td>attribut d'<strong>instance</strong></td><td><code class="inl">self.health = 3</code>, dans <code class="inl">__init__</code></td><td><strong>propre</strong> à chaque objet</td></tr>
+        </table>
+        <pre class="code"><span class="k">class</span> <span class="fn">Alien</span>:
+    total_aliens_created = 0              <span class="c"># (A) le compteur DU MOULE (sans self)</span>
+
+    <span class="k">def</span> <span class="fn">__init__</span>(self, x, y):
+        self.health = 3
+        Alien.total_aliens_created += 1  <span class="c"># (B) +1 à chaque naissance (vise Alien., pas self.)</span></pre>
+        <div class="box warn"><span class="head">⚠️ Deux règles neuves d'un coup</span> (1) le corps d'une classe accepte des <strong>variables posées directement</strong>, pas que des <code class="inl">def</code>. (2) Pour incrémenter le compteur partagé on vise <code class="inl">Alien.</code> (le moule), pas <code class="inl">self.</code> (sinon chaque gaufre se crée un compteur privé). Et on <strong>lit</strong> l'attribut sans parenthèses : <code class="inl">alien.total_aliens_created</code>, pas <code class="inl">()</code> — c'est un nombre, pas une action.</div>
+        <div class="box recall"><span class="head">✅ Dans ton exo</span> Après avoir créé 2 aliens, <code class="inl">a1.total_aliens_created</code> vaut <strong>2</strong> (pas 1) : il lit le compteur du moule, partagé. Alors que <code class="inl">a1.health</code> ne bouge pas quand <code class="inl">a2</code> est touché — santé propre à chacun.</div>
+        <div class="quiz" id="q1603">
+          <div class="q">🤔 <code class="inl">self.total = 0</code> ou <code class="inl">total = 0</code> pour un compteur partagé par tous les objets ?</div>
+          <button onclick="reveal('q1603')">Réponse</button>
+          <div class="answer"><code class="inl">total = 0</code> posé dans le corps de la classe (attribut de classe). <code class="inl">self.total</code> créerait une copie <strong>privée</strong> par objet — pas partagée.</div>
+        </div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🚪</span> <code class="inl">pass</code> : le bouche-trou d'un corps vide <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">🚪 L'image :</span> une pièce dont tu as posé la porte mais laissé l'intérieur vide. Python <strong>exige</strong> au moins une instruction après un <code class="inl">:</code> — un bloc vide plante. <code class="inl">pass</code> remplit le trou sans rien exécuter.</div>
+        <pre class="code"><span class="k">def</span> <span class="fn">collision_detection</span>(self, other):
+    <span class="k">pass</span>   <span class="c"># "corps présent, mais volontairement vide" — algo à venir</span></pre>
+        <div class="box recall"><span class="head">✅ Dans ton exo</span> Ellen veut que <code class="inl">collision_detection</code> <strong>existe</strong> comme rappel, sans planter à l'appel. <code class="inl">pass</code> réserve la place.</div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🏭</span> Une fonction autonome qui fabrique des objets <span class="chev">▶</span></summary>
+      <div class="body">
+        <p>La tâche 7 sort de la classe : une fonction <strong>normale</strong> (non indentée dans <code class="inl">Alien</code>) qui reçoit une liste de positions et renvoie une liste d'objets <code class="inl">Alien</code>. Le pattern liste que tu connais : accumulateur vide → boucle → <code class="inl">.append()</code>.</p>
+        <pre class="code"><span class="k">def</span> <span class="fn">new_aliens_collection</span>(positions):
+    resultat = []
+    <span class="k">for</span> position <span class="k">in</span> positions:               <span class="c"># chaque position = tuple (x, y)</span>
+        resultat.append(Alien(position[0], position[1]))
+    <span class="k">return</span> resultat</pre>
+        <div class="box recall"><span class="head">✅ Dans ton exo</span> <code class="inl">position[0]</code> et <code class="inl">position[1]</code> découpent le tuple pour passer x et y séparément au constructeur.</div>
+        <div class="quiz" id="q1604">
+          <div class="q">🤔 Pourquoi <code class="inl">Alien(position[0], position[1])</code> et pas <code class="inl">Alien(position)</code> ?</div>
+          <button onclick="reveal('q1604')">Réponse</button>
+          <div class="answer"><code class="inl">__init__</code> attend <strong>deux</strong> arguments (x et y). <code class="inl">position</code> est un seul tuple ; il faut l'éclater avec <code class="inl">[0]</code> et <code class="inl">[1]</code>.</div>
+        </div>
+      </div>
+    </details>
+    <a class="top" href="#top">↑ sommaire</a>
+  </section>
+
+  <section class="chapter" id="exo-17">
+    <div class="chapter-head">
+      <span class="big">17</span>
+      <div><h2>Les générateurs</h2><p class="sub">plane tickets · <code class="inl">yield</code> <code class="inl">next()</code> · lazy, une valeur à la fois</p></div>
+    </div>
+
+    <details class="concept" open>
+      <summary><span class="dot">🍬</span> Un générateur = la machine à bonbons <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">🍬 L'image :</span> un distributeur à manivelle. Tu tournes <strong>une fois</strong> → <strong>un</strong> bonbon tombe, puis la machine <strong>attend</strong>. Elle ne vide pas tout son stock d'un coup, et elle se <strong>souvient</strong> du dernier sorti. Un générateur produit ses valeurs <strong>une par une, à la demande</strong> — au lieu de tout calculer et stocker d'avance. C'est <strong>paresseux</strong> (<em>lazy</em>) et économe en mémoire.</div>
+        <table class="cmp">
+          <tr><th></th><th><code class="inl">return</code> (fonction normale)</th><th><code class="inl">yield</code> (générateur)</th></tr>
+          <tr><td>Geste</td><td>vide <strong>tout le sac</strong> et part</td><td>donne <strong>un</strong> truc, garde le sac</td></tr>
+          <tr><td>Après</td><td>la fonction est <strong>finie</strong></td><td>elle se <strong>met en pause</strong>, prête à reprendre</td></tr>
+          <tr><td>Mémoire</td><td>stocke toute la liste</td><td>ne garde qu'<strong>une</strong> valeur</td></tr>
+        </table>
+        <pre class="code"><span class="k">def</span> <span class="fn">compte</span>():
+    <span class="k">yield</span> <span class="s">"un"</span>      <span class="c"># pause ici, rend "un"</span>
+    <span class="k">yield</span> <span class="s">"deux"</span>    <span class="c"># au next() suivant, REPREND ici, rend "deux"</span>
+
+g = compte()     <span class="c"># on reçoit la MACHINE (aucune valeur encore)</span>
+next(g)          <span class="c"># "un"  -> tourne la manivelle</span>
+next(g)          <span class="c"># "deux"</span></pre>
+        <div class="box warn"><span class="head">⚠️ Le déclencheur</span> Dès qu'une fonction contient <strong>un seul</strong> <code class="inl">yield</code>, elle devient un générateur : l'appeler ne lance <strong>rien</strong>, ça te rend la machine. Les valeurs sortent avec <code class="inl">next()</code> ou une boucle <code class="inl">for</code>. Et <code class="inl">list(gen)</code> tourne la manivelle jusqu'au bout pour tout voir d'un coup.</div>
+        <div class="quiz" id="q1701">
+          <div class="q">🤔 Avec <code class="inl">compte()</code> ci-dessus, un seul <code class="inl">next()</code> rend combien de valeurs ?</div>
+          <button onclick="reveal('q1701')">Réponse</button>
+          <div class="answer"><strong>Une</strong> (<code class="inl">"un"</code>). La machine garde le reste pour les prochains tours de manivelle.</div>
+        </div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🔁</span> <code class="inl">yield</code> dans une boucle <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">🔁 L'image :</span> plutôt qu'écrire <code class="inl">yield</code> 100 fois, on met <strong>un seul</strong> <code class="inl">yield</code> dans une boucle. Règle : <strong>1 tour de boucle = 1 valeur distribuée</strong>.</div>
+        <pre class="code"><span class="k">def</span> <span class="fn">donne_nombres</span>():
+    <span class="k">for</span> i <span class="k">in</span> range(3):    <span class="c"># 3 tours -> 3 valeurs</span>
+        <span class="k">yield</span> i</pre>
+        <div class="box recall"><span class="head">✅ Dans ton exo</span> <code class="inl">range(number)</code> → la machine distribue exactement <code class="inl">number</code> valeurs. C'est la base des 4 tâches (générer <code class="inl">number</code> lettres, <code class="inl">number</code> sièges…).</div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🕐</span> <code class="inl">%</code> et <code class="inl">//</code> : l'horloge et la rangée <span class="chev">▶</span></summary>
+      <div class="body">
+        <p>Deux opérateurs (déjà vus dans currency-exchange) font le gros du boulot des sièges :</p>
+        <p><strong><code class="inl">i % 4</code> — le modulo, "l'horloge" 🕐.</strong> Le reste de la division par 4 rabat toujours entre 0 et 3 : après 3, on revient à 0. Parfait pour faire tourner A, B, C, D en boucle sans jamais dépasser l'index 3.</p>
+        <pre class="code"><span class="c"># "ABCD"[i % 4]  ->  A,B,C,D,A,B,C,D...</span>
+i = 4  ->  4 % 4 = 0  ->  <span class="s">"A"</span>   <span class="c"># on repart !</span>
+i = 7  ->  7 % 4 = 3  ->  <span class="s">"D"</span></pre>
+        <p><strong><code class="inl">i // 4</code> — la division entière, la "rangée".</strong> Elle garde le quotient (jette le reste) : combien de rangées complètes de 4 sont passées. <code class="inl">+ 1</code> car les rangées démarrent à 1.</p>
+        <pre class="code">row = i // 4 + 1
+<span class="c"># i=0..3 -> 1 | i=4..7 -> 2 | i=8..11 -> 3</span></pre>
+        <div class="box warn"><span class="head">⚠️ Sauter la rangée 13</span> Conda ne numérote pas la rangée 13. Il faut décaler <strong>tout</strong> à partir de 13, pas seulement elle : <code class="inl">if row &gt;= 13: row += 1</code>. Avec <code class="inl">== 13</code> tu obtiendrais <strong>deux</strong> rangées 14 (la 13 décalée + la 14 d'origine).</div>
+        <div class="quiz" id="q1702">
+          <div class="q">🤔 Pourquoi <code class="inl">row &gt;= 13</code> et pas <code class="inl">row == 13</code> ?</div>
+          <button onclick="reveal('q1702')">Réponse</button>
+          <div class="answer">Une fois la 13 supprimée, <strong>toutes</strong> les rangées suivantes glissent de +1. <code class="inl">== 13</code> ne corrigerait que la 13 et créerait un doublon de 14.</div>
+        </div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">🎫</span> Utiliser un générateur : <code class="inl">next()</code> pour remplir un dico <span class="chev">▶</span></summary>
+      <div class="body">
+        <p>Une fonction <strong>normale</strong> (sans <code class="inl">yield</code>) peut <strong>utiliser</strong> un générateur. Ici : distribuer un siège à chaque passager avec <code class="inl">next()</code> et noter ça dans un dico.</p>
+        <pre class="code"><span class="k">def</span> <span class="fn">assign_seats</span>(passengers):
+    seats = generate_seats(len(passengers))   <span class="c"># machine de la bonne taille</span>
+    resultat = {}
+    <span class="k">for</span> passager <span class="k">in</span> passengers:
+        resultat[passager] = next(seats)      <span class="c"># tourne la manivelle -> siège suivant</span>
+    <span class="k">return</span> resultat</pre>
+        <div class="box recall"><span class="head">✅ Dans ton exo</span> <code class="inl">next(seats)</code> tire le siège suivant à chaque passager ; <code class="inl">resultat[passager] = ...</code> remplit le dico, exactement comme dans inventory-management.</div>
+      </div>
+    </details>
+
+    <details class="concept">
+      <summary><span class="dot">0️⃣</span> Compléter un texte : <code class="inl">"0" * n</code> <span class="chev">▶</span></summary>
+      <div class="body">
+        <div class="analogy"><span class="tag">0️⃣ L'image :</span> pour un code de <strong>12 caractères</strong> pile, on colle le début (siège + vol) puis on <strong>bourre de zéros</strong> ce qui manque. <code class="inl">*</code> entre un texte et un nombre <strong>répète</strong> le texte.</div>
+        <pre class="code"><span class="s">"0"</span> * 4    <span class="c"># -> "0000"</span>
+
+code = seat + flight_id               <span class="c"># "17D" + "CO1234" = "17DCO1234" (9 car.)</span>
+code + <span class="s">"0"</span> * (12 - len(code))     <span class="c"># + "000" -> "17DCO1234000" (12 car.)</span></pre>
+        <div class="box warn"><span class="head">⚠️ Mesurer le bon morceau</span> Le nombre de zéros = <code class="inl">12 - len(code)</code>, pas <code class="inl">12 - len(seat)</code> : c'est le <strong>début complet</strong> (siège + vol) qu'on complète, pas juste le siège.</div>
+        <div class="quiz" id="q1703">
+          <div class="q">🤔 <code class="inl">"1A" + "CO1234"</code> fait 8 caractères. Combien de zéros pour arriver à 12 ?</div>
+          <button onclick="reveal('q1703')">Réponse</button>
+          <div class="answer"><strong>4</strong> (<code class="inl">12 - 8</code>) → <code class="inl">"1ACO12340000"</code>.</div>
+        </div>
+      </div>
+    </details>
+    <a class="top" href="#top">↑ sommaire</a>
+  </section>
+
+  <footer>
+    Fiche perso · parcours Python Exercism (exos 01→17 · concepts terminés) · maj 26 juil. 2026<br>
+    Complément de <code class="inl">reference-fonctions-boucles-2026-07-21.md</code>
+  </footer>
+
+</div>
+
+<script>
+  function reveal(id) { document.getElementById(id).classList.add('reveal'); }
+</script>
+</body>
+</html>
