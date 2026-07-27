@@ -6,37 +6,52 @@ On sépare les DONNÉES (les 3 tables ci-dessous, remplies une fois) de la LOGIQ
 (la fonction faire_valise). Démarrage minimal : on enrichit au fil des voyages.
 """
 
-# 1. BASE : affaires de tout voyage. Valeur = quantité fixe, ou "par_jour".
-BASE = {
-    "chargeur": 1,
+# 1a. BASE COMMUN : 1 pour le groupe entier (un seul suffit à plusieurs).
+BASE_COMMUN = {
     "trousse toilette": 1,
     "déodorant": 1,
-    "ceinture": 1,
-    "chaussures de rechange": 1,
     "trousse pharmacie": 1,
     "sac de jour": 1,
     "adaptateur de prise": 1,
+}
+
+# 1b. BASE PERSO : matos non-vêtement, chacun le sien -> ×nb, tiroir "Essentiels".
+BASE_PERSO = {
+    "chargeur": 1,
+}
+
+# 1c. VÊTEMENTS DE BASE : la garde-robe de tout voyage, chacun la sienne -> ×nb,
+#     rangés dans le tiroir "Affaires perso".
+VETEMENTS_BASE = {
+    "ceinture": 1,
+    "chaussures de rechange": 1,
     "chaussettes": "par_jour",
     "pantalons": "par_3_jours",
     "pyjama": "par_semaine",
     "sweat": "par_semaine",
 }
 
-# 2. PAR TYPE de destination : chaque type -> sa liste d'affaires.
-PAR_TYPE = {
-    "chaud":    {"chapeau": 1, "lunettes de soleil": "par_semaine", "crème solaire": 1,
-                 "biafine": 1, "shorts": "par_3_jours", "débardeurs": "par_jour",
+# 2a. PAR TYPE — COMMUN : 1 pour le groupe (seuls les types concernés figurent ici).
+PAR_TYPE_COMMUN = {
+    "chaud": {"crème solaire": 1, "biafine": 1},
+    "plage": {"crème solaire": 1, "biafine": 1},
+    "pluie": {"parapluie": 1},
+}
+
+# 2b. PAR TYPE — PERSO : chacun le sien (tout ce qui se porte).
+PAR_TYPE_PERSO = {
+    "chaud":    {"chapeau": 1, "lunettes de soleil": "par_semaine",
+                 "shorts": "par_3_jours", "débardeurs": "par_jour",
                  "robe légère": "par_3_jours", "sandales": 1},
     "froid":    {"manteau": 1, "pull": "par_3_jours", "gants": 1, "bonnet": 1,
                  "écharpe": 1, "sous-couche thermique": "par_3_jours",
                  "grosses chaussures": 1, "collants": "par_3_jours"},
-    "plage":    {"maillot": "par_3_jours", "crème solaire": 1, "tongs": 1, "futa": 1,
-                 "biafine": 1, "shorts": "par_3_jours", "sandales": 1,
-                 "lunettes de soleil": 1},
+    "plage":    {"maillot": "par_3_jours", "tongs": 1, "futa": 1,
+                 "shorts": "par_3_jours", "sandales": 1, "lunettes de soleil": 1},
     "montagne": {"chaussures rando": 1, "gourde": 1, "coupe-vent": 1, "polaire": 1,
                  "chaussettes de rando": "par_3_jours", "bâtons": 1},
     "ville":    {"tenue habillée": 1, "baskets": 1},
-    "pluie":    {"parapluie": 1, "imperméable": 1, "chaussures imperméables": 1},
+    "pluie":    {"imperméable": 1, "chaussures imperméables": 1},
 }
 
 # 3. PAR PERSONNE : les affaires perso.
@@ -45,6 +60,13 @@ PAR_PERSONNE = {
     "Laetitia": {"maquillage": 1, "lisseur": 1, "culottes": "par_jour",
                  "petits-hauts": "par_jour", "soutien-gorge": "par_semaine",
                  "robes": "par_3_jours", "démaquillant": 1, "bijoux": 1},
+}
+
+# 3bis. Code de saisie -> liste des personnes concernées (pilote la question du prénom).
+CHOIX_PERSONNE = {
+    "j": ["Julien"],
+    "l": ["Laetitia"],
+    "2": ["Julien", "Laetitia"],
 }
 
 # 4. GÉO — Table 1 : chaque ville pointe vers sa zone climatique (mapping léger).
@@ -159,57 +181,93 @@ def quantite_reelle(marqueur, jours):
     return marqueur          # déjà un nombre (ex: 1) -> tel quel
 
 
-def faire_valise(types, jours, personne, hors_ue, conduit):
+def faire_valise(types, jours, personnes, hors_ue, conduit):
     """Construire la checklist {objet: quantité} selon la destination et la personne.
 
     - types    : liste de types de destination, ex. ["chaud", "plage"]
     - jours    : durée du voyage (module les quantités "par_jour")
-    - personne : "Julien" ou "Laetitia"
+    - personnes : liste de personnes qui font leur valise
     - hors_ue  : True -> passeport, False -> CNI
     - conduit  : True -> permis (+ permis international si hors_ue)
     """
-    valise = {}
-    # 1. BASE : le traducteur gère la quantité (fixe ou modulée par la durée).
-    for objet, quantite in BASE.items():
-        valise[objet] = quantite_reelle(quantite, jours)
+    # Un paquet (dict) par propriétaire : "Partagé" + un paquet par personne.
+    valise = {"Partagé": {}}
+    for personne in personnes:
+        valise[personne] = {}
 
-    # 2. PAR TYPE : idem, mais PAR_TYPE porte maintenant des quantités (dict par type).
+    # === PARTAGÉ : 1 pour le groupe entier ===
+    # a) base commune
+    for objet, quantite in BASE_COMMUN.items():
+        valise["Partagé"][objet] = quantite_reelle(quantite, jours)
+    # b) commun lié au climat (types sans commun -> .get renvoie {} : rien à ajouter)
     for type_dest in types:
-        for objet, quantite in PAR_TYPE[type_dest].items():
-            valise[objet] = quantite_reelle(quantite, jours)
+        for objet, quantite in PAR_TYPE_COMMUN.get(type_dest, {}).items():
+            valise["Partagé"][objet] = quantite_reelle(quantite, jours)
 
-    # 3. PERSONNE : affaires perso (dict avec quantités, comme PAR_TYPE).
-    for objet, quantite in PAR_PERSONNE[personne].items():
-        valise[objet] = quantite_reelle(quantite, jours)
-
-    # 4. DOCUMENTS : pièce d'identité selon la zone, permis si on conduit.
-    if hors_ue:
-        valise["passeport"] = 1
-    else:
-        valise["carte d'identité"] = 1
-    if conduit:
-        valise["permis"] = 1
+    # === PERSO : le paquet de CHAQUE personne (×1, plus besoin de ×nb) ===
+    for personne in personnes:
+        paquet = valise[personne]        # raccourci : paquet POINTE vers valise[personne]
+        # chargeur + vêtements de base
+        for objet, quantite in BASE_PERSO.items():
+            paquet[objet] = quantite_reelle(quantite, jours)
+        for objet, quantite in VETEMENTS_BASE.items():
+            paquet[objet] = quantite_reelle(quantite, jours)
+        # vêtements liés au climat
+        for type_dest in types:
+            for objet, quantite in PAR_TYPE_PERSO[type_dest].items():
+                paquet[objet] = quantite_reelle(quantite, jours)
+        # affaires perso propres à la personne
+        for objet, quantite in PAR_PERSONNE[personne].items():
+            paquet[objet] = quantite_reelle(quantite, jours)
+        # documents personnels (chacun les siens)
         if hors_ue:
-            valise["permis international"] = 1
+            paquet["passeport"] = 1
+        else:
+            paquet["carte d'identité"] = 1
+        if conduit:
+            paquet["permis"] = 1
+            if hors_ue:
+                paquet["permis international"] = 1
 
     return valise
 
 
 def main():
     """Assistant interactif : pose les questions, puis construit la valise."""
-    ville = input("Ville de destination : ")            # texte
-    mois = int(input("Mois du départ (1-12) : "))       # texte -> nombre
-    jours = int(input("Nombre de jours : "))
-    personne = input("Qui fait sa valise ? (Julien / Laetitia) : ")
+    while True:
+        ville = input("Ville de destination : ")
+        if ville in VILLE_VERS_ZONE:
+            break
+        print(f"Ville '{ville}' inconnue, vérifie l'orthographe.")          # texte
+    while True:
+        reponse = input("Nombre de jours : ")
+        if reponse.isdigit() and int(reponse) >= 1:      # au moins 1 jour
+            jours = int(reponse)
+            break                            # sortir de la boucle
+        print("Nombre de jours invalide : entre un nombre positif.")
+    while True:
+        reponse = input("Mois du départ (1-12) : ")
+        if reponse.isdigit() and 1 <= int(reponse) <= 12:
+            mois = int(reponse)
+            break                     # sortir de la boucle
+        print("Mois invalide : entre un nombre entre 1 et 12.")    
+    while True:
+        choix = input("Qui fait sa valise ? (j = Julien / l = Laetitia / 2 = les deux) : ")
+        if choix in CHOIX_PERSONNE:
+            break
+        print("Choix invalide : tape j, l ou 2.")
+    personnes = CHOIX_PERSONNE[choix]
     hors_ue = input("Destination hors UE ? (o/n) : ") == "o"   # texte -> booléen
     conduit = input("Tu vas conduire ? (o/n) : ") == "o"
 
     types = types_pour(ville, mois)                     # la couche géo déduit le climat
-    valise = faire_valise(types, jours, personne, hors_ue, conduit)
+    valise = faire_valise(types, jours, personnes, hors_ue, conduit)
 
     print(f"\nValise pour {ville} ({jours} jours) — types : {types}")
-    for objet, quantite in valise.items():
-        print(f"  {objet} ×{quantite}")
+    for categorie, tiroir in valise.items():
+        print(f"\n{categorie} :")
+        for objet, quantite in sorted(tiroir.items()):    # ← trie le contenu du tiroir
+            print(f"  {objet} ×{quantite}")
 
 
 if __name__ == "__main__":
