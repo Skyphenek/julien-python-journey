@@ -69,6 +69,33 @@ CHOIX_PERSONNE = {
     "2": ["Julien", "Laetitia"],
 }
 
+# 3ter. THÈMES d'affichage : à quel rayon appartient chaque objet.
+#       Tout objet non listé ici tombera dans "Divers".
+THEMES = {
+    "Vêtements": {
+        # habits
+        "ceinture", "chaussettes", "pantalons", "pyjama", "sweat", "shorts",
+        "débardeurs", "robe légère", "manteau", "pull", "sous-couche thermique",
+        "collants", "maillot", "coupe-vent", "polaire", "chaussettes de rando",
+        "tenue habillée", "imperméable", "caleçons", "t-shirts", "culottes",
+        "petits-hauts", "soutien-gorge", "robes",
+        # accessoires
+        "chapeau", "lunettes de soleil", "gants", "bonnet", "écharpe", "bijoux",
+        # chaussures
+        "sandales", "chaussures de rechange", "tongs", "grosses chaussures",
+        "chaussures rando", "baskets", "chaussures imperméables",
+    },
+    "Hygiène": {
+        "trousse toilette", "déodorant", "rasoir", "maquillage", "lisseur",
+        "démaquillant", "crème solaire", "biafine", "trousse pharmacie",
+    },
+    "Documents": {
+        "passeport", "carte d'identité", "permis", "permis international",
+    },
+    # non listés (chargeur, adaptateur de prise, sac de jour, parapluie, gourde,
+    # bâtons, futa...) -> "Divers", géré par theme_de().
+}
+
 # 4. GÉO — Table 1 : chaque ville pointe vers sa zone climatique (mapping léger).
 VILLE_VERS_ZONE = {
     # Europe du Nord / îles britanniques
@@ -181,6 +208,24 @@ def quantite_reelle(marqueur, jours):
     return marqueur          # déjà un nombre (ex: 1) -> tel quel
 
 
+def theme_de(objet):
+    """Trouver le rayon d'un objet ; par défaut 'Divers' s'il n'est listé nulle part."""
+    for theme, objets in THEMES.items():
+        if objet in objets:
+            return theme
+    return "Divers"
+
+
+def paquet_vide():
+    """Un paquet neuf : un sous-dict vide par thème (l'ordre = l'ordre d'affichage)."""
+    return {"Vêtements": {}, "Hygiène": {}, "Divers": {}, "Documents": {}}
+
+
+def ranger(paquet, objet, quantite, jours):
+    """Ranger un objet dans le bon rayon d'un paquet, quantité traduite selon la durée."""
+    paquet[theme_de(objet)][objet] = quantite_reelle(quantite, jours)
+
+
 def faire_valise(types, jours, personnes, hors_ue, conduit):
     """Construire la checklist {objet: quantité} selon la destination et la personne.
 
@@ -190,44 +235,41 @@ def faire_valise(types, jours, personnes, hors_ue, conduit):
     - hors_ue  : True -> passeport, False -> CNI
     - conduit  : True -> permis (+ permis international si hors_ue)
     """
-    # Un paquet (dict) par propriétaire : "Partagé" + un paquet par personne.
-    valise = {"Partagé": {}}
+    # Un paquet par propriétaire : "Partagé" + un paquet par personne.
+    # Chaque paquet est lui-même découpé par thème (via paquet_vide()).
+    valise = {"Partagé": paquet_vide()}
     for personne in personnes:
-        valise[personne] = {}
+        valise[personne] = paquet_vide()
 
     # === PARTAGÉ : 1 pour le groupe entier ===
-    # a) base commune
+    partage = valise["Partagé"]
     for objet, quantite in BASE_COMMUN.items():
-        valise["Partagé"][objet] = quantite_reelle(quantite, jours)
-    # b) commun lié au climat (types sans commun -> .get renvoie {} : rien à ajouter)
-    for type_dest in types:
+        ranger(partage, objet, quantite, jours)
+    for type_dest in types:      # types sans commun -> .get renvoie {} : rien à ajouter
         for objet, quantite in PAR_TYPE_COMMUN.get(type_dest, {}).items():
-            valise["Partagé"][objet] = quantite_reelle(quantite, jours)
+            ranger(partage, objet, quantite, jours)
 
     # === PERSO : le paquet de CHAQUE personne (×1, plus besoin de ×nb) ===
     for personne in personnes:
         paquet = valise[personne]        # raccourci : paquet POINTE vers valise[personne]
-        # chargeur + vêtements de base
         for objet, quantite in BASE_PERSO.items():
-            paquet[objet] = quantite_reelle(quantite, jours)
+            ranger(paquet, objet, quantite, jours)
         for objet, quantite in VETEMENTS_BASE.items():
-            paquet[objet] = quantite_reelle(quantite, jours)
-        # vêtements liés au climat
+            ranger(paquet, objet, quantite, jours)
         for type_dest in types:
             for objet, quantite in PAR_TYPE_PERSO[type_dest].items():
-                paquet[objet] = quantite_reelle(quantite, jours)
-        # affaires perso propres à la personne
+                ranger(paquet, objet, quantite, jours)
         for objet, quantite in PAR_PERSONNE[personne].items():
-            paquet[objet] = quantite_reelle(quantite, jours)
+            ranger(paquet, objet, quantite, jours)
         # documents personnels (chacun les siens)
         if hors_ue:
-            paquet["passeport"] = 1
+            ranger(paquet, "passeport", 1, jours)
         else:
-            paquet["carte d'identité"] = 1
+            ranger(paquet, "carte d'identité", 1, jours)
         if conduit:
-            paquet["permis"] = 1
+            ranger(paquet, "permis", 1, jours)
             if hors_ue:
-                paquet["permis international"] = 1
+                ranger(paquet, "permis international", 1, jours)
 
     return valise
 
@@ -264,10 +306,14 @@ def main():
     valise = faire_valise(types, jours, personnes, hors_ue, conduit)
 
     print(f"\nValise pour {ville} ({jours} jours) — types : {types}")
-    for categorie, tiroir in valise.items():
-        print(f"\n{categorie} :")
-        for objet, quantite in sorted(tiroir.items()):    # ← trie le contenu du tiroir
-            print(f"  {objet} ×{quantite}")
+    for proprietaire, themes in valise.items():
+        print(f"\n=== {proprietaire} ===")
+        for theme, objets in themes.items():
+            if not objets:            # thème vide -> on ne l'affiche pas
+                continue
+            print(f"  {theme} :")
+            for objet, quantite in sorted(objets.items()):
+                print(f"    {objet} ×{quantite}")
 
 
 if __name__ == "__main__":
