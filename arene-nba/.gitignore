@@ -1,0 +1,9 @@
+# État de saison local (propre à chaque joueur)
+progression.json
+
+# Brouillon de réponse regénéré à chaque manche "fonction"
+reponse.py
+
+# Python
+__pycache__/
+*.pyc
