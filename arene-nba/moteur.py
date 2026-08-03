@@ -172,9 +172,14 @@ def _repr(valeur):
 
 
 def _texte_normalise(txt):
-    """Compare les sorties texte en ignorant espaces superflus et casse d'espaces."""
-    lignes = [" ".join(l.split()) for l in txt.strip().splitlines()]
-    return "\n".join(lignes)
+    """Normalise une sortie texte pour la comparaison en retirant TOUS les espaces.
+
+    Python affiche toujours `[0, 2, 4, 6]` avec une espace après chaque virgule ; un
+    débutant qui tape `[0,2,4,6]` a la BONNE réponse et ne doit pas être buzzé pour ça.
+    Les défis 'predire' de la v1 affichent des valeurs (listes, dicts, sets, nombres),
+    jamais des phrases où l'espacement porterait du sens — donc ignorer les espaces est sûr.
+    """
+    return "".join(txt.split())
 
 
 # ===========================================================================
