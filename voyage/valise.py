@@ -656,9 +656,9 @@ def faire_valise(jours_types, total, personnes, hors_ue, conduit):
 
     return valise
 
-def valise_en_html(valise, ville, jours, types):
-    """Construire la page HTML de la checklist."""
-    adaptateur = adaptateur_pour(ville)     # info niveau destination, affichée en tête
+def valise_en_html(valise, libelle_voyage, total, prises):
+    """Construire la page HTML de la checklist pour l'itinéraire complet."""
+    adaptateurs = ", ".join(sorted(prises)) if prises else "aucun"
     onglets = '<nav class="tabs">'          # un bouton par propriétaire (Partagé/Julien/...)
     for proprietaire in valise:
         onglets += f'<button data-owner="{proprietaire}">{proprietaire} <span class="tab-count"></span></button>'
@@ -671,7 +671,7 @@ def valise_en_html(valise, ville, jours, types):
                 continue
             corps = corps + f"<h3>{theme}</h3><ul>"
             for objet, quantite in sorted(objets.items()):
-                corps = corps + f'<li><label><input type="checkbox" data-key="{ville}/{proprietaire}/{theme}/{objet}"> {objet} ×{quantite}</label></li>'
+                corps = corps + f'<li><label><input type="checkbox" data-key="{libelle_voyage}/{proprietaire}/{theme}/{objet}"> {objet} ×{quantite}</label></li>'
             corps = corps + "</ul>"
         corps = corps + "</section>"
     page = f"""<!doctype html>
@@ -679,12 +679,12 @@ def valise_en_html(valise, ville, jours, types):
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Valise — {ville}</title>
+<title>Valise — {libelle_voyage}</title>
 <style>{HTML_STYLE}</style>
 </head>
 <body>
-<h1>Valise — {ville} · {jours} jours</h1>
-<p class="prise">🔌 Adaptateur à emporter : <strong>{adaptateur}</strong></p>
+<h1>Valise — {libelle_voyage} · {total} jours</h1>
+<p class="prise">🔌 Adaptateur(s) à emporter : <strong>{adaptateurs}</strong></p>
 <div class="progress"><div class="progress-head"><span>Rangé</span><span id="compte">0 / 0</span></div><div class="progress-track"><div id="progress-fill"></div></div></div>
 <div class="controls"><button id="toggle-masque" class="ctrl-btn">Masquer les rangés</button><button id="reset" class="ctrl-btn">Réinitialiser</button></div>
 {onglets}
@@ -695,49 +695,66 @@ def valise_en_html(valise, ville, jours, types):
     return page
 
 def main():
-    """Assistant interactif : pose les questions, puis construit la valise."""
+    """Assistant interactif : saisit un itinéraire, puis construit la valise."""
     manquants = objets_sans_rayon()
     if manquants:
         print(f"⚠️  Objets sans rayon (à classer dans THEMES) : {manquants}")
     sans_prise = pays_sans_prise()
     if sans_prise:
         print(f"⚠️  Pays sans prise renseignée (à compléter dans PAYS_VERS_PRISE) : {sans_prise}")
+
+    # --- Saisie de l'itinéraire, étape par étape ---
+    itineraire = []
+    numero = 1
     while True:
-        ville = input("Ville de destination : ")
-        if ville in VILLE_VERS_ZONE or ville in PAYS_VERS_ZONE:
-            break
-        print(f"Ville '{ville}' inconnue, vérifie l'orthographe.")          # texte
-    while True:
-        reponse = input("Nombre de jours : ")
-        if reponse.isdigit() and int(reponse) >= 1:      # au moins 1 jour
-            jours = int(reponse)
-            break                            # sortir de la boucle
-        print("Nombre de jours invalide : entre un nombre positif.")
-    while True:
-        reponse = input("Mois du départ (1-12) : ")
-        if reponse.isdigit() and 1 <= int(reponse) <= 12:
-            mois = int(reponse)
-            break                     # sortir de la boucle
-        print("Mois invalide : entre un nombre entre 1 et 12.")    
+        destination = input(f"Étape {numero} — destination (ou 'fin' pour terminer) : ")
+        if destination == "fin":
+            if itineraire:
+                break
+            print("Ajoute au moins une étape avant de terminer.")
+            continue
+        if destination not in VILLE_VERS_ZONE and destination not in PAYS_VERS_ZONE:
+            print(f"Destination '{destination}' inconnue, vérifie l'orthographe.")
+            continue
+        while True:
+            reponse = input("        — jours : ")
+            if reponse.isdigit() and int(reponse) >= 1:
+                jours = int(reponse)
+                break
+            print("        Nombre de jours invalide : entre un nombre positif.")
+        while True:
+            reponse = input("        — mois (1-12) : ")
+            if reponse.isdigit() and 1 <= int(reponse) <= 12:
+                mois = int(reponse)
+                break
+            print("        Mois invalide : entre un nombre entre 1 et 12.")
+        itineraire.append({"destination": destination, "jours": jours, "mois": mois})
+        numero += 1
+
+    # --- Questions posées une seule fois ---
     while True:
         choix = input("Qui fait sa valise ? (j = Julien / l = Laetitia / 2 = les deux) : ")
         if choix in CHOIX_PERSONNE:
             break
         print("Choix invalide : tape j, l ou 2.")
     personnes = CHOIX_PERSONNE[choix]
-    statut = statut_ue(ville)                       # déduit du pays, plus de question
-    hors_ue = statut != "ue"                        # inconnu -> passeport (défaut prudent)
-    if statut == "inconnu":
-        print("⚠️  Statut UE inconnu pour cette destination : passeport par défaut, à vérifier.")
+
+    hors_ue, inconnu = statut_ue_itineraire(itineraire)
+    if inconnu:
+        print("⚠️  Statut UE inconnu pour une étape : passeport par défaut, à vérifier.")
     conduit = input("Tu vas conduire ? (o/n) : ") == "o"
 
-    types = types_pour(ville, mois)                     # la couche géo déduit le climat
-    valise = faire_valise(types, jours, personnes, hors_ue, conduit)
+    # --- Construction ---
+    jours_types = jours_par_type(itineraire)
+    total = total_jours(itineraire)
+    prises = prises_itineraire(itineraire)
+    valise = faire_valise(jours_types, total, personnes, hors_ue, conduit)
 
-    html = valise_en_html(valise, ville, jours, types)
+    libelle_voyage = " › ".join(etape["destination"] for etape in itineraire)
+    html = valise_en_html(valise, libelle_voyage, total, prises)
     with open("valise.html", "w", encoding="utf-8") as f:
         f.write(html)
-    print("Checklist écrite dans valise.html")
+    print(f"Checklist écrite dans valise.html ({total} jours, {len(itineraire)} étape(s))")
 
 
 if __name__ == "__main__":
