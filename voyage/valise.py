@@ -483,6 +483,25 @@ def adaptateur_pour(destination):
         return PAYS_VERS_PRISE[destination]
     return "à vérifier"
 
+def statut_ue_itineraire(itineraire):
+    hors_ue = False
+    inconnu = False
+    for etape in itineraire:
+        statut = statut_ue(etape["destination"])
+        if statut == "hors_ue":
+            hors_ue = True
+        elif statut == "inconnu":
+            hors_ue = True
+            inconnu = True
+    return hors_ue, inconnu      # <-- deux valeurs = un tuple
+
+def prises_itineraire(itineraire):
+    prises = set()               # ensemble vide ; les doublons se dédupliquent tout seuls
+    for etape in itineraire:
+        prise = adaptateur_pour(etape["destination"])
+        if prise != "aucun":                  # on ignore les "aucun"
+            prises.add(prise)
+    return prises
 
 def pays_sans_prise():
     """Garde-fou : pays/États qui ont une zone mais aucune prise renseignée."""
