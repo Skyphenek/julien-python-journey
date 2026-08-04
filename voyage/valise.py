@@ -32,16 +32,119 @@ li label {
 }
 li input { width: 22px; height: 22px; flex-shrink: 0; }
 label:has(input:checked) { color: #a1a1aa; text-decoration: line-through; }
+
 p.prise {
     background: #eef2ff; color: #3730a3; font-size: .95rem;
     padding: .55rem .9rem; border-radius: 10px; margin: 0 0 1.5rem;
+}
+nav.tabs {
+    display: flex; gap: .4rem; position: sticky; top: 0; z-index: 5;
+    background: #f7f7f8; padding: .6rem 0; margin-bottom: .5rem;
+}
+nav.tabs button {
+    flex: 1; padding: .6rem .4rem; border: none; border-radius: 10px;
+    background: #e4e4e7; color: #52525b; font-size: .95rem; font-weight: 600;
+    cursor: pointer;
+}
+nav.tabs button.actif { background: #4f46e5; color: #fff; }
+div.progress { margin: 0 0 1.25rem; }
+div.progress-head {
+    display: flex; justify-content: space-between; font-size: .85rem;
+    color: #71717a; margin-bottom: .35rem; font-weight: 600;
+}
+div.progress-track { height: 8px; border-radius: 999px; background: #e4e4e7; overflow: hidden; }
+#progress-fill { height: 100%; width: 0; background: #4f46e5; border-radius: 999px; transition: width .3s ease; }
+div.controls { display: flex; gap: .5rem; justify-content: flex-end; margin: 0 0 1rem; }
+button.ctrl-btn {
+    padding: .4rem .85rem;
+    border: 1px solid #d4d4d8; border-radius: 999px; background: transparent;
+    color: #52525b; font-size: .82rem; font-weight: 600; cursor: pointer;
 }
 @media (prefers-color-scheme: dark) {
     body { background: #18181b; color: #f4f4f5; }
     section { background: #27272a; box-shadow: none; }
     section h3 { color: #a1a1aa; }
     p.prise { background: #312e81; color: #e0e7ff; }
+    nav.tabs { background: #18181b; }
+    nav.tabs button { background: #27272a; color: #a1a1aa; }
+    nav.tabs button.actif { background: #6366f1; color: #fff; }
+    div.progress-track { background: #27272a; }
+    #progress-fill { background: #6366f1; }
+    button.ctrl-btn { border-color: #3f3f46; color: #a1a1aa; }
 }
+"""
+
+# Script JS de la page (persistance des coches). Dans une constante à part car le JS
+# est plein d'accolades : il ne doit PAS traverser la f-string qui construit la page.
+HTML_SCRIPT = """
+// Références aux éléments de la page (tout en haut : dispo avant tout appel)
+const CLE = "valise-checklist";                         // un seul magasin ; la destination est gravée dans chaque data-key
+const sauvegarde = JSON.parse(localStorage.getItem(CLE) || "{}");
+const sections = document.querySelectorAll('section[data-owner]');
+const onglets = document.querySelectorAll('nav.tabs button');
+const compte = document.getElementById('compte');
+const remplissage = document.getElementById('progress-fill');
+const btnMasque = document.getElementById('toggle-masque');
+const btnReset = document.getElementById('reset');
+let ownerActif = null;                                  // la personne actuellement affichée
+let masquer = false;                                    // masquer les objets déjà rangés ?
+
+// Progression DE LA PERSONNE AFFICHÉE (compte ses cases à elle)
+function majProgression() {
+    const boxes = document.querySelectorAll('section[data-owner="' + ownerActif + '"] input[type=checkbox]');
+    let faites = 0;
+    boxes.forEach(function (b) { if (b.checked) faites++; });
+    compte.textContent = faites + ' / ' + boxes.length;
+    remplissage.style.width = boxes.length ? (faites / boxes.length * 100) + '%' : '0%';
+}
+
+// Masquer / réafficher les objets déjà cochés
+function appliquerMasque() {
+    document.querySelectorAll('li').forEach(function (li) {
+        const box = li.querySelector('input[type=checkbox]');
+        if (box) li.style.display = (masquer && box.checked) ? 'none' : '';
+    });
+}
+
+// Onglets : n'afficher qu'une personne à la fois
+function activer(nom) {
+    ownerActif = nom;
+    sections.forEach(function (s) { s.style.display = (s.dataset.owner === nom) ? '' : 'none'; });
+    onglets.forEach(function (b) { b.classList.toggle('actif', b.dataset.owner === nom); });
+    majProgression();      // recompter pour la personne affichée
+    appliquerMasque();
+}
+
+// Persistance : restaurer au chargement, sauver à chaque coche/décoche
+document.querySelectorAll('input[type=checkbox]').forEach(function (box) {
+    if (sauvegarde[box.dataset.key]) box.checked = true;
+    box.addEventListener('change', function () {
+        sauvegarde[box.dataset.key] = box.checked;
+        localStorage.setItem(CLE, JSON.stringify(sauvegarde));
+        majProgression();
+        appliquerMasque();
+    });
+});
+
+// Boutons : onglets + toggle "masquer les rangés"
+onglets.forEach(function (b) { b.addEventListener('click', function () { activer(b.dataset.owner); }); });
+btnMasque.addEventListener('click', function () {
+    masquer = !masquer;
+    btnMasque.textContent = masquer ? 'Afficher tout' : 'Masquer les rangés';
+    appliquerMasque();
+});
+btnReset.addEventListener('click', function () {
+    document.querySelectorAll('input[type=checkbox]').forEach(function (box) {
+        box.checked = false;                 // on décoche visuellement
+        delete sauvegarde[box.dataset.key];  // et on efface de la mémoire
+    });
+    localStorage.setItem(CLE, JSON.stringify(sauvegarde));
+    majProgression();
+    appliquerMasque();
+});
+
+// Démarrage : premier onglet actif
+if (onglets.length) activer(onglets[0].dataset.owner);
 """
 
 # 1a. BASE COMMUN : 1 pour le groupe entier (un seul suffit à plusieurs).
@@ -491,15 +594,19 @@ def faire_valise(types, jours, personnes, hors_ue, conduit):
 def valise_en_html(valise, ville, jours, types):
     """Construire la page HTML de la checklist."""
     adaptateur = adaptateur_pour(ville)     # info niveau destination, affichée en tête
+    onglets = '<nav class="tabs">'          # un bouton par propriétaire (Partagé/Julien/...)
+    for proprietaire in valise:
+        onglets += f'<button data-owner="{proprietaire}">{proprietaire}</button>'
+    onglets += '</nav>'
     corps = ""
     for proprietaire, themes in valise.items():
-        corps = corps + f"<section><h2>{proprietaire}</h2>"
+        corps = corps + f'<section data-owner="{proprietaire}"><h2>{proprietaire}</h2>'
         for theme, objets in themes.items():
             if not objets:
                 continue
             corps = corps + f"<h3>{theme}</h3><ul>"
             for objet, quantite in sorted(objets.items()):
-                corps = corps + f"<li><label><input type=\"checkbox\"> {objet} ×{quantite}</label></li>"
+                corps = corps + f'<li><label><input type="checkbox" data-key="{ville}/{proprietaire}/{theme}/{objet}"> {objet} ×{quantite}</label></li>'
             corps = corps + "</ul>"
         corps = corps + "</section>"
     page = f"""<!doctype html>
@@ -513,7 +620,11 @@ def valise_en_html(valise, ville, jours, types):
 <body>
 <h1>Valise — {ville} · {jours} jours</h1>
 <p class="prise">🔌 Adaptateur à emporter : <strong>{adaptateur}</strong></p>
+<div class="progress"><div class="progress-head"><span>Rangé</span><span id="compte">0 / 0</span></div><div class="progress-track"><div id="progress-fill"></div></div></div>
+<div class="controls"><button id="toggle-masque" class="ctrl-btn">Masquer les rangés</button><button id="reset" class="ctrl-btn">Réinitialiser</button></div>
+{onglets}
 {corps}
+<script>{HTML_SCRIPT}</script>
 </body>
 </html>"""
     return page
