@@ -189,7 +189,7 @@ VETEMENTS_BASE = {
     "ceinture": 1,
     "chaussures de rechange": 1,
     "chaussettes": "par_jour",
-    "pantalons": "par_3_jours",
+    "pantalons": "par_semaine",
     "pyjama": "par_semaine",
     "sweat": "par_semaine",
     "chemises": "par_3_jours",
@@ -208,7 +208,6 @@ PAR_TYPE_PERSO = {
                  "shorts": "par_3_jours", "débardeurs": "par_jour",
                  "robe légère": "par_3_jours", "sandales": 1,
                  "chemises légères": "par_3_jours",
-                 "pantalons": "par_semaine",     # ÉCRASE le pantalon de base : ~÷3 quand il fait chaud
                  "chemises": 0},                 # 0 = retire les chemises normales quand il fait chaud
     "froid":    {"manteau": 1, "pull": "par_3_jours", "gants": 1, "bonnet": 1,
                  "écharpe": 1, "sous-couche thermique": "par_3_jours",
@@ -576,28 +575,52 @@ def objets_sans_rayon():
     return tous - classes
 
 
-def ranger(paquet, objet, quantite, jours):
-    """Ranger un objet dans le bon rayon d'un paquet, quantité traduite selon la durée.
+def _remplir(paquet, base_tables, type_tables, jours_types, total):
+    """Remplir un paquet selon la règle max + suppression.
 
-    Convention : quantité réelle == 0 -> on RETIRE l'objet (utile quand une table
-    par-type écrase un objet de base à 0, ex. chemises normales par temps chaud).
+    - base_tables : tables {objet: marqueur} dimensionnées sur `total`.
+    - type_tables : {type: {objet: marqueur}} dimensionnées sur jours_types[type],
+      pour les seuls types présents. Un marqueur 0 = suppression.
     """
-    rayon = paquet[theme_de(objet)]
-    quantite = quantite_reelle(quantite, jours)
-    if quantite == 0:
-        rayon.pop(objet, None)      # retire s'il était là, sinon ne fait rien
-        return
-    rayon[objet] = quantite
+    base_q = {}          # objet -> quantité issue des tables de base
+    climat_q = {}        # objet -> max des quantités climatiques positives
+    climat_zero = set()  # objets qu'un climat veut retirer (marqueur 0)
+
+    # Temps 1a : tables de base, dimensionnées sur le total
+    for table in base_tables:
+        for objet, marqueur in table.items():
+            q = quantite_reelle(marqueur, total)
+            if q > 0:
+                base_q[objet] = max(base_q.get(objet, 0), q)
+
+    # Temps 1b : tables par climat, dimensionnées sur les jours du climat
+    for type_dest, jours in jours_types.items():
+        for objet, marqueur in type_tables.get(type_dest, {}).items():
+            if marqueur == 0:
+                climat_zero.add(objet)              # candidat au retrait
+                continue
+            q = quantite_reelle(marqueur, jours)
+            if q > 0:
+                climat_q[objet] = max(climat_q.get(objet, 0), q)
+
+    # Temps 2 : finalisation
+    for objet in set(base_q) | set(climat_q) | climat_zero:
+        cq = climat_q.get(objet, 0)
+        if objet in climat_zero and cq == 0:
+            continue                            # supprimé : climat retire, aucun positif
+        quantite = max(base_q.get(objet, 0), cq)
+        if quantite > 0:
+            paquet[theme_de(objet)][objet] = quantite
 
 
-def faire_valise(types, jours, personnes, hors_ue, conduit):
-    """Construire la checklist {objet: quantité} selon la destination et la personne.
+def faire_valise(jours_types, total, personnes, hors_ue, conduit):
+    """Construire la checklist {proprietaire: {theme: {objet: quantité}}}.
 
-    - types    : liste de types de destination, ex. ["chaud", "plage"]
-    - jours    : durée du voyage (module les quantités "par_jour")
-    - personnes : liste de personnes qui font leur valise
-    - hors_ue  : True -> passeport, False -> CNI
-    - conduit  : True -> permis (+ permis international si hors_ue)
+    - jours_types : {type de destination: jours cumulés} (couche d'agrégation).
+    - total       : durée totale du voyage (dimensionne les objets de base).
+    - personnes   : liste de personnes qui font leur valise.
+    - hors_ue     : True -> passeport, False -> carte d'identité.
+    - conduit     : True -> permis (+ permis international si hors_ue).
     """
     # Un paquet par propriétaire : "Partagé" + un paquet par personne.
     # Chaque paquet est lui-même découpé par thème (via paquet_vide()).
@@ -605,38 +628,31 @@ def faire_valise(types, jours, personnes, hors_ue, conduit):
     for personne in personnes:
         valise[personne] = paquet_vide()
 
-    # === PARTAGÉ : 1 pour le groupe entier ===
-    partage = valise["Partagé"]
-    for objet, quantite in BASE_COMMUN.items():
-        ranger(partage, objet, quantite, jours)
-    for type_dest in types:      # types sans commun -> .get renvoie {} : rien à ajouter
-        for objet, quantite in PAR_TYPE_COMMUN.get(type_dest, {}).items():
-            ranger(partage, objet, quantite, jours)
+    # === PARTAGÉ : 1 pour le groupe (base commune + types communs présents) ===
+    _remplir(valise["Partagé"],
+             base_tables=[BASE_COMMUN],
+             type_tables=PAR_TYPE_COMMUN,
+             jours_types=jours_types, total=total)
 
-    # === PERSO : le paquet de CHAQUE personne (×1, plus besoin de ×nb) ===
+    # === PERSO : le paquet de CHAQUE personne ===
     for personne in personnes:
         paquet = valise[personne]        # raccourci : paquet POINTE vers valise[personne]
-        for objet, quantite in BASE_PERSO.items():
-            ranger(paquet, objet, quantite, jours)
-        for objet, quantite in VETEMENTS_BASE.items():
-            ranger(paquet, objet, quantite, jours)
-        for type_dest in types:
-            for objet, quantite in PAR_TYPE_PERSO[type_dest].items():
-                ranger(paquet, objet, quantite, jours)
-        for objet, quantite in PAR_PERSONNE[personne].items():
-            ranger(paquet, objet, quantite, jours)
+        _remplir(paquet,
+                 base_tables=[BASE_PERSO, VETEMENTS_BASE, PAR_PERSONNE[personne]],
+                 type_tables=PAR_TYPE_PERSO,
+                 jours_types=jours_types, total=total)
         # filtre final : ce que cette personne ne prend jamais (items genrés, etc.)
         for objet in JAMAIS.get(personne, set()):
             paquet[theme_de(objet)].pop(objet, None)
         # documents personnels (chacun les siens)
         if hors_ue:
-            ranger(paquet, "passeport", 1, jours)
+            paquet[theme_de("passeport")]["passeport"] = 1
         else:
-            ranger(paquet, "carte d'identité", 1, jours)
+            paquet[theme_de("carte d'identité")]["carte d'identité"] = 1
         if conduit and personne in CONDUCTEURS:
-            ranger(paquet, "permis", 1, jours)
+            paquet[theme_de("permis")]["permis"] = 1
             if hors_ue:
-                ranger(paquet, "permis international", 1, jours)
+                paquet[theme_de("permis international")]["permis international"] = 1
 
     return valise
 

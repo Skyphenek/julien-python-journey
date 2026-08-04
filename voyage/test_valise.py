@@ -4,7 +4,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))   # permet d'importer valise depuis ce dossier
 
 from valise import (total_jours, jours_par_type,
-                    statut_ue_itineraire, prises_itineraire)
+                    statut_ue_itineraire, prises_itineraire,
+                    quantite_reelle, faire_valise)
 
 def test_total_jours():
     itin = [{"destination": "Hanoï", "jours": 7, "mois": 1},
@@ -58,3 +59,53 @@ def test_prises_itineraire_dedup_et_sans_aucun():
             {"destination": "Vietnam", "jours": 5, "mois": 1},    # universel
             {"destination": "Cambodge", "jours": 4, "mois": 1}]   # universel
     assert prises_itineraire(itin) == {"universel"}
+
+def test_quantite_reelle_marqueurs():
+    assert quantite_reelle("par_jour", 5) == 5
+    assert quantite_reelle("par_semaine", 3) == 1        # plancher à 1
+    assert quantite_reelle("par_3_jours", 10) == 3
+    assert quantite_reelle((3, "par_semaine"), 14) == 6  # 3 x (14//7)
+    assert quantite_reelle(2, 10) == 2
+
+
+def test_faire_valise_max_entre_deux_climats():
+    # shorts réclamés par chaud (18j -> 6) et plage (7j -> 2) : on garde le max
+    jpt = {"chaud": 18, "plage": 7}
+    valise = faire_valise(jpt, 18, ["Julien"], hors_ue=True, conduit=False)
+    assert valise["Julien"]["Vêtements"]["shorts"] == 6
+
+
+def test_faire_valise_suppression_chemises_si_chaud():
+    # chaud met "chemises": 0 -> retire la base ; "chemises légères" les remplace
+    jpt = {"chaud": 10, "ville": 10}
+    valise = faire_valise(jpt, 10, ["Julien"], hors_ue=False, conduit=False)
+    vetements = valise["Julien"]["Vêtements"]
+    assert "chemises" not in vetements
+    assert "chemises légères" in vetements
+
+
+def test_faire_valise_chemises_conservees_sans_chaud():
+    jpt = {"ville": 10}
+    valise = faire_valise(jpt, 10, ["Julien"], hors_ue=False, conduit=False)
+    assert "chemises" in valise["Julien"]["Vêtements"]
+
+
+def test_faire_valise_pantalons_par_semaine():
+    # après le réglage §6 : base par_semaine -> 18//7 = 2
+    jpt = {"chaud": 18, "plage": 18}
+    valise = faire_valise(jpt, 18, ["Julien"], hors_ue=True, conduit=False)
+    assert valise["Julien"]["Vêtements"]["pantalons"] == 2
+
+
+def test_faire_valise_documents_selon_ue():
+    jpt = {"ville": 5}
+    hors = faire_valise(jpt, 5, ["Julien"], hors_ue=True, conduit=False)
+    dans = faire_valise(jpt, 5, ["Julien"], hors_ue=False, conduit=False)
+    assert "passeport" in hors["Julien"]["Documents"]
+    assert "carte d'identité" in dans["Julien"]["Documents"]
+
+def test_faire_valise_dimension_par_jours_du_climat():
+    # maillot n'existe que dans "plage" ; plage=7j sur 18 total -> 7//3=2, pas 18//3=6
+    jpt = {"chaud": 18, "plage": 7}
+    valise = faire_valise(jpt, 18, ["Julien"], hors_ue=True, conduit=False)
+    assert valise["Julien"]["Vêtements"]["maillot"] == 2
