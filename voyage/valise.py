@@ -497,6 +497,16 @@ def types_pour(ville, mois):
     saison = saison_du_mois(mois)
     return ZONES[zone][saison]
 
+def total_jours(itineraire):
+    """Compter le nombre de jours d'un itinéraire (liste de tuples [(ville, nb_jours), ...])."""
+    return sum(etape["jours"] for etape in itineraire)
+
+def jours_par_type(itineraire):
+    jours = {}
+    for etape in itineraire:
+        for type_dest in types_pour(etape["destination"], etape["mois"]):
+            jours[type_dest] = jours.get(type_dest, 0) + etape["jours"]
+    return jours
 
 def quantite_reelle(marqueur, jours):
     """Traduire un marqueur de quantité en nombre réel selon la durée du voyage."""
