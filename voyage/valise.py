@@ -47,6 +47,7 @@ nav.tabs button {
     cursor: pointer;
 }
 nav.tabs button.actif { background: #4f46e5; color: #fff; }
+nav.tabs .tab-count { font-size: .72rem; font-weight: 600; opacity: .7; }
 div.progress { margin: 0 0 1.25rem; }
 div.progress-head {
     display: flex; justify-content: space-between; font-size: .85rem;
@@ -98,11 +99,28 @@ function majProgression() {
     remplissage.style.width = boxes.length ? (faites / boxes.length * 100) + '%' : '0%';
 }
 
-// Masquer / réafficher les objets déjà cochés
+// Compteur affiché sur chaque onglet (cochées / total de la personne)
+function majOnglets() {
+    onglets.forEach(function (b) {
+        const boxes = document.querySelectorAll('section[data-owner="' + b.dataset.owner + '"] input[type=checkbox]');
+        let faites = 0;
+        boxes.forEach(function (x) { if (x.checked) faites++; });
+        const span = b.querySelector('.tab-count');
+        if (span) span.textContent = faites + '/' + boxes.length;
+    });
+}
+
+// Masquer / réafficher les objets déjà cochés (+ les rayons devenus vides)
 function appliquerMasque() {
     document.querySelectorAll('li').forEach(function (li) {
         const box = li.querySelector('input[type=checkbox]');
         if (box) li.style.display = (masquer && box.checked) ? 'none' : '';
+    });
+    document.querySelectorAll('section[data-owner] ul').forEach(function (ul) {
+        const visible = Array.from(ul.querySelectorAll('li')).some(function (li) { return li.style.display !== 'none'; });
+        ul.style.display = visible ? '' : 'none';
+        const h3 = ul.previousElementSibling;         // le titre du rayon, juste avant la liste
+        if (h3 && h3.tagName === 'H3') h3.style.display = visible ? '' : 'none';
     });
 }
 
@@ -122,6 +140,7 @@ document.querySelectorAll('input[type=checkbox]').forEach(function (box) {
         sauvegarde[box.dataset.key] = box.checked;
         localStorage.setItem(CLE, JSON.stringify(sauvegarde));
         majProgression();
+        majOnglets();
         appliquerMasque();
     });
 });
@@ -143,8 +162,9 @@ btnReset.addEventListener('click', function () {
     appliquerMasque();
 });
 
-// Démarrage : premier onglet actif
+// Démarrage : premier onglet actif + compteurs d'onglets
 if (onglets.length) activer(onglets[0].dataset.owner);
+majOnglets();
 """
 
 # 1a. BASE COMMUN : 1 pour le groupe entier (un seul suffit à plusieurs).
@@ -596,7 +616,7 @@ def valise_en_html(valise, ville, jours, types):
     adaptateur = adaptateur_pour(ville)     # info niveau destination, affichée en tête
     onglets = '<nav class="tabs">'          # un bouton par propriétaire (Partagé/Julien/...)
     for proprietaire in valise:
-        onglets += f'<button data-owner="{proprietaire}">{proprietaire}</button>'
+        onglets += f'<button data-owner="{proprietaire}">{proprietaire} <span class="tab-count"></span></button>'
     onglets += '</nav>'
     corps = ""
     for proprietaire, themes in valise.items():
