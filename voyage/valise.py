@@ -111,8 +111,12 @@ PAR_PERSONNE = {
 #          l'ajoute (ex. items genrés présents dans les tables partagées PAR_TYPE_PERSO
 #          comme "robe légère" ou "collants" -> pas pour Julien).
 JAMAIS = {
-    "Julien": {"robe légère", "collants", "débardeurs"},
+    "Julien": {"robe légère", "collants", "débardeurs", "sandales"},
 }
+
+# 3quinquies. CONDUCTEURS : qui a le permis. Seuls eux emportent un permis
+#             (même hors UE) — et uniquement si le voyage implique de conduire.
+CONDUCTEURS = {"Julien"}
 
 # 3bis. Code de saisie -> liste des personnes concernées (pilote la question du prénom).
 CHOIX_PERSONNE = {
@@ -477,7 +481,7 @@ def faire_valise(types, jours, personnes, hors_ue, conduit):
             ranger(paquet, "passeport", 1, jours)
         else:
             ranger(paquet, "carte d'identité", 1, jours)
-        if conduit:
+        if conduit and personne in CONDUCTEURS:
             ranger(paquet, "permis", 1, jours)
             if hors_ue:
                 ranger(paquet, "permis international", 1, jours)
