@@ -127,3 +127,24 @@ Dans la checklist, le bouton **📝 Bilan de fin de voyage** bascule la page :
 
 Les verdicts vont dans la table `retours` (API `POST api/retour`, `GET api/retours/<voyage>`).
 Prochaine étape : `valise.py` s'en servira pour proposer des ajustements au voyage suivant.
+
+## La valise apprend de vos bilans
+
+À la génération d'une valise, `valise.py` relit les bilans des voyages précédents (non archivés)
+et **propose** des ajustements — rien n'est appliqué sans réponse « o » :
+
+```
+📒 D'après vos bilans précédents (3 proposition(s)) :
+   ➕ Lisbonne : « Mots fléchés et critérium » a manqué à Julien. L'ajouter ? (o / n / t = toujours)
+   ➖ t-shirts (Julien) : 18 prévus. Lisbonne, même climat : 2/9 utilisés. J'en mets 4 ? (o/n)
+   ➖ baskets (Julien) : pas servi à Lisbonne (même climat). Le retirer ? (o/n)
+```
+
+- **Oublis** : reproposés à la personne concernée, quel que soit le climat ; « t » les ajoute
+  **toujours** ensuite, sans question (table `regles_perso`).
+- **Quantités / retraits** : seulement d'après un voyage au **même climat** (mêmes étiquettes
+  chaud / froid / frais / pluie), le plus récent ayant un avis sur l'objet ; « en trop » avec
+  « utilisé x / N » réduit au prorata.
+- Rapprochement tolérant : « Bouchons d'oreilles » = « bouchon d'oreille ».
+- Un voyage d'essai s'archive (`archiver_voyage`) : il sort de l'historique sans être supprimé.
+- L'adaptateur de prise n'est plus ajouté quand toutes les étapes ont des prises françaises.

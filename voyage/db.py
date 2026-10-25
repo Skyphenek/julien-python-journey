@@ -198,3 +198,45 @@ def lire_retours(conn, voyage):
         )
         return [{"proprietaire": p, "objet": o, "verdict": v, "quantite_utilisee": q}
                 for p, o, v, q in cur.fetchall()]
+
+
+def archiver_voyage(conn, code):
+    """Sortir un voyage de l'historique (essai, annulé) sans rien supprimer."""
+    with conn.cursor() as cur:
+        cur.execute("UPDATE voyages SET archive = true WHERE code = %s", (code,))
+    conn.commit()
+
+
+def lire_historique(conn, exclure=None):
+    """Voyages passés non archivés, du plus récent au plus ancien, avec leur photo et leurs retours.
+    exclure : le voyage en cours de préparation (il n'est pas son propre passé)."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT code, libelle, depart, jours_types FROM voyages "
+            "WHERE NOT archive AND code IS DISTINCT FROM %s ORDER BY depart DESC",
+            (exclure,),
+        )
+        voyages = cur.fetchall()
+    return [{"code": code, "libelle": libelle, "depart": depart, "jours_types": jours_types,
+             "objets": lire_valise_objets(conn, code), "retours": lire_retours(conn, code)}
+            for code, libelle, depart, jours_types in voyages]
+
+
+def ajouter_regle(conn, personne, objet, theme, quantite=1):
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO regles_perso (personne, objet, theme, quantite) VALUES (%s, %s, %s, %s) "
+            "ON CONFLICT (personne, objet) DO NOTHING",
+            (personne, objet, theme, quantite),
+        )
+    conn.commit()
+
+
+def lire_regles(conn):
+    """{personne: [{"objet", "theme", "quantite"}]} — les ajouts "toujours"."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT personne, objet, theme, quantite FROM regles_perso ORDER BY personne, objet")
+        regles = {}
+        for personne, objet, theme, quantite in cur.fetchall():
+            regles.setdefault(personne, []).append({"objet": objet, "theme": theme, "quantite": quantite})
+    return regles

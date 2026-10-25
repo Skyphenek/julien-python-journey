@@ -7,7 +7,8 @@ import pytest
 from db import (connecter, obtenir_etat, enregistrer_coche,
                 lire_normales, enregistrer_normales, publier_page, lire_page,
                 enregistrer_voyage, lire_voyage, enregistrer_valise_objets, lire_valise_objets,
-                enregistrer_retour, supprimer_retour, lire_retours)
+                enregistrer_retour, supprimer_retour, lire_retours,
+                archiver_voyage, lire_historique, ajouter_regle, lire_regles)
 from valise import normales_avec_cache
 
 
@@ -15,7 +16,7 @@ from valise import normales_avec_cache
 def conn():
     connexion = connecter("valise_test")
     with connexion.cursor() as cur:
-        cur.execute("TRUNCATE etat_case, normales_climat, page_valise, voyages, valise_objets, retours")
+        cur.execute("TRUNCATE etat_case, normales_climat, page_valise, voyages, valise_objets, retours, regles_perso")
     connexion.commit()
     yield connexion
     connexion.close()
@@ -184,3 +185,26 @@ def test_retour_sur_voyage_inconnu_refuse(conn):
     with pytest.raises(psycopg2.errors.ForeignKeyViolation):
         enregistrer_retour(conn, "1999-01-01 Atlantide", "Julien", "pull", "utile")
     conn.rollback()
+
+
+
+# --- Session 3 : historique et règles "toujours" ---
+
+def test_historique_du_plus_recent_au_plus_ancien_sans_archive_ni_courant(conn):
+    for code, d in [("2025-01-01 Rome", date(2025, 1, 1)), ("2026-06-01 Lisbonne", date(2026, 6, 1)),
+                    ("2026-09-01 Essai", date(2026, 9, 1)), ("2027-01-10 Tokyo", date(2027, 1, 10))]:
+        enregistrer_voyage(conn, code, code[11:], d, ["Julien"], [], {"ville": 5})
+    enregistrer_valise_objets(conn, "2026-06-01 Lisbonne", {"Julien": {"Vêtements": {"t-shirts": 6}}})
+    enregistrer_retour(conn, "2026-06-01 Lisbonne", "Julien", "t-shirts", "trop", 3)
+    archiver_voyage(conn, "2026-09-01 Essai")
+    h = lire_historique(conn, exclure="2027-01-10 Tokyo")          # le voyage en cours n'est pas son propre passé
+    assert [v["code"] for v in h] == ["2026-06-01 Lisbonne", "2025-01-01 Rome"]
+    assert h[0]["objets"] == {("Julien", "Vêtements", "t-shirts"): 6}
+    assert h[0]["retours"] == [{"proprietaire": "Julien", "objet": "t-shirts", "verdict": "trop", "quantite_utilisee": 3}]
+    assert h[0]["jours_types"] == {"ville": 5}
+
+
+def test_regles_toujours(conn):
+    ajouter_regle(conn, "Julien", "Mots fléchés", "Divers", 1)
+    ajouter_regle(conn, "Julien", "Mots fléchés", "Divers", 1)      # pas de doublon
+    assert lire_regles(conn) == {"Julien": [{"objet": "Mots fléchés", "theme": "Divers", "quantite": 1}]}

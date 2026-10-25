@@ -66,3 +66,17 @@ CREATE TABLE IF NOT EXISTS retours (
     maj_le            TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (voyage, proprietaire, objet)
 );
+
+-- Apprentissage (session 3) -------------------------------------------------------------
+-- Un voyage archivé (essai, voyage annulé…) est ignoré par l'historique, sans être supprimé.
+ALTER TABLE voyages ADD COLUMN IF NOT EXISTS archive BOOLEAN NOT NULL DEFAULT false;
+
+-- Oublis ajoutés "toujours" : remis automatiquement dans la valise de cette personne.
+CREATE TABLE IF NOT EXISTS regles_perso (
+    personne TEXT        NOT NULL,                   -- "Julien", "Laetitia" ou "Partagé"
+    objet    TEXT        NOT NULL,
+    theme    TEXT        NOT NULL,
+    quantite INTEGER     NOT NULL DEFAULT 1 CHECK (quantite > 0),
+    cree_le  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (personne, objet)
+);
