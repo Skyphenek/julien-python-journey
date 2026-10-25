@@ -17,7 +17,8 @@ import requests
 
 from api_climat import lieux, normales_12_mois
 from db import (connecter, lire_normales, enregistrer_normales, publier_page,
-                enregistrer_voyage, enregistrer_valise_objets)
+                enregistrer_voyage, enregistrer_valise_objets,
+                lire_historique, lire_regles, ajouter_regle)
 from dotenv import load_dotenv
 
 # Feuille de style de la checklist HTML (mobile-first). Fournie clé en main :
@@ -869,7 +870,7 @@ def _remplir(paquet, base_tables, type_tables, jours_types, total):
             paquet[theme_de(objet)][objet] = quantite
 
 
-def faire_valise(jours_types, total, personnes, hors_ue, conduit):
+def faire_valise(jours_types, total, personnes, hors_ue, conduit, adaptateur=True):
     """Construire la checklist {proprietaire: {theme: {objet: quantité}}}.
 
     - jours_types : {type de destination: jours cumulés} (couche d'agrégation).
@@ -877,6 +878,7 @@ def faire_valise(jours_types, total, personnes, hors_ue, conduit):
     - personnes   : liste de personnes qui font leur valise.
     - hors_ue     : True -> passeport, False -> carte d'identité.
     - conduit     : True -> permis (+ permis international si hors_ue).
+    - adaptateur  : False -> aucune étape n'en a besoin (prises françaises partout) : on le retire.
     """
     # Un paquet par propriétaire : "Partagé" + un paquet par personne.
     # Chaque paquet est lui-même découpé par thème (via paquet_vide()).
@@ -909,6 +911,8 @@ def faire_valise(jours_types, total, personnes, hors_ue, conduit):
                     rayon[objet] = q
                 else:
                     rayon.pop(objet, None)
+        if not adaptateur:
+            paquet[theme_de("adaptateur de prise")].pop("adaptateur de prise", None)
         # documents personnels (chacun les siens)
         if hors_ue:
             paquet[theme_de("passeport")]["passeport"] = 1
@@ -920,6 +924,101 @@ def faire_valise(jours_types, total, personnes, hors_ue, conduit):
                 paquet[theme_de("permis international")]["permis international"] = 1
 
     return valise
+
+# 9. APPRENTISSAGE — exploiter les bilans des voyages précédents (session 3).
+#    Options prudentes : rien n'est appliqué sans "o" ; un oubli est reproposé à la personne
+#    concernée sur tous ses voyages ; une quantité n'est ajustée que d'après un voyage au
+#    MÊME climat (le plus récent qui a un avis sur cet objet).
+CLIMATS = {"chaud", "froid", "frais", "pluie"}       # les étiquettes météo (pas les activités)
+
+
+def cle_objet(texte):
+    """Clé de rapprochement : 'Bouchons d'oreilles' == 'bouchon d'oreille' (casse, accents, pluriels)."""
+    mots = sans_accents(texte.strip().lower()).split()
+    return " ".join(m[:-1] if len(m) > 3 and m[-1] in "sx" else m for m in mots)
+
+
+def etiquettes_climat(jours_types):
+    return {t for t in jours_types if t in CLIMATS}
+
+
+def _avis_le_plus_recent(historique, personne, cle, climat):
+    """Premier voyage au même climat (historique trié du plus récent) qui a un avis sur cet objet."""
+    for voyage in historique:
+        if etiquettes_climat(voyage["jours_types"]) != climat:
+            continue
+        for r in voyage["retours"]:
+            if r["proprietaire"] == personne and r["verdict"] != "manque" and cle_objet(r["objet"]) == cle:
+                return voyage, r
+    return None, None
+
+
+def propositions(valise, jours_types, historique, regles):
+    """Liste des ajustements à proposer. Fonction pure : ne modifie rien, ne pose aucune question."""
+    props = []
+    climat = etiquettes_climat(jours_types)
+    for personne, paquet in valise.items():
+        presents = {cle_objet(o) for objets in paquet.values() for o in objets}
+        en_regle = {cle_objet(r["objet"]) for r in regles.get(personne, [])}
+
+        # 1. Oublis : ce qui a manqué à cette personne, quel que soit le climat
+        vus = set()
+        for voyage in historique:
+            for r in voyage["retours"]:
+                cle = cle_objet(r["objet"])
+                if (r["proprietaire"] != personne or r["verdict"] != "manque"
+                        or cle in presents or cle in en_regle or cle in vus):
+                    continue
+                vus.add(cle)
+                props.append({"type": "ajout", "personne": personne, "objet": r["objet"],
+                              "theme": theme_de(r["objet"]), "actuelle": 0, "proposee": 1,
+                              "source": voyage["libelle"]})
+
+        # 2. Quantités et retraits : d'après le voyage au même climat le plus récent
+        for theme, objets in paquet.items():
+            for objet, quantite in objets.items():
+                voyage, avis = _avis_le_plus_recent(historique, personne, cle_objet(objet), climat)
+                if avis is None or avis["verdict"] == "utile":
+                    continue
+                base = {"personne": personne, "objet": objet, "theme": theme,
+                        "actuelle": quantite, "source": voyage["libelle"]}
+                utilise = avis["quantite_utilisee"]
+                if avis["verdict"] == "pas_servi" or utilise == 0 or (utilise is None and quantite == 1):
+                    raison = "pas servi" if avis["verdict"] == "pas_servi" else "en trop"
+                    props.append({"type": "retrait", **base, "proposee": 0, "raison": raison})
+                elif utilise is not None:
+                    prevu_avant = next((q for (p, _t, o), q in voyage["objets"].items()
+                                        if p == personne and cle_objet(o) == cle_objet(objet)), None)
+                    if prevu_avant:
+                        nouvelle = max(1, round(quantite * utilise / prevu_avant))   # au prorata de l'utilisé
+                        if nouvelle < quantite:
+                            props.append({"type": "quantite", **base, "proposee": nouvelle,
+                                          "utilise": f"{utilise}/{prevu_avant}"})
+    return props
+
+
+def appliquer(valise, proposition):
+    """Applique UNE proposition acceptée (quantité, retrait = 0, ou ajout)."""
+    rayon = valise[proposition["personne"]].setdefault(proposition["theme"], {})
+    if proposition["proposee"] == 0:
+        rayon.pop(proposition["objet"], None)
+    else:
+        rayon[proposition["objet"]] = proposition["proposee"]
+
+
+def appliquer_regles(valise, regles):
+    """Ajoute les objets "toujours" des voyageurs présents ; renvoie [(personne, objet)] ajoutés."""
+    ajouts = []
+    for personne, liste in regles.items():
+        if personne not in valise:
+            continue
+        presents = {cle_objet(o) for objets in valise[personne].values() for o in objets}
+        for r in liste:
+            if cle_objet(r["objet"]) not in presents:
+                valise[personne].setdefault(r["theme"], {})[r["objet"]] = r["quantite"]
+                ajouts.append((personne, r["objet"]))
+    return ajouts
+
 
 def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=None, depart=None):
     """Construire la page HTML de la checklist pour l'itinéraire complet.
@@ -1126,6 +1225,42 @@ def choisir_lieu(candidats):
         print(f"        Choix invalide : entre un nombre entre 1 et {len(candidats)}.")
 
 
+def question_proposition(p):
+    """Formule la question d'une proposition d'ajustement (o/n, ou o/n/t pour un ajout)."""
+    qui = "vous a manqué (partagé)" if p["personne"] == "Partagé" else f"a manqué à {p['personne']}"
+    if p["type"] == "ajout":
+        return f"   ➕ {p['source']} : « {p['objet']} » {qui}. L'ajouter ? (o / n / t = toujours) : "
+    if p["type"] == "quantite":
+        return (f"   ➖ {p['objet']} ({p['personne']}) : {p['actuelle']} prévus. {p['source']}, même climat : "
+                f"{p['utilise']} utilisés. J'en mets {p['proposee']} ? (o/n) : ")
+    return (f"   ➖ {p['objet']} ({p['personne']}) : {p['raison']} à {p['source']} (même climat). "
+            f"Le retirer ? (o/n) : ")
+
+
+def ajuster_selon_bilans(valise, jours_types, code):
+    """Lit l'historique en base et pose les questions ; modifie la valise selon les réponses."""
+    try:
+        conn = connecter()
+    except psycopg2.OperationalError:
+        print("ℹ️  Base indisponible : pas d'ajustement d'après les bilans.")
+        return
+    try:
+        regles = lire_regles(conn)
+        for personne, objet in appliquer_regles(valise, regles):
+            print(f"   ➕ {objet} ajouté pour {personne} (règle « toujours »)")
+        props = propositions(valise, jours_types, lire_historique(conn, exclure=code), regles)
+        if props:
+            print(f"📒 D'après vos bilans précédents ({len(props)} proposition(s)) :")
+        for p in props:
+            reponse = input(question_proposition(p)).strip().lower()
+            if est_oui(reponse) or (reponse == "t" and p["type"] == "ajout"):
+                appliquer(valise, p)
+            if reponse == "t" and p["type"] == "ajout":
+                ajouter_regle(conn, p["personne"], p["objet"], p["theme"], 1)
+    finally:
+        conn.close()
+
+
 def main():
     """Assistant interactif : saisit un itinéraire, puis construit la valise."""
     load_dotenv(Path(__file__).parent / ".env")   # DATABASE_URL éventuelle -> base en ligne
@@ -1216,11 +1351,15 @@ def main():
     jours_types = jours_par_type(itineraire)
     total = total_jours(itineraire)
     prises = prises_itineraire(itineraire)
-    valise = faire_valise(jours_types, total, personnes, hors_ue, conduit)
-
-    climats = [(e["destination"], e["mois"], e["normales"]) for e in itineraire]
+    # prises_itineraire ignore déjà les "aucun" : vide = prises françaises partout
+    valise = faire_valise(jours_types, total, personnes, hors_ue, conduit, adaptateur=bool(prises))
     libelle_voyage = " › ".join(etape["destination"] for etape in itineraire)
     code = code_voyage(depart, libelle_voyage)
+
+    # --- Apprentissage : règles "toujours", puis propositions tirées des bilans précédents ---
+    ajuster_selon_bilans(valise, jours_types, code)
+
+    climats = [(e["destination"], e["mois"], e["normales"]) for e in itineraire]
     html = valise_en_html(valise, libelle_voyage, total, prises, climats, code=code, depart=depart)
     with open("valise.html", "w", encoding="utf-8") as f:
         f.write(html)

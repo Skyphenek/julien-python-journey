@@ -12,7 +12,8 @@ from valise import (total_jours, jours_par_type,
                     lire_mois, lire_activites, est_oui, un_par_pays,
                     statut_ue, adaptateur_pour, normales_avec_cache,
                     THEMES, ICONES_RAYON, puce_climat, HTML_SCRIPT,
-                    lire_date, mois_des_etapes, code_voyage)
+                    lire_date, mois_des_etapes, code_voyage,
+                    cle_objet, etiquettes_climat, propositions, appliquer, appliquer_regles, theme_de)
 
 def test_total_jours():
     itin = [{"destination": "Hanoï", "jours": 7, "mois": 1},
@@ -403,3 +404,122 @@ def test_bloc_ce_qui_a_manque_par_onglet():
     assert '<div class="manques" data-owner="Julien"><h3>Ce qui a manqué à Julien</h3>' in html
     assert '<div class="manques" data-owner="Laetitia"><h3>Ce qui a manqué à Laetitia</h3>' in html
     assert '<div class="manques" data-owner="Partagé"><h3>Ce qui nous a manqué</h3>' in html
+
+
+# --- Adaptateur : seulement si une étape en a besoin (révélé par le 1er bilan : Italie) ---
+
+def test_pas_d_adaptateur_si_prises_identiques():
+    valise = faire_valise({"ville": 9}, 9, ["Julien"], hors_ue=False, conduit=False, adaptateur=False)
+    assert "adaptateur de prise" not in valise["Julien"]["Tech"]
+
+
+def test_adaptateur_par_defaut_et_si_besoin():
+    valise = faire_valise({"ville": 9}, 9, ["Julien", "Laetitia"], hors_ue=True, conduit=False, adaptateur=True)
+    assert valise["Julien"]["Tech"]["adaptateur de prise"] == 1
+    assert valise["Laetitia"]["Tech"]["adaptateur de prise"] == 1
+
+
+
+# --- Session 3 : la valise apprend des bilans ---
+
+def _historique(jours_types, objets, retours, code="2027-04-30 Florence › Palerme", libelle="Florence › Palerme",
+                depart=date(2027, 4, 30)):
+    return {"code": code, "libelle": libelle, "depart": depart, "jours_types": jours_types,
+            "objets": objets, "retours": retours}
+
+
+def _r(objet, verdict, q=None, qui="Julien"):
+    return {"proprietaire": qui, "objet": objet, "verdict": verdict, "quantite_utilisee": q}
+
+
+def _valise(**objets_julien):
+    paquet = paquet_vide()
+    for objet, q in objets_julien.items():
+        objet = objet.replace("_", "-")                  # t_shirts (nom d'argument Python) -> t-shirts
+        paquet[theme_de(objet)][objet] = q
+    return {"Partagé": paquet_vide(), "Julien": paquet}
+
+
+def test_cle_objet_ignore_casse_accents_pluriels():
+    assert cle_objet("Bouchons d'oreilles") == cle_objet("bouchon d'oreille")
+    assert cle_objet("  Crème  solaire ") == cle_objet("creme solaire")
+    assert cle_objet("t-shirts") == cle_objet("T-shirt")
+
+
+def test_etiquettes_climat_ignore_les_activites():
+    assert etiquettes_climat({"chaud": 4, "ville": 9, "plage": 4}) == {"chaud"}
+
+
+def test_oubli_propose_a_la_personne_concernee():
+    h = [_historique({"ville": 9}, {}, [_r("Mots fléchés et critérium", "manque")])]
+    props = propositions(_valise(t_shirts=9), {"ville": 9}, h, regles={})
+    assert props == [{"type": "ajout", "personne": "Julien", "objet": "Mots fléchés et critérium",
+                      "theme": "Divers", "actuelle": 0, "proposee": 1, "source": "Florence › Palerme"}]
+
+
+def test_oubli_deja_dans_la_valise_pas_repropose():
+    h = [_historique({"ville": 9}, {}, [_r("Pull", "manque")])]
+    assert propositions(_valise(pull=1), {"ville": 9}, h, regles={}) == []
+
+
+def test_oubli_deja_en_regle_toujours_pas_repropose():
+    h = [_historique({"ville": 9}, {}, [_r("mots fléchés", "manque")])]
+    regles = {"Julien": [{"objet": "Mots fléchés", "theme": "Divers", "quantite": 1}]}
+    assert propositions(_valise(), {"ville": 9}, h, regles=regles) == []
+
+
+def test_oubli_d_une_personne_absente_du_voyage_ignore():
+    h = [_historique({"ville": 9}, {}, [_r("lisseur", "manque", qui="Laetitia")])]
+    assert propositions(_valise(), {"ville": 9}, h, regles={}) == []
+
+
+def test_en_trop_meme_climat_reduit_au_prorata():
+    # Florence : 9 t-shirts proposés, 2 utilisés (22 %) -> aujourd'hui 18 prévus -> 4
+    h = [_historique({"chaud": 4, "ville": 9}, {("Julien", "Vêtements", "t-shirts"): 9},
+                     [_r("t-shirts", "trop", 2)])]
+    props = propositions(_valise(t_shirts=18), {"chaud": 10, "plage": 18}, h, regles={})
+    assert props == [{"type": "quantite", "personne": "Julien", "objet": "t-shirts", "theme": "Vêtements",
+                      "actuelle": 18, "proposee": 4, "source": "Florence › Palerme", "utilise": "2/9"}]
+
+
+def test_en_trop_climat_different_ignore():
+    h = [_historique({"chaud": 4, "ville": 9}, {("Julien", "Vêtements", "t-shirts"): 9},
+                     [_r("t-shirts", "trop", 2)])]
+    assert propositions(_valise(t_shirts=18), {"froid": 18}, h, regles={}) == []
+
+
+def test_pas_servi_meme_climat_propose_retrait():
+    h = [_historique({"ville": 9}, {("Julien", "Chaussures", "baskets"): 1}, [_r("baskets", "pas_servi")])]
+    props = propositions(_valise(baskets=1), {"ville": 5}, h, regles={})
+    assert props[0]["type"] == "retrait" and props[0]["proposee"] == 0
+
+
+def test_en_trop_objet_unique_sans_quantite_propose_retrait():
+    h = [_historique({"ville": 9}, {("Julien", "Divers", "livre / liseuse"): 1}, [_r("livre / liseuse", "trop")])]
+    assert propositions(_valise(**{"livre / liseuse": 1}), {"ville": 5}, h, regles={})[0]["type"] == "retrait"
+
+
+def test_le_voyage_le_plus_recent_l_emporte():
+    ancien = _historique({"ville": 9}, {("Julien", "Vêtements", "t-shirts"): 10}, [_r("t-shirts", "trop", 5)],
+                         code="2025-01-01 Rome", libelle="Rome", depart=date(2025, 1, 1))
+    recent = _historique({"ville": 9}, {("Julien", "Vêtements", "t-shirts"): 10}, [_r("t-shirts", "utile")])
+    # historique trié du plus récent au plus ancien : "utile" à Florence -> on ne touche à rien
+    assert propositions(_valise(t_shirts=10), {"ville": 9}, [recent, ancien], regles={}) == []
+
+
+def test_appliquer_une_proposition():
+    v = _valise(t_shirts=18, baskets=1)
+    appliquer(v, {"type": "quantite", "personne": "Julien", "theme": "Vêtements", "objet": "t-shirts", "proposee": 4})
+    appliquer(v, {"type": "retrait", "personne": "Julien", "theme": "Chaussures", "objet": "baskets", "proposee": 0})
+    appliquer(v, {"type": "ajout", "personne": "Julien", "theme": "Divers", "objet": "Mots fléchés", "proposee": 1})
+    assert v["Julien"]["Vêtements"]["t-shirts"] == 4
+    assert "baskets" not in v["Julien"]["Chaussures"]
+    assert v["Julien"]["Divers"]["Mots fléchés"] == 1
+
+
+def test_appliquer_regles_toujours():
+    v = _valise()
+    ajouts = appliquer_regles(v, {"Julien": [{"objet": "Mots fléchés", "theme": "Divers", "quantite": 1}],
+                                  "Laetitia": [{"objet": "lisseur", "theme": "Hygiène", "quantite": 1}]})
+    assert v["Julien"]["Divers"]["Mots fléchés"] == 1
+    assert ajouts == [("Julien", "Mots fléchés")]           # Laetitia ne voyage pas : rien pour elle
