@@ -17,75 +17,99 @@ from db import connecter, lire_normales, enregistrer_normales
 # Feuille de style de la checklist HTML (mobile-first). Fournie clé en main :
 # c'est de la présentation, pas de la logique. Injectée telle quelle dans le <head>.
 HTML_STYLE = """
-:root { color-scheme: light dark; }
+:root {
+    color-scheme: light dark;
+    --fond: #f4f4f5; --carte: #ffffff; --texte: #18181b; --doux: #71717a; --ligne: #e4e4e7;
+    --accent: #4f46e5; --accent-doux: #eef2ff; --ok: #16a34a;
+}
+@media (prefers-color-scheme: dark) {
+    :root {
+        --fond: #18181b; --carte: #27272a; --texte: #f4f4f5; --doux: #a1a1aa; --ligne: #3f3f46;
+        --accent: #818cf8; --accent-doux: #312e81; --ok: #22c55e;
+    }
+}
 * { box-sizing: border-box; }
 body {
     font-family: -apple-system, system-ui, sans-serif;
-    max-width: 640px; margin: 0 auto; padding: 1rem;
-    line-height: 1.5; background: #f7f7f8; color: #18181b;
+    max-width: 640px; margin: 0 auto; padding: 1rem 1rem 3rem;
+    line-height: 1.45; background: var(--fond); color: var(--texte);
 }
-h1 { font-size: 1.5rem; margin: 0 0 1.25rem; }
-section {
-    background: #fff; border-radius: 12px; padding: .75rem 1.25rem;
-    margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,.08);
-}
-section h2 { font-size: 1.2rem; margin: .5rem 0; }
-section h3 {
-    font-size: .75rem; text-transform: uppercase; letter-spacing: .05em;
-    color: #71717a; margin: 1rem 0 .25rem;
-}
-ul { list-style: none; margin: 0; padding: 0; }
-li label {
-    display: flex; align-items: center; gap: .6rem;
-    padding: .55rem .1rem; cursor: pointer; min-height: 44px;
-}
-li input { width: 22px; height: 22px; flex-shrink: 0; }
-label:has(input:checked) { color: #a1a1aa; text-decoration: line-through; }
+h1 { font-size: 1.25rem; margin: 0 0 .6rem; line-height: 1.3; }
+h1 .duree { color: var(--doux); font-weight: 500; }
 
-p.prise {
-    background: #eef2ff; color: #3730a3; font-size: .95rem;
-    padding: .55rem .9rem; border-radius: 10px; margin: 0 0 1.5rem;
+/* En-tête compact : climat et adaptateur en puces */
+div.puces { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0 0 .5rem; }
+span.puce {
+    max-width: 100%; overflow-wrap: anywhere;      /* une puce ne doit jamais élargir la page */
+    font-size: .8rem; padding: .3rem .7rem; border-radius: 999px;
+    background: var(--carte); border: 1px solid var(--ligne); color: var(--doux);
 }
-ul.climat {
-    list-style: none; background: #fffbeb; color: #92400e; font-size: .95rem;
-    padding: .55rem .9rem; border-radius: 10px; margin: -1rem 0 1.5rem;
-}
-nav.tabs {
-    display: flex; gap: .4rem; position: sticky; top: 0; z-index: 5;
-    background: #f7f7f8; padding: .6rem 0; margin-bottom: .5rem;
-}
-nav.tabs button {
-    flex: 1; padding: .6rem .4rem; border: none; border-radius: 10px;
-    background: #e4e4e7; color: #52525b; font-size: .95rem; font-weight: 600;
-    cursor: pointer;
-}
-nav.tabs button.actif { background: #4f46e5; color: #fff; }
-nav.tabs .tab-count { font-size: .72rem; font-weight: 600; opacity: .7; }
-div.progress { margin: 0 0 1.25rem; }
+
+/* Barre collante : progression + onglets restent visibles en faisant défiler */
+div.collant { position: sticky; top: 0; z-index: 5; background: var(--fond); padding: .6rem 0 .7rem; }
+div.barres { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: .75rem; }
 div.progress-head {
-    display: flex; justify-content: space-between; font-size: .85rem;
-    color: #71717a; margin-bottom: .35rem; font-weight: 600;
+    display: flex; justify-content: space-between; font-size: .8rem;
+    color: var(--doux); margin-bottom: .3rem; font-weight: 600;
 }
-div.progress-track { height: 8px; border-radius: 999px; background: #e4e4e7; overflow: hidden; }
-#progress-fill { height: 100%; width: 0; background: #4f46e5; border-radius: 999px; transition: width .3s ease; }
-div.controls { display: flex; gap: .5rem; justify-content: flex-end; margin: 0 0 1rem; }
+div.progress-track { height: 6px; border-radius: 999px; background: var(--ligne); overflow: hidden; }
+div.progress-fill { height: 100%; width: 0; background: var(--ok); border-radius: 999px; transition: width .3s ease; }
+div.barre[data-owner=""] div.progress-fill { background: var(--accent); }   /* le total se distingue */
+nav.tabs { display: flex; gap: .4rem; margin-top: .6rem; }
+nav.tabs button {
+    flex: 1; padding: .55rem .4rem; border: none; border-radius: 10px;
+    background: var(--ligne); color: var(--doux); font-size: .9rem; font-weight: 600; cursor: pointer;
+}
+nav.tabs button.actif { background: var(--accent); color: #fff; }
+nav.tabs .tab-count { font-size: .72rem; opacity: .75; }
+
+/* Rayons repliables (élément <details> natif : replier ne demande aucun JavaScript) */
+details.rayon {
+    background: var(--carte); border-radius: 14px; margin-bottom: .6rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,.06); overflow: hidden;
+}
+details.rayon > summary {
+    list-style: none; display: flex; align-items: center; gap: .6rem;
+    padding: .75rem 1rem; min-height: 52px; cursor: pointer; font-weight: 600;
+}
+details.rayon > summary::-webkit-details-marker { display: none; }
+summary .icone { font-size: 1.2rem; }
+summary .nom { flex: 1; }
+summary .compte { font-size: .8rem; color: var(--doux); font-variant-numeric: tabular-nums; }
+summary::after { content: "▾"; color: var(--doux); }
+details:not([open]) > summary::after { content: "▸"; }
+details.fini > summary .compte { color: var(--ok); }
+details.fini > summary .compte::before { content: "✓ "; }
+details.fini > summary .nom { color: var(--doux); }
+
+/* Objets : les rangés glissent en bas de leur rayon (CSS "order", sans toucher au HTML) */
+ul { list-style: none; margin: 0; padding: 0 .5rem .5rem; display: flex; flex-direction: column; }
+li:has(input:checked) { order: 1; }
+li label {
+    display: flex; align-items: center; gap: .75rem;
+    padding: .5rem .5rem; min-height: 46px; border-radius: 10px; cursor: pointer;
+}
+li label:active { background: var(--accent-doux); }
+li input {
+    appearance: none; -webkit-appearance: none; margin: 0; flex-shrink: 0;
+    width: 24px; height: 24px; border: 2px solid var(--ligne); border-radius: 50%;
+    display: grid; place-content: center; transition: background .15s, border-color .15s;
+}
+li input::after { content: "✓"; color: #fff; font-size: .8rem; font-weight: 700; transform: scale(0); transition: transform .15s; }
+li input:checked { background: var(--ok); border-color: var(--ok); }
+li input:checked::after { transform: scale(1); }
+li .nom { flex: 1; }
+li .qte {
+    font-size: .8rem; font-weight: 600; padding: .15rem .55rem; border-radius: 999px;
+    background: var(--accent-doux); color: var(--accent); font-variant-numeric: tabular-nums;
+}
+label:has(input:checked) .nom { color: var(--doux); text-decoration: line-through; }
+label:has(input:checked) .qte { background: var(--ligne); color: var(--doux); }
+
+div.controls { display: flex; gap: .5rem; justify-content: flex-end; margin: 1rem 0 0; }
 button.ctrl-btn {
-    padding: .4rem .85rem;
-    border: 1px solid #d4d4d8; border-radius: 999px; background: transparent;
-    color: #52525b; font-size: .82rem; font-weight: 600; cursor: pointer;
-}
-@media (prefers-color-scheme: dark) {
-    body { background: #18181b; color: #f4f4f5; }
-    section { background: #27272a; box-shadow: none; }
-    section h3 { color: #a1a1aa; }
-    p.prise { background: #312e81; color: #e0e7ff; }
-    ul.climat { background: #422006; color: #fde68a; }
-    nav.tabs { background: #18181b; }
-    nav.tabs button { background: #27272a; color: #a1a1aa; }
-    nav.tabs button.actif { background: #6366f1; color: #fff; }
-    div.progress-track { background: #27272a; }
-    #progress-fill { background: #6366f1; }
-    button.ctrl-btn { border-color: #3f3f46; color: #a1a1aa; }
+    padding: .4rem .85rem; border: 1px solid var(--ligne); border-radius: 999px;
+    background: transparent; color: var(--doux); font-size: .82rem; font-weight: 600; cursor: pointer;
 }
 """
 
@@ -96,20 +120,23 @@ HTML_SCRIPT = """
 let sauvegarde = {};                                    // rempli après la réponse du serveur
 const sections = document.querySelectorAll('section[data-owner]');
 const onglets = document.querySelectorAll('nav.tabs button');
-const compte = document.getElementById('compte');
-const remplissage = document.getElementById('progress-fill');
 const btnMasque = document.getElementById('toggle-masque');
 const btnReset = document.getElementById('reset');
 let ownerActif = null;                                  // la personne actuellement affichée
 let masquer = false;                                    // masquer les objets déjà rangés ?
 
-// Progression DE LA PERSONNE AFFICHÉE (compte ses cases à elle)
+// Une barre par personne (+ le total) : data-owner="" = toutes les cases de la page
 function majProgression() {
-    const boxes = document.querySelectorAll('section[data-owner="' + ownerActif + '"] input[type=checkbox]');
-    let faites = 0;
-    boxes.forEach(function (b) { if (b.checked) faites++; });
-    compte.textContent = faites + ' / ' + boxes.length;
-    remplissage.style.width = boxes.length ? (faites / boxes.length * 100) + '%' : '0%';
+    document.querySelectorAll('div.barre').forEach(function (barre) {
+        const owner = barre.dataset.owner;
+        const selecteur = owner ? 'section[data-owner="' + owner + '"] input[type=checkbox]'
+                                : 'section[data-owner] input[type=checkbox]';
+        const boxes = document.querySelectorAll(selecteur);
+        let faites = 0;
+        boxes.forEach(function (b) { if (b.checked) faites++; });
+        barre.querySelector('.barre-compte').textContent = faites + ' / ' + boxes.length;
+        barre.querySelector('.progress-fill').style.width = boxes.length ? (faites / boxes.length * 100) + '%' : '0%';
+    });
 }
 
 // Compteur affiché sur chaque onglet (cochées / total de la personne)
@@ -129,11 +156,20 @@ function appliquerMasque() {
         const box = li.querySelector('input[type=checkbox]');
         if (box) li.style.display = (masquer && box.checked) ? 'none' : '';
     });
-    document.querySelectorAll('section[data-owner] ul').forEach(function (ul) {
-        const visible = Array.from(ul.querySelectorAll('li')).some(function (li) { return li.style.display !== 'none'; });
-        ul.style.display = visible ? '' : 'none';
-        const h3 = ul.previousElementSibling;         // le titre du rayon, juste avant la liste
-        if (h3 && h3.tagName === 'H3') h3.style.display = visible ? '' : 'none';
+    document.querySelectorAll('details.rayon').forEach(function (d) {
+        const visible = Array.from(d.querySelectorAll('li')).some(function (li) { return li.style.display !== 'none'; });
+        d.style.display = visible ? '' : 'none';     // rayon entièrement rangé + masque -> rayon caché
+    });
+}
+
+// Compteur de chaque rayon (3/8) + marque "fini" quand tout est rangé
+function majRayons() {
+    document.querySelectorAll('details.rayon').forEach(function (d) {
+        const boxes = d.querySelectorAll('input[type=checkbox]');
+        let faites = 0;
+        boxes.forEach(function (b) { if (b.checked) faites++; });
+        d.querySelector('.compte').textContent = faites + '/' + boxes.length;
+        d.classList.toggle('fini', faites === boxes.length);
     });
 }
 
@@ -142,17 +178,39 @@ function activer(nom) {
     ownerActif = nom;
     sections.forEach(function (s) { s.style.display = (s.dataset.owner === nom) ? '' : 'none'; });
     onglets.forEach(function (b) { b.classList.toggle('actif', b.dataset.owner === nom); });
-    majProgression();      // recompter pour la personne affichée
     appliquerMasque();
 }
 
 // Sauvegarde d'une seule case sur le serveur (jamais tout l'état -> pas d'écrasement croisé)
+const derniereModif = {};                              // clé -> instant du dernier clic sur CET appareil
 function sauverCoche(cle, coche) {
+    derniereModif[cle] = Date.now();
     fetch('/api/coche', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cle: cle, coche: coche })
     });
+}
+
+// Rafraîchissement automatique : relire l'état du serveur pour voir les cases cochées
+// sur l'AUTRE téléphone. On ignore une case cliquée ici il y a moins de 5 s : sa
+// sauvegarde peut ne pas être encore arrivée, on ne veut pas la "décocher" à l'écran.
+function rafraichir() {
+    if (document.hidden) return;                       // onglet en arrière-plan : on ne fait rien
+    fetch('/api/etat/' + encodeURIComponent(VOYAGE))
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            let change = false;
+            document.querySelectorAll('input[type=checkbox]').forEach(function (box) {
+                const cle = box.dataset.key;
+                if (Date.now() - (derniereModif[cle] || 0) < 5000) return;
+                const coche = !!data[cle];
+                if (box.checked !== coche) { box.checked = coche; change = true; }
+            });
+            sauvegarde = data;
+            if (change) { majProgression(); majOnglets(); majRayons(); appliquerMasque(); }
+        })
+        .catch(function () {});                        // serveur injoignable un instant : on réessaiera
 }
 
 // Tout ce qui dépend de `sauvegarde` : à lancer seulement une fois l'état reçu du serveur
@@ -164,6 +222,9 @@ function initialiser() {
             sauverCoche(box.dataset.key, box.checked);
             majProgression();
             majOnglets();
+            majRayons();
+            const rayon = box.closest('details.rayon');
+            if (rayon && rayon.classList.contains('fini')) rayon.open = false;   // rayon fini -> on le replie
             appliquerMasque();
         });
     });
@@ -180,12 +241,21 @@ function initialiser() {
             delete sauvegarde[box.dataset.key];  // et on efface de la mémoire locale
             sauverCoche(box.dataset.key, false);  // et on sauve le décochage sur le serveur
         });
+        document.querySelectorAll('details.rayon').forEach(function (d) { d.open = true; });
         majProgression();
+        majOnglets();
+        majRayons();
         appliquerMasque();
     });
 
+    majRayons();
+    document.querySelectorAll('details.rayon.fini').forEach(function (d) { d.open = false; });  // déjà rangés au chargement
     if (onglets.length) activer(onglets[0].dataset.owner);
     majOnglets();
+    majProgression();
+
+    setInterval(rafraichir, 4000);                     // toutes les 4 s
+    document.addEventListener('visibilitychange', rafraichir);   // et dès qu'on revient sur la page
 }
 
 // Démarrage : on va chercher l'état de CE voyage sur le serveur, puis on initialise
@@ -347,6 +417,12 @@ THEMES = {
     },
 }
 
+# Icône affichée devant chaque rayon dans la checklist (un rayon sans icône -> test rouge).
+ICONES_RAYON = {
+    "Vêtements": "👕", "Sous-vêtements": "🩲", "Chaussures": "👟", "Accessoires": "🕶️",
+    "Hygiène": "🧴", "Tech": "🔌", "Documents": "🪪", "Divers": "🎒",
+}
+
 # 4. GÉO — Les pays sont identifiés par leur CODE ISO ("VN", "GB"…), tel que
 #    renvoyé par le géocodage (api_climat.lieux). Pourquoi pas le nom ? L'API écrit
 #    "Viêt Nam" là où on écrirait "Vietnam" : un code ne varie pas (jointure sur l'ID,
@@ -432,6 +508,13 @@ def ligne_climat(destination, mois, n):
         return debut + "climat indisponible"
     return (debut + f"{round(n['tmin'])}–{round(n['tmax'])} °C · 🌧️ {n['jours_pluie']} j de pluie/mois, "
             f"dont {round(n['jours_forte_pluie'])} forts")
+
+
+def puce_climat(destination, n):
+    """Version courte pour l'en-tête de la checklist : 'Hanoï 14–21° · 🌧️ 3 j forts'."""
+    if n is None:
+        return f"{destination} ?"
+    return f"{destination} {round(n['tmin'])}–{round(n['tmax'])}° · 🌧️ {round(n['jours_forte_pluie'])} j forts"
 
 
 def types_climat(n):
@@ -647,30 +730,45 @@ def faire_valise(jours_types, total, personnes, hors_ue, conduit):
 def valise_en_html(valise, libelle_voyage, total, prises, climats=None):
     """Construire la page HTML de la checklist pour l'itinéraire complet.
 
-    climats : liste optionnelle de (destination, mois, normales) — une ligne par étape.
+    climats : liste optionnelle de (destination, mois, normales) — une puce par étape.
     """
     adaptateurs = ", ".join(sorted(prises)) if prises else "aucun"
-    bandeau_climat = ""
-    if climats:
-        bandeau_climat = '<ul class="climat">'
-        for destination, mois, n in climats:
-            bandeau_climat += f"<li>🌡️ {ligne_climat(destination, mois, n)}</li>"
-        bandeau_climat += "</ul>"
+    puces = f'<span class="puce">🔌 Adaptateur : {adaptateurs}</span>'
+    for destination, mois, n in climats or []:
+        # Puce courte à l'écran, phrase complète en info-bulle (title)
+        puces += f'<span class="puce" title="{ligne_climat(destination, mois, n)}">🌡️ {puce_climat(destination, n)}</span>'
+
+    # Barres de progression : une par voyageur + le total s'ils sont plusieurs ; sinon le total seul
+    voyageurs = [p for p in valise if p != "Partagé"]
+    proprios_barres = voyageurs + [""] if len(voyageurs) >= 2 else [""]
+    barres = ""
+    for owner in proprios_barres:
+        libelle = owner or ("Total" if len(voyageurs) >= 2 else "Rangé")
+        barres += (f'<div class="barre" data-owner="{owner}"><div class="progress-head"><span>{libelle}</span>'
+                   f'<span class="barre-compte">0 / 0</span></div>'
+                   f'<div class="progress-track"><div class="progress-fill"></div></div></div>')
+
     onglets = '<nav class="tabs">'          # un bouton par propriétaire (Partagé/Julien/...)
     for proprietaire in valise:
         onglets += f'<button data-owner="{proprietaire}">{proprietaire} <span class="tab-count"></span></button>'
     onglets += '</nav>'
+
     corps = ""
     for proprietaire, themes in valise.items():
-        corps = corps + f'<section data-owner="{proprietaire}"><h2>{proprietaire}</h2>'
+        corps += f'<section data-owner="{proprietaire}">'
         for theme, objets in themes.items():
             if not objets:
                 continue
-            corps = corps + f"<h3>{theme}</h3><ul>"
+            icone = ICONES_RAYON.get(theme, "📦")
+            corps += (f'<details class="rayon" open><summary><span class="icone">{icone}</span>'
+                      f'<span class="nom">{theme}</span><span class="compte"></span></summary><ul>')
             for objet, quantite in sorted(objets.items()):
-                corps = corps + f'<li><label><input type="checkbox" data-key="{libelle_voyage}/{proprietaire}/{theme}/{objet}"> {objet} ×{quantite}</label></li>'
-            corps = corps + "</ul>"
-        corps = corps + "</section>"
+                cle = f"{libelle_voyage}/{proprietaire}/{theme}/{objet}"
+                corps += (f'<li><label><input type="checkbox" data-key="{cle}">'
+                          f'<span class="nom">{objet}</span><span class="qte">×{quantite}</span></label></li>')
+            corps += "</ul></details>"
+        corps += "</section>"
+
     page = f"""<!doctype html>
 <html lang="fr">
 <head>
@@ -680,13 +778,14 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None):
 <style>{HTML_STYLE}</style>
 </head>
 <body>
-<h1>Valise — {libelle_voyage} · {total} jours</h1>
-<p class="prise">🔌 Adaptateur(s) à emporter : <strong>{adaptateurs}</strong></p>
-{bandeau_climat}
-<div class="progress"><div class="progress-head"><span>Rangé</span><span id="compte">0 / 0</span></div><div class="progress-track"><div id="progress-fill"></div></div></div>
-<div class="controls"><button id="toggle-masque" class="ctrl-btn">Masquer les rangés</button><button id="reset" class="ctrl-btn">Réinitialiser</button></div>
+<h1>{libelle_voyage} <span class="duree">· {total} jours</span></h1>
+<div class="puces">{puces}</div>
+<div class="collant">
+<div class="barres">{barres}</div>
 {onglets}
+</div>
 {corps}
+<div class="controls"><button id="toggle-masque" class="ctrl-btn">Masquer les rangés</button><button id="reset" class="ctrl-btn">Réinitialiser</button></div>
 <script>const VOYAGE = {json.dumps(libelle_voyage, ensure_ascii=False)};</script>
 <script>{HTML_SCRIPT}</script>
 </body>

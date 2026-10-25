@@ -26,7 +26,7 @@ Puis lance le serveur (à garder ouvert pendant que vous préparez vos valises) 
 .venv/bin/python3 serveur.py
 ```
 
-Ouvre `http://localhost:5000/` sur le Mac, ou `http://<ip-locale-du-mac>:5000/`
+Ouvre `http://localhost:8000/` sur le Mac, ou `http://<ip-locale-du-mac>:8000/`
 depuis un téléphone sur le même wifi. L'état des cases est partagé entre tous
 les appareils qui ouvrent cette URL — ne plus ouvrir `valise.html` directement
 (ça ne syncroniserait rien).
