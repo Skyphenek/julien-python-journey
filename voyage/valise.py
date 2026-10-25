@@ -112,10 +112,45 @@ li .qte {
 label:has(input:checked) .nom { color: var(--doux); text-decoration: line-through; }
 label:has(input:checked) .qte { background: var(--ligne); color: var(--doux); }
 
-div.controls { display: flex; gap: .5rem; justify-content: flex-end; margin: 1rem 0 0; }
+div.controls { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: flex-end; margin: 1rem 0 0; }
 button.ctrl-btn {
     padding: .4rem .85rem; border: 1px solid var(--ligne); border-radius: 999px;
     background: transparent; color: var(--doux); font-size: .82rem; font-weight: 600; cursor: pointer;
+}
+/* ---- Mode Bilan de fin de voyage ---- */
+body:not(.mode-bilan) .bilan, body:not(.mode-bilan) div.manques, body:not(.mode-bilan) #bilan-compte { display: none; }
+body.mode-bilan li label { pointer-events: none; }             /* un tap ne décoche rien par accident */
+body.mode-bilan li label input { display: none; }
+body.mode-bilan li:has(input:checked) { order: 0; }
+body.mode-bilan label:has(input:checked) .nom { text-decoration: none; color: var(--texte); }
+body.mode-bilan label:has(input:checked) .qte { background: var(--accent-doux); color: var(--accent); }
+#bilan-compte { font-size: .8rem; color: var(--doux); margin: .5rem 0 0; font-weight: 600; }
+.bilan { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; padding: 0 .5rem .6rem; }
+.bilan button {
+    font-size: .78rem; font-weight: 600; padding: .35rem .65rem; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--ligne); background: transparent; color: var(--doux);
+}
+li[data-verdict="utile"] .bilan button[data-verdict="utile"] { background: var(--ok); border-color: var(--ok); color: #fff; }
+li[data-verdict="trop"] .bilan button[data-verdict="trop"] { background: #d97706; border-color: #d97706; color: #fff; }
+li[data-verdict="pas_servi"] .bilan button[data-verdict="pas_servi"] { background: #dc2626; border-color: #dc2626; color: #fff; }
+.bilan .utilise { display: none; align-items: center; gap: .3rem; font-size: .8rem; color: var(--doux); }
+li[data-verdict="trop"][data-qte-multi] .bilan .utilise { display: inline-flex; }
+.bilan .utilise input {
+    width: 3.5rem; padding: .25rem .35rem; font-size: 1rem;     /* 16 px : évite le zoom auto d'iOS */
+    border: 1px solid var(--ligne); border-radius: 8px; background: var(--fond); color: var(--texte);
+}
+div.manques { background: var(--carte); border-radius: 14px; padding: .8rem 1rem; margin-bottom: .6rem; }
+div.manques h3 { font-size: .95rem; margin: 0 0 .5rem; }
+.puces-manque { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .5rem; }
+.puces-manque button { border: none; background: none; color: var(--doux); cursor: pointer; font-size: 1rem; padding: 0 0 0 .25rem; }
+form.ajout-manque { display: flex; gap: .5rem; }
+form.ajout-manque input {
+    flex: 1; min-width: 0; padding: .5rem .7rem; font-size: 1rem;
+    border: 1px solid var(--ligne); border-radius: 10px; background: var(--fond); color: var(--texte);
+}
+form.ajout-manque button {
+    padding: .5rem .9rem; border: none; border-radius: 10px; background: var(--accent); color: #fff;
+    font-weight: 600; cursor: pointer;
 }
 """
 
@@ -219,6 +254,158 @@ function rafraichir() {
         .catch(function () {});                        // serveur injoignable un instant : on réessaiera
 }
 
+// ---- Mode Bilan de fin de voyage ----------------------------------------------------
+// retours : "proprietaire/objet" -> {verdict, quantite_utilisee} ; manques : proprietaire -> [objets]
+let retours = {};
+let manques = {};
+let dernierRetourLocal = 0;                            // dernier clic de bilan sur CET appareil
+const btnBilan = document.getElementById('mode-bilan');
+const compteBilan = document.getElementById('bilan-compte');
+
+function cleRetour(owner, objet) { return owner + '/' + objet; }
+
+function envoyerRetour(owner, objet, verdict, quantite) {
+    dernierRetourLocal = Date.now();
+    fetch('api/retour', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voyage: VOYAGE, proprietaire: owner, objet: objet,
+                               verdict: verdict, quantite_utilisee: quantite })
+    });
+}
+
+function chargerRetours(liste) {
+    retours = {};
+    manques = {};
+    liste.forEach(function (r) {
+        if (r.verdict === 'manque') {
+            (manques[r.proprietaire] = manques[r.proprietaire] || []).push(r.objet);
+        } else {
+            retours[cleRetour(r.proprietaire, r.objet)] = r;
+        }
+    });
+    afficherRetours();
+}
+
+function afficherRetours() {
+    let evalues = 0;
+    const objets = document.querySelectorAll('li[data-objet]');
+    objets.forEach(function (li) {
+        const r = retours[cleRetour(li.dataset.owner, li.dataset.objet)];
+        if (r) { li.dataset.verdict = r.verdict; evalues++; } else { delete li.dataset.verdict; }
+        const champ = li.querySelector('.utilise input');
+        if (champ && document.activeElement !== champ) {   // ne pas écraser une saisie en cours
+            champ.value = (r && r.quantite_utilisee !== null && r.quantite_utilisee !== undefined) ? r.quantite_utilisee : '';
+        }
+    });
+    compteBilan.textContent = 'Bilan : ' + evalues + ' / ' + objets.length + ' objets évalués';
+    document.querySelectorAll('div.manques').forEach(function (bloc) {
+        const zone = bloc.querySelector('.puces-manque');
+        zone.textContent = '';
+        (manques[bloc.dataset.owner] || []).forEach(function (objet) {
+            const puce = document.createElement('span');
+            puce.className = 'puce';
+            puce.textContent = objet;                    // textContent : le texte tapé n'est jamais interprété comme du HTML
+            const retirer = document.createElement('button');
+            retirer.type = 'button';
+            retirer.textContent = '×';
+            retirer.setAttribute('aria-label', 'Retirer ' + objet);
+            retirer.addEventListener('click', function () {
+                manques[bloc.dataset.owner] = manques[bloc.dataset.owner].filter(function (o) { return o !== objet; });
+                envoyerRetour(bloc.dataset.owner, objet, null, null);
+                afficherRetours();
+            });
+            puce.appendChild(retirer);
+            zone.appendChild(puce);
+        });
+    });
+}
+
+// Relire les retours du serveur. Une réponse est ignorée si un clic a eu lieu ici après le
+// départ de la requête (elle ne le connaît pas encore) ou il y a moins de 5 s (sauvegarde en route).
+function lireRetoursServeur() {
+    const depart = Date.now();
+    fetch('api/retours/' + encodeURIComponent(VOYAGE))
+        .then(function (r) { return r.json(); })
+        .then(function (liste) {
+            if (dernierRetourLocal >= depart || Date.now() - dernierRetourLocal < 5000) return;
+            chargerRetours(liste);
+        })
+        .catch(function () {});
+}
+
+function rafraichirRetours() {
+    if (document.hidden || !document.body.classList.contains('mode-bilan')) return;
+    lireRetoursServeur();
+}
+
+function activerBilan(actif) {
+    document.body.classList.toggle('mode-bilan', actif);
+    btnBilan.textContent = actif ? '✓ Terminer le bilan' : '📝 Bilan de fin de voyage';
+    if (actif) {
+        masquer = false;                                  // en bilan, on veut voir tous les objets
+        btnMasque.textContent = 'Masquer les rangés';
+        document.querySelectorAll('details.rayon').forEach(function (d) { d.open = true; });
+        appliquerMasque();
+        rafraichirRetours();
+    }
+    try { localStorage.setItem('valise-bilan:' + VOYAGE, actif ? '1' : ''); } catch (e) {}
+}
+
+function initialiserBilan() {
+    btnBilan.addEventListener('click', function () {
+        activerBilan(!document.body.classList.contains('mode-bilan'));
+    });
+    document.querySelectorAll('.bilan button[data-verdict]').forEach(function (b) {
+        b.addEventListener('click', function () {
+            const li = b.closest('li');
+            const cle = cleRetour(li.dataset.owner, li.dataset.objet);
+            if (retours[cle] && retours[cle].verdict === b.dataset.verdict) {   // re-toucher = annuler
+                delete retours[cle];
+                envoyerRetour(li.dataset.owner, li.dataset.objet, null, null);
+            } else {
+                retours[cle] = { verdict: b.dataset.verdict, quantite_utilisee: null };
+                envoyerRetour(li.dataset.owner, li.dataset.objet, b.dataset.verdict, null);
+            }
+            afficherRetours();
+            const champ = li.querySelector('.utilise input');
+            if (champ && b.dataset.verdict === 'trop' && li.hasAttribute('data-qte-multi')) champ.focus();
+        });
+    });
+    document.querySelectorAll('.utilise input').forEach(function (champ) {
+        champ.addEventListener('change', function () {
+            const li = champ.closest('li');
+            const cle = cleRetour(li.dataset.owner, li.dataset.objet);
+            const n = parseInt(champ.value, 10);
+            if (!retours[cle] || isNaN(n) || n < 0) return;
+            retours[cle].quantite_utilisee = n;
+            envoyerRetour(li.dataset.owner, li.dataset.objet, 'trop', n);
+        });
+    });
+    document.querySelectorAll('form.ajout-manque').forEach(function (form) {
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();                           // pas de rechargement de page
+            const owner = form.closest('div.manques').dataset.owner;
+            const champ = form.querySelector('input');
+            const objet = champ.value.trim();
+            if (!objet) return;
+            const liste = manques[owner] = manques[owner] || [];
+            if (liste.indexOf(objet) === -1) {
+                liste.push(objet);
+                envoyerRetour(owner, objet, 'manque', null);
+            }
+            champ.value = '';
+            afficherRetours();
+        });
+    });
+    lireRetoursServeur();                                 // chargement initial
+    let memorise = '';
+    try { memorise = localStorage.getItem('valise-bilan:' + VOYAGE) || ''; } catch (e) {}
+    if (memorise) activerBilan(true);                     // on reprend le bilan là où on l'a laissé
+    setInterval(rafraichirRetours, 4000);
+    document.addEventListener('visibilitychange', rafraichirRetours);
+}
+
 // Tout ce qui dépend de `sauvegarde` : à lancer seulement une fois l'état reçu du serveur
 function initialiser() {
     document.querySelectorAll('input[type=checkbox]').forEach(function (box) {
@@ -260,6 +447,7 @@ function initialiser() {
     majOnglets();
     majProgression();
 
+    initialiserBilan();
     setInterval(rafraichir, 4000);                     // toutes les 4 s
     document.addEventListener('visibilitychange', rafraichir);   // et dès qu'on revient sur la page
 }
@@ -774,9 +962,22 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
                       f'<span class="nom">{theme}</span><span class="compte"></span></summary><ul>')
             for objet, quantite in sorted(objets.items()):
                 cle = f"{cle_voyage}/{proprietaire}/{theme}/{objet}"
-                corps += (f'<li><label><input type="checkbox" data-key="{cle}">'
-                          f'<span class="nom">{objet}</span><span class="qte">×{quantite}</span></label></li>')
+                multi = " data-qte-multi" if quantite > 1 else ""       # "utilisé x / N" n'a de sens que si N > 1
+                corps += (f'<li data-owner="{proprietaire}" data-objet="{objet}" data-qte="{quantite}"{multi}>'
+                          f'<label><input type="checkbox" data-key="{cle}">'
+                          f'<span class="nom">{objet}</span><span class="qte">×{quantite}</span></label>'
+                          f'<div class="bilan">'
+                          f'<button type="button" data-verdict="utile">✅ utile</button>'
+                          f'<button type="button" data-verdict="trop">➖ en trop</button>'
+                          f'<button type="button" data-verdict="pas_servi">❌ pas servi</button>'
+                          f'<span class="utilise">utilisé <input type="number" min="0" max="{quantite}" '
+                          f'inputmode="numeric"> / {quantite}</span></div></li>')
             corps += "</ul></details>"
+        titre = "Ce qui nous a manqué" if proprietaire == "Partagé" else f"Ce qui a manqué à {proprietaire}"
+        corps += (f'<div class="manques" data-owner="{proprietaire}"><h3>{titre}</h3>'
+                  f'<div class="puces-manque"></div>'
+                  f'<form class="ajout-manque"><input type="text" placeholder="ex. bouchons d\'oreilles" '
+                  f'enterkeyhint="done"><button type="submit">Ajouter</button></form></div>')
         corps += "</section>"
 
     page = f"""<!doctype html>
@@ -793,9 +994,10 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
 <div class="collant">
 <div class="barres">{barres}</div>
 {onglets}
+<p id="bilan-compte"></p>
 </div>
 {corps}
-<div class="controls"><button id="toggle-masque" class="ctrl-btn">Masquer les rangés</button><button id="reset" class="ctrl-btn">Réinitialiser</button></div>
+<div class="controls"><button id="mode-bilan" class="ctrl-btn">📝 Bilan de fin de voyage</button><button id="toggle-masque" class="ctrl-btn">Masquer les rangés</button><button id="reset" class="ctrl-btn">Réinitialiser</button></div>
 <script>const VOYAGE = {json.dumps(cle_voyage, ensure_ascii=False)};</script>
 <script>{HTML_SCRIPT}</script>
 </body>

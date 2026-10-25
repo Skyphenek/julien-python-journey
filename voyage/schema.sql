@@ -54,3 +54,15 @@ CREATE TABLE IF NOT EXISTS valise_objets (
     quantite     INTEGER NOT NULL,
     PRIMARY KEY (voyage, proprietaire, theme, objet)
 );
+
+-- Bilan de fin de voyage : un verdict par objet et par personne.
+-- 'manque' = objet NON proposé qui a manqué (texte libre) ; quantite_utilisee sert à 'trop'.
+CREATE TABLE IF NOT EXISTS retours (
+    voyage            TEXT        NOT NULL REFERENCES voyages(code) ON DELETE CASCADE,
+    proprietaire      TEXT        NOT NULL,
+    objet             TEXT        NOT NULL,
+    verdict           TEXT        NOT NULL CHECK (verdict IN ('utile', 'trop', 'pas_servi', 'manque')),
+    quantite_utilisee INTEGER     CHECK (quantite_utilisee >= 0),
+    maj_le            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (voyage, proprietaire, objet)
+);

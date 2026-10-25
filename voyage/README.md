@@ -115,3 +115,15 @@ Le même `serveur.py` tourne en local et en ligne ; seules les variables d'envir
 - Les tests utilisent toujours `valise_test` **en local**, même si `DATABASE_URL` est définie.
 - Déploiement : `render.yaml` (racine du dépôt) décrit le service ; `requirements.txt` les bibliothèques.
 - Le service gratuit Render s'endort après 15 min sans visite : ~50 s d'attente à la première ouverture.
+
+## Bilan de fin de voyage
+
+Dans la checklist, le bouton **📝 Bilan de fin de voyage** bascule la page :
+- sous chaque objet : **✅ utile · ➖ en trop · ❌ pas servi** (re-toucher annule) ; pour un objet en
+  plusieurs exemplaires, « en trop » ouvre **« utilisé x / N »** ;
+- en bas de chaque onglet : **« Ce qui a manqué à … »** (texte libre, une puce par oubli) ;
+- compteur « Bilan : x / N objets évalués », synchronisé entre téléphones comme les cases ;
+- le mode reste actif au rechargement (mémorisé sur l'appareil).
+
+Les verdicts vont dans la table `retours` (API `POST api/retour`, `GET api/retours/<voyage>`).
+Prochaine étape : `valise.py` s'en servira pour proposer des ajustements au voyage suivant.

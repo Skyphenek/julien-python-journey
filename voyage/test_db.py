@@ -6,7 +6,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 import pytest
 from db import (connecter, obtenir_etat, enregistrer_coche,
                 lire_normales, enregistrer_normales, publier_page, lire_page,
-                enregistrer_voyage, lire_voyage, enregistrer_valise_objets, lire_valise_objets)
+                enregistrer_voyage, lire_voyage, enregistrer_valise_objets, lire_valise_objets,
+                enregistrer_retour, supprimer_retour, lire_retours)
 from valise import normales_avec_cache
 
 
@@ -14,7 +15,7 @@ from valise import normales_avec_cache
 def conn():
     connexion = connecter("valise_test")
     with connexion.cursor() as cur:
-        cur.execute("TRUNCATE etat_case, normales_climat, page_valise, voyages, valise_objets")
+        cur.execute("TRUNCATE etat_case, normales_climat, page_valise, voyages, valise_objets, retours")
     connexion.commit()
     yield connexion
     connexion.close()
@@ -143,3 +144,43 @@ def test_photo_de_la_valise_remplacee_a_chaque_publication(conn):
     enregistrer_valise_objets(conn, CODE, {"Julien": {"Vêtements": {"shorts": 3, "pull": 1}}})
     enregistrer_valise_objets(conn, CODE, {"Julien": {"Vêtements": {"shorts": 2}}})   # régénérée
     assert lire_valise_objets(conn, CODE) == {("Julien", "Vêtements", "shorts"): 2}
+
+
+
+# --- Bilan de fin de voyage : les retours ---
+
+import psycopg2
+
+
+def _voyage(conn):
+    enregistrer_voyage(conn, CODE, "Tokyo › Bangkok", date(2027, 1, 10), ["Julien"], ITINERAIRE, {})
+
+
+def test_retour_enregistre_puis_lu(conn):
+    _voyage(conn)
+    enregistrer_retour(conn, CODE, "Julien", "t-shirts", "trop", quantite_utilisee=8)
+    enregistrer_retour(conn, CODE, "Julien", "bouchons d'oreilles", "manque")
+    assert lire_retours(conn, CODE) == [
+        {"proprietaire": "Julien", "objet": "bouchons d'oreilles", "verdict": "manque", "quantite_utilisee": None},
+        {"proprietaire": "Julien", "objet": "t-shirts", "verdict": "trop", "quantite_utilisee": 8},
+    ]
+
+
+def test_changer_d_avis_met_a_jour(conn):
+    _voyage(conn)
+    enregistrer_retour(conn, CODE, "Julien", "pull", "pas_servi")
+    enregistrer_retour(conn, CODE, "Julien", "pull", "utile")
+    assert [r["verdict"] for r in lire_retours(conn, CODE)] == ["utile"]
+
+
+def test_supprimer_un_retour(conn):
+    _voyage(conn)
+    enregistrer_retour(conn, CODE, "Julien", "pull", "utile")
+    supprimer_retour(conn, CODE, "Julien", "pull")
+    assert lire_retours(conn, CODE) == []
+
+
+def test_retour_sur_voyage_inconnu_refuse(conn):
+    with pytest.raises(psycopg2.errors.ForeignKeyViolation):
+        enregistrer_retour(conn, "1999-01-01 Atlantide", "Julien", "pull", "utile")
+    conn.rollback()

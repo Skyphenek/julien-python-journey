@@ -371,3 +371,35 @@ def test_valise_en_html_cles_avec_le_code_du_voyage():
     assert 'const VOYAGE = "2027-01-10 Tokyo › Bangkok";' in html
     assert 'data-key="2027-01-10 Tokyo › Bangkok/Julien/Vêtements/shorts"' in html
     assert "départ le 10 janvier 2027" in html
+
+
+
+# --- Mode Bilan dans la page ---
+
+def test_page_bouton_mode_bilan():
+    html = valise_en_html(_valise_de("Julien"), "Rome", 5, set())
+    assert 'id="mode-bilan"' in html
+    assert 'id="bilan-compte"' in html
+
+
+def test_chaque_objet_a_ses_boutons_de_bilan():
+    html = valise_en_html(_valise_de("Julien", "Laetitia"), "Rome", 5, set())
+    assert html.count('<div class="bilan">') == html.count("data-key=")
+    for verdict in ["utile", "trop", "pas_servi"]:
+        assert f'data-verdict="{verdict}"' in html
+
+
+def test_objet_porte_proprietaire_et_quantite():
+    paquet = paquet_vide()
+    paquet["Vêtements"]["shorts"] = 3
+    paquet["Vêtements"]["pull"] = 1
+    html = valise_en_html({"Julien": paquet}, "Rome", 5, set())
+    assert '<li data-owner="Julien" data-objet="shorts" data-qte="3" data-qte-multi>' in html
+    assert '<li data-owner="Julien" data-objet="pull" data-qte="1">' in html    # 1 exemplaire : pas de "utilisé x/1"
+
+
+def test_bloc_ce_qui_a_manque_par_onglet():
+    html = valise_en_html(_valise_de("Julien", "Laetitia"), "Rome", 5, set())
+    assert '<div class="manques" data-owner="Julien"><h3>Ce qui a manqué à Julien</h3>' in html
+    assert '<div class="manques" data-owner="Laetitia"><h3>Ce qui a manqué à Laetitia</h3>' in html
+    assert '<div class="manques" data-owner="Partagé"><h3>Ce qui nous a manqué</h3>' in html

@@ -161,3 +161,40 @@ def lire_valise_objets(conn, code):
             (code,),
         )
         return {(p, t, o): q for p, t, o, q in cur.fetchall()}
+
+
+VERDICTS = {"utile", "trop", "pas_servi", "manque"}
+
+
+def enregistrer_retour(conn, voyage, proprietaire, objet, verdict, quantite_utilisee=None):
+    """Upsert d'un verdict de bilan (changer d'avis = remplacer)."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO retours (voyage, proprietaire, objet, verdict, quantite_utilisee, maj_le)
+            VALUES (%s, %s, %s, %s, %s, now())
+            ON CONFLICT (voyage, proprietaire, objet) DO UPDATE SET
+                verdict = EXCLUDED.verdict, quantite_utilisee = EXCLUDED.quantite_utilisee, maj_le = now()
+            """,
+            (voyage, proprietaire, objet, verdict, quantite_utilisee),
+        )
+    conn.commit()
+
+
+def supprimer_retour(conn, voyage, proprietaire, objet):
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM retours WHERE voyage = %s AND proprietaire = %s AND objet = %s",
+                    (voyage, proprietaire, objet))
+    conn.commit()
+
+
+def lire_retours(conn, voyage):
+    """Les verdicts du voyage, triés (personne, objet) : liste de dicts prête pour du JSON."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT proprietaire, objet, verdict, quantite_utilisee FROM retours "
+            "WHERE voyage = %s ORDER BY proprietaire, objet",
+            (voyage,),
+        )
+        return [{"proprietaire": p, "objet": o, "verdict": v, "quantite_utilisee": q}
+                for p, o, v, q in cur.fetchall()]
