@@ -47,13 +47,18 @@ Tu vas conduire ? (o/n) : n
 ## Lancer les tests
 
 ```bash
-python3 -m pytest test_valise.py -v
+.venv/bin/python3 -m pytest test_valise.py -v
 ```
 
 Les tests couvrent les fonctions pures (agrégation d'itinéraire, statut UE, prises)
 et la règle d'accumulation des quantités (max entre climats, suppression par 0).
 
-Prérequis : `pytest` (`python3 -m pip install pytest` si absent).
+`test_db.py` et `test_serveur.py` nécessitent en plus Postgres actif et la base
+`valise_test` créée (voir `schema.sql` et la section "Lancer le programme") :
+
+```bash
+.venv/bin/python3 -m pytest test_db.py test_serveur.py -v
+```
 
 ## Structure
 
@@ -62,6 +67,11 @@ Prérequis : `pytest` (`python3 -m pip install pytest` si absent).
 | `valise.py` | Programme complet : données (tables), logique, génération HTML, CLI |
 | `test_valise.py` | Tests pytest des fonctions pures et de la règle d'accumulation |
 | `valise.html` | Sortie générée (checklist cochable) — régénérée à chaque lancement |
+| `db.py` | Accès Postgres à l'état de la checklist (coché / pas coché) |
+| `test_db.py` | Tests pytest de `db.py` (contre une vraie base Postgres de test) |
+| `serveur.py` | Serveur Flask : sert la page et expose l'API de lecture/écriture de l'état |
+| `test_serveur.py` | Tests pytest de `serveur.py` (via `app.test_client()`) |
+| `schema.sql` | Schéma Postgres (table `etat_case`) |
 
 ## Idée d'architecture
 

@@ -53,3 +53,13 @@ def test_coche_payload_invalide(client):
 def test_coche_cle_mal_formee(client):
     reponse = client.post("/api/coche", json={"cle": "pantalon", "coche": True})
     assert reponse.status_code == 400
+
+
+def test_coche_objet_contenant_un_slash(client):
+    reponse = client.post(
+        "/api/coche",
+        json={"cle": "Hanoï/Julien/Divers/livre / liseuse", "coche": True},
+    )
+    assert reponse.status_code == 200
+    reponse = client.get("/api/etat/Hanoï")
+    assert reponse.get_json() == {"Hanoï/Julien/Divers/livre / liseuse": True}
