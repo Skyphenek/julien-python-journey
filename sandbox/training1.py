@@ -1,0 +1,9 @@
+talked = 0
+langues = {'France': "Français", 'Uk': "Anglais", 'Espagne': "Espagnol", 'Italie': "Italien", 'Allemagne': "Allemand", 'Portugal': "Portugais", 'Pays-Bas': "Néerlandais", 'Russie': "Russe", 'Chine': "Chinois", 'Japon': "Japonais", 'Arabie': "Arabe", 'Inde': "Hindi", 'Bengale': "Bengali", 'Corée': "Coréen", 'Turquie': "Turc", 'Vietnam': "Vietnamien", 'Pologne': "Polonais", 'Thaïlande': "Thaïlandais", 'Grèce': "Grec", 'Suède': "Suédois", 'Danemark': "Danois", 'Finlande': "Finnois", 'Norvège': "Norvégien", 'Tchéquie': "Tchèque", 'Slovaquie': "Slovaque", 'Hongrie': "Hongrois", 'Roumanie': "Roumain", 'Bulgarie': "Bulgare", 'Serbie': "Serbe", 'Croatie': "Croate", 'Bosnie-Herzégovine': "Bosniaque", 'Slovénie': "Slovène"}
+monnaies = {'France': "Euro", 'Uk': "Livre sterling", 'Espagne': "Euro", 'Italie': "Euro", 'Allemagne': "Euro", 'Portugal': "Euro", 'Pays-Bas': "Euro", 'Russie': "Rouble", 'Chine': "Yuan", 'Japon': "Yen", 'Arabie': "Riyal saoudien", 'Inde': "Roupie indienne", 'Bengale': "Taka bangladais", 'Corée': "Won sud-coréen", 'Turquie': "Livre turque", 'Vietnam': "Dong vietnamien", 'Pologne': "Zloty polonais", 'Thaïlande': "Baht thaïlandais", 'Grèce': "Euro", 'Suède': "Couronne suédoise", 'Danemark': "Couronne danoise", 'Finlande': "Euro", 'Norvège': "Couronne norvégienne", 'Tchéquie': "Couronne tchèque", 'Slovaquie': "Euro", 'Hongrie': "Forint hongrois", 'Roumanie': "Leu roumain", 'Bulgarie': "Lev bulgare", 'Serbie': "Dinar serbe", 'Croatie': "Kuna croate", 'Bosnie-Herzégovine': "Mark convertible bosnien", 'Slovénie': "Euro"}
+for pays, langue in langues.items():
+    print(f"{pays} : {langue}")
+    talked += 1
+print(f"Nombre de langues parlées : {talked}")  
+for pays, monnaie in monnaies.items():
+    print(f"{pays} : {monnaie}")
