@@ -9,7 +9,7 @@ from valise import (total_jours, jours_par_type,
                     valise_en_html, paquet_vide, ligne_climat,
                     types_climat, libelle_lieu,
                     lire_mois, lire_activites, est_oui, un_par_pays,
-                    statut_ue, adaptateur_pour)
+                    statut_ue, adaptateur_pour, normales_avec_cache)
 
 def test_total_jours():
     itin = [{"destination": "Hanoï", "jours": 7, "mois": 1},
@@ -259,3 +259,10 @@ def test_nouveaux_pays_hors_ue():
     assert adaptateur_pour("ID") == "aucun"
     assert adaptateur_pour("AU") == "type I (Australie)"
     assert adaptateur_pour("PE") == "universel"
+
+
+
+def test_normales_avec_cache_sans_base():
+    # Postgres éteint (conn = None) : on interroge l'API directement, sans planter
+    fausse_api = lambda latitude, longitude: {1: HANOI_JANV}
+    assert normales_avec_cache(None, 21.03, 105.85, 1, chercher=fausse_api) == HANOI_JANV

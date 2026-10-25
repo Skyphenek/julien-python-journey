@@ -8,9 +8,11 @@ On sépare les DONNÉES (les 3 tables ci-dessous, remplies une fois) de la LOGIQ
 import json
 import unicodedata
 
+import psycopg2
 import requests
 
-from api_climat import lieux, normales
+from api_climat import lieux, normales_12_mois
+from db import connecter, lire_normales, enregistrer_normales
 
 # Feuille de style de la checklist HTML (mobile-first). Fournie clé en main :
 # c'est de la présentation, pas de la logique. Injectée telle quelle dans le <head>.
@@ -691,6 +693,22 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None):
 </html>"""
     return page
 
+def normales_avec_cache(conn, latitude, longitude, mois, chercher=normales_12_mois):
+    """Lire le cache ; sinon interroger l'API (12 mois d'un coup) et remplir le cache.
+
+    conn = None (Postgres éteint) -> API directe, sans cache.
+    chercher : la fonction qui interroge l'API (remplaçable par une fausse dans les tests).
+    """
+    if conn is not None:
+        n = lire_normales(conn, latitude, longitude, mois)
+        if n is not None:
+            return n                                    # cache trouvé : pas d'appel réseau
+    par_mois = chercher(latitude, longitude)
+    if conn is not None:
+        enregistrer_normales(conn, latitude, longitude, par_mois)
+    return par_mois.get(mois)
+
+
 def sans_accents(texte):
     """'Février' -> 'Fevrier' : on décompose chaque lettre accentuée et on jette l'accent."""
     decompose = unicodedata.normalize("NFD", texte)
@@ -761,6 +779,12 @@ def main():
     if manquants:
         print(f"⚠️  Objets sans rayon (à classer dans THEMES) : {manquants}")
 
+    try:
+        conn = connecter()                # cache des normales ; facultatif
+    except psycopg2.OperationalError:
+        conn = None
+        print("ℹ️  Postgres indisponible : climat interrogé en direct, sans cache.")
+
     # --- Saisie de l'itinéraire, étape par étape ---
     itineraire = []
     numero = 1
@@ -805,7 +829,7 @@ def main():
         n = None
         if lieu:
             try:
-                n = normales(lieu["latitude"], lieu["longitude"], mois)   # coordonnées du lieu CHOISI
+                n = normales_avec_cache(conn, lieu["latitude"], lieu["longitude"], mois)  # lieu CHOISI
             except requests.RequestException:
                 pass
         print("        🌡️", ligne_climat(destination, mois, n))
@@ -813,6 +837,9 @@ def main():
                            "activites": activites, "normales": n,
                            "code_pays": lieu["code_pays"] if lieu else None})
         numero += 1
+
+    if conn is not None:
+        conn.close()                      # le cache n'est plus utile après la saisie
 
     # --- Questions posées une seule fois ---
     while True:

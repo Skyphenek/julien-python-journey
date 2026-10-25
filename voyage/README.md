@@ -76,7 +76,7 @@ et la règle d'accumulation des quantités (max entre climats, suppression par 0
 | `test_db.py` | Tests pytest de `db.py` (contre une vraie base Postgres de test) |
 | `serveur.py` | Serveur Flask : sert la page et expose l'API de lecture/écriture de l'état |
 | `test_serveur.py` | Tests pytest de `serveur.py` (via `app.test_client()`) |
-| `schema.sql` | Schéma Postgres (table `etat_case`) |
+| `schema.sql` | Schéma Postgres (tables `etat_case` et `normales_climat`, le cache climat) |
 
 ## Idée d'architecture
 
@@ -86,6 +86,9 @@ sans toucher au code. Les types d'une étape viennent de deux sources :
 - **climat** (`chaud` / `froid` / `pluie`) : déduit des normales réelles sur 10 ans
   (`api_climat.py`, Open-Meteo, gratuit sans clé) via les seuils `SEUIL_*` ;
 - **activités** (`ville` / `plage` / `montagne`) : saisies par étape.
+Les normales sont mises en **cache** dans Postgres (`normales_climat`) : un appel API
+remplit les 12 mois d'un lieu, les lancements suivants relisent la base. Postgres éteint
+-> appel direct à l'API, sans cache (rien ne plante).
 Toute ville trouvée par le géocodage Open-Meteo est acceptée, sans souci de majuscules
 ni d'accents ; en cas d'homonymes
 (Bali Inde / Indonésie), le programme liste les lieux et on choisit. Le pays du lieu

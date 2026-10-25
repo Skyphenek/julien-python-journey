@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))   # permet d'importer api_climat depuis ce dossier
 
-from api_climat import calculer_normales, extraire_lieux
+from api_climat import calculer_normales, extraire_lieux, normales_par_mois
 
 # Mini "table" au format renvoyé par Open-Meteo : 4 jours, sur 2 années différentes.
 # Deux jours en janvier, un en février, un en janvier de l'année suivante.
@@ -70,3 +70,11 @@ def test_extraire_lieux_garde_l_essentiel():
 
 def test_extraire_lieux_aucun_resultat():
     assert extraire_lieux({}) == []          # l'API omet "results" quand rien ne correspond
+
+
+
+def test_normales_par_mois_calcule_tous_les_mois_presents():
+    par_mois = normales_par_mois(DAILY, nb_annees=2)
+    assert set(par_mois) == {1, 2}                    # seuls janvier et février sont dans les données
+    assert par_mois[1]["tmax"] == 7.0
+    assert par_mois[2]["tmax"] == 20.0

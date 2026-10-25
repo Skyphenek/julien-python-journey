@@ -36,6 +36,13 @@ def calculer_normales(daily, mois, nb_annees=NB_ANNEES):
     }
 
 
+def normales_par_mois(daily, nb_annees=NB_ANNEES):
+    """Fonction pure : les normales de chaque mois présent dans les données -> {1: {...}, 2: {...}}.
+    Équivalent SQL : le même calcul, mais avec GROUP BY MONTH(date) au lieu de WHERE."""
+    mois_presents = {int(jour[5:7]) for jour in daily["time"]}
+    return {mois: calculer_normales(daily, mois, nb_annees) for mois in sorted(mois_presents)}
+
+
 def extraire_lieux(reponse_json):
     """Fonction pure : réponse brute du géocodage -> liste de lieux (champs utiles seulement)."""
     lieux = []
@@ -65,6 +72,11 @@ def meteo_10_ans(latitude, longitude):
     })
     reponse.raise_for_status()                        # lève une erreur si l'API répond 4xx/5xx
     return reponse.json()["daily"]
+
+
+def normales_12_mois(latitude, longitude):
+    """Un seul appel API -> les normales des 12 mois (de quoi remplir le cache d'un coup)."""
+    return normales_par_mois(meteo_10_ans(latitude, longitude))
 
 
 def normales(latitude, longitude, mois):
