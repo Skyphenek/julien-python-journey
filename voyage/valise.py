@@ -6,6 +6,13 @@ On sépare les DONNÉES (les 3 tables ci-dessous, remplies une fois) de la LOGIQ
 (la fonction faire_valise). Démarrage minimal : on enrichit au fil des voyages.
 """
 import json
+import unicodedata
+
+import psycopg2
+import requests
+
+from api_climat import lieux, normales_12_mois
+from db import connecter, lire_normales, enregistrer_normales
 
 # Feuille de style de la checklist HTML (mobile-first). Fournie clé en main :
 # c'est de la présentation, pas de la logique. Injectée telle quelle dans le <head>.
@@ -39,6 +46,10 @@ p.prise {
     background: #eef2ff; color: #3730a3; font-size: .95rem;
     padding: .55rem .9rem; border-radius: 10px; margin: 0 0 1.5rem;
 }
+ul.climat {
+    list-style: none; background: #fffbeb; color: #92400e; font-size: .95rem;
+    padding: .55rem .9rem; border-radius: 10px; margin: -1rem 0 1.5rem;
+}
 nav.tabs {
     display: flex; gap: .4rem; position: sticky; top: 0; z-index: 5;
     background: #f7f7f8; padding: .6rem 0; margin-bottom: .5rem;
@@ -68,6 +79,7 @@ button.ctrl-btn {
     section { background: #27272a; box-shadow: none; }
     section h3 { color: #a1a1aa; }
     p.prise { background: #312e81; color: #e0e7ff; }
+    ul.climat { background: #422006; color: #fde68a; }
     nav.tabs { background: #18181b; }
     nav.tabs button { background: #27272a; color: #a1a1aa; }
     nav.tabs button.actif { background: #6366f1; color: #fff; }
@@ -234,6 +246,7 @@ PAR_TYPE_PERSO = {
                  "chemises légères": "par_3_jours",
                  "chemises": 0},                 # 0 = retire les chemises normales quand il fait chaud
                                                  # hauts/robes : gérés par personne (voir PAR_PERSONNE) pour éviter les doublons
+    "frais":    {"pull": 1},                     # soirées fraîches (min < 15 °C) sans être "froid"
     "froid":    {"manteau": 1, "pull": "par_3_jours", "gants": 1, "bonnet": 1,
                  "écharpe": 1, "sous-couche thermique": "par_3_jours",
                  "grosses chaussures": 1, "collants": "par_3_jours"},
@@ -292,6 +305,10 @@ CHOIX_PERSONNE = {
     "2": ["Julien", "Laetitia"],
 }
 
+# Activités d'une étape : saisies par lettre, combinables ("vp" = ville + plage).
+# Le climat (chaud/froid/pluie) n'est PAS ici : il vient des données réelles.
+CHOIX_ACTIVITE = {"v": "ville", "p": "plage", "m": "montagne"}
+
 # 3ter. THÈMES d'affichage : à quel rayon appartient chaque objet.
 #       7 rayons explicites, Divers compris. Tout objet ABSENT de ces 7 sets est
 #       un OUBLI : theme_de() le mettra dans Divers par sécurité, mais le garde-fou
@@ -330,254 +347,128 @@ THEMES = {
     },
 }
 
-# 4. GÉO — Table 1 : chaque ville pointe vers sa zone climatique (mapping léger).
-VILLE_VERS_ZONE = {
-    # Europe du Nord / îles britanniques
-    "Londres": "europe_nord", "Édimbourg": "europe_nord", "Dublin": "europe_nord",
-    "Amsterdam": "europe_nord", "Bruxelles": "europe_nord", "Berlin": "europe_nord",
-    "Copenhague": "europe_nord", "Stockholm": "europe_nord",
-    # Europe de l'Ouest continentale
-    "Paris": "europe_ouest", "Lyon": "europe_ouest", 
-    "Milan": "europe_ouest",
-    # Côte atlantique (France / Espagne / Portugal)
-    "Cap Ferret": "cote_atlantique", "Biarritz": "cote_atlantique", "Bordeaux": "cote_atlantique",
-    "La Rochelle": "cote_atlantique", "Nantes": "cote_atlantique", "Saint-Sébastien": "cote_atlantique",
-    "Porto": "cote_atlantique",
-    # Méditerranée (Italie / Espagne / sud France / Grèce / Portugal sud)
-    "Rome": "mediterranee", "Florence": "mediterranee", "Venise": "mediterranee",
-    "Naples": "mediterranee", "Palerme": "mediterranee", "Marseille": "mediterranee",
-    "Nice": "mediterranee", "Barcelone": "mediterranee", "Madrid": "mediterranee",
-    "Séville": "mediterranee", "Valence": "mediterranee", "Athènes": "mediterranee",
-    "Lisbonne": "mediterranee", "Split": "mediterranee", "Dubrovnik": "mediterranee",
-    "Cyclades": "mediterranee",
-    # Montagne / Alpes
-    "Annecy": "montagne_alpes", "Chamonix": "montagne_alpes", "Genève": "montagne_alpes", "Grenoble": "montagne_alpes",
-    "Innsbruck": "montagne_alpes", "Méribel": "montagne_alpes", "Zermatt": "montagne_alpes",
-    # Afrique du Nord / désertique chaud
-    "Marrakech": "afrique_nord", "Agadir": "afrique_nord", "Essaouira": "afrique_nord",
-    "Tunis": "afrique_nord", "Dubaï": "afrique_nord",
-    # Asie du Sud-Est
-    "Hanoï": "asie_sud_est", "Ho Chi Minh": "asie_sud_est", "Siem Reap": "asie_sud_est",
-    "Bangkok": "asie_sud_est", "Singapour": "asie_sud_est",
-    # Asie de l'Est tempérée (4 saisons)
-    "Tokyo": "asie_est_tempere", "Kyoto": "asie_est_tempere", "Osaka": "asie_est_tempere",
-    "Pékin": "asie_est_tempere", "Shanghai": "asie_est_tempere", "Xi'an": "asie_est_tempere",
-    "Chengdu": "asie_est_tempere", "Séoul": "asie_est_tempere", "Busan": "asie_est_tempere",
-    # Amériques
-    "New York": "usa_est", "Boston": "usa_est",
-    "San Francisco": "usa_ouest", "Los Angeles": "usa_ouest",
-    "Miami": "tropical", "Cancún": "tropical", "Bali": "tropical",
-}
+# 4. GÉO — Les pays sont identifiés par leur CODE ISO ("VN", "GB"…), tel que
+#    renvoyé par le géocodage (api_climat.lieux). Pourquoi pas le nom ? L'API écrit
+#    "Viêt Nam" là où on écrirait "Vietnam" : un code ne varie pas (jointure sur l'ID,
+#    pas sur le libellé). Plus besoin de table ville -> pays : le géocodage la remplace.
 
-# 4avant. GÉO — Table 1ter : chaque VILLE pointe vers son PAYS.
-#         Sert au statut UE et à l'adaptateur : sans elle, toute ville tombe en
-#         "inconnu" -> passeport par défaut + adaptateur "à vérifier" (bug Cyclades).
-#         La zone climatique reste pilotée par VILLE_VERS_ZONE (indépendant).
-VILLE_VERS_PAYS = {
-    "Londres": "Royaume-Uni", "Édimbourg": "Royaume-Uni", "Dublin": "Irlande",
-    "Amsterdam": "Pays-Bas", "Bruxelles": "Belgique", "Berlin": "Allemagne",
-    "Copenhague": "Danemark", "Stockholm": "Suède",
-    "Paris": "France", "Lyon": "France", "Milan": "Italie",
-    "Cap Ferret": "France", "Biarritz": "France", "Bordeaux": "France",
-    "La Rochelle": "France", "Nantes": "France", "Saint-Sébastien": "Espagne",
-    "Porto": "Portugal",
-    "Rome": "Italie", "Florence": "Italie", "Venise": "Italie", "Naples": "Italie",
-    "Palerme": "Italie", "Marseille": "France", "Nice": "France",
-    "Barcelone": "Espagne", "Madrid": "Espagne", "Séville": "Espagne",
-    "Valence": "Espagne", "Athènes": "Grèce", "Lisbonne": "Portugal",
-    "Split": "Croatie", "Dubrovnik": "Croatie", "Cyclades": "Grèce",
-    "Annecy": "France", "Chamonix": "France", "Genève": "Suisse",
-    "Grenoble": "France", "Innsbruck": "Autriche", "Méribel": "France",
-    "Zermatt": "Suisse",
-    "Marrakech": "Maroc", "Agadir": "Maroc", "Essaouira": "Maroc",
-    "Tunis": "Tunisie", "Dubaï": "Émirats Arabes Unis",
-    "Hanoï": "Vietnam", "Ho Chi Minh": "Vietnam", "Siem Reap": "Cambodge",
-    "Bangkok": "Thaïlande", "Singapour": "Singapour",
-    "Tokyo": "Japon", "Kyoto": "Japon", "Osaka": "Japon",
-    "Pékin": "Chine", "Shanghai": "Chine", "Xi'an": "Chine", "Chengdu": "Chine",
-    "Séoul": "Corée du Sud", "Busan": "Corée du Sud",
-    "New York": "États-Unis", "Boston": "États-Unis",
-    "San Francisco": "États-Unis", "Los Angeles": "États-Unis",
-    "Miami": "États-Unis", "Cancún": "Mexique", "Bali": "Indonésie",
-}
-
-# 4bis. GÉO — Table 1bis : chaque PAYS (ou État US) pointe vers sa zone climatique.
-#       Même mécanisme que VILLE_VERS_ZONE : une entrée -> une zone de ZONES.
-#       Pays au climat trop hétérogène pour une seule zone (USA, Indonésie, Brésil,
-#       Australie, Chine, Inde) volontairement absents -> saisir par ville.
-PAYS_VERS_ZONE = {
-    # Europe du Nord / îles britanniques
-    "Royaume-Uni": "europe_nord", "Irlande": "europe_nord",
-    "Pays-Bas": "europe_nord", "Belgique": "europe_nord",
-    "Allemagne": "europe_nord", "Danemark": "europe_nord",
-    "Suède": "europe_nord", "Norvège": "europe_nord", "Islande": "europe_nord",
-    # Europe de l'Ouest continentale
-    "France": "europe_ouest", "Luxembourg": "europe_ouest",
-    # Montagne / Alpes
-    "Suisse": "montagne_alpes", "Autriche": "montagne_alpes", "Slovénie": "montagne_alpes",
-    # Méditerranée
-    "Italie": "mediterranee", "Espagne": "mediterranee", "Grèce": "mediterranee",
-    "Portugal": "mediterranee", "Croatie": "mediterranee", "Malte": "mediterranee",
-    "Chypre": "mediterranee",
-    # Afrique du Nord / Moyen-Orient désertique
-    "Maroc": "afrique_nord", "Tunisie": "afrique_nord", "Égypte": "afrique_nord",
-    "Émirats Arabes Unis": "afrique_nord", "Jordanie": "afrique_nord",
-    # Asie du Sud-Est
-    "Thaïlande": "asie_sud_est", "Vietnam": "asie_sud_est", "Cambodge": "asie_sud_est",
-    "Laos": "asie_sud_est", "Myanmar": "asie_sud_est", "Malaisie": "asie_sud_est",
-    "Singapour": "asie_sud_est", "Philippines": "asie_sud_est",
-    "Sri Lanka": "asie_sud_est",
-    # Asie de l'Est tempérée (4 saisons)
-    "Japon": "asie_est_tempere", "Chine": "asie_est_tempere",
-    "Corée du Sud": "asie_est_tempere", "Taïwan": "asie_est_tempere",
-    # Tropical (Amériques / îles)
-    "Mexique": "tropical", "Cuba": "tropical", "République Dominicaine": "tropical",
-    "Costa Rica": "tropical",
-    # États-Unis (pays exclu, mais États touristiques au climat homogène inclus)
-    "Californie": "usa_ouest", "Floride": "tropical", "Hawaï": "tropical",
-    "Nevada": "usa_ouest", "Arizona": "usa_ouest", "Louisiane": "usa_est",
-}
-
-# 4ter. GÉO — UE : pays membres. Appartenance -> UE ; absence d'un pays connu -> hors UE.
-#       (Accepte aussi des villes si on veut en couvrir plus tard.)
+# 4a. UE : les 27 pays membres. Appartenance -> UE ; absence d'un pays connu -> hors UE.
 PAYS_UE = {
-    "France", "Belgique", "Pays-Bas", "Allemagne", "Danemark", "Suède",
-    "Irlande", "Luxembourg", "Autriche", "Slovénie", "Italie", "Espagne",
-    "Grèce", "Portugal", "Croatie", "Malte", "Chypre",
+    "AT", "BE", "BG", "HR", "CY", "CZ", "DK",  # Autriche, Belgique, Bulgarie, Croatie, Chypre, Tchéquie, Danemark
+    "EE", "FI", "FR", "DE", "GR", "HU", "IE",  # Estonie, Finlande, France, Allemagne, Grèce, Hongrie, Irlande
+    "IT", "LV", "LT", "LU", "MT", "NL", "PL",  # Italie, Lettonie, Lituanie, Luxembourg, Malte, Pays-Bas, Pologne
+    "PT", "RO", "SK", "SI", "ES", "SE",        # Portugal, Roumanie, Slovaquie, Slovénie, Espagne, Suède
 }
 
-# 4ter-bis. GÉO — CARTE D'IDENTITÉ SUFFIT : UE + Schengen/EEE hors UE (Suisse,
-#           Norvège, Islande) où la carte d'identité remplace le passeport et où
-#           le permis français suffit (pas de permis international).
-SANS_PASSEPORT = PAYS_UE | {"Suisse", "Norvège", "Islande"}
+# 4b. CARTE D'IDENTITÉ SUFFIT (et permis français valable) : UE + Schengen/EEE hors UE,
+#     micro-États, et territoires français d'outre-mer. Tout le reste -> passeport (prudent).
+SANS_PASSEPORT = PAYS_UE | {
+    "CH", "NO", "IS", "LI",                    # Suisse, Norvège, Islande, Liechtenstein
+    "MC", "AD", "SM", "VA",                    # Monaco, Andorre, Saint-Marin, Vatican
+    "RE", "GP", "MQ", "GF", "YT",              # Réunion, Guadeloupe, Martinique, Guyane, Mayotte
+    "PF", "NC", "PM", "BL", "MF", "WF",        # Polynésie, Nouvelle-Calédonie, St-Pierre, St-Barth, St-Martin, Wallis
+}
 
-# 4quater. GÉO — PRISE : quel adaptateur emporter DEPUIS LA FRANCE pour ce pays.
-#          Valeurs usuelles (à revérifier ponctuellement). Le garde-fou
-#          pays_sans_prise() signale tout pays de PAYS_VERS_ZONE non couvert ici.
-PAYS_VERS_PRISE = {
-    # Europe continentale + Maghreb (mêmes prises type C/E/F qu'en France)
-    "France": "aucun", "Belgique": "aucun", "Pays-Bas": "aucun",
-    "Allemagne": "aucun", "Danemark": "aucun", "Suède": "aucun",
-    "Norvège": "aucun", "Islande": "aucun", "Luxembourg": "aucun",
-    "Suisse": "aucun", "Autriche": "aucun", "Slovénie": "aucun",
-    "Italie": "aucun", "Espagne": "aucun", "Grèce": "aucun",
-    "Portugal": "aucun", "Croatie": "aucun",
-    "Maroc": "aucun", "Tunisie": "aucun", "Égypte": "aucun",
+# 4c. PRISE : quel adaptateur emporter DEPUIS LA FRANCE pour ce pays.
+#     Valeurs usuelles (à revérifier avant un voyage). Pays absent -> "à vérifier".
+#     On part des groupes de prises, puis on construit la table pays -> libellé.
+_PRISES = {
+    # Prises type C/E/F, comme en France
+    "aucun": [
+        "FR", "RE", "GP", "MQ", "GF", "YT", "PF", "NC", "PM", "BL", "MF", "WF",  # France + outre-mer
+        "BE", "NL", "LU", "DE", "AT", "CH", "LI", "DK", "SE", "NO", "FI", "IS",  # Europe du Nord/Ouest
+        "ES", "PT", "IT", "GR", "SI", "HR", "MC", "AD", "SM", "VA",              # Europe du Sud
+        "PL", "CZ", "SK", "HU", "RO", "BG", "EE", "LV", "LT",                    # Europe de l'Est (UE)
+        "RS", "BA", "ME", "MK", "AL", "XK", "MD", "UA", "RU",                    # Balkans, Europe de l'Est
+        "TR", "GE", "AM", "AZ",                                                  # Turquie, Caucase
+        "MA", "TN", "DZ", "EG", "SN", "CI", "CV", "ET", "RW", "MG",              # Afrique
+        "ID", "KR", "MN", "CL", "UY", "PY",                                      # Indonésie, Corée, Mongolie, Am. du Sud
+    ],
     # Prises britanniques (type G)
-    "Royaume-Uni": "UK", "Irlande": "UK", "Malte": "UK", "Chypre": "UK",
-    "Émirats Arabes Unis": "UK", "Malaisie": "UK", "Singapour": "UK",
-    # Prises américaines (type A/B, 110V)
-    "Mexique": "US (110V)", "République Dominicaine": "US (110V)",
-    "Costa Rica": "US (110V)", "Japon": "US (110V)",
-    "États-Unis": "US (110V)",
-    "Californie": "US (110V)", "Floride": "US (110V)", "Hawaï": "US (110V)",
-    "Nevada": "US (110V)", "Arizona": "US (110V)", "Louisiane": "US (110V)",
+    "UK": [
+        "GB", "IE", "MT", "CY",                                                  # Europe
+        "AE", "QA", "BH", "KW", "OM",                                            # Golfe
+        "MY", "SG", "HK", "BN",                                                  # Asie
+        "KE", "UG", "ZM", "MW", "GH", "SC",                                      # Afrique
+    ],
+    # Prises américaines (type A/B, 100-127 V)
+    "US (110V)": [
+        "US", "CA", "MX", "PR", "BS", "JM", "DO",                                # Amérique du Nord, Caraïbes
+        "GT", "HN", "SV", "NI", "CR", "PA",                                      # Amérique centrale
+        "CO", "EC", "VE",                                                        # Amérique du Sud
+        "JP", "TW",                                                              # Japon, Taïwan
+    ],
     # Prises mélangées -> adaptateur universel
-    "Jordanie": "universel", "Thaïlande": "universel", "Vietnam": "universel",
-    "Cambodge": "universel", "Laos": "universel", "Myanmar": "universel",
-    "Philippines": "universel / US", "Cuba": "universel / US",
-    "Sri Lanka": "universel / UK",
-    # Asie de l'Est tempérée (Corée : prises type C/F comme en France)
-    "Chine": "universel", "Corée du Sud": "aucun", "Taïwan": "US (110V)",
+    "universel": [
+        "TH", "VN", "KH", "LA", "MM", "CN", "MO",                                # Asie du Sud-Est, Chine
+        "IN", "NP", "BD", "PK",                                                  # Sous-continent indien
+        "JO", "IL", "LB",                                                        # Proche-Orient
+        "BR", "PE", "BO", "BZ",                                                  # Amériques
+    ],
+    "universel / US": ["PH", "CU"],                                              # Philippines, Cuba
+    "universel / UK": ["LK", "MV", "MU", "TZ", "NG", "SA"],                      # Sri Lanka, Maldives, Maurice…
+    "type I (Australie)": ["AU", "NZ", "FJ", "AR"],                              # Australie, NZ, Fidji, Argentine
+    "type M (Afrique du Sud)": ["ZA", "NA", "BW"],                               # Afrique du Sud, Namibie, Botswana
 }
+PAYS_VERS_PRISE = {pays: prise for prise, liste in _PRISES.items() for pays in liste}
 
 
-# 5. GÉO — Table 2 : chaque zone définit ses types de destination par saison.
-ZONES = {
-    "europe_nord": {
-        "hiver": ["froid", "pluie", "ville"], "printemps": ["froid", "pluie", "ville"],
-        "été": ["ville"],                     "automne": ["froid", "pluie", "ville"],
-    },
-    "europe_ouest": {
-        "hiver": ["froid", "ville"], "printemps": ["ville"],
-        "été": ["chaud", "ville"],   "automne": ["froid", "ville"],
-    },
-    "cote_atlantique": {
-        "hiver": ["froid", "pluie", "ville"],   "printemps": ["ville"],
-        "été": ["chaud", "plage", "ville"],     "automne": ["pluie", "ville"],
-    },
-    "mediterranee": {
-        "hiver": ["ville"],                  "printemps": ["ville"],
-        "été": ["chaud", "plage", "ville"],  "automne": ["ville"],
-    },
-    "montagne_alpes": {
-        "hiver": ["froid", "montagne"],     "printemps": ["froid", "montagne"],
-        "été": ["montagne", "ville"],       "automne": ["froid", "montagne"],
-    },
-    "afrique_nord": {
-        "hiver": ["ville"],          "printemps": ["chaud", "ville"],
-        "été": ["chaud", "ville"],   "automne": ["chaud", "ville"],
-    },
-    "asie_sud_est": {
-        "hiver": ["chaud", "plage"],          "printemps": ["chaud", "plage"],
-        "été": ["chaud", "plage", "pluie"],   "automne": ["chaud", "plage", "pluie"],
-    },
-    "asie_est_tempere": {   # Japon, Chine, Corée, Taïwan : 4 saisons marquées, mousson estivale
-        "hiver": ["froid", "ville"],          "printemps": ["ville"],
-        "été": ["chaud", "ville", "pluie"],   "automne": ["ville"],
-    },
-    "usa_est": {
-        "hiver": ["froid", "ville"], "printemps": ["ville"],
-        "été": ["chaud", "ville"],   "automne": ["froid", "ville"],
-    },
-    "usa_ouest": {
-        "hiver": ["ville"],                 "printemps": ["ville"],
-        "été": ["chaud", "ville"],          "automne": ["ville"],
-    },
-    "tropical": {
-        "hiver": ["chaud", "plage"],          "printemps": ["chaud", "plage"],
-        "été": ["chaud", "plage", "pluie"],   "automne": ["chaud", "plage"],
-    },
-}
+# 5. CLIMAT — seuils appliqués aux normales réelles (api_climat). Façon CASE WHEN.
+SEUIL_CHAUD = 25          # °C : max moyenne >= 25 -> "chaud"
+SEUIL_FROID = 12          # °C : max moyenne < 12 -> "froid"
+SEUIL_FRAIS = 15          # °C : min moyenne < 15 (et pas "froid") -> "frais" (un pull pour le soir)
+SEUIL_JOURS_FORTE_PLUIE = 4   # jours >= 5 mm par mois >= 4 (≈ une vraie averse par semaine) -> "pluie"
+                              # Pas les jours >= 1 mm : ils comptent les petites averses tropicales
+                              # (Phu Quoc en janvier = 10 j, en pleine saison sèche).
+
+MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
+        "août", "septembre", "octobre", "novembre", "décembre"]
 
 
-def saison_du_mois(mois):
-    """Traduire un numéro de mois (1-12) en saison."""
-    if mois in [12, 1, 2]:
-        return "hiver"
-    if mois in [3, 4, 5]:
-        return "printemps"
-    if mois in [6, 7, 8]:
-        return "été"
-    return "automne"
-
-def zone_de(destination):
-    """Trouver la zone climatique d'une ville ou d'un pays."""
-    if destination in VILLE_VERS_ZONE:
-        return VILLE_VERS_ZONE[destination]
-    if destination in PAYS_VERS_ZONE:
-        return PAYS_VERS_ZONE[destination]
-    return None
+def ligne_climat(destination, mois, n):
+    """Phrase lisible des normales d'une étape ; n = dict de api_climat.normales ou None."""
+    debut = f"{destination} · {MOIS[mois - 1]} : "       # mois 1 -> index 0
+    if n is None:
+        return debut + "climat indisponible"
+    return (debut + f"{round(n['tmin'])}–{round(n['tmax'])} °C · 🌧️ {n['jours_pluie']} j de pluie/mois, "
+            f"dont {round(n['jours_forte_pluie'])} forts")
 
 
-def pays_de(destination):
-    """Résoudre une destination en pays : une ville -> son pays, un pays -> lui-même."""
-    return VILLE_VERS_PAYS.get(destination, destination)
+def types_climat(n):
+    """Étiquettes climatiques d'une étape à partir de ses normales (None -> aucune)."""
+    if n is None:
+        return []
+    types = []
+    if n["tmax"] >= SEUIL_CHAUD:
+        types.append("chaud")
+    elif n["tmax"] < SEUIL_FROID:
+        types.append("froid")
+    if n["tmin"] < SEUIL_FRAIS and "froid" not in types:    # froid couvre déjà les pulls
+        types.append("frais")
+    if n["jours_forte_pluie"] >= SEUIL_JOURS_FORTE_PLUIE:
+        types.append("pluie")
+    return types
 
 
-def statut_ue(destination):
+def statut_ue(code_pays):
     """Statut documents : 'ue' (carte d'identité suffit — UE + Schengen), 'hors_ue'
-    (passeport + permis international), ou 'inconnu' (pays non modélisé)."""
-    pays = pays_de(destination)
-    if pays in SANS_PASSEPORT:
+    (passeport + permis international), ou 'inconnu' (pays non modélisé ou hors ligne)."""
+    if code_pays in SANS_PASSEPORT:
         return "ue"
-    if pays in PAYS_VERS_ZONE or pays in PAYS_VERS_PRISE:   # pays connu hors zone CI
+    if code_pays in PAYS_VERS_PRISE:     # pays connu hors zone carte d'identité
         return "hors_ue"
     return "inconnu"                     # pays non modélisé -> défaut prudent (passeport)
 
 
-def adaptateur_pour(destination):
+def adaptateur_pour(code_pays):
     """Libellé de l'adaptateur à emporter depuis la France, ou 'à vérifier'."""
-    pays = pays_de(destination)
-    if pays in PAYS_VERS_PRISE:
-        return PAYS_VERS_PRISE[pays]
-    return "à vérifier"
+    return PAYS_VERS_PRISE.get(code_pays, "à vérifier")
 
 def statut_ue_itineraire(itineraire):
     hors_ue = False
     inconnu = False
     for etape in itineraire:
-        statut = statut_ue(etape["destination"])
+        statut = statut_ue(etape.get("code_pays"))
         if statut == "hors_ue":
             hors_ue = True
         elif statut == "inconnu":
@@ -588,23 +479,14 @@ def statut_ue_itineraire(itineraire):
 def prises_itineraire(itineraire):
     prises = set()               # ensemble vide ; les doublons se dédupliquent tout seuls
     for etape in itineraire:
-        prise = adaptateur_pour(etape["destination"])
+        prise = adaptateur_pour(etape.get("code_pays"))
         if prise != "aucun":                  # on ignore les "aucun"
             prises.add(prise)
     return prises
 
-def pays_sans_prise():
-    """Garde-fou : pays/États qui ont une zone mais aucune prise renseignée."""
-    return set(PAYS_VERS_ZONE) - set(PAYS_VERS_PRISE)
-
-def types_pour(ville, mois):
-    """Déduire les types de destination depuis la ville et le mois.
-
-    Double lookup (façon jointure SQL) : ville -> zone -> climat[saison].
-    """
-    zone = zone_de(ville)
-    saison = saison_du_mois(mois)
-    return ZONES[zone][saison]
+def types_pour(etape):
+    """Types d'une étape = climat (déduit des normales) + activités (saisies par l'utilisateur)."""
+    return types_climat(etape.get("normales")) + etape.get("activites", [])
 
 def total_jours(itineraire):
     """Compter le nombre de jours d'un itinéraire (liste de tuples [(ville, nb_jours), ...])."""
@@ -613,7 +495,7 @@ def total_jours(itineraire):
 def jours_par_type(itineraire):
     jours = {}
     for etape in itineraire:
-        for type_dest in types_pour(etape["destination"], etape["mois"]):
+        for type_dest in types_pour(etape):
             jours[type_dest] = jours.get(type_dest, 0) + etape["jours"]
     return jours
 
@@ -762,9 +644,18 @@ def faire_valise(jours_types, total, personnes, hors_ue, conduit):
 
     return valise
 
-def valise_en_html(valise, libelle_voyage, total, prises):
-    """Construire la page HTML de la checklist pour l'itinéraire complet."""
+def valise_en_html(valise, libelle_voyage, total, prises, climats=None):
+    """Construire la page HTML de la checklist pour l'itinéraire complet.
+
+    climats : liste optionnelle de (destination, mois, normales) — une ligne par étape.
+    """
     adaptateurs = ", ".join(sorted(prises)) if prises else "aucun"
+    bandeau_climat = ""
+    if climats:
+        bandeau_climat = '<ul class="climat">'
+        for destination, mois, n in climats:
+            bandeau_climat += f"<li>🌡️ {ligne_climat(destination, mois, n)}</li>"
+        bandeau_climat += "</ul>"
     onglets = '<nav class="tabs">'          # un bouton par propriétaire (Partagé/Julien/...)
     for proprietaire in valise:
         onglets += f'<button data-owner="{proprietaire}">{proprietaire} <span class="tab-count"></span></button>'
@@ -791,6 +682,7 @@ def valise_en_html(valise, libelle_voyage, total, prises):
 <body>
 <h1>Valise — {libelle_voyage} · {total} jours</h1>
 <p class="prise">🔌 Adaptateur(s) à emporter : <strong>{adaptateurs}</strong></p>
+{bandeau_climat}
 <div class="progress"><div class="progress-head"><span>Rangé</span><span id="compte">0 / 0</span></div><div class="progress-track"><div id="progress-fill"></div></div></div>
 <div class="controls"><button id="toggle-masque" class="ctrl-btn">Masquer les rangés</button><button id="reset" class="ctrl-btn">Réinitialiser</button></div>
 {onglets}
@@ -801,46 +693,157 @@ def valise_en_html(valise, libelle_voyage, total, prises):
 </html>"""
     return page
 
+def normales_avec_cache(conn, latitude, longitude, mois, chercher=normales_12_mois):
+    """Lire le cache ; sinon interroger l'API (12 mois d'un coup) et remplir le cache.
+
+    conn = None (Postgres éteint) -> API directe, sans cache.
+    chercher : la fonction qui interroge l'API (remplaçable par une fausse dans les tests).
+    """
+    if conn is not None:
+        n = lire_normales(conn, latitude, longitude, mois)
+        if n is not None:
+            return n                                    # cache trouvé : pas d'appel réseau
+    par_mois = chercher(latitude, longitude)
+    if conn is not None:
+        enregistrer_normales(conn, latitude, longitude, par_mois)
+    return par_mois.get(mois)
+
+
+def sans_accents(texte):
+    """'Février' -> 'Fevrier' : on décompose chaque lettre accentuée et on jette l'accent."""
+    decompose = unicodedata.normalize("NFD", texte)
+    return "".join(c for c in decompose if unicodedata.category(c) != "Mn")
+
+
+def lire_mois(reponse, precedent=None):
+    """'1', 'janvier', 'Janv', 'fevrier', 'AOÛT' -> numéro du mois. Entrée = mois précédent.
+    Renvoie None si invalide ou ambigu ('ju' = juin ou juillet ?)."""
+    texte = sans_accents(reponse.strip().lower())
+    if texte == "":
+        return precedent
+    if texte.isdigit():
+        mois = int(texte)
+        return mois if 1 <= mois <= 12 else None
+    trouves = [i for i, nom in enumerate(MOIS, start=1) if sans_accents(nom).startswith(texte)]
+    return trouves[0] if len(trouves) == 1 else None
+
+
+def lire_activites(reponse):
+    """'pv', 'V P', 'v,p' -> ['plage', 'ville'] ; None si une lettre est inconnue ou si vide."""
+    lettres = {c for c in reponse.lower() if c not in " ,;"}     # on ignore espaces et virgules
+    if lettres and lettres <= set(CHOIX_ACTIVITE):              # <= : "est inclus dans"
+        return sorted(CHOIX_ACTIVITE[l] for l in lettres)
+    return None
+
+
+def est_oui(reponse):
+    return reponse.strip().lower() in {"o", "oui", "y", "yes"}
+
+
+def un_par_pays(candidats):
+    """Garder le premier lieu de chaque pays : Hanoï (VN) x4 + Hanoi (PG) -> 2 lignes."""
+    vus = set()
+    gardes = []
+    for lieu in candidats:
+        if lieu["code_pays"] not in vus:
+            vus.add(lieu["code_pays"])
+            gardes.append(lieu)
+    return gardes
+
+
+def libelle_lieu(lieu):
+    """'Bali — Bali, Indonésie' : de quoi distinguer deux homonymes."""
+    precision = ", ".join(x for x in (lieu["region"], lieu["pays"]) if x)
+    return f"{lieu['nom']} — {precision}" if precision else lieu["nom"]
+
+
+def choisir_lieu(candidats):
+    """Montrer les homonymes trouvés et laisser choisir (Entrée = le premier)."""
+    if len(candidats) == 1:
+        print(f"        📍 {libelle_lieu(candidats[0])}")
+        return candidats[0]
+    for i, lieu in enumerate(candidats, start=1):          # start=1 : numéroter comme un humain
+        print(f"        📍 {i}. {libelle_lieu(lieu)}")
+    while True:
+        reponse = input("        — lequel ? (Entrée = 1) : ")
+        if reponse == "":
+            return candidats[0]
+        if reponse.isdigit() and 1 <= int(reponse) <= len(candidats):
+            return candidats[int(reponse) - 1]               # choix 1 -> index 0
+        print(f"        Choix invalide : entre un nombre entre 1 et {len(candidats)}.")
+
+
 def main():
     """Assistant interactif : saisit un itinéraire, puis construit la valise."""
     manquants = objets_sans_rayon()
     if manquants:
         print(f"⚠️  Objets sans rayon (à classer dans THEMES) : {manquants}")
-    sans_prise = pays_sans_prise()
-    if sans_prise:
-        print(f"⚠️  Pays sans prise renseignée (à compléter dans PAYS_VERS_PRISE) : {sans_prise}")
+
+    try:
+        conn = connecter()                # cache des normales ; facultatif
+    except psycopg2.OperationalError:
+        conn = None
+        print("ℹ️  Postgres indisponible : climat interrogé en direct, sans cache.")
 
     # --- Saisie de l'itinéraire, étape par étape ---
     itineraire = []
     numero = 1
+    mois_precedent = None             # Entrée au mois = même mois que l'étape d'avant
     while True:
-        destination = input(f"Étape {numero} — destination (ou 'fin' pour terminer) : ")
-        if destination == "fin":
+        saisie = input(f"Étape {numero} — destination (ou 'fin' pour terminer) : ").strip()
+        if saisie == "":
+            continue
+        if saisie.lower() == "fin":
             if itineraire:
                 break
             print("Ajoute au moins une étape avant de terminer.")
             continue
-        if destination not in VILLE_VERS_ZONE and destination not in PAYS_VERS_ZONE:
-            print(f"Destination '{destination}' inconnue, vérifie l'orthographe.")
+        try:
+            candidats = un_par_pays(lieux(saisie))   # le géocodage ignore déjà majuscules et accents
+        except requests.RequestException:
+            candidats = None
+            print("        ⚠️  Pas de réseau : destination acceptée, pays et climat inconnus.")
+        if candidats == []:
+            print(f"Destination '{saisie}' introuvable, vérifie l'orthographe.")
             continue
+        lieu = choisir_lieu(candidats) if candidats else None
+        destination = lieu["nom"] if lieu else saisie    # "londres" tapé -> "Londres" affiché
         while True:
-            reponse = input("        — jours : ")
+            reponse = input("        — jours : ").strip()
             if reponse.isdigit() and int(reponse) >= 1:
                 jours = int(reponse)
                 break
             print("        Nombre de jours invalide : entre un nombre positif.")
         while True:
-            reponse = input("        — mois (1-12) : ")
-            if reponse.isdigit() and 1 <= int(reponse) <= 12:
-                mois = int(reponse)
+            defaut = f" [Entrée = {MOIS[mois_precedent - 1]}]" if mois_precedent else ""
+            mois = lire_mois(input(f"        — mois (1-12 ou janvier, févr…){defaut} : "), mois_precedent)
+            if mois:
                 break
-            print("        Mois invalide : entre un nombre entre 1 et 12.")
-        itineraire.append({"destination": destination, "jours": jours, "mois": mois})
+            print("        Mois invalide : un nombre de 1 à 12 ou un nom de mois (janv, juillet…).")
+        mois_precedent = mois
+        while True:
+            activites = lire_activites(input("        — activités ? (v)ille (p)lage (m)ontagne, combinables : "))
+            if activites:
+                break
+            print("        Choix invalide : tape v, p, m ou une combinaison (ex : vp).")
+        n = None
+        if lieu:
+            try:
+                n = normales_avec_cache(conn, lieu["latitude"], lieu["longitude"], mois)  # lieu CHOISI
+            except requests.RequestException:
+                pass
+        print("        🌡️", ligne_climat(destination, mois, n))
+        itineraire.append({"destination": destination, "jours": jours, "mois": mois,
+                           "activites": activites, "normales": n,
+                           "code_pays": lieu["code_pays"] if lieu else None})
         numero += 1
+
+    if conn is not None:
+        conn.close()                      # le cache n'est plus utile après la saisie
 
     # --- Questions posées une seule fois ---
     while True:
-        choix = input("Qui fait sa valise ? (j = Julien / l = Laetitia / 2 = les deux) : ")
+        choix = input("Qui fait sa valise ? (j = Julien / l = Laetitia / 2 = les deux) : ").strip().lower()
         if choix in CHOIX_PERSONNE:
             break
         print("Choix invalide : tape j, l ou 2.")
@@ -849,7 +852,7 @@ def main():
     hors_ue, inconnu = statut_ue_itineraire(itineraire)
     if inconnu:
         print("⚠️  Statut UE inconnu pour une étape : passeport par défaut, à vérifier.")
-    conduit = input("Tu vas conduire ? (o/n) : ") == "o"
+    conduit = est_oui(input("Tu vas conduire ? (o/n) : "))
 
     # --- Construction ---
     jours_types = jours_par_type(itineraire)
@@ -857,8 +860,9 @@ def main():
     prises = prises_itineraire(itineraire)
     valise = faire_valise(jours_types, total, personnes, hors_ue, conduit)
 
+    climats = [(e["destination"], e["mois"], e["normales"]) for e in itineraire]
     libelle_voyage = " › ".join(etape["destination"] for etape in itineraire)
-    html = valise_en_html(valise, libelle_voyage, total, prises)
+    html = valise_en_html(valise, libelle_voyage, total, prises, climats)
     with open("valise.html", "w", encoding="utf-8") as f:
         f.write(html)
     print(f"Checklist écrite dans valise.html ({total} jours, {len(itineraire)} étape(s))")
