@@ -28,6 +28,19 @@ def test_jours_de_pluie_par_mois():
     assert n["jours_pluie"] == 1
 
 
+def test_jours_de_forte_pluie():
+    # Seuls les jours >= 5 mm comptent comme "forte pluie" : 8.0 et 5.0 oui, 3.0 non -> 2 sur 2 ans = 1.0
+    daily = {
+        "time":               ["2024-01-10", "2024-01-11", "2025-01-12"],
+        "temperature_2m_max": [8.0,          6.0,          7.0],
+        "temperature_2m_min": [2.0,          0.0,          1.0],
+        "precipitation_sum":  [8.0,          5.0,          3.0],
+    }
+    n = calculer_normales(daily, 1, nb_annees=2)
+    assert n["jours_pluie"] == 2            # (3 jours >= 1 mm) / 2 ans = 1.5 -> arrondi à 2
+    assert n["jours_forte_pluie"] == 1.0
+
+
 def test_ignore_les_jours_sans_mesure():
     # Open-Meteo renvoie None quand une mesure manque : il ne faut pas planter
     daily = {

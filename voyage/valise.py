@@ -415,7 +415,9 @@ PAYS_VERS_PRISE = {pays: prise for prise, liste in _PRISES.items() for pays in l
 SEUIL_CHAUD = 25          # °C : max moyenne >= 25 -> "chaud"
 SEUIL_FROID = 12          # °C : max moyenne < 12 -> "froid"
 SEUIL_FRAIS = 15          # °C : min moyenne < 15 (et pas "froid") -> "frais" (un pull pour le soir)
-SEUIL_JOURS_PLUIE = 8     # jours de pluie par mois >= 8 -> "pluie"
+SEUIL_JOURS_FORTE_PLUIE = 4   # jours >= 5 mm par mois >= 4 (≈ une vraie averse par semaine) -> "pluie"
+                              # Pas les jours >= 1 mm : ils comptent les petites averses tropicales
+                              # (Phu Quoc en janvier = 10 j, en pleine saison sèche).
 
 MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
         "août", "septembre", "octobre", "novembre", "décembre"]
@@ -426,7 +428,8 @@ def ligne_climat(destination, mois, n):
     debut = f"{destination} · {MOIS[mois - 1]} : "       # mois 1 -> index 0
     if n is None:
         return debut + "climat indisponible"
-    return debut + f"{round(n['tmin'])}–{round(n['tmax'])} °C · 🌧️ {n['jours_pluie']} j de pluie/mois"
+    return (debut + f"{round(n['tmin'])}–{round(n['tmax'])} °C · 🌧️ {n['jours_pluie']} j de pluie/mois, "
+            f"dont {round(n['jours_forte_pluie'])} forts")
 
 
 def types_climat(n):
@@ -440,7 +443,7 @@ def types_climat(n):
         types.append("froid")
     if n["tmin"] < SEUIL_FRAIS and "froid" not in types:    # froid couvre déjà les pulls
         types.append("frais")
-    if n["jours_pluie"] >= SEUIL_JOURS_PLUIE:
+    if n["jours_forte_pluie"] >= SEUIL_JOURS_FORTE_PLUIE:
         types.append("pluie")
     return types
 

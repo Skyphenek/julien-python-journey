@@ -10,12 +10,13 @@ import requests
 URL_GEO = "https://geocoding-api.open-meteo.com/v1/search"
 URL_ARCHIVE = "https://archive-api.open-meteo.com/v1/archive"
 DEBUT, FIN, NB_ANNEES = "2016-01-01", "2025-12-31", 10
-SEUIL_PLUIE_MM = 1.0     # en dessous, une bruine ne compte pas comme "jour de pluie"
+SEUIL_PLUIE_MM = 1.0         # en dessous, une bruine ne compte pas comme "jour de pluie"
+SEUIL_FORTE_PLUIE_MM = 5.0   # "vraie" pluie, celle qui mouille : distingue mousson et averses tropicales
 
 
 def calculer_normales(daily, mois, nb_annees=NB_ANNEES):
     """Fonction pure : à partir du bloc "daily" d'Open-Meteo, calculer les normales du mois."""
-    tmax, tmin, jours_pluie = [], [], 0
+    tmax, tmin, jours_pluie, jours_forte_pluie = [], [], 0, 0
     for i, jour in enumerate(daily["time"]):            # jour = "2024-01-10"
         if int(jour[5:7]) != mois:                       # WHERE MONTH(date) = mois
             continue
@@ -25,10 +26,13 @@ def calculer_normales(daily, mois, nb_annees=NB_ANNEES):
         tmin.append(daily["temperature_2m_min"][i])
         if daily["precipitation_sum"][i] >= SEUIL_PLUIE_MM:
             jours_pluie += 1                              # COUNT ... WHERE pluie >= 1
+        if daily["precipitation_sum"][i] >= SEUIL_FORTE_PLUIE_MM:
+            jours_forte_pluie += 1                        # COUNT ... WHERE pluie >= 5
     return {
         "tmax": round(sum(tmax) / len(tmax), 1),          # AVG(tmax)
         "tmin": round(sum(tmin) / len(tmin), 1),          # AVG(tmin)
         "jours_pluie": round(jours_pluie / nb_annees),    # par mois, en moyenne annuelle
+        "jours_forte_pluie": round(jours_forte_pluie / nb_annees, 1),   # gardé à 0.1 près : sert au seuil
     }
 
 

@@ -19,9 +19,12 @@ def test_total_jours():
 
 
 # Normales factices (même format que api_climat.normales) : pas de réseau dans les tests
-LONDRES_JANV = {"tmin": 1.6, "tmax": 7.7, "jours_pluie": 12}
-HANOI_JANV = {"tmin": 14.3, "tmax": 21.1, "jours_pluie": 10}
-SIEM_REAP_JANV = {"tmin": 21.5, "tmax": 31.1, "jours_pluie": 2}
+# Valeurs réelles mesurées (Open-Meteo, 2016-2025)
+LONDRES_JANV = {"tmin": 1.6, "tmax": 7.7, "jours_pluie": 12, "jours_forte_pluie": 4.3}
+HANOI_JANV = {"tmin": 14.3, "tmax": 21.1, "jours_pluie": 10, "jours_forte_pluie": 3.4}
+SIEM_REAP_JANV = {"tmin": 21.5, "tmax": 31.1, "jours_pluie": 2, "jours_forte_pluie": 0.5}
+PHU_QUOC_JANV = {"tmin": 24.0, "tmax": 30.0, "jours_pluie": 10, "jours_forte_pluie": 2.6}
+PHU_QUOC_AOUT = {"tmin": 25.0, "tmax": 29.5, "jours_pluie": 30, "jours_forte_pluie": 23.8}
 
 
 def test_types_climat_froid_et_pluie():
@@ -34,7 +37,7 @@ def test_types_climat_chaud():
 
 def test_types_climat_frais_si_soirees_fraiches():
     # Hanoï en janvier : 21 °C max (ni chaud ni froid) mais 14 °C min -> "frais" (un pull)
-    assert types_climat(HANOI_JANV) == ["frais", "pluie"]
+    assert types_climat(HANOI_JANV) == ["frais"]       # bruine : pas assez de vraie pluie
 
 
 def test_types_climat_froid_n_est_pas_aussi_frais():
@@ -44,7 +47,13 @@ def test_types_climat_froid_n_est_pas_aussi_frais():
 
 def test_types_climat_chaud_et_soirees_fraiches():
     # Désert : 30 °C le jour, 10 °C la nuit -> chaud ET frais
-    assert types_climat({"tmin": 10, "tmax": 30, "jours_pluie": 0}) == ["chaud", "frais"]
+    assert types_climat({"tmin": 10, "tmax": 30, "jours_pluie": 0, "jours_forte_pluie": 0}) == ["chaud", "frais"]
+
+
+def test_pluie_saison_seche_vs_mousson():
+    # Phu Quoc : 10 jours "humides" en janvier mais peu de vraie pluie -> pas d'imperméable
+    assert "pluie" not in types_climat(PHU_QUOC_JANV)
+    assert "pluie" in types_climat(PHU_QUOC_AOUT)
 
 
 def test_frais_ajoute_un_pull():
@@ -63,7 +72,7 @@ def test_jours_par_type_additionne_les_etapes():
              "activites": ["ville"], "normales": SIEM_REAP_JANV}]
     jpt = jours_par_type(itin)
     assert jpt["ville"] == 11      # activité présente sur les deux étapes
-    assert jpt["pluie"] == 7       # climat de Hanoï seulement
+    assert jpt["frais"] == 7       # climat de Hanoï seulement
     assert jpt["chaud"] == 4       # climat de Siem Reap seulement
 
 
@@ -164,8 +173,7 @@ def test_valise_en_html_injecte_la_variable_voyage():
     assert 'const VOYAGE = "Hanoï › Siem Reap";' in html
 
 def test_ligne_climat_formate_les_normales():
-    n = {"tmin": 1.6, "tmax": 7.7, "jours_pluie": 12}
-    assert ligne_climat("Londres", 1, n) == "Londres · janvier : 2–8 °C · 🌧️ 12 j de pluie/mois"
+    assert ligne_climat("Londres", 1, LONDRES_JANV) == "Londres · janvier : 2–8 °C · 🌧️ 12 j de pluie/mois, dont 4 forts"
 
 
 def test_ligne_climat_sans_donnees():
@@ -174,7 +182,7 @@ def test_ligne_climat_sans_donnees():
 
 
 def test_valise_en_html_affiche_le_climat():
-    climats = [("Hanoï", 1, {"tmin": 14.3, "tmax": 21.1, "jours_pluie": 10})]
+    climats = [("Hanoï", 1, HANOI_JANV)]
     html = valise_en_html({"Partagé": paquet_vide()}, "Hanoï", 7, set(), climats)
     assert "Hanoï · janvier : 14–21 °C" in html
 
