@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))   # permet d'importer api_climat depuis ce dossier
 
-from api_climat import calculer_normales
+from api_climat import calculer_normales, extraire_lieux
 
 # Mini "table" au format renvoyé par Open-Meteo : 4 jours, sur 2 années différentes.
 # Deux jours en janvier, un en février, un en janvier de l'année suivante.
@@ -39,3 +39,21 @@ def test_ignore_les_jours_sans_mesure():
     n = calculer_normales(daily, 1, nb_annees=1)
     assert n["tmax"] == 8.0
     assert n["jours_pluie"] == 1
+
+
+def test_extraire_lieux_garde_l_essentiel():
+    # Même format que la réponse du géocodage : deux homonymes "Bali"
+    reponse = {"results": [
+        {"name": "Bali", "admin1": "Bengale-Occidental", "country": "Inde",
+         "country_code": "IN", "latitude": 22.6, "longitude": 88.3, "population": 5000},
+        {"name": "Bali", "admin1": "Bali", "country": "Indonésie",
+         "country_code": "ID", "latitude": -8.5, "longitude": 115.1},
+    ]}
+    lieux = extraire_lieux(reponse)
+    assert len(lieux) == 2
+    assert lieux[1] == {"nom": "Bali", "region": "Bali", "pays": "Indonésie",
+                        "code_pays": "ID", "latitude": -8.5, "longitude": 115.1}
+
+
+def test_extraire_lieux_aucun_resultat():
+    assert extraire_lieux({}) == []          # l'API omet "results" quand rien ne correspond

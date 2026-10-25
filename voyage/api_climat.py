@@ -32,13 +32,23 @@ def calculer_normales(daily, mois, nb_annees=NB_ANNEES):
     }
 
 
-def coordonnees(ville):
-    """Géocodage : "Londres" -> (latitude, longitude). None si la ville est introuvable."""
-    reponse = requests.get(URL_GEO, params={"name": ville, "count": 1, "language": "fr"})
-    resultats = reponse.json().get("results")         # clé absente si aucun résultat
-    if not resultats:
-        return None
-    return resultats[0]["latitude"], resultats[0]["longitude"]
+def extraire_lieux(reponse_json):
+    """Fonction pure : réponse brute du géocodage -> liste de lieux (champs utiles seulement)."""
+    lieux = []
+    for r in reponse_json.get("results", []):         # clé absente si aucun résultat
+        lieux.append({
+            "nom": r["name"], "region": r.get("admin1"), "pays": r.get("country"),
+            "code_pays": r.get("country_code"),        # code ISO : "VN", "GB"… (stable, sans accents)
+            "latitude": r["latitude"], "longitude": r["longitude"],
+        })
+    return lieux
+
+
+def lieux(nom, nb=5):
+    """Géocodage : les nb lieux qui portent ce nom (homonymes possibles : Bali Inde / Indonésie)."""
+    reponse = requests.get(URL_GEO, params={"name": nom, "count": nb, "language": "fr"})
+    reponse.raise_for_status()
+    return extraire_lieux(reponse.json())
 
 
 def meteo_10_ans(latitude, longitude):
@@ -53,14 +63,16 @@ def meteo_10_ans(latitude, longitude):
     return reponse.json()["daily"]
 
 
-def normales(ville, mois):
-    """Point d'entrée : normales climatiques d'une ville pour un mois (1-12)."""
-    coords = coordonnees(ville)
-    if coords is None:
-        return None
-    return calculer_normales(meteo_10_ans(*coords), mois)
+def normales(latitude, longitude, mois):
+    """Normales climatiques d'un mois (1-12) aux coordonnées d'un lieu déjà choisi.
+
+    On passe des coordonnées, pas un nom : sinon on re-géocoderait et on pourrait
+    retomber sur un homonyme (Bali -> Inde).
+    """
+    return calculer_normales(meteo_10_ans(latitude, longitude), mois)
 
 
 if __name__ == "__main__":
     for ville, mois in [("Londres", 1), ("Hanoï", 1), ("Siem Reap", 1), ("Lima", 7)]:
-        print(ville, mois, normales(ville, mois))
+        lieu = lieux(ville)[0]
+        print(ville, mois, lieu["pays"], normales(lieu["latitude"], lieu["longitude"], mois))

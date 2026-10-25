@@ -9,7 +9,7 @@ import json
 
 import requests
 
-from api_climat import coordonnees, normales
+from api_climat import lieux, normales
 
 # Feuille de style de la checklist HTML (mobile-first). Fournie clé en main :
 # c'est de la présentation, pas de la logique. Injectée telle quelle dans le <head>.
@@ -343,78 +343,46 @@ THEMES = {
     },
 }
 
-# 4avant. GÉO — Table 1ter : chaque VILLE pointe vers son PAYS.
-#         Sert au statut UE et à l'adaptateur : sans elle, toute ville tombe en
-#         "inconnu" -> passeport par défaut + adaptateur "à vérifier" (bug Cyclades).
-#         Le climat, lui, vient des données réelles (api_climat), pas d'une table.
-VILLE_VERS_PAYS = {
-    "Londres": "Royaume-Uni", "Édimbourg": "Royaume-Uni", "Dublin": "Irlande",
-    "Amsterdam": "Pays-Bas", "Bruxelles": "Belgique", "Berlin": "Allemagne",
-    "Copenhague": "Danemark", "Stockholm": "Suède",
-    "Paris": "France", "Lyon": "France", "Milan": "Italie",
-    "Cap Ferret": "France", "Biarritz": "France", "Bordeaux": "France",
-    "La Rochelle": "France", "Nantes": "France", "Saint-Sébastien": "Espagne",
-    "Porto": "Portugal",
-    "Rome": "Italie", "Florence": "Italie", "Venise": "Italie", "Naples": "Italie",
-    "Palerme": "Italie", "Marseille": "France", "Nice": "France",
-    "Barcelone": "Espagne", "Madrid": "Espagne", "Séville": "Espagne",
-    "Valence": "Espagne", "Athènes": "Grèce", "Lisbonne": "Portugal",
-    "Split": "Croatie", "Dubrovnik": "Croatie", "Cyclades": "Grèce",
-    "Annecy": "France", "Chamonix": "France", "Genève": "Suisse",
-    "Grenoble": "France", "Innsbruck": "Autriche", "Méribel": "France",
-    "Zermatt": "Suisse",
-    "Marrakech": "Maroc", "Agadir": "Maroc", "Essaouira": "Maroc",
-    "Tunis": "Tunisie", "Dubaï": "Émirats Arabes Unis",
-    "Hanoï": "Vietnam", "Ho Chi Minh": "Vietnam", "Siem Reap": "Cambodge",
-    "Bangkok": "Thaïlande", "Singapour": "Singapour",
-    "Tokyo": "Japon", "Kyoto": "Japon", "Osaka": "Japon",
-    "Pékin": "Chine", "Shanghai": "Chine", "Xi'an": "Chine", "Chengdu": "Chine",
-    "Séoul": "Corée du Sud", "Busan": "Corée du Sud",
-    "New York": "États-Unis", "Boston": "États-Unis",
-    "San Francisco": "États-Unis", "Los Angeles": "États-Unis",
-    "Miami": "États-Unis", "Cancún": "Mexique", "Bali": "Indonésie",
-}
+# 4. GÉO — Les pays sont identifiés par leur CODE ISO ("VN", "GB"…), tel que
+#    renvoyé par le géocodage (api_climat.lieux). Pourquoi pas le nom ? L'API écrit
+#    "Viêt Nam" là où on écrirait "Vietnam" : un code ne varie pas (jointure sur l'ID,
+#    pas sur le libellé). Plus besoin de table ville -> pays : le géocodage la remplace.
 
-# 4ter. GÉO — UE : pays membres. Appartenance -> UE ; absence d'un pays connu -> hors UE.
-#       (Accepte aussi des villes si on veut en couvrir plus tard.)
+# 4a. UE : pays membres. Appartenance -> UE ; absence d'un pays connu -> hors UE.
 PAYS_UE = {
-    "France", "Belgique", "Pays-Bas", "Allemagne", "Danemark", "Suède",
-    "Irlande", "Luxembourg", "Autriche", "Slovénie", "Italie", "Espagne",
-    "Grèce", "Portugal", "Croatie", "Malte", "Chypre",
+    "FR",  # France
+    "BE", "NL", "DE", "DK", "SE",  # Belgique, Pays-Bas, Allemagne, Danemark, Suède
+    "IE", "LU", "AT", "SI", "IT",  # Irlande, Luxembourg, Autriche, Slovénie, Italie
+    "ES", "GR", "PT", "HR", "MT",  # Espagne, Grèce, Portugal, Croatie, Malte
+    "CY",  # Chypre
 }
 
-# 4ter-bis. GÉO — CARTE D'IDENTITÉ SUFFIT : UE + Schengen/EEE hors UE (Suisse,
-#           Norvège, Islande) où la carte d'identité remplace le passeport et où
-#           le permis français suffit (pas de permis international).
-SANS_PASSEPORT = PAYS_UE | {"Suisse", "Norvège", "Islande"}
+# 4b. CARTE D'IDENTITÉ SUFFIT : UE + Schengen/EEE hors UE (Suisse, Norvège, Islande)
+#     où la carte d'identité remplace le passeport et où le permis français suffit.
+SANS_PASSEPORT = PAYS_UE | {"CH", "NO", "IS"}
 
-# 4quater. GÉO — PRISE : quel adaptateur emporter DEPUIS LA FRANCE pour ce pays.
-#          Valeurs usuelles (à revérifier ponctuellement). Pays absent -> "à vérifier".
+# 4c. PRISE : quel adaptateur emporter DEPUIS LA FRANCE pour ce pays.
+#     Valeurs usuelles (à revérifier ponctuellement). Pays absent -> "à vérifier".
 PAYS_VERS_PRISE = {
     # Europe continentale + Maghreb (mêmes prises type C/E/F qu'en France)
-    "France": "aucun", "Belgique": "aucun", "Pays-Bas": "aucun",
-    "Allemagne": "aucun", "Danemark": "aucun", "Suède": "aucun",
-    "Norvège": "aucun", "Islande": "aucun", "Luxembourg": "aucun",
-    "Suisse": "aucun", "Autriche": "aucun", "Slovénie": "aucun",
-    "Italie": "aucun", "Espagne": "aucun", "Grèce": "aucun",
-    "Portugal": "aucun", "Croatie": "aucun",
-    "Maroc": "aucun", "Tunisie": "aucun", "Égypte": "aucun",
+    "FR": "aucun", "BE": "aucun", "NL": "aucun", "DE": "aucun", "DK": "aucun",
+    "SE": "aucun", "NO": "aucun", "IS": "aucun", "LU": "aucun", "CH": "aucun",
+    "AT": "aucun", "SI": "aucun", "IT": "aucun", "ES": "aucun", "GR": "aucun",
+    "PT": "aucun", "HR": "aucun",
+    "MA": "aucun", "TN": "aucun", "EG": "aucun",       # Maroc, Tunisie, Égypte
     # Prises britanniques (type G)
-    "Royaume-Uni": "UK", "Irlande": "UK", "Malte": "UK", "Chypre": "UK",
-    "Émirats Arabes Unis": "UK", "Malaisie": "UK", "Singapour": "UK",
+    "GB": "UK", "IE": "UK", "MT": "UK", "CY": "UK",   # Royaume-Uni, Irlande, Malte, Chypre
+    "AE": "UK", "MY": "UK", "SG": "UK",               # Émirats, Malaisie, Singapour
     # Prises américaines (type A/B, 110V)
-    "Mexique": "US (110V)", "République Dominicaine": "US (110V)",
-    "Costa Rica": "US (110V)", "Japon": "US (110V)",
-    "États-Unis": "US (110V)",
-    "Californie": "US (110V)", "Floride": "US (110V)", "Hawaï": "US (110V)",
-    "Nevada": "US (110V)", "Arizona": "US (110V)", "Louisiane": "US (110V)",
+    "US": "US (110V)", "MX": "US (110V)", "DO": "US (110V)",  # USA, Mexique, Rép. dominicaine
+    "CR": "US (110V)", "JP": "US (110V)", "TW": "US (110V)",  # Costa Rica, Japon, Taïwan
     # Prises mélangées -> adaptateur universel
-    "Jordanie": "universel", "Thaïlande": "universel", "Vietnam": "universel",
-    "Cambodge": "universel", "Laos": "universel", "Myanmar": "universel",
-    "Philippines": "universel / US", "Cuba": "universel / US",
-    "Sri Lanka": "universel / UK",
-    # Asie de l'Est tempérée (Corée : prises type C/F comme en France)
-    "Chine": "universel", "Corée du Sud": "aucun", "Taïwan": "US (110V)",
+    "JO": "universel", "TH": "universel", "VN": "universel",  # Jordanie, Thaïlande, Vietnam
+    "KH": "universel", "LA": "universel", "MM": "universel",  # Cambodge, Laos, Myanmar
+    "CN": "universel",                                        # Chine
+    "PH": "universel / US", "CU": "universel / US",           # Philippines, Cuba
+    "LK": "universel / UK",                                   # Sri Lanka
+    "KR": "aucun",                                            # Corée du Sud (type C/F)
 }
 
 
@@ -449,34 +417,25 @@ def types_climat(n):
     return types
 
 
-def pays_de(destination):
-    """Résoudre une destination en pays : une ville -> son pays, un pays -> lui-même."""
-    return VILLE_VERS_PAYS.get(destination, destination)
-
-
-def statut_ue(destination):
+def statut_ue(code_pays):
     """Statut documents : 'ue' (carte d'identité suffit — UE + Schengen), 'hors_ue'
-    (passeport + permis international), ou 'inconnu' (pays non modélisé)."""
-    pays = pays_de(destination)
-    if pays in SANS_PASSEPORT:
+    (passeport + permis international), ou 'inconnu' (pays non modélisé ou hors ligne)."""
+    if code_pays in SANS_PASSEPORT:
         return "ue"
-    if pays in PAYS_VERS_PRISE:          # pays connu hors zone carte d'identité
+    if code_pays in PAYS_VERS_PRISE:     # pays connu hors zone carte d'identité
         return "hors_ue"
     return "inconnu"                     # pays non modélisé -> défaut prudent (passeport)
 
 
-def adaptateur_pour(destination):
+def adaptateur_pour(code_pays):
     """Libellé de l'adaptateur à emporter depuis la France, ou 'à vérifier'."""
-    pays = pays_de(destination)
-    if pays in PAYS_VERS_PRISE:
-        return PAYS_VERS_PRISE[pays]
-    return "à vérifier"
+    return PAYS_VERS_PRISE.get(code_pays, "à vérifier")
 
 def statut_ue_itineraire(itineraire):
     hors_ue = False
     inconnu = False
     for etape in itineraire:
-        statut = statut_ue(etape["destination"])
+        statut = statut_ue(etape.get("code_pays"))
         if statut == "hors_ue":
             hors_ue = True
         elif statut == "inconnu":
@@ -487,7 +446,7 @@ def statut_ue_itineraire(itineraire):
 def prises_itineraire(itineraire):
     prises = set()               # ensemble vide ; les doublons se dédupliquent tout seuls
     for etape in itineraire:
-        prise = adaptateur_pour(etape["destination"])
+        prise = adaptateur_pour(etape.get("code_pays"))
         if prise != "aucun":                  # on ignore les "aucun"
             prises.add(prise)
     return prises
@@ -701,6 +660,28 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None):
 </html>"""
     return page
 
+def libelle_lieu(lieu):
+    """'Bali — Bali, Indonésie' : de quoi distinguer deux homonymes."""
+    precision = ", ".join(x for x in (lieu["region"], lieu["pays"]) if x)
+    return f"{lieu['nom']} — {precision}" if precision else lieu["nom"]
+
+
+def choisir_lieu(candidats):
+    """Montrer les homonymes trouvés et laisser choisir (Entrée = le premier)."""
+    if len(candidats) == 1:
+        print(f"        📍 {libelle_lieu(candidats[0])}")
+        return candidats[0]
+    for i, lieu in enumerate(candidats, start=1):          # start=1 : numéroter comme un humain
+        print(f"        📍 {i}. {libelle_lieu(lieu)}")
+    while True:
+        reponse = input("        — lequel ? (Entrée = 1) : ")
+        if reponse == "":
+            return candidats[0]
+        if reponse.isdigit() and 1 <= int(reponse) <= len(candidats):
+            return candidats[int(reponse) - 1]               # choix 1 -> index 0
+        print(f"        Choix invalide : entre un nombre entre 1 et {len(candidats)}.")
+
+
 def main():
     """Assistant interactif : saisit un itinéraire, puis construit la valise."""
     manquants = objets_sans_rayon()
@@ -718,11 +699,14 @@ def main():
             print("Ajoute au moins une étape avant de terminer.")
             continue
         try:
-            if coordonnees(destination) is None:     # le géocodage remplace l'ancienne liste de villes
-                print(f"Destination '{destination}' introuvable, vérifie l'orthographe.")
-                continue
+            candidats = lieux(destination)           # le géocodage remplace l'ancienne liste de villes
         except requests.RequestException:
-            print("        ⚠️  Pas de réseau : destination acceptée, climat inconnu.")
+            candidats = None
+            print("        ⚠️  Pas de réseau : destination acceptée, pays et climat inconnus.")
+        if candidats == []:
+            print(f"Destination '{destination}' introuvable, vérifie l'orthographe.")
+            continue
+        lieu = choisir_lieu(candidats) if candidats else None
         while True:
             reponse = input("        — jours : ")
             if reponse.isdigit() and int(reponse) >= 1:
@@ -742,13 +726,16 @@ def main():
                 activites = sorted(CHOIX_ACTIVITE[l] for l in lettres)
                 break
             print("        Choix invalide : tape v, p, m ou une combinaison (ex : vp).")
-        try:
-            n = normales(destination, mois)
-        except requests.RequestException:
-            n = None
+        n = None
+        if lieu:
+            try:
+                n = normales(lieu["latitude"], lieu["longitude"], mois)   # coordonnées du lieu CHOISI
+            except requests.RequestException:
+                pass
         print("        🌡️", ligne_climat(destination, mois, n))
         itineraire.append({"destination": destination, "jours": jours, "mois": mois,
-                           "activites": activites, "normales": n})
+                           "activites": activites, "normales": n,
+                           "code_pays": lieu["code_pays"] if lieu else None})
         numero += 1
 
     # --- Questions posées une seule fois ---

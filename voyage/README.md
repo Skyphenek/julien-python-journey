@@ -83,4 +83,7 @@ sans toucher au code. Les types d'une étape viennent de deux sources :
 - **climat** (`chaud` / `froid` / `pluie`) : déduit des normales réelles sur 10 ans
   (`api_climat.py`, Open-Meteo, gratuit sans clé) via les seuils `SEUIL_*` ;
 - **activités** (`ville` / `plage` / `montagne`) : saisies par étape.
-Toute ville trouvée par le géocodage Open-Meteo est acceptée.
+Toute ville trouvée par le géocodage Open-Meteo est acceptée ; en cas d'homonymes
+(Bali Inde / Indonésie), le programme liste les lieux et on choisit. Le pays du lieu
+choisi (code ISO : `VN`, `GB`…) pilote les papiers (`SANS_PASSEPORT`) et l'adaptateur
+(`PAYS_VERS_PRISE`).

@@ -7,7 +7,7 @@ from valise import (total_jours, jours_par_type,
                     statut_ue_itineraire, prises_itineraire,
                     quantite_reelle, faire_valise,
                     valise_en_html, paquet_vide, ligne_climat,
-                    types_climat)
+                    types_climat, libelle_lieu)
 
 def test_total_jours():
     itin = [{"destination": "Hanoï", "jours": 7, "mois": 1},
@@ -58,32 +58,37 @@ def test_jours_par_type_plusieurs_activites():
 
 
 def test_statut_ue_hors_ue_si_une_etape_hors_ue():
-    itin = [{"destination": "France", "jours": 3, "mois": 6},
-            {"destination": "Thaïlande", "jours": 5, "mois": 1}]
+    itin = [{"destination": "Paris", "code_pays": "FR"},
+            {"destination": "Bangkok", "code_pays": "TH"}]
     hors_ue, inconnu = statut_ue_itineraire(itin)
     assert hors_ue is True
     assert inconnu is False
 
 
 def test_statut_ue_ue_si_toutes_ue():
-    itin = [{"destination": "France", "jours": 3, "mois": 6},
-            {"destination": "Italie", "jours": 5, "mois": 6}]
+    itin = [{"destination": "Paris", "code_pays": "FR"},
+            {"destination": "Genève", "code_pays": "CH"}]    # Schengen hors UE : carte d'identité OK
     hors_ue, inconnu = statut_ue_itineraire(itin)
     assert hors_ue is False
     assert inconnu is False
 
 
 def test_statut_ue_inconnu_declenche_le_flag():
-    itin = [{"destination": "Lima", "jours": 3, "mois": 6}]   # ville non modélisée -> statut inconnu
+    itin = [{"destination": "Lima", "code_pays": "PE"}]      # pays non modélisé -> statut inconnu
     hors_ue, inconnu = statut_ue_itineraire(itin)
     assert hors_ue is True
     assert inconnu is True
 
 
+def test_statut_ue_sans_pays_hors_ligne():
+    itin = [{"destination": "Phu Quoc", "code_pays": None}]  # pas de réseau -> pays inconnu
+    assert statut_ue_itineraire(itin) == (True, True)
+
+
 def test_prises_itineraire_dedup_et_sans_aucun():
-    itin = [{"destination": "France", "jours": 3, "mois": 6},     # aucun
-            {"destination": "Vietnam", "jours": 5, "mois": 1},    # universel
-            {"destination": "Cambodge", "jours": 4, "mois": 1}]   # universel
+    itin = [{"destination": "Paris", "code_pays": "FR"},       # aucun
+            {"destination": "Phu Quoc", "code_pays": "VN"},    # universel
+            {"destination": "Siem Reap", "code_pays": "KH"}]   # universel
     assert prises_itineraire(itin) == {"universel"}
 
 def test_quantite_reelle_marqueurs():
@@ -155,3 +160,13 @@ def test_valise_en_html_affiche_le_climat():
     climats = [("Hanoï", 1, {"tmin": 14.3, "tmax": 21.1, "jours_pluie": 10})]
     html = valise_en_html({"Partagé": paquet_vide()}, "Hanoï", 7, set(), climats)
     assert "Hanoï · janvier : 14–21 °C" in html
+
+
+def test_libelle_lieu_distingue_les_homonymes():
+    lieu = {"nom": "Bali", "region": "Bali", "pays": "Indonésie"}
+    assert libelle_lieu(lieu) == "Bali — Bali, Indonésie"
+
+
+def test_libelle_lieu_sans_region():
+    # Singapour : l'API ne renvoie pas de région (admin1 = None)
+    assert libelle_lieu({"nom": "Singapour", "region": None, "pays": "Singapour"}) == "Singapour — Singapour"
