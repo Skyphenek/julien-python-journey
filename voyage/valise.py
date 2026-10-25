@@ -230,14 +230,14 @@ PAR_TYPE_COMMUN = {
 # 2b. PAR TYPE — PERSO : chacun le sien (tout ce qui se porte).
 PAR_TYPE_PERSO = {
     "chaud":    {"chapeau": 1, "lunettes de soleil": "par_semaine",
-                 "shorts": "par_3_jours", "débardeurs": "par_jour",
-                 "robe légère": "par_3_jours", "sandales": 1,
+                 "shorts": "par_3_jours", "sandales": 1,
                  "chemises légères": "par_3_jours",
                  "chemises": 0},                 # 0 = retire les chemises normales quand il fait chaud
+                                                 # hauts/robes : gérés par personne (voir PAR_PERSONNE) pour éviter les doublons
     "froid":    {"manteau": 1, "pull": "par_3_jours", "gants": 1, "bonnet": 1,
                  "écharpe": 1, "sous-couche thermique": "par_3_jours",
                  "grosses chaussures": 1, "collants": "par_3_jours"},
-    "plage":    {"maillot": "par_3_jours", "tongs": 1, "futa": 1,
+    "plage":    {"maillot de bain": "par_3_jours", "tongs": 1, "futa": 1,
                  "shorts": "par_3_jours", "sandales": 1, "lunettes de soleil": 1},
     "montagne": {"chaussures rando": 1, "gourde": 1, "coupe-vent": 1, "polaire": 1,
                  "chaussettes de rando": "par_3_jours", "bâtons": 1},
@@ -249,16 +249,36 @@ PAR_TYPE_PERSO = {
 PAR_PERSONNE = {
     "Julien":   {"rasoir": 1, "caleçons": "par_jour", "t-shirts": "par_jour"},
     "Laetitia": {"maquillage": 1, "lisseur": 1, "culottes": "par_jour",
-                 "petits-hauts": "par_jour", "soutien-gorge": "par_semaine",
+                 "hauts": "par_jour", "soutien-gorge": "par_semaine",
                  "robes": "par_3_jours", "démaquillant": 1, "bijoux": 1,
                  "boucles d'oreille": (3, "par_semaine")},   # 3 paires / semaine
 }
 
 # 3quater. JAMAIS : ce qu'une personne ne prend jamais, même si une table par-type
 #          l'ajoute (ex. items genrés présents dans les tables partagées PAR_TYPE_PERSO
-#          comme "robe légère" ou "collants" -> pas pour Julien).
+#          comme "collants" -> pas pour Julien).
 JAMAIS = {
-    "Julien": {"robe légère", "collants", "débardeurs", "sandales"},
+    "Julien": {"collants", "sandales"},
+}
+
+# 3ter. RÉGLAGES EN PAYS CHAUD, PAR PERSONNE : dès qu'un climat "chaud" est présent,
+#       on écrase la garde-robe de base par personne (le SEUL endroit qui peut RÉDUIRE :
+#       _remplir prend le max base/climat, donc ne sait qu'augmenter). Valeur 0 = retrait.
+#       Absent de la table -> comportement par défaut (valeurs de base). Post-traité
+#       dans faire_valise. Sert aux chaussures ouvertes ET aux tenues du soir de Laetitia :
+#       1 tenue / 3 j (par_3_jours), soit robe SOIT chemise + bas ; préférence chemise.
+#       Pour 15 j : 2 robes + 3 chemises = 5 tenues ; bas = 3 short habillé + 2 pantalons.
+CHAUD_PERSO = {
+    "Julien":   {"chaussettes": (3, "par_semaine")},   # 3 paires / semaine (chaussures fermées légères)
+    "Laetitia": {
+        "chaussettes": 0,                  # aucune : que des chaussures ouvertes
+        "hauts": "par_2_jours",            # jour : moins de hauts (le soir = tenues)
+        "chemises légères": 0,             # jour couvert par les hauts -> on retire
+        "tenue habillée": 0,               # remplacée par le modèle de tenues du soir
+        "robes": "par_semaine",            # tenue-robe (~1/3 des soirs)
+        "chemise habillée": "par_4_jours", # tenue-chemise (préférée, ~2/3 des soirs)
+        "short habillé": "par_4_jours",    # bas de tenue, distinct du short de plage
+    },
 }
 
 # 3quinquies. CONDUCTEURS : qui a le permis. Seuls eux emportent un permis
@@ -278,10 +298,10 @@ CHOIX_PERSONNE = {
 #       objets_sans_rayon() le signalera au lancement (au lieu de le cacher).
 THEMES = {
     "Vêtements": {
-        "pantalons", "pyjama", "sweat", "shorts", "débardeurs", "robe légère",
-        "robes", "manteau", "pull", "maillot", "coupe-vent", "polaire",
-        "tenue habillée", "imperméable", "t-shirts", "petits-hauts",
-        "chemises", "chemises légères",
+        "pantalons", "pyjama", "sweat", "shorts", "hauts", "short habillé",
+        "robes", "manteau", "pull", "maillot de bain", "coupe-vent", "polaire",
+        "tenue habillée", "imperméable", "t-shirts",
+        "chemises", "chemises légères", "chemise habillée",
     },
     "Sous-vêtements": {
         "caleçons", "culottes", "soutien-gorge", "chaussettes",
@@ -349,6 +369,38 @@ VILLE_VERS_ZONE = {
     "Miami": "tropical", "Cancún": "tropical", "Bali": "tropical",
 }
 
+# 4avant. GÉO — Table 1ter : chaque VILLE pointe vers son PAYS.
+#         Sert au statut UE et à l'adaptateur : sans elle, toute ville tombe en
+#         "inconnu" -> passeport par défaut + adaptateur "à vérifier" (bug Cyclades).
+#         La zone climatique reste pilotée par VILLE_VERS_ZONE (indépendant).
+VILLE_VERS_PAYS = {
+    "Londres": "Royaume-Uni", "Édimbourg": "Royaume-Uni", "Dublin": "Irlande",
+    "Amsterdam": "Pays-Bas", "Bruxelles": "Belgique", "Berlin": "Allemagne",
+    "Copenhague": "Danemark", "Stockholm": "Suède",
+    "Paris": "France", "Lyon": "France", "Milan": "Italie",
+    "Cap Ferret": "France", "Biarritz": "France", "Bordeaux": "France",
+    "La Rochelle": "France", "Nantes": "France", "Saint-Sébastien": "Espagne",
+    "Porto": "Portugal",
+    "Rome": "Italie", "Florence": "Italie", "Venise": "Italie", "Naples": "Italie",
+    "Palerme": "Italie", "Marseille": "France", "Nice": "France",
+    "Barcelone": "Espagne", "Madrid": "Espagne", "Séville": "Espagne",
+    "Valence": "Espagne", "Athènes": "Grèce", "Lisbonne": "Portugal",
+    "Split": "Croatie", "Dubrovnik": "Croatie", "Cyclades": "Grèce",
+    "Annecy": "France", "Chamonix": "France", "Genève": "Suisse",
+    "Grenoble": "France", "Innsbruck": "Autriche", "Méribel": "France",
+    "Zermatt": "Suisse",
+    "Marrakech": "Maroc", "Agadir": "Maroc", "Essaouira": "Maroc",
+    "Tunis": "Tunisie", "Dubaï": "Émirats Arabes Unis",
+    "Hanoï": "Vietnam", "Ho Chi Minh": "Vietnam", "Siem Reap": "Cambodge",
+    "Bangkok": "Thaïlande", "Singapour": "Singapour",
+    "Tokyo": "Japon", "Kyoto": "Japon", "Osaka": "Japon",
+    "Pékin": "Chine", "Shanghai": "Chine", "Xi'an": "Chine", "Chengdu": "Chine",
+    "Séoul": "Corée du Sud", "Busan": "Corée du Sud",
+    "New York": "États-Unis", "Boston": "États-Unis",
+    "San Francisco": "États-Unis", "Los Angeles": "États-Unis",
+    "Miami": "États-Unis", "Cancún": "Mexique", "Bali": "Indonésie",
+}
+
 # 4bis. GÉO — Table 1bis : chaque PAYS (ou État US) pointe vers sa zone climatique.
 #       Même mécanisme que VILLE_VERS_ZONE : une entrée -> une zone de ZONES.
 #       Pays au climat trop hétérogène pour une seule zone (USA, Indonésie, Brésil,
@@ -394,6 +446,11 @@ PAYS_UE = {
     "Grèce", "Portugal", "Croatie", "Malte", "Chypre",
 }
 
+# 4ter-bis. GÉO — CARTE D'IDENTITÉ SUFFIT : UE + Schengen/EEE hors UE (Suisse,
+#           Norvège, Islande) où la carte d'identité remplace le passeport et où
+#           le permis français suffit (pas de permis international).
+SANS_PASSEPORT = PAYS_UE | {"Suisse", "Norvège", "Islande"}
+
 # 4quater. GÉO — PRISE : quel adaptateur emporter DEPUIS LA FRANCE pour ce pays.
 #          Valeurs usuelles (à revérifier ponctuellement). Le garde-fou
 #          pays_sans_prise() signale tout pays de PAYS_VERS_ZONE non couvert ici.
@@ -412,6 +469,7 @@ PAYS_VERS_PRISE = {
     # Prises américaines (type A/B, 110V)
     "Mexique": "US (110V)", "République Dominicaine": "US (110V)",
     "Costa Rica": "US (110V)", "Japon": "US (110V)",
+    "États-Unis": "US (110V)",
     "Californie": "US (110V)", "Floride": "US (110V)", "Hawaï": "US (110V)",
     "Nevada": "US (110V)", "Arizona": "US (110V)", "Louisiane": "US (110V)",
     # Prises mélangées -> adaptateur universel
@@ -492,19 +550,27 @@ def zone_de(destination):
     return None
 
 
+def pays_de(destination):
+    """Résoudre une destination en pays : une ville -> son pays, un pays -> lui-même."""
+    return VILLE_VERS_PAYS.get(destination, destination)
+
+
 def statut_ue(destination):
-    """Déduire le statut UE : 'ue', 'hors_ue', ou 'inconnu' (ville non couverte)."""
-    if destination in PAYS_UE:
+    """Statut documents : 'ue' (carte d'identité suffit — UE + Schengen), 'hors_ue'
+    (passeport + permis international), ou 'inconnu' (pays non modélisé)."""
+    pays = pays_de(destination)
+    if pays in SANS_PASSEPORT:
         return "ue"
-    if destination in PAYS_VERS_ZONE:   # pays connu absent de l'UE -> hors UE
+    if pays in PAYS_VERS_ZONE or pays in PAYS_VERS_PRISE:   # pays connu hors zone CI
         return "hors_ue"
-    return "inconnu"                     # ville ou non couvert -> défaut prudent
+    return "inconnu"                     # pays non modélisé -> défaut prudent (passeport)
 
 
 def adaptateur_pour(destination):
     """Libellé de l'adaptateur à emporter depuis la France, ou 'à vérifier'."""
-    if destination in PAYS_VERS_PRISE:
-        return PAYS_VERS_PRISE[destination]
+    pays = pays_de(destination)
+    if pays in PAYS_VERS_PRISE:
+        return PAYS_VERS_PRISE[pays]
     return "à vérifier"
 
 def statut_ue_itineraire(itineraire):
@@ -560,8 +626,12 @@ def quantite_reelle(marqueur, jours):
         return jours
     if marqueur == "par_semaine":
         return max(1, jours // 7)   # jamais moins de 1 (plancher)
+    if marqueur == "par_4_jours":
+        return max(1, jours // 4)
     if marqueur == "par_3_jours":
         return max(1, jours // 3)
+    if marqueur == "par_2_jours":
+        return max(1, jours // 2)
     return marqueur          # déjà un nombre (ex: 1) -> tel quel
 
 
@@ -593,6 +663,8 @@ def objets_sans_rayon():
     for sous_table in PAR_TYPE_PERSO.values():
         tous |= set(sous_table)
     for sous_table in PAR_PERSONNE.values():
+        tous |= set(sous_table)
+    for sous_table in CHAUD_PERSO.values():
         tous |= set(sous_table)
     classes = set()
     for objets in THEMES.values():
@@ -669,6 +741,15 @@ def faire_valise(jours_types, total, personnes, hors_ue, conduit):
         # filtre final : ce que cette personne ne prend jamais (items genrés, etc.)
         for objet in JAMAIS.get(personne, set()):
             paquet[theme_de(objet)].pop(objet, None)
+        # réglages en pays chaud : écrasent la base (chaussures ouvertes + tenues du soir)
+        if "chaud" in jours_types:
+            for objet, marqueur in CHAUD_PERSO.get(personne, {}).items():
+                rayon = paquet[theme_de(objet)]
+                q = quantite_reelle(marqueur, total)
+                if q > 0:
+                    rayon[objet] = q
+                else:
+                    rayon.pop(objet, None)
         # documents personnels (chacun les siens)
         if hors_ue:
             paquet[theme_de("passeport")]["passeport"] = 1

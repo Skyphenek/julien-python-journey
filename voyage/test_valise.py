@@ -49,7 +49,7 @@ def test_statut_ue_ue_si_toutes_ue():
 
 
 def test_statut_ue_inconnu_declenche_le_flag():
-    itin = [{"destination": "Tokyo", "jours": 3, "mois": 6}]   # ville -> statut inconnu
+    itin = [{"destination": "Lima", "jours": 3, "mois": 6}]   # ville non modélisée -> statut inconnu
     hors_ue, inconnu = statut_ue_itineraire(itin)
     assert hors_ue is True
     assert inconnu is True
@@ -106,10 +106,10 @@ def test_faire_valise_documents_selon_ue():
     assert "carte d'identité" in dans["Julien"]["Documents"]
 
 def test_faire_valise_dimension_par_jours_du_climat():
-    # maillot n'existe que dans "plage" ; plage=7j sur 18 total -> 7//3=2, pas 18//3=6
+    # maillot de bain n'existe que dans "plage" ; plage=7j sur 18 total -> 7//3=2, pas 18//3=6
     jpt = {"chaud": 18, "plage": 7}
     valise = faire_valise(jpt, 18, ["Julien"], hors_ue=True, conduit=False)
-    assert valise["Julien"]["Vêtements"]["maillot"] == 2
+    assert valise["Julien"]["Vêtements"]["maillot de bain"] == 2
 
 
 def test_valise_en_html_injecte_la_variable_voyage():
