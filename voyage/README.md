@@ -34,20 +34,25 @@ les appareils qui ouvrent cette URL — ne plus ouvrir `valise.html` directement
 Exemple de saisie (Vietnam + Cambodge, 18 jours en janvier) :
 
 ```
+Date de départ (ex. 10/01/2027 ou 10 janv 2027) : 10 janv 2027
 Étape 1 — destination (ou 'fin' pour terminer) : hanoi
         📍 1. Hanoï — Hanoï, Viêt Nam
         📍 2. Hanoi — Hautes-Terres méridionales, Papouasie-Nouvelle-Guinée
         — lequel ? (Entrée = 1) :
         — jours : 7
-        — mois (1-12 ou janvier, févr…) : janv
+        — du 10 janvier 2027 au 16 janvier 2027 (janvier)      ← mois calculé, plus de question
         — activités ? (v)ille (p)lage (m)ontagne, combinables : v
-        🌡️ Hanoï · janvier : 14–21 °C · 🌧️ 10 j de pluie/mois
-Étape 2 — destination : siem reap   / jours : 4 / mois : Entrée (= janvier) / activités : v
-Étape 3 — destination : phu quoc    / jours : 7 / mois : Entrée (= janvier) / activités : p v
+Étape 2 — destination : siem reap   / jours : 4 / activités : v
+Étape 3 — destination : phu quoc    / jours : 7 / activités : p v
 Étape 4 — destination : fin
 Qui fait sa valise ? (j / l / 2) : 2
 Tu vas conduire ? (o/n) : n
+Voyage mémorisé : 2027-01-10 Hanoï › Siem Reap › Phu Quoc
 ```
+
+Chaque voyage est **mémorisé** (tables `voyages` et `valise_objets`) sous un code stable
+« date de départ + itinéraire » : régénérer la même valise garde les cases cochées.
+C'est la base du futur bilan de fin de voyage.
 
 ## Lancer les tests
 

@@ -1,5 +1,6 @@
 """Tests de valise.py — fonctions pures et règle d'accumulation."""
 import sys
+from datetime import date
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))   # permet d'importer valise depuis ce dossier
 
@@ -10,7 +11,8 @@ from valise import (total_jours, jours_par_type,
                     types_climat, libelle_lieu,
                     lire_mois, lire_activites, est_oui, un_par_pays,
                     statut_ue, adaptateur_pour, normales_avec_cache,
-                    THEMES, ICONES_RAYON, puce_climat, HTML_SCRIPT)
+                    THEMES, ICONES_RAYON, puce_climat, HTML_SCRIPT,
+                    lire_date, mois_des_etapes, code_voyage)
 
 def test_total_jours():
     itin = [{"destination": "Hanoï", "jours": 7, "mois": 1},
@@ -329,3 +331,43 @@ def test_appels_api_relatifs():
     # En ligne, la page vit sous /v/<secret>/ : "api/..." (relatif) suit, "/api/..." (absolu) casserait
     assert "fetch('/api/" not in HTML_SCRIPT
     assert "fetch('api/coche'" in HTML_SCRIPT
+
+
+
+# --- Identité d'un voyage : date de départ, mois calculés, code stable ---
+
+def test_lire_date_formats_courants():
+    attendu = date(2027, 1, 10)
+    for saisie in ["10/01/2027", "10/1/2027", "10/01/27", " 10-01-2027 ", "2027-01-10",
+                   "10 janvier 2027", "10 janv 2027", "10 Janv. 2027"]:
+        assert lire_date(saisie) == attendu, saisie
+
+
+def test_lire_date_refuse_l_invalide():
+    for saisie in ["", "31/02/2027", "demain", "10/13/2027", "10 ju 2027"]:
+        assert lire_date(saisie) is None, saisie
+
+
+def test_mois_des_etapes_jour_du_milieu():
+    # Départ 10 janvier : Tokyo 7 j (milieu 13/01), Kyoto 4 j (milieu 18/01),
+    # Bangkok 20 j du 21/01 au 09/02 (milieu 30/01 -> janvier), Bali 10 j (milieu 14/02)
+    assert mois_des_etapes(date(2027, 1, 10), [7, 4, 20, 10]) == [1, 1, 1, 2]
+
+
+def test_mois_des_etapes_passage_d_annee():
+    assert mois_des_etapes(date(2026, 12, 28), [3, 10]) == [12, 1]
+
+
+def test_code_voyage_stable():
+    # Même date + même itinéraire -> même code : régénérer la valise garde les cases cochées
+    assert code_voyage(date(2027, 1, 10), "Tokyo › Bangkok") == "2027-01-10 Tokyo › Bangkok"
+
+
+def test_valise_en_html_cles_avec_le_code_du_voyage():
+    paquet = paquet_vide()
+    paquet["Vêtements"]["shorts"] = 3
+    html = valise_en_html({"Julien": paquet}, "Tokyo › Bangkok", 18, set(),
+                          code="2027-01-10 Tokyo › Bangkok", depart=date(2027, 1, 10))
+    assert 'const VOYAGE = "2027-01-10 Tokyo › Bangkok";' in html
+    assert 'data-key="2027-01-10 Tokyo › Bangkok/Julien/Vêtements/shorts"' in html
+    assert "départ le 10 janvier 2027" in html

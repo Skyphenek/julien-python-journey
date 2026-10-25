@@ -5,7 +5,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 import pytest
 from db import (connecter, obtenir_etat, enregistrer_coche,
-                lire_normales, enregistrer_normales, publier_page, lire_page)
+                lire_normales, enregistrer_normales, publier_page, lire_page,
+                enregistrer_voyage, lire_voyage, enregistrer_valise_objets, lire_valise_objets)
 from valise import normales_avec_cache
 
 
@@ -13,7 +14,7 @@ from valise import normales_avec_cache
 def conn():
     connexion = connecter("valise_test")
     with connexion.cursor() as cur:
-        cur.execute("TRUNCATE etat_case, normales_climat, page_valise")
+        cur.execute("TRUNCATE etat_case, normales_climat, page_valise, voyages, valise_objets")
     connexion.commit()
     yield connexion
     connexion.close()
@@ -105,3 +106,40 @@ def test_les_tests_ignorent_la_base_en_ligne(monkeypatch):
     connexion = connecter("valise_test")
     assert connexion.info.dbname == "valise_test"
     connexion.close()
+
+
+
+# --- Mémoire des voyages : identité + photo de la valise ---
+
+from datetime import date
+
+CODE = "2027-01-10 Tokyo › Bangkok"
+ITINERAIRE = [{"destination": "Tokyo", "jours": 7, "mois": 1, "activites": ["ville"],
+               "code_pays": "JP", "normales": {"tmin": 2.0, "tmax": 10.0, "jours_pluie": 5, "jours_forte_pluie": 1.5}}]
+
+
+def test_enregistrer_puis_lire_voyage(conn):
+    enregistrer_voyage(conn, CODE, "Tokyo › Bangkok", date(2027, 1, 10), ["Julien", "Laetitia"],
+                       ITINERAIRE, {"froid": 7, "ville": 7})
+    v = lire_voyage(conn, CODE)
+    assert v["libelle"] == "Tokyo › Bangkok"
+    assert v["depart"] == date(2027, 1, 10)
+    assert v["personnes"] == ["Julien", "Laetitia"]
+    assert v["itineraire"] == ITINERAIRE              # JSON aller-retour sans perte
+    assert v["jours_types"] == {"froid": 7, "ville": 7}
+
+
+def test_reenregistrer_un_voyage_le_met_a_jour(conn):
+    enregistrer_voyage(conn, CODE, "Tokyo › Bangkok", date(2027, 1, 10), ["Julien"], ITINERAIRE, {})
+    enregistrer_voyage(conn, CODE, "Tokyo › Bangkok", date(2027, 1, 10), ["Julien", "Laetitia"], ITINERAIRE, {})
+    assert lire_voyage(conn, CODE)["personnes"] == ["Julien", "Laetitia"]
+    with conn.cursor() as cur:
+        cur.execute("SELECT count(*) FROM voyages")
+        assert cur.fetchone()[0] == 1
+
+
+def test_photo_de_la_valise_remplacee_a_chaque_publication(conn):
+    enregistrer_voyage(conn, CODE, "Tokyo › Bangkok", date(2027, 1, 10), ["Julien"], ITINERAIRE, {})
+    enregistrer_valise_objets(conn, CODE, {"Julien": {"Vêtements": {"shorts": 3, "pull": 1}}})
+    enregistrer_valise_objets(conn, CODE, {"Julien": {"Vêtements": {"shorts": 2}}})   # régénérée
+    assert lire_valise_objets(conn, CODE) == {("Julien", "Vêtements", "shorts"): 2}

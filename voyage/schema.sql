@@ -30,3 +30,27 @@ CREATE TABLE IF NOT EXISTS page_valise (
     html    TEXT        NOT NULL,
     maj_le  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Mémoire des voyages (bilan de fin de séjour) -------------------------------------------
+-- Un voyage = un code stable "date de départ + itinéraire" : régénérer la même valise
+-- (même date, mêmes étapes) retombe sur le même voyage et garde les cases cochées.
+CREATE TABLE IF NOT EXISTS voyages (
+    code        TEXT        PRIMARY KEY,               -- "2027-01-10 Tokyo › Bangkok"
+    libelle     TEXT        NOT NULL,                  -- "Tokyo › Bangkok"
+    depart      DATE        NOT NULL,
+    personnes   TEXT[]      NOT NULL,                  -- {Julien,Laetitia}
+    itineraire  JSONB       NOT NULL,                  -- étapes : destination, jours, mois, activités, pays, normales
+    jours_types JSONB       NOT NULL,                  -- {"chaud": 11, "ville": 18} : le contexte climatique
+    cree_le     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    maj_le      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Photo de la valise proposée : la référence pour dire "en trop" ou "pas servi".
+CREATE TABLE IF NOT EXISTS valise_objets (
+    voyage       TEXT    NOT NULL REFERENCES voyages(code) ON DELETE CASCADE,
+    proprietaire TEXT    NOT NULL,
+    theme        TEXT    NOT NULL,
+    objet        TEXT    NOT NULL,
+    quantite     INTEGER NOT NULL,
+    PRIMARY KEY (voyage, proprietaire, theme, objet)
+);

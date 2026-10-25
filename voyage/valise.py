@@ -7,14 +7,17 @@ On sépare les DONNÉES (les 3 tables ci-dessous, remplies une fois) de la LOGIQ
 """
 import json
 import os
+import re
 import unicodedata
+from datetime import date, timedelta
 from pathlib import Path
 
 import psycopg2
 import requests
 
 from api_climat import lieux, normales_12_mois
-from db import connecter, lire_normales, enregistrer_normales, publier_page
+from db import (connecter, lire_normales, enregistrer_normales, publier_page,
+                enregistrer_voyage, enregistrer_valise_objets)
 from dotenv import load_dotenv
 
 # Feuille de style de la checklist HTML (mobile-first). Fournie clé en main :
@@ -730,11 +733,15 @@ def faire_valise(jours_types, total, personnes, hors_ue, conduit):
 
     return valise
 
-def valise_en_html(valise, libelle_voyage, total, prises, climats=None):
+def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=None, depart=None):
     """Construire la page HTML de la checklist pour l'itinéraire complet.
 
     climats : liste optionnelle de (destination, mois, normales) — une puce par étape.
+    code    : identifiant stable du voyage (date + itinéraire) ; préfixe des cases cochées.
+    depart  : date de départ, affichée dans le titre.
     """
+    cle_voyage = code or libelle_voyage
+    quand = f" · départ le {date_en_clair(depart)}" if depart else ""
     adaptateurs = ", ".join(sorted(prises)) if prises else "aucun"
     puces = f'<span class="puce">🔌 Adaptateur : {adaptateurs}</span>'
     for destination, mois, n in climats or []:
@@ -766,7 +773,7 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None):
             corps += (f'<details class="rayon" open><summary><span class="icone">{icone}</span>'
                       f'<span class="nom">{theme}</span><span class="compte"></span></summary><ul>')
             for objet, quantite in sorted(objets.items()):
-                cle = f"{libelle_voyage}/{proprietaire}/{theme}/{objet}"
+                cle = f"{cle_voyage}/{proprietaire}/{theme}/{objet}"
                 corps += (f'<li><label><input type="checkbox" data-key="{cle}">'
                           f'<span class="nom">{objet}</span><span class="qte">×{quantite}</span></label></li>')
             corps += "</ul></details>"
@@ -781,7 +788,7 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None):
 <style>{HTML_STYLE}</style>
 </head>
 <body>
-<h1>{libelle_voyage} <span class="duree">· {total} jours</span></h1>
+<h1>{libelle_voyage} <span class="duree">· {total} jours{quand}</span></h1>
 <div class="puces">{puces}</div>
 <div class="collant">
 <div class="barres">{barres}</div>
@@ -789,7 +796,7 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None):
 </div>
 {corps}
 <div class="controls"><button id="toggle-masque" class="ctrl-btn">Masquer les rangés</button><button id="reset" class="ctrl-btn">Réinitialiser</button></div>
-<script>const VOYAGE = {json.dumps(libelle_voyage, ensure_ascii=False)};</script>
+<script>const VOYAGE = {json.dumps(cle_voyage, ensure_ascii=False)};</script>
 <script>{HTML_SCRIPT}</script>
 </body>
 </html>"""
@@ -828,6 +835,48 @@ def lire_mois(reponse, precedent=None):
         return mois if 1 <= mois <= 12 else None
     trouves = [i for i, nom in enumerate(MOIS, start=1) if sans_accents(nom).startswith(texte)]
     return trouves[0] if len(trouves) == 1 else None
+
+
+def lire_date(reponse):
+    """'10/01/2027', '10/1/27', '2027-01-10', '10 janv. 2027' -> date ; None si invalide.
+    Le mois accepte chiffre ou nom (même logique que lire_mois)."""
+    texte = sans_accents(reponse.strip().lower()).replace(".", " ")
+    morceaux = [m for m in re.split(r"[\s/-]+", texte) if m]     # séparateurs : espace, / ou -
+    if len(morceaux) != 3:
+        return None
+    if len(morceaux[0]) == 4:                                   # format ISO : année-mois-jour
+        annee, mois_txt, jour = morceaux
+    else:
+        jour, mois_txt, annee = morceaux
+    mois = lire_mois(mois_txt)
+    if mois is None or not (jour.isdigit() and annee.isdigit()):
+        return None
+    annee = int(annee) + (2000 if len(annee) == 2 else 0)       # "27" -> 2027
+    try:
+        return date(annee, mois, int(jour))
+    except ValueError:                                          # 31 février…
+        return None
+
+
+def mois_des_etapes(depart, durees):
+    """Mois de chaque étape, déduit de la date de départ et des jours cumulés.
+    Une étape à cheval sur deux mois prend le mois de son jour du milieu."""
+    mois = []
+    debut = depart
+    for jours in durees:
+        milieu = debut + timedelta(days=(jours - 1) // 2)
+        mois.append(milieu.month)
+        debut += timedelta(days=jours)
+    return mois
+
+
+def code_voyage(depart, libelle):
+    """Identifiant stable d'un voyage : même date + même itinéraire = même voyage."""
+    return f"{depart.isoformat()} {libelle}"
+
+
+def date_en_clair(d):
+    return f"{d.day} {MOIS[d.month - 1]} {d.year}"
 
 
 def lire_activites(reponse):
@@ -888,10 +937,17 @@ def main():
         conn = None
         print("ℹ️  Postgres indisponible : climat interrogé en direct, sans cache.")
 
+    # --- Date de départ : identifie le voyage et donne le mois de chaque étape ---
+    while True:
+        depart = lire_date(input("Date de départ (ex. 10/01/2027 ou 10 janv 2027) : "))
+        if depart:
+            break
+        print("Date invalide : jour/mois/année, par exemple 10/01/2027.")
+    debut_etape = depart
+
     # --- Saisie de l'itinéraire, étape par étape ---
     itineraire = []
     numero = 1
-    mois_precedent = None             # Entrée au mois = même mois que l'étape d'avant
     while True:
         saisie = input(f"Étape {numero} — destination (ou 'fin' pour terminer) : ").strip()
         if saisie == "":
@@ -917,13 +973,10 @@ def main():
                 jours = int(reponse)
                 break
             print("        Nombre de jours invalide : entre un nombre positif.")
-        while True:
-            defaut = f" [Entrée = {MOIS[mois_precedent - 1]}]" if mois_precedent else ""
-            mois = lire_mois(input(f"        — mois (1-12 ou janvier, févr…){defaut} : "), mois_precedent)
-            if mois:
-                break
-            print("        Mois invalide : un nombre de 1 à 12 ou un nom de mois (janv, juillet…).")
-        mois_precedent = mois
+        mois = mois_des_etapes(debut_etape, [jours])[0]        # plus de question : calculé
+        fin_etape = debut_etape + timedelta(days=jours - 1)
+        print(f"        — du {date_en_clair(debut_etape)} au {date_en_clair(fin_etape)} ({MOIS[mois - 1]})")
+        debut_etape += timedelta(days=jours)
         while True:
             activites = lire_activites(input("        — activités ? (v)ille (p)lage (m)ontagne, combinables : "))
             if activites:
@@ -965,14 +1018,18 @@ def main():
 
     climats = [(e["destination"], e["mois"], e["normales"]) for e in itineraire]
     libelle_voyage = " › ".join(etape["destination"] for etape in itineraire)
-    html = valise_en_html(valise, libelle_voyage, total, prises, climats)
+    code = code_voyage(depart, libelle_voyage)
+    html = valise_en_html(valise, libelle_voyage, total, prises, climats, code=code, depart=depart)
     with open("valise.html", "w", encoding="utf-8") as f:
         f.write(html)
     print(f"Checklist écrite dans valise.html ({total} jours, {len(itineraire)} étape(s))")
     try:                                  # publication en base : c'est elle que le serveur affiche
         conn = connecter()
+        enregistrer_voyage(conn, code, libelle_voyage, depart, personnes, itineraire, jours_types)
+        enregistrer_valise_objets(conn, code, valise)      # la photo : référence du futur bilan
         publier_page(conn, html)
         conn.close()
+        print(f"Voyage mémorisé : {code}")
         ou = "en ligne" if os.environ.get("DATABASE_URL") else "sur le Mac"
         print(f"Checklist publiée dans la base ({ou}).")
     except psycopg2.OperationalError:
