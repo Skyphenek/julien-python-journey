@@ -81,8 +81,7 @@ button.ctrl-btn {
 # est plein d'accolades : il ne doit PAS traverser la f-string qui construit la page.
 HTML_SCRIPT = """
 // Références aux éléments de la page (tout en haut : dispo avant tout appel)
-const CLE = "valise-checklist";                         // un seul magasin ; la destination est gravée dans chaque data-key
-const sauvegarde = JSON.parse(localStorage.getItem(CLE) || "{}");
+let sauvegarde = {};                                    // rempli après la réponse du serveur
 const sections = document.querySelectorAll('section[data-owner]');
 const onglets = document.querySelectorAll('nav.tabs button');
 const compte = document.getElementById('compte');
@@ -135,38 +134,62 @@ function activer(nom) {
     appliquerMasque();
 }
 
-// Persistance : restaurer au chargement, sauver à chaque coche/décoche
-document.querySelectorAll('input[type=checkbox]').forEach(function (box) {
-    if (sauvegarde[box.dataset.key]) box.checked = true;
-    box.addEventListener('change', function () {
-        sauvegarde[box.dataset.key] = box.checked;
-        localStorage.setItem(CLE, JSON.stringify(sauvegarde));
-        majProgression();
-        majOnglets();
+// Sauvegarde d'une seule case sur le serveur (jamais tout l'état -> pas d'écrasement croisé)
+function sauverCoche(cle, coche) {
+    fetch('/api/coche', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cle: cle, coche: coche })
+    });
+}
+
+// Tout ce qui dépend de `sauvegarde` : à lancer seulement une fois l'état reçu du serveur
+function initialiser() {
+    document.querySelectorAll('input[type=checkbox]').forEach(function (box) {
+        if (sauvegarde[box.dataset.key]) box.checked = true;
+        box.addEventListener('change', function () {
+            sauvegarde[box.dataset.key] = box.checked;
+            sauverCoche(box.dataset.key, box.checked);
+            majProgression();
+            majOnglets();
+            appliquerMasque();
+        });
+    });
+
+    onglets.forEach(function (b) { b.addEventListener('click', function () { activer(b.dataset.owner); }); });
+    btnMasque.addEventListener('click', function () {
+        masquer = !masquer;
+        btnMasque.textContent = masquer ? 'Afficher tout' : 'Masquer les rangés';
         appliquerMasque();
     });
-});
-
-// Boutons : onglets + toggle "masquer les rangés"
-onglets.forEach(function (b) { b.addEventListener('click', function () { activer(b.dataset.owner); }); });
-btnMasque.addEventListener('click', function () {
-    masquer = !masquer;
-    btnMasque.textContent = masquer ? 'Afficher tout' : 'Masquer les rangés';
-    appliquerMasque();
-});
-btnReset.addEventListener('click', function () {
-    document.querySelectorAll('input[type=checkbox]').forEach(function (box) {
-        box.checked = false;                 // on décoche visuellement
-        delete sauvegarde[box.dataset.key];  // et on efface de la mémoire
+    btnReset.addEventListener('click', function () {
+        document.querySelectorAll('input[type=checkbox]').forEach(function (box) {
+            box.checked = false;                 // on décoche visuellement
+            delete sauvegarde[box.dataset.key];  // et on efface de la mémoire locale
+            sauverCoche(box.dataset.key, false);  // et on sauve le décochage sur le serveur
+        });
+        majProgression();
+        appliquerMasque();
     });
-    localStorage.setItem(CLE, JSON.stringify(sauvegarde));
-    majProgression();
-    appliquerMasque();
-});
 
-// Démarrage : premier onglet actif + compteurs d'onglets
-if (onglets.length) activer(onglets[0].dataset.owner);
-majOnglets();
+    if (onglets.length) activer(onglets[0].dataset.owner);
+    majOnglets();
+}
+
+// Démarrage : on va chercher l'état de CE voyage sur le serveur, puis on initialise
+fetch('/api/etat/' + encodeURIComponent(VOYAGE))
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+        sauvegarde = data;
+        initialiser();
+    })
+    .catch(function () {
+        // Serveur éteint, Postgres down, ou téléphone hors du wifi du Mac
+        document.body.insertAdjacentHTML('afterbegin',
+            '<p style="background:#fee2e2;color:#991b1b;padding:.75rem 1rem;' +
+            'border-radius:10px;margin-bottom:1rem;">Pas connecté au serveur — ' +
+            'vérifie que le Mac est allumé et sur le même wifi.</p>');
+    });
 """
 
 # 1a. BASE COMMUN : 1 pour le groupe entier (un seul suffit à plusieurs).
