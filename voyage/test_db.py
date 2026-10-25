@@ -5,7 +5,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 import pytest
 from db import (connecter, obtenir_etat, enregistrer_coche,
-                lire_normales, enregistrer_normales)
+                lire_normales, enregistrer_normales, publier_page, lire_page)
 from valise import normales_avec_cache
 
 
@@ -13,7 +13,7 @@ from valise import normales_avec_cache
 def conn():
     connexion = connecter("valise_test")
     with connexion.cursor() as cur:
-        cur.execute("TRUNCATE etat_case, normales_climat")
+        cur.execute("TRUNCATE etat_case, normales_climat, page_valise")
     connexion.commit()
     yield connexion
     connexion.close()
@@ -84,3 +84,24 @@ def test_normales_avec_cache_n_appelle_l_api_qu_une_fois(conn):
     assert normales_avec_cache(conn, 21.03, 105.85, 7, chercher=fausse_api) == HANOI_JUIL  # autre mois
     assert normales_avec_cache(conn, 21.03, 105.85, 1, chercher=fausse_api) == HANOI_JANV
     assert len(appels) == 1                       # 1 appel a rempli les 12 mois
+
+
+
+# --- Page publiée en base (pour le serveur en ligne) ---
+
+def test_lire_page_vide(conn):
+    assert lire_page(conn) is None
+
+
+def test_publier_remplace_la_page_precedente(conn):
+    publier_page(conn, "<html>Tokyo</html>")
+    publier_page(conn, "<html>Bangkok</html>")
+    assert lire_page(conn) == "<html>Bangkok</html>"
+
+
+def test_les_tests_ignorent_la_base_en_ligne(monkeypatch):
+    # Garde-fou : même si DATABASE_URL pointe vers le cloud, "valise_test" reste locale
+    monkeypatch.setenv("DATABASE_URL", "postgresql://pirate@exemple.invalid/prod")
+    connexion = connecter("valise_test")
+    assert connexion.info.dbname == "valise_test"
+    connexion.close()

@@ -1,0 +1,16 @@
+# Recette de déploiement Render ("Blueprint") : le serveur de checklist valise.
+# Les secrets ne sont PAS ici : DATABASE_URL se saisit dans l'interface Render,
+# ACCES_SECRET est généré par Render (code aléatoire).
+services:
+  - type: web
+    name: valise
+    runtime: python
+    plan: free
+    rootDir: voyage
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn serveur:app
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: ACCES_SECRET
+        generateValue: true

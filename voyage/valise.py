@@ -6,13 +6,16 @@ On sépare les DONNÉES (les 3 tables ci-dessous, remplies une fois) de la LOGIQ
 (la fonction faire_valise). Démarrage minimal : on enrichit au fil des voyages.
 """
 import json
+import os
 import unicodedata
+from pathlib import Path
 
 import psycopg2
 import requests
 
 from api_climat import lieux, normales_12_mois
-from db import connecter, lire_normales, enregistrer_normales
+from db import connecter, lire_normales, enregistrer_normales, publier_page
+from dotenv import load_dotenv
 
 # Feuille de style de la checklist HTML (mobile-first). Fournie clé en main :
 # c'est de la présentation, pas de la logique. Injectée telle quelle dans le <head>.
@@ -185,7 +188,7 @@ function activer(nom) {
 const derniereModif = {};                              // clé -> instant du dernier clic sur CET appareil
 function sauverCoche(cle, coche) {
     derniereModif[cle] = Date.now();
-    fetch('/api/coche', {
+    fetch('api/coche', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cle: cle, coche: coche })
@@ -197,7 +200,7 @@ function sauverCoche(cle, coche) {
 // sauvegarde peut ne pas être encore arrivée, on ne veut pas la "décocher" à l'écran.
 function rafraichir() {
     if (document.hidden) return;                       // onglet en arrière-plan : on ne fait rien
-    fetch('/api/etat/' + encodeURIComponent(VOYAGE))
+    fetch('api/etat/' + encodeURIComponent(VOYAGE))
         .then(function (r) { return r.json(); })
         .then(function (data) {
             let change = false;
@@ -259,7 +262,7 @@ function initialiser() {
 }
 
 // Démarrage : on va chercher l'état de CE voyage sur le serveur, puis on initialise
-fetch('/api/etat/' + encodeURIComponent(VOYAGE))
+fetch('api/etat/' + encodeURIComponent(VOYAGE))
     .then(function (r) { return r.json(); })
     .then(function (data) {
         sauvegarde = data;
@@ -874,6 +877,7 @@ def choisir_lieu(candidats):
 
 def main():
     """Assistant interactif : saisit un itinéraire, puis construit la valise."""
+    load_dotenv(Path(__file__).parent / ".env")   # DATABASE_URL éventuelle -> base en ligne
     manquants = objets_sans_rayon()
     if manquants:
         print(f"⚠️  Objets sans rayon (à classer dans THEMES) : {manquants}")
@@ -965,6 +969,14 @@ def main():
     with open("valise.html", "w", encoding="utf-8") as f:
         f.write(html)
     print(f"Checklist écrite dans valise.html ({total} jours, {len(itineraire)} étape(s))")
+    try:                                  # publication en base : c'est elle que le serveur affiche
+        conn = connecter()
+        publier_page(conn, html)
+        conn.close()
+        ou = "en ligne" if os.environ.get("DATABASE_URL") else "sur le Mac"
+        print(f"Checklist publiée dans la base ({ou}).")
+    except psycopg2.OperationalError:
+        print("ℹ️  Base indisponible : checklist non publiée (seul valise.html est à jour).")
 
 
 if __name__ == "__main__":

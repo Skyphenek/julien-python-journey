@@ -1,5 +1,5 @@
 -- voyage/schema.sql
-CREATE TABLE etat_case (
+CREATE TABLE IF NOT EXISTS etat_case (
     voyage       TEXT    NOT NULL,
     proprietaire TEXT    NOT NULL,
     theme        TEXT    NOT NULL,
@@ -21,4 +21,12 @@ CREATE TABLE IF NOT EXISTS normales_climat (
     jours_forte_pluie DOUBLE PRECISION NOT NULL,
     calcule_le        TIMESTAMPTZ      NOT NULL DEFAULT now(),
     PRIMARY KEY (latitude, longitude, mois)
+);
+
+-- Page de checklist publiée par valise.py : le serveur (local ou en ligne) la sert depuis la base,
+-- car valise.html n'existe que sur le Mac. Une seule page "courante" à la fois.
+CREATE TABLE IF NOT EXISTS page_valise (
+    cle     TEXT        PRIMARY KEY DEFAULT 'courante',
+    html    TEXT        NOT NULL,
+    maj_le  TIMESTAMPTZ NOT NULL DEFAULT now()
 );

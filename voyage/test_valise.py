@@ -10,7 +10,7 @@ from valise import (total_jours, jours_par_type,
                     types_climat, libelle_lieu,
                     lire_mois, lire_activites, est_oui, un_par_pays,
                     statut_ue, adaptateur_pour, normales_avec_cache,
-                    THEMES, ICONES_RAYON, puce_climat)
+                    THEMES, ICONES_RAYON, puce_climat, HTML_SCRIPT)
 
 def test_total_jours():
     itin = [{"destination": "Hanoï", "jours": 7, "mois": 1},
@@ -322,3 +322,10 @@ def test_un_voyageur_une_seule_barre():
     html = valise_en_html(_valise_de("Laetitia"), "Rome", 5, set())
     assert html.count('<div class="barre"') == 1
     assert '<div class="barre" data-owner=""><div class="progress-head"><span>Rangé</span>' in html
+
+
+
+def test_appels_api_relatifs():
+    # En ligne, la page vit sous /v/<secret>/ : "api/..." (relatif) suit, "/api/..." (absolu) casserait
+    assert "fetch('/api/" not in HTML_SCRIPT
+    assert "fetch('api/coche'" in HTML_SCRIPT
