@@ -6,7 +6,8 @@ sys.path.insert(0, str(Path(__file__).parent))   # permet d'importer valise depu
 from valise import (total_jours, jours_par_type,
                     statut_ue_itineraire, prises_itineraire,
                     quantite_reelle, faire_valise,
-                    valise_en_html, paquet_vide, ligne_climat)
+                    valise_en_html, paquet_vide, ligne_climat,
+                    types_climat)
 
 def test_total_jours():
     itin = [{"destination": "Hanoï", "jours": 7, "mois": 1},
@@ -15,22 +16,46 @@ def test_total_jours():
     assert total_jours(itin) == 18
 
 
+# Normales factices (même format que api_climat.normales) : pas de réseau dans les tests
+LONDRES_JANV = {"tmin": 1.6, "tmax": 7.7, "jours_pluie": 12}
+HANOI_JANV = {"tmin": 14.3, "tmax": 21.1, "jours_pluie": 10}
+SIEM_REAP_JANV = {"tmin": 21.5, "tmax": 31.1, "jours_pluie": 2}
+
+
+def test_types_climat_froid_et_pluie():
+    assert types_climat(LONDRES_JANV) == ["froid", "pluie"]
+
+
+def test_types_climat_chaud():
+    assert types_climat(SIEM_REAP_JANV) == ["chaud"]
+
+
+def test_types_climat_doux_ni_chaud_ni_froid():
+    # Hanoï en janvier : 21 °C max -> ni chaud ni froid (les anciennes zones disaient "chaud")
+    assert types_climat(HANOI_JANV) == ["pluie"]
+
+
+def test_types_climat_inconnu():
+    assert types_climat(None) == []
+
+
 def test_jours_par_type_additionne_les_etapes():
-    # janvier, zone asie_sud_est -> ["chaud", "plage"] pour les deux villes
-    itin = [{"destination": "Hanoï", "jours": 7, "mois": 1},
-            {"destination": "Siem Reap", "jours": 4, "mois": 1}]
+    itin = [{"destination": "Hanoï", "jours": 7, "mois": 1,
+             "activites": ["ville"], "normales": HANOI_JANV},
+            {"destination": "Siem Reap", "jours": 4, "mois": 1,
+             "activites": ["ville"], "normales": SIEM_REAP_JANV}]
     jpt = jours_par_type(itin)
-    assert jpt["chaud"] == 11
-    assert jpt["plage"] == 11
+    assert jpt["ville"] == 11      # activité présente sur les deux étapes
+    assert jpt["pluie"] == 7       # climat de Hanoï seulement
+    assert jpt["chaud"] == 4       # climat de Siem Reap seulement
 
 
-def test_jours_par_type_type_sur_une_seule_etape():
-    # étape d'été asie_sud_est -> ["chaud", "plage", "pluie"] ; pluie sur cette étape seule
-    itin = [{"destination": "Hanoï", "jours": 5, "mois": 1},
-            {"destination": "Hanoï", "jours": 3, "mois": 7}]
+def test_jours_par_type_plusieurs_activites():
+    itin = [{"destination": "Phu Quoc", "jours": 7, "mois": 1,
+             "activites": ["plage", "ville"], "normales": SIEM_REAP_JANV}]
     jpt = jours_par_type(itin)
-    assert jpt["chaud"] == 8
-    assert jpt["pluie"] == 3
+    assert jpt == {"chaud": 7, "plage": 7, "ville": 7}
+
 
 def test_statut_ue_hors_ue_si_une_etape_hors_ue():
     itin = [{"destination": "France", "jours": 3, "mois": 6},

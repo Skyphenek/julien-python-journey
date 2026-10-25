@@ -37,8 +37,10 @@ Exemple de saisie (Vietnam + Cambodge, 18 jours en janvier) :
 Étape 1 — destination (ou 'fin' pour terminer) : Hanoï
         — jours : 7
         — mois (1-12) : 1
-Étape 2 — destination : Siem Reap   / jours : 4 / mois : 1
-Étape 3 — destination : Phu Quoc    / jours : 7 / mois : 1
+        — activités ? (v)ille (p)lage (m)ontagne, combinables : v
+        🌡️ Hanoï · janvier : 14–21 °C · 🌧️ 10 j de pluie/mois
+Étape 2 — destination : Siem Reap   / jours : 4 / mois : 1 / activités : v
+Étape 3 — destination : Phu Quoc    / jours : 7 / mois : 1 / activités : pv
 Étape 4 — destination : fin
 Qui fait sa valise ? (j / l / 2) : 2
 Tu vas conduire ? (o/n) : n
@@ -75,7 +77,10 @@ et la règle d'accumulation des quantités (max entre climats, suppression par 0
 
 ## Idée d'architecture
 
-Les **données** (tables `BASE_*`, `PAR_TYPE_*`, `ZONES`, `PAYS_*`, `THEMES`…) sont
+Les **données** (tables `BASE_*`, `PAR_TYPE_*`, `PAYS_*`, `THEMES`…) sont
 séparées de la **logique** (fonctions). On enrichit les tables au fil des voyages
-sans toucher au code. Le climat est déduit en deux temps : destination → zone
-climatique → types de destination selon la saison.
+sans toucher au code. Les types d'une étape viennent de deux sources :
+- **climat** (`chaud` / `froid` / `pluie`) : déduit des normales réelles sur 10 ans
+  (`api_climat.py`, Open-Meteo, gratuit sans clé) via les seuils `SEUIL_*` ;
+- **activités** (`ville` / `plage` / `montagne`) : saisies par étape.
+Toute ville trouvée par le géocodage Open-Meteo est acceptée.
