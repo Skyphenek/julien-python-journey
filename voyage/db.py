@@ -1,9 +1,19 @@
 """Accès Postgres : état de la checklist (coché / pas coché) et cache des normales climatiques."""
+import os
+
 import psycopg2
 
 
 def connecter(nom_base="valise"):
-    """Ouvre une connexion à la base Postgres locale (auth système, pas de mot de passe)."""
+    """Ouvre une connexion Postgres.
+
+    - Base "valise" + variable DATABASE_URL définie -> la base en ligne (Neon).
+    - Sinon -> la base locale du Mac (auth système, pas de mot de passe).
+    Garde-fou : "valise_test" est TOUJOURS locale, les tests ne peuvent pas toucher au cloud.
+    """
+    url = os.environ.get("DATABASE_URL")
+    if url and nom_base == "valise":
+        return psycopg2.connect(url)
     return psycopg2.connect(dbname=nom_base)
 
 
@@ -73,3 +83,24 @@ def enregistrer_normales(conn, latitude, longitude, normales_par_mois):
                  n["tmin"], n["tmax"], n["jours_pluie"], n["jours_forte_pluie"]),
             )
     conn.commit()
+
+
+def publier_page(conn, html):
+    """Enregistre la page de checklist courante (remplace la précédente)."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO page_valise (cle, html, maj_le) VALUES ('courante', %s, now())
+            ON CONFLICT (cle) DO UPDATE SET html = EXCLUDED.html, maj_le = now()
+            """,
+            (html,),
+        )
+    conn.commit()
+
+
+def lire_page(conn):
+    """La page de checklist courante, ou None si rien n'a encore été publié."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT html FROM page_valise WHERE cle = 'courante'")
+        ligne = cur.fetchone()
+    return ligne[0] if ligne else None

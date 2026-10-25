@@ -9,7 +9,8 @@ from valise import (total_jours, jours_par_type,
                     valise_en_html, paquet_vide, ligne_climat,
                     types_climat, libelle_lieu,
                     lire_mois, lire_activites, est_oui, un_par_pays,
-                    statut_ue, adaptateur_pour, normales_avec_cache)
+                    statut_ue, adaptateur_pour, normales_avec_cache,
+                    THEMES, ICONES_RAYON, puce_climat, HTML_SCRIPT)
 
 def test_total_jours():
     itin = [{"destination": "Hanoï", "jours": 7, "mois": 1},
@@ -266,3 +267,65 @@ def test_normales_avec_cache_sans_base():
     # Postgres éteint (conn = None) : on interroge l'API directement, sans planter
     fausse_api = lambda latitude, longitude: {1: HANOI_JANV}
     assert normales_avec_cache(None, 21.03, 105.85, 1, chercher=fausse_api) == HANOI_JANV
+
+
+
+# --- Affichage : rayons repliables ---
+
+def test_chaque_rayon_a_une_icone():
+    # Garde-fou : un rayon ajouté dans THEMES sans icône se verrait tout de suite
+    assert set(THEMES) <= set(ICONES_RAYON)
+
+
+def test_valise_en_html_rayon_repliable_avec_icone_et_compteur():
+    paquet = paquet_vide()
+    paquet["Vêtements"]["shorts"] = 3
+    html = valise_en_html({"Julien": paquet}, "Hanoï", 7, set())
+    assert '<details class="rayon" open>' in html            # repliable, ouvert au départ
+    assert "👕" in html
+    assert '<span class="compte"></span>' in html             # rempli par le JavaScript
+
+
+def test_valise_en_html_quantite_en_pastille():
+    paquet = paquet_vide()
+    paquet["Vêtements"]["shorts"] = 3
+    html = valise_en_html({"Julien": paquet}, "Hanoï", 7, set())
+    assert '<span class="nom">shorts</span><span class="qte">×3</span>' in html
+
+
+def test_valise_en_html_rayon_vide_absent():
+    html = valise_en_html({"Julien": paquet_vide()}, "Hanoï", 7, set())
+    assert '<details class="rayon"' not in html
+
+
+
+def test_puce_climat_courte():
+    assert puce_climat("Hanoï", HANOI_JANV) == "Hanoï 14–21° · 🌧️ 3 j forts"
+    assert puce_climat("Atlantide", None) == "Atlantide ?"
+
+
+# --- Barres de progression par personne ---
+
+def _valise_de(*personnes):
+    return faire_valise({"ville": 5}, 5, list(personnes), hors_ue=False, conduit=False)
+
+
+def test_deux_voyageurs_trois_barres():
+    html = valise_en_html(_valise_de("Julien", "Laetitia"), "Rome", 5, set())
+    assert html.count('<div class="barre"') == 3
+    assert '<div class="barre" data-owner="Julien">' in html
+    assert '<div class="barre" data-owner="Laetitia">' in html
+    assert '<div class="barre" data-owner=""><div class="progress-head"><span>Total</span>' in html
+
+
+def test_un_voyageur_une_seule_barre():
+    html = valise_en_html(_valise_de("Laetitia"), "Rome", 5, set())
+    assert html.count('<div class="barre"') == 1
+    assert '<div class="barre" data-owner=""><div class="progress-head"><span>Rangé</span>' in html
+
+
+
+def test_appels_api_relatifs():
+    # En ligne, la page vit sous /v/<secret>/ : "api/..." (relatif) suit, "/api/..." (absolu) casserait
+    assert "fetch('/api/" not in HTML_SCRIPT
+    assert "fetch('api/coche'" in HTML_SCRIPT

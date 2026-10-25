@@ -26,7 +26,7 @@ Puis lance le serveur (à garder ouvert pendant que vous préparez vos valises) 
 .venv/bin/python3 serveur.py
 ```
 
-Ouvre `http://localhost:5000/` sur le Mac, ou `http://<ip-locale-du-mac>:5000/`
+Ouvre `http://localhost:8000/` sur le Mac, ou `http://<ip-locale-du-mac>:8000/`
 depuis un téléphone sur le même wifi. L'état des cases est partagé entre tous
 les appareils qui ouvrent cette URL — ne plus ouvrir `valise.html` directement
 (ça ne syncroniserait rien).
@@ -94,3 +94,19 @@ ni d'accents ; en cas d'homonymes
 (Bali Inde / Indonésie), le programme liste les lieux et on choisit. Le pays du lieu
 choisi (code ISO : `VN`, `GB`…) pilote les papiers (`SANS_PASSEPORT`) et l'adaptateur
 (`PAYS_VERS_PRISE`).
+
+## Mise en ligne (Render + Neon, offres gratuites)
+
+Le même `serveur.py` tourne en local et en ligne ; seules les variables d'environnement changent :
+
+| Variable | Rôle | En local | En ligne |
+|----------|------|----------|----------|
+| `DATABASE_URL` | Adresse de la base | absente -> base `valise` du Mac (ou dans `voyage/.env` pour publier en ligne) | la base Neon |
+| `ACCES_SECRET` | Code secret : tout passe sous `/v/<code>/` | absente -> routes à la racine | généré par Render |
+| `PORT` | Port d'écoute | 8000 | imposé par Render |
+
+- `valise.py` **publie la page dans la base** (table `page_valise`) : avec `DATABASE_URL` dans `voyage/.env`,
+  une valise générée sur le Mac est immédiatement en ligne, sans commit ni redéploiement.
+- Les tests utilisent toujours `valise_test` **en local**, même si `DATABASE_URL` est définie.
+- Déploiement : `render.yaml` (racine du dépôt) décrit le service ; `requirements.txt` les bibliothèques.
+- Le service gratuit Render s'endort après 15 min sans visite : ~50 s d'attente à la première ouverture.

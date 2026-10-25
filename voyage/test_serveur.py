@@ -5,17 +5,17 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 import pytest
 from serveur import creer_app
-from db import connecter
+from db import connecter, publier_page
 
 
 @pytest.fixture
 def client():
     conn = connecter("valise_test")
     with conn.cursor() as cur:
-        cur.execute("TRUNCATE etat_case")
+        cur.execute("TRUNCATE etat_case, page_valise")
     conn.commit()
     conn.close()
-    app = creer_app("valise_test")
+    app = creer_app("valise_test", secret="")        # secret vide : routes à la racine
     return app.test_client()
 
 
@@ -63,3 +63,29 @@ def test_coche_objet_contenant_un_slash(client):
     assert reponse.status_code == 200
     reponse = client.get("/api/etat/Hanoï")
     assert reponse.get_json() == {"Hanoï/Julien/Divers/livre / liseuse": True}
+
+
+
+# --- Mise en ligne : code secret dans l'adresse, page servie depuis la base ---
+
+@pytest.fixture
+def client_secret():
+    return creer_app("valise_test", secret="s3cr3t").test_client()
+
+
+def test_sans_le_secret_rien_n_existe(client_secret):
+    assert client_secret.get("/").status_code == 404
+    assert client_secret.get("/api/etat/Hanoï").status_code == 404
+
+
+def test_avec_le_secret_l_api_repond(client_secret):
+    assert client_secret.get("/v/s3cr3t/api/etat/Hanoï").status_code == 200
+
+
+def test_page_servie_depuis_la_base(client):
+    conn = connecter("valise_test")
+    publier_page(conn, "<html>valise en base</html>")
+    conn.close()
+    reponse = client.get("/")
+    assert reponse.status_code == 200
+    assert "valise en base" in reponse.get_data(as_text=True)
