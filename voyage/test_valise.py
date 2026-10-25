@@ -6,7 +6,7 @@ sys.path.insert(0, str(Path(__file__).parent))   # permet d'importer valise depu
 from valise import (total_jours, jours_par_type,
                     statut_ue_itineraire, prises_itineraire,
                     quantite_reelle, faire_valise,
-                    valise_en_html, paquet_vide)
+                    valise_en_html, paquet_vide, ligne_climat)
 
 def test_total_jours():
     itin = [{"destination": "Hanoï", "jours": 7, "mois": 1},
@@ -115,3 +115,18 @@ def test_faire_valise_dimension_par_jours_du_climat():
 def test_valise_en_html_injecte_la_variable_voyage():
     html = valise_en_html({"Partagé": paquet_vide()}, "Hanoï › Siem Reap", 11, {"universel"})
     assert 'const VOYAGE = "Hanoï › Siem Reap";' in html
+
+def test_ligne_climat_formate_les_normales():
+    n = {"tmin": 1.6, "tmax": 7.7, "jours_pluie": 12}
+    assert ligne_climat("Londres", 1, n) == "Londres · janvier : 2–8 °C · 🌧️ 12 j de pluie/mois"
+
+
+def test_ligne_climat_sans_donnees():
+    # Ville introuvable ou API en panne -> on le dit, sans planter
+    assert ligne_climat("Atlantide", 7, None) == "Atlantide · juillet : climat indisponible"
+
+
+def test_valise_en_html_affiche_le_climat():
+    climats = [("Hanoï", 1, {"tmin": 14.3, "tmax": 21.1, "jours_pluie": 10})]
+    html = valise_en_html({"Partagé": paquet_vide()}, "Hanoï", 7, set(), climats)
+    assert "Hanoï · janvier : 14–21 °C" in html

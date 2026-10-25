@@ -7,6 +7,10 @@ On sépare les DONNÉES (les 3 tables ci-dessous, remplies une fois) de la LOGIQ
 """
 import json
 
+import requests
+
+from api_climat import normales
+
 # Feuille de style de la checklist HTML (mobile-first). Fournie clé en main :
 # c'est de la présentation, pas de la logique. Injectée telle quelle dans le <head>.
 HTML_STYLE = """
@@ -39,6 +43,10 @@ p.prise {
     background: #eef2ff; color: #3730a3; font-size: .95rem;
     padding: .55rem .9rem; border-radius: 10px; margin: 0 0 1.5rem;
 }
+ul.climat {
+    list-style: none; background: #fffbeb; color: #92400e; font-size: .95rem;
+    padding: .55rem .9rem; border-radius: 10px; margin: -1rem 0 1.5rem;
+}
 nav.tabs {
     display: flex; gap: .4rem; position: sticky; top: 0; z-index: 5;
     background: #f7f7f8; padding: .6rem 0; margin-bottom: .5rem;
@@ -68,6 +76,7 @@ button.ctrl-btn {
     section { background: #27272a; box-shadow: none; }
     section h3 { color: #a1a1aa; }
     p.prise { background: #312e81; color: #e0e7ff; }
+    ul.climat { background: #422006; color: #fde68a; }
     nav.tabs { background: #18181b; }
     nav.tabs button { background: #27272a; color: #a1a1aa; }
     nav.tabs button.actif { background: #6366f1; color: #fff; }
@@ -541,6 +550,18 @@ def saison_du_mois(mois):
         return "été"
     return "automne"
 
+MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
+        "août", "septembre", "octobre", "novembre", "décembre"]
+
+
+def ligne_climat(destination, mois, n):
+    """Phrase lisible des normales d'une étape ; n = dict de api_climat.normales ou None."""
+    debut = f"{destination} · {MOIS[mois - 1]} : "       # mois 1 -> index 0
+    if n is None:
+        return debut + "climat indisponible"
+    return debut + f"{round(n['tmin'])}–{round(n['tmax'])} °C · 🌧️ {n['jours_pluie']} j de pluie/mois"
+
+
 def zone_de(destination):
     """Trouver la zone climatique d'une ville ou d'un pays."""
     if destination in VILLE_VERS_ZONE:
@@ -762,9 +783,18 @@ def faire_valise(jours_types, total, personnes, hors_ue, conduit):
 
     return valise
 
-def valise_en_html(valise, libelle_voyage, total, prises):
-    """Construire la page HTML de la checklist pour l'itinéraire complet."""
+def valise_en_html(valise, libelle_voyage, total, prises, climats=None):
+    """Construire la page HTML de la checklist pour l'itinéraire complet.
+
+    climats : liste optionnelle de (destination, mois, normales) — une ligne par étape.
+    """
     adaptateurs = ", ".join(sorted(prises)) if prises else "aucun"
+    bandeau_climat = ""
+    if climats:
+        bandeau_climat = '<ul class="climat">'
+        for destination, mois, n in climats:
+            bandeau_climat += f"<li>🌡️ {ligne_climat(destination, mois, n)}</li>"
+        bandeau_climat += "</ul>"
     onglets = '<nav class="tabs">'          # un bouton par propriétaire (Partagé/Julien/...)
     for proprietaire in valise:
         onglets += f'<button data-owner="{proprietaire}">{proprietaire} <span class="tab-count"></span></button>'
@@ -791,6 +821,7 @@ def valise_en_html(valise, libelle_voyage, total, prises):
 <body>
 <h1>Valise — {libelle_voyage} · {total} jours</h1>
 <p class="prise">🔌 Adaptateur(s) à emporter : <strong>{adaptateurs}</strong></p>
+{bandeau_climat}
 <div class="progress"><div class="progress-head"><span>Rangé</span><span id="compte">0 / 0</span></div><div class="progress-track"><div id="progress-fill"></div></div></div>
 <div class="controls"><button id="toggle-masque" class="ctrl-btn">Masquer les rangés</button><button id="reset" class="ctrl-btn">Réinitialiser</button></div>
 {onglets}
@@ -857,8 +888,19 @@ def main():
     prises = prises_itineraire(itineraire)
     valise = faire_valise(jours_types, total, personnes, hors_ue, conduit)
 
+    # --- Climat : seul endroit qui appelle Internet ; une panne ne bloque pas la valise ---
+    print("Recherche des normales climatiques…")
+    climats = []
+    for etape in itineraire:
+        try:
+            n = normales(etape["destination"], etape["mois"])
+        except requests.RequestException:
+            n = None
+        climats.append((etape["destination"], etape["mois"], n))
+        print("  🌡️", ligne_climat(etape["destination"], etape["mois"], n))
+
     libelle_voyage = " › ".join(etape["destination"] for etape in itineraire)
-    html = valise_en_html(valise, libelle_voyage, total, prises)
+    html = valise_en_html(valise, libelle_voyage, total, prises, climats)
     with open("valise.html", "w", encoding="utf-8") as f:
         f.write(html)
     print(f"Checklist écrite dans valise.html ({total} jours, {len(itineraire)} étape(s))")
