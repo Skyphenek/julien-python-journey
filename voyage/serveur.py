@@ -28,7 +28,10 @@ def creer_app(nom_base="valise"):
         corps = request.get_json(silent=True)
         if not corps or "cle" not in corps or "coche" not in corps:
             return jsonify({"erreur": "payload invalide"}), 400
-        voyage, proprietaire, theme, objet = corps["cle"].split("/")
+        segments = corps["cle"].split("/")
+        if len(segments) != 4:
+            return jsonify({"erreur": "payload invalide"}), 400
+        voyage, proprietaire, theme, objet = segments
         conn = connecter(app.config["NOM_BASE"])
         try:
             enregistrer_coche(conn, voyage, proprietaire, theme, objet, bool(corps["coche"]))

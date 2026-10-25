@@ -48,3 +48,8 @@ def test_coche_upsert_une_seule_ligne(client):
 def test_coche_payload_invalide(client):
     reponse = client.post("/api/coche", json={"cle": "Hanoï/Julien/Vêtements/pantalons"})
     assert reponse.status_code == 400
+
+
+def test_coche_cle_mal_formee(client):
+    reponse = client.post("/api/coche", json={"cle": "pantalon", "coche": True})
+    assert reponse.status_code == 400
