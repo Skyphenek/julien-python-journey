@@ -3,9 +3,14 @@ revolut.csv
 .DS_Store
 __pycache__/
 .pytest_cache/
+.venv/
+.env
 
 # Sorties générées par valise.py (régénérées à chaque lancement)
 voyage/valise.html
 
 # État de session local (plugin remember)
 .remember/
+
+# Worktrees isolés (superpowers:using-git-worktrees)
+.worktrees/
