@@ -7,7 +7,9 @@ from valise import (total_jours, jours_par_type,
                     statut_ue_itineraire, prises_itineraire,
                     quantite_reelle, faire_valise,
                     valise_en_html, paquet_vide, ligne_climat,
-                    types_climat, libelle_lieu)
+                    types_climat, libelle_lieu,
+                    lire_mois, lire_activites, est_oui, un_par_pays,
+                    statut_ue, adaptateur_pour)
 
 def test_total_jours():
     itin = [{"destination": "Hanoï", "jours": 7, "mois": 1},
@@ -30,9 +32,24 @@ def test_types_climat_chaud():
     assert types_climat(SIEM_REAP_JANV) == ["chaud"]
 
 
-def test_types_climat_doux_ni_chaud_ni_froid():
-    # Hanoï en janvier : 21 °C max -> ni chaud ni froid (les anciennes zones disaient "chaud")
-    assert types_climat(HANOI_JANV) == ["pluie"]
+def test_types_climat_frais_si_soirees_fraiches():
+    # Hanoï en janvier : 21 °C max (ni chaud ni froid) mais 14 °C min -> "frais" (un pull)
+    assert types_climat(HANOI_JANV) == ["frais", "pluie"]
+
+
+def test_types_climat_froid_n_est_pas_aussi_frais():
+    # Londres est déjà "froid" (manteau, pulls) : pas de "frais" en doublon
+    assert "frais" not in types_climat(LONDRES_JANV)
+
+
+def test_types_climat_chaud_et_soirees_fraiches():
+    # Désert : 30 °C le jour, 10 °C la nuit -> chaud ET frais
+    assert types_climat({"tmin": 10, "tmax": 30, "jours_pluie": 0}) == ["chaud", "frais"]
+
+
+def test_frais_ajoute_un_pull():
+    valise = faire_valise({"frais": 7, "ville": 7}, 7, ["Julien"], hors_ue=True, conduit=False)
+    assert valise["Julien"]["Vêtements"]["pull"] == 1
 
 
 def test_types_climat_inconnu():
@@ -74,7 +91,7 @@ def test_statut_ue_ue_si_toutes_ue():
 
 
 def test_statut_ue_inconnu_declenche_le_flag():
-    itin = [{"destination": "Lima", "code_pays": "PE"}]      # pays non modélisé -> statut inconnu
+    itin = [{"destination": "Almaty", "code_pays": "KZ"}]    # pays non modélisé -> statut inconnu
     hors_ue, inconnu = statut_ue_itineraire(itin)
     assert hors_ue is True
     assert inconnu is True
@@ -170,3 +187,67 @@ def test_libelle_lieu_distingue_les_homonymes():
 def test_libelle_lieu_sans_region():
     # Singapour : l'API ne renvoie pas de région (admin1 = None)
     assert libelle_lieu({"nom": "Singapour", "region": None, "pays": "Singapour"}) == "Singapour — Singapour"
+
+
+
+# --- Saisie tolérante : l'utilisateur tape comme il veut ---
+
+def test_lire_mois_chiffre_ou_lettres():
+    assert lire_mois("1") == 1
+    assert lire_mois(" 12 ") == 12
+    assert lire_mois("janvier") == 1
+    assert lire_mois("Janv") == 1
+    assert lire_mois("fevrier") == 2       # sans accent
+    assert lire_mois("AOÛT") == 8
+
+
+def test_lire_mois_refuse_l_ambigu_et_l_invalide():
+    assert lire_mois("ju") is None         # juin ? juillet ?
+    assert lire_mois("13") is None
+    assert lire_mois("bonjour") is None
+
+
+def test_lire_mois_entree_reprend_le_precedent():
+    assert lire_mois("", precedent=1) == 1
+    assert lire_mois("") is None           # première étape : pas de précédent
+
+
+def test_lire_activites_formats_libres():
+    assert lire_activites("pv") == ["plage", "ville"]
+    assert lire_activites("V P") == ["plage", "ville"]
+    assert lire_activites("v,p") == ["plage", "ville"]
+    assert lire_activites("x") is None
+    assert lire_activites("") is None
+
+
+def test_est_oui():
+    for r in ["o", "O", "oui", " Oui ", "y", "yes"]:
+        assert est_oui(r) is True
+    for r in ["n", "non", "", "peut-être"]:
+        assert est_oui(r) is False
+
+
+def test_un_par_pays_garde_le_premier_de_chaque_pays():
+    candidats = [{"nom": "Hanoï", "code_pays": "VN"}, {"nom": "Hanoi", "code_pays": "VN"},
+                 {"nom": "Hanoi", "code_pays": "PG"}, {"nom": "Bạch Mai", "code_pays": "VN"}]
+    assert un_par_pays(candidats) == [{"nom": "Hanoï", "code_pays": "VN"},
+                                      {"nom": "Hanoi", "code_pays": "PG"}]
+
+
+# --- Couverture pays élargie ---
+
+def test_dom_tom_carte_d_identite():
+    assert statut_ue("RE") == "ue"         # La Réunion
+    assert statut_ue("PF") == "ue"         # Polynésie française
+
+
+def test_ue_complete():
+    assert statut_ue("PL") == "ue"
+    assert statut_ue("FI") == "ue"
+
+
+def test_nouveaux_pays_hors_ue():
+    assert statut_ue("ID") == "hors_ue"                 # Bali
+    assert adaptateur_pour("ID") == "aucun"
+    assert adaptateur_pour("AU") == "type I (Australie)"
+    assert adaptateur_pour("PE") == "universel"

@@ -6,6 +6,7 @@ On sépare les DONNÉES (les 3 tables ci-dessous, remplies une fois) de la LOGIQ
 (la fonction faire_valise). Démarrage minimal : on enrichit au fil des voyages.
 """
 import json
+import unicodedata
 
 import requests
 
@@ -243,6 +244,7 @@ PAR_TYPE_PERSO = {
                  "chemises légères": "par_3_jours",
                  "chemises": 0},                 # 0 = retire les chemises normales quand il fait chaud
                                                  # hauts/robes : gérés par personne (voir PAR_PERSONNE) pour éviter les doublons
+    "frais":    {"pull": 1},                     # soirées fraîches (min < 15 °C) sans être "froid"
     "froid":    {"manteau": 1, "pull": "par_3_jours", "gants": 1, "bonnet": 1,
                  "écharpe": 1, "sous-couche thermique": "par_3_jours",
                  "grosses chaussures": 1, "collants": "par_3_jours"},
@@ -348,47 +350,71 @@ THEMES = {
 #    "Viêt Nam" là où on écrirait "Vietnam" : un code ne varie pas (jointure sur l'ID,
 #    pas sur le libellé). Plus besoin de table ville -> pays : le géocodage la remplace.
 
-# 4a. UE : pays membres. Appartenance -> UE ; absence d'un pays connu -> hors UE.
+# 4a. UE : les 27 pays membres. Appartenance -> UE ; absence d'un pays connu -> hors UE.
 PAYS_UE = {
-    "FR",  # France
-    "BE", "NL", "DE", "DK", "SE",  # Belgique, Pays-Bas, Allemagne, Danemark, Suède
-    "IE", "LU", "AT", "SI", "IT",  # Irlande, Luxembourg, Autriche, Slovénie, Italie
-    "ES", "GR", "PT", "HR", "MT",  # Espagne, Grèce, Portugal, Croatie, Malte
-    "CY",  # Chypre
+    "AT", "BE", "BG", "HR", "CY", "CZ", "DK",  # Autriche, Belgique, Bulgarie, Croatie, Chypre, Tchéquie, Danemark
+    "EE", "FI", "FR", "DE", "GR", "HU", "IE",  # Estonie, Finlande, France, Allemagne, Grèce, Hongrie, Irlande
+    "IT", "LV", "LT", "LU", "MT", "NL", "PL",  # Italie, Lettonie, Lituanie, Luxembourg, Malte, Pays-Bas, Pologne
+    "PT", "RO", "SK", "SI", "ES", "SE",        # Portugal, Roumanie, Slovaquie, Slovénie, Espagne, Suède
 }
 
-# 4b. CARTE D'IDENTITÉ SUFFIT : UE + Schengen/EEE hors UE (Suisse, Norvège, Islande)
-#     où la carte d'identité remplace le passeport et où le permis français suffit.
-SANS_PASSEPORT = PAYS_UE | {"CH", "NO", "IS"}
+# 4b. CARTE D'IDENTITÉ SUFFIT (et permis français valable) : UE + Schengen/EEE hors UE,
+#     micro-États, et territoires français d'outre-mer. Tout le reste -> passeport (prudent).
+SANS_PASSEPORT = PAYS_UE | {
+    "CH", "NO", "IS", "LI",                    # Suisse, Norvège, Islande, Liechtenstein
+    "MC", "AD", "SM", "VA",                    # Monaco, Andorre, Saint-Marin, Vatican
+    "RE", "GP", "MQ", "GF", "YT",              # Réunion, Guadeloupe, Martinique, Guyane, Mayotte
+    "PF", "NC", "PM", "BL", "MF", "WF",        # Polynésie, Nouvelle-Calédonie, St-Pierre, St-Barth, St-Martin, Wallis
+}
 
 # 4c. PRISE : quel adaptateur emporter DEPUIS LA FRANCE pour ce pays.
-#     Valeurs usuelles (à revérifier ponctuellement). Pays absent -> "à vérifier".
-PAYS_VERS_PRISE = {
-    # Europe continentale + Maghreb (mêmes prises type C/E/F qu'en France)
-    "FR": "aucun", "BE": "aucun", "NL": "aucun", "DE": "aucun", "DK": "aucun",
-    "SE": "aucun", "NO": "aucun", "IS": "aucun", "LU": "aucun", "CH": "aucun",
-    "AT": "aucun", "SI": "aucun", "IT": "aucun", "ES": "aucun", "GR": "aucun",
-    "PT": "aucun", "HR": "aucun",
-    "MA": "aucun", "TN": "aucun", "EG": "aucun",       # Maroc, Tunisie, Égypte
+#     Valeurs usuelles (à revérifier avant un voyage). Pays absent -> "à vérifier".
+#     On part des groupes de prises, puis on construit la table pays -> libellé.
+_PRISES = {
+    # Prises type C/E/F, comme en France
+    "aucun": [
+        "FR", "RE", "GP", "MQ", "GF", "YT", "PF", "NC", "PM", "BL", "MF", "WF",  # France + outre-mer
+        "BE", "NL", "LU", "DE", "AT", "CH", "LI", "DK", "SE", "NO", "FI", "IS",  # Europe du Nord/Ouest
+        "ES", "PT", "IT", "GR", "SI", "HR", "MC", "AD", "SM", "VA",              # Europe du Sud
+        "PL", "CZ", "SK", "HU", "RO", "BG", "EE", "LV", "LT",                    # Europe de l'Est (UE)
+        "RS", "BA", "ME", "MK", "AL", "XK", "MD", "UA", "RU",                    # Balkans, Europe de l'Est
+        "TR", "GE", "AM", "AZ",                                                  # Turquie, Caucase
+        "MA", "TN", "DZ", "EG", "SN", "CI", "CV", "ET", "RW", "MG",              # Afrique
+        "ID", "KR", "MN", "CL", "UY", "PY",                                      # Indonésie, Corée, Mongolie, Am. du Sud
+    ],
     # Prises britanniques (type G)
-    "GB": "UK", "IE": "UK", "MT": "UK", "CY": "UK",   # Royaume-Uni, Irlande, Malte, Chypre
-    "AE": "UK", "MY": "UK", "SG": "UK",               # Émirats, Malaisie, Singapour
-    # Prises américaines (type A/B, 110V)
-    "US": "US (110V)", "MX": "US (110V)", "DO": "US (110V)",  # USA, Mexique, Rép. dominicaine
-    "CR": "US (110V)", "JP": "US (110V)", "TW": "US (110V)",  # Costa Rica, Japon, Taïwan
+    "UK": [
+        "GB", "IE", "MT", "CY",                                                  # Europe
+        "AE", "QA", "BH", "KW", "OM",                                            # Golfe
+        "MY", "SG", "HK", "BN",                                                  # Asie
+        "KE", "UG", "ZM", "MW", "GH", "SC",                                      # Afrique
+    ],
+    # Prises américaines (type A/B, 100-127 V)
+    "US (110V)": [
+        "US", "CA", "MX", "PR", "BS", "JM", "DO",                                # Amérique du Nord, Caraïbes
+        "GT", "HN", "SV", "NI", "CR", "PA",                                      # Amérique centrale
+        "CO", "EC", "VE",                                                        # Amérique du Sud
+        "JP", "TW",                                                              # Japon, Taïwan
+    ],
     # Prises mélangées -> adaptateur universel
-    "JO": "universel", "TH": "universel", "VN": "universel",  # Jordanie, Thaïlande, Vietnam
-    "KH": "universel", "LA": "universel", "MM": "universel",  # Cambodge, Laos, Myanmar
-    "CN": "universel",                                        # Chine
-    "PH": "universel / US", "CU": "universel / US",           # Philippines, Cuba
-    "LK": "universel / UK",                                   # Sri Lanka
-    "KR": "aucun",                                            # Corée du Sud (type C/F)
+    "universel": [
+        "TH", "VN", "KH", "LA", "MM", "CN", "MO",                                # Asie du Sud-Est, Chine
+        "IN", "NP", "BD", "PK",                                                  # Sous-continent indien
+        "JO", "IL", "LB",                                                        # Proche-Orient
+        "BR", "PE", "BO", "BZ",                                                  # Amériques
+    ],
+    "universel / US": ["PH", "CU"],                                              # Philippines, Cuba
+    "universel / UK": ["LK", "MV", "MU", "TZ", "NG", "SA"],                      # Sri Lanka, Maldives, Maurice…
+    "type I (Australie)": ["AU", "NZ", "FJ", "AR"],                              # Australie, NZ, Fidji, Argentine
+    "type M (Afrique du Sud)": ["ZA", "NA", "BW"],                               # Afrique du Sud, Namibie, Botswana
 }
+PAYS_VERS_PRISE = {pays: prise for prise, liste in _PRISES.items() for pays in liste}
 
 
 # 5. CLIMAT — seuils appliqués aux normales réelles (api_climat). Façon CASE WHEN.
 SEUIL_CHAUD = 25          # °C : max moyenne >= 25 -> "chaud"
 SEUIL_FROID = 12          # °C : max moyenne < 12 -> "froid"
+SEUIL_FRAIS = 15          # °C : min moyenne < 15 (et pas "froid") -> "frais" (un pull pour le soir)
 SEUIL_JOURS_PLUIE = 8     # jours de pluie par mois >= 8 -> "pluie"
 
 MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
@@ -412,6 +438,8 @@ def types_climat(n):
         types.append("chaud")
     elif n["tmax"] < SEUIL_FROID:
         types.append("froid")
+    if n["tmin"] < SEUIL_FRAIS and "froid" not in types:    # froid couvre déjà les pulls
+        types.append("frais")
     if n["jours_pluie"] >= SEUIL_JOURS_PLUIE:
         types.append("pluie")
     return types
@@ -660,6 +688,48 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None):
 </html>"""
     return page
 
+def sans_accents(texte):
+    """'Février' -> 'Fevrier' : on décompose chaque lettre accentuée et on jette l'accent."""
+    decompose = unicodedata.normalize("NFD", texte)
+    return "".join(c for c in decompose if unicodedata.category(c) != "Mn")
+
+
+def lire_mois(reponse, precedent=None):
+    """'1', 'janvier', 'Janv', 'fevrier', 'AOÛT' -> numéro du mois. Entrée = mois précédent.
+    Renvoie None si invalide ou ambigu ('ju' = juin ou juillet ?)."""
+    texte = sans_accents(reponse.strip().lower())
+    if texte == "":
+        return precedent
+    if texte.isdigit():
+        mois = int(texte)
+        return mois if 1 <= mois <= 12 else None
+    trouves = [i for i, nom in enumerate(MOIS, start=1) if sans_accents(nom).startswith(texte)]
+    return trouves[0] if len(trouves) == 1 else None
+
+
+def lire_activites(reponse):
+    """'pv', 'V P', 'v,p' -> ['plage', 'ville'] ; None si une lettre est inconnue ou si vide."""
+    lettres = {c for c in reponse.lower() if c not in " ,;"}     # on ignore espaces et virgules
+    if lettres and lettres <= set(CHOIX_ACTIVITE):              # <= : "est inclus dans"
+        return sorted(CHOIX_ACTIVITE[l] for l in lettres)
+    return None
+
+
+def est_oui(reponse):
+    return reponse.strip().lower() in {"o", "oui", "y", "yes"}
+
+
+def un_par_pays(candidats):
+    """Garder le premier lieu de chaque pays : Hanoï (VN) x4 + Hanoi (PG) -> 2 lignes."""
+    vus = set()
+    gardes = []
+    for lieu in candidats:
+        if lieu["code_pays"] not in vus:
+            vus.add(lieu["code_pays"])
+            gardes.append(lieu)
+    return gardes
+
+
 def libelle_lieu(lieu):
     """'Bali — Bali, Indonésie' : de quoi distinguer deux homonymes."""
     precision = ", ".join(x for x in (lieu["region"], lieu["pays"]) if x)
@@ -691,39 +761,42 @@ def main():
     # --- Saisie de l'itinéraire, étape par étape ---
     itineraire = []
     numero = 1
+    mois_precedent = None             # Entrée au mois = même mois que l'étape d'avant
     while True:
-        destination = input(f"Étape {numero} — destination (ou 'fin' pour terminer) : ")
-        if destination == "fin":
+        saisie = input(f"Étape {numero} — destination (ou 'fin' pour terminer) : ").strip()
+        if saisie == "":
+            continue
+        if saisie.lower() == "fin":
             if itineraire:
                 break
             print("Ajoute au moins une étape avant de terminer.")
             continue
         try:
-            candidats = lieux(destination)           # le géocodage remplace l'ancienne liste de villes
+            candidats = un_par_pays(lieux(saisie))   # le géocodage ignore déjà majuscules et accents
         except requests.RequestException:
             candidats = None
             print("        ⚠️  Pas de réseau : destination acceptée, pays et climat inconnus.")
         if candidats == []:
-            print(f"Destination '{destination}' introuvable, vérifie l'orthographe.")
+            print(f"Destination '{saisie}' introuvable, vérifie l'orthographe.")
             continue
         lieu = choisir_lieu(candidats) if candidats else None
+        destination = lieu["nom"] if lieu else saisie    # "londres" tapé -> "Londres" affiché
         while True:
-            reponse = input("        — jours : ")
+            reponse = input("        — jours : ").strip()
             if reponse.isdigit() and int(reponse) >= 1:
                 jours = int(reponse)
                 break
             print("        Nombre de jours invalide : entre un nombre positif.")
         while True:
-            reponse = input("        — mois (1-12) : ")
-            if reponse.isdigit() and 1 <= int(reponse) <= 12:
-                mois = int(reponse)
+            defaut = f" [Entrée = {MOIS[mois_precedent - 1]}]" if mois_precedent else ""
+            mois = lire_mois(input(f"        — mois (1-12 ou janvier, févr…){defaut} : "), mois_precedent)
+            if mois:
                 break
-            print("        Mois invalide : entre un nombre entre 1 et 12.")
+            print("        Mois invalide : un nombre de 1 à 12 ou un nom de mois (janv, juillet…).")
+        mois_precedent = mois
         while True:
-            reponse = input("        — activités ? (v)ille (p)lage (m)ontagne, combinables : ")
-            lettres = set(reponse)
-            if lettres and lettres <= set(CHOIX_ACTIVITE):   # <= : "est inclus dans"
-                activites = sorted(CHOIX_ACTIVITE[l] for l in lettres)
+            activites = lire_activites(input("        — activités ? (v)ille (p)lage (m)ontagne, combinables : "))
+            if activites:
                 break
             print("        Choix invalide : tape v, p, m ou une combinaison (ex : vp).")
         n = None
@@ -740,7 +813,7 @@ def main():
 
     # --- Questions posées une seule fois ---
     while True:
-        choix = input("Qui fait sa valise ? (j = Julien / l = Laetitia / 2 = les deux) : ")
+        choix = input("Qui fait sa valise ? (j = Julien / l = Laetitia / 2 = les deux) : ").strip().lower()
         if choix in CHOIX_PERSONNE:
             break
         print("Choix invalide : tape j, l ou 2.")
@@ -749,7 +822,7 @@ def main():
     hors_ue, inconnu = statut_ue_itineraire(itineraire)
     if inconnu:
         print("⚠️  Statut UE inconnu pour une étape : passeport par défaut, à vérifier.")
-    conduit = input("Tu vas conduire ? (o/n) : ") == "o"
+    conduit = est_oui(input("Tu vas conduire ? (o/n) : "))
 
     # --- Construction ---
     jours_types = jours_par_type(itineraire)

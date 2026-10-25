@@ -34,13 +34,16 @@ les appareils qui ouvrent cette URL — ne plus ouvrir `valise.html` directement
 Exemple de saisie (Vietnam + Cambodge, 18 jours en janvier) :
 
 ```
-Étape 1 — destination (ou 'fin' pour terminer) : Hanoï
+Étape 1 — destination (ou 'fin' pour terminer) : hanoi
+        📍 1. Hanoï — Hanoï, Viêt Nam
+        📍 2. Hanoi — Hautes-Terres méridionales, Papouasie-Nouvelle-Guinée
+        — lequel ? (Entrée = 1) :
         — jours : 7
-        — mois (1-12) : 1
+        — mois (1-12 ou janvier, févr…) : janv
         — activités ? (v)ille (p)lage (m)ontagne, combinables : v
         🌡️ Hanoï · janvier : 14–21 °C · 🌧️ 10 j de pluie/mois
-Étape 2 — destination : Siem Reap   / jours : 4 / mois : 1 / activités : v
-Étape 3 — destination : Phu Quoc    / jours : 7 / mois : 1 / activités : pv
+Étape 2 — destination : siem reap   / jours : 4 / mois : Entrée (= janvier) / activités : v
+Étape 3 — destination : phu quoc    / jours : 7 / mois : Entrée (= janvier) / activités : p v
 Étape 4 — destination : fin
 Qui fait sa valise ? (j / l / 2) : 2
 Tu vas conduire ? (o/n) : n
@@ -83,7 +86,8 @@ sans toucher au code. Les types d'une étape viennent de deux sources :
 - **climat** (`chaud` / `froid` / `pluie`) : déduit des normales réelles sur 10 ans
   (`api_climat.py`, Open-Meteo, gratuit sans clé) via les seuils `SEUIL_*` ;
 - **activités** (`ville` / `plage` / `montagne`) : saisies par étape.
-Toute ville trouvée par le géocodage Open-Meteo est acceptée ; en cas d'homonymes
+Toute ville trouvée par le géocodage Open-Meteo est acceptée, sans souci de majuscules
+ni d'accents ; en cas d'homonymes
 (Bali Inde / Indonésie), le programme liste les lieux et on choisit. Le pays du lieu
 choisi (code ISO : `VN`, `GB`…) pilote les papiers (`SANS_PASSEPORT`) et l'adaptateur
 (`PAYS_VERS_PRISE`).
