@@ -8,10 +8,13 @@ Même code en local (Mac) et en ligne (Render) ; seules les variables d'environn
 import os
 from pathlib import Path
 
+import psycopg2
+
 from dotenv import load_dotenv
 from flask import Blueprint, Flask, jsonify, request, Response
 
-from db import connecter, obtenir_etat, enregistrer_coche, lire_page
+from db import (connecter, obtenir_etat, enregistrer_coche, lire_page,
+                VERDICTS, enregistrer_retour, supprimer_retour, lire_retours)
 
 load_dotenv(Path(__file__).parent / ".env")   # en local : lit voyage/.env s'il existe
 
@@ -57,6 +60,42 @@ def creer_app(nom_base="valise", secret=None):
         conn = connecter(app.config["NOM_BASE"])
         try:
             enregistrer_coche(conn, voyage, proprietaire, theme, objet, bool(corps["coche"]))
+        finally:
+            conn.close()
+        return jsonify({"ok": True})
+
+    @routes.get("/api/retours/<voyage>")
+    def retours(voyage):
+        conn = connecter(app.config["NOM_BASE"])
+        try:
+            return jsonify(lire_retours(conn, voyage))
+        finally:
+            conn.close()
+
+    @routes.post("/api/retour")
+    def retour():
+        """Un verdict de bilan. verdict = null -> on efface le verdict de cet objet."""
+        corps = request.get_json(silent=True) or {}
+        voyage = corps.get("voyage")
+        proprietaire = corps.get("proprietaire")
+        objet = (corps.get("objet") or "").strip()
+        verdict = corps.get("verdict")
+        quantite = corps.get("quantite_utilisee")
+        if not voyage or not proprietaire or not objet:
+            return jsonify({"erreur": "voyage, proprietaire et objet sont obligatoires"}), 400
+        if verdict is not None and verdict not in VERDICTS:
+            return jsonify({"erreur": f"verdict inconnu : {verdict}"}), 400
+        if quantite is not None and (not isinstance(quantite, int) or quantite < 0):
+            return jsonify({"erreur": "quantite_utilisee doit être un entier positif"}), 400
+        conn = connecter(app.config["NOM_BASE"])
+        try:
+            if verdict is None:
+                supprimer_retour(conn, voyage, proprietaire, objet)
+            else:
+                enregistrer_retour(conn, voyage, proprietaire, objet, verdict, quantite)
+        except psycopg2.errors.ForeignKeyViolation:          # voyage absent de la table voyages
+            conn.rollback()
+            return jsonify({"erreur": f"voyage inconnu : {voyage}"}), 400
         finally:
             conn.close()
         return jsonify({"ok": True})

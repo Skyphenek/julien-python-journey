@@ -12,7 +12,7 @@ from db import connecter, publier_page
 def client():
     conn = connecter("valise_test")
     with conn.cursor() as cur:
-        cur.execute("TRUNCATE etat_case, page_valise")
+        cur.execute("TRUNCATE etat_case, page_valise, voyages, valise_objets, retours")
     conn.commit()
     conn.close()
     app = creer_app("valise_test", secret="")        # secret vide : routes à la racine
@@ -89,3 +89,56 @@ def test_page_servie_depuis_la_base(client):
     reponse = client.get("/")
     assert reponse.status_code == 200
     assert "valise en base" in reponse.get_data(as_text=True)
+
+
+
+# --- Bilan : API des retours ---
+
+from datetime import date
+from db import enregistrer_voyage
+
+VOYAGE = "2027-04-30 Florence › Palerme"
+
+
+@pytest.fixture
+def client_voyage(client):
+    conn = connecter("valise_test")
+    enregistrer_voyage(conn, VOYAGE, "Florence › Palerme", date(2027, 4, 30), ["Julien"], [], {})
+    conn.close()
+    return client
+
+
+def _retour(client, **champs):
+    corps = {"voyage": VOYAGE, "proprietaire": "Julien", "objet": "t-shirts"} | champs
+    return client.post("/api/retour", json=corps)
+
+
+def test_retour_enregistre_et_relu(client_voyage):
+    assert _retour(client_voyage, verdict="trop", quantite_utilisee=8).status_code == 200
+    reponse = client_voyage.get(f"/api/retours/{VOYAGE}")
+    assert reponse.get_json() == [{"proprietaire": "Julien", "objet": "t-shirts",
+                                   "verdict": "trop", "quantite_utilisee": 8}]
+
+
+def test_verdict_vide_supprime(client_voyage):
+    _retour(client_voyage, verdict="utile")
+    assert _retour(client_voyage, verdict=None).status_code == 200
+    assert client_voyage.get(f"/api/retours/{VOYAGE}").get_json() == []
+
+
+def test_verdict_inconnu_refuse(client_voyage):
+    assert _retour(client_voyage, verdict="génial").status_code == 400
+
+
+def test_quantite_negative_refusee(client_voyage):
+    assert _retour(client_voyage, verdict="trop", quantite_utilisee=-2).status_code == 400
+
+
+def test_objet_vide_refuse(client_voyage):
+    assert _retour(client_voyage, objet="   ", verdict="manque").status_code == 400
+
+
+def test_voyage_inconnu_refuse(client_voyage):
+    reponse = client_voyage.post("/api/retour", json={"voyage": "1999 Atlantide", "proprietaire": "Julien",
+                                                      "objet": "pull", "verdict": "utile"})
+    assert reponse.status_code == 400

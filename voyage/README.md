@@ -34,20 +34,25 @@ les appareils qui ouvrent cette URL — ne plus ouvrir `valise.html` directement
 Exemple de saisie (Vietnam + Cambodge, 18 jours en janvier) :
 
 ```
+Date de départ (ex. 10/01/2027 ou 10 janv 2027) : 10 janv 2027
 Étape 1 — destination (ou 'fin' pour terminer) : hanoi
         📍 1. Hanoï — Hanoï, Viêt Nam
         📍 2. Hanoi — Hautes-Terres méridionales, Papouasie-Nouvelle-Guinée
         — lequel ? (Entrée = 1) :
         — jours : 7
-        — mois (1-12 ou janvier, févr…) : janv
+        — du 10 janvier 2027 au 16 janvier 2027 (janvier)      ← mois calculé, plus de question
         — activités ? (v)ille (p)lage (m)ontagne, combinables : v
-        🌡️ Hanoï · janvier : 14–21 °C · 🌧️ 10 j de pluie/mois
-Étape 2 — destination : siem reap   / jours : 4 / mois : Entrée (= janvier) / activités : v
-Étape 3 — destination : phu quoc    / jours : 7 / mois : Entrée (= janvier) / activités : p v
+Étape 2 — destination : siem reap   / jours : 4 / activités : v
+Étape 3 — destination : phu quoc    / jours : 7 / activités : p v
 Étape 4 — destination : fin
 Qui fait sa valise ? (j / l / 2) : 2
 Tu vas conduire ? (o/n) : n
+Voyage mémorisé : 2027-01-10 Hanoï › Siem Reap › Phu Quoc
 ```
+
+Chaque voyage est **mémorisé** (tables `voyages` et `valise_objets`) sous un code stable
+« date de départ + itinéraire » : régénérer la même valise garde les cases cochées.
+C'est la base du futur bilan de fin de voyage.
 
 ## Lancer les tests
 
@@ -110,3 +115,15 @@ Le même `serveur.py` tourne en local et en ligne ; seules les variables d'envir
 - Les tests utilisent toujours `valise_test` **en local**, même si `DATABASE_URL` est définie.
 - Déploiement : `render.yaml` (racine du dépôt) décrit le service ; `requirements.txt` les bibliothèques.
 - Le service gratuit Render s'endort après 15 min sans visite : ~50 s d'attente à la première ouverture.
+
+## Bilan de fin de voyage
+
+Dans la checklist, le bouton **📝 Bilan de fin de voyage** bascule la page :
+- sous chaque objet : **✅ utile · ➖ en trop · ❌ pas servi** (re-toucher annule) ; pour un objet en
+  plusieurs exemplaires, « en trop » ouvre **« utilisé x / N »** ;
+- en bas de chaque onglet : **« Ce qui a manqué à … »** (texte libre, une puce par oubli) ;
+- compteur « Bilan : x / N objets évalués », synchronisé entre téléphones comme les cases ;
+- le mode reste actif au rechargement (mémorisé sur l'appareil).
+
+Les verdicts vont dans la table `retours` (API `POST api/retour`, `GET api/retours/<voyage>`).
+Prochaine étape : `valise.py` s'en servira pour proposer des ajustements au voyage suivant.

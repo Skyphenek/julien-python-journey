@@ -2,6 +2,7 @@
 import os
 
 import psycopg2
+from psycopg2.extras import Json
 
 
 def connecter(nom_base="valise"):
@@ -104,3 +105,96 @@ def lire_page(conn):
         cur.execute("SELECT html FROM page_valise WHERE cle = 'courante'")
         ligne = cur.fetchone()
     return ligne[0] if ligne else None
+
+
+def enregistrer_voyage(conn, code, libelle, depart, personnes, itineraire, jours_types):
+    """Upsert de l'identité et du contexte d'un voyage (régénérer = mettre à jour)."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO voyages (code, libelle, depart, personnes, itineraire, jours_types)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            ON CONFLICT (code) DO UPDATE SET
+                libelle = EXCLUDED.libelle, depart = EXCLUDED.depart, personnes = EXCLUDED.personnes,
+                itineraire = EXCLUDED.itineraire, jours_types = EXCLUDED.jours_types, maj_le = now()
+            """,
+            (code, libelle, depart, list(personnes), Json(itineraire), Json(jours_types)),
+        )
+    conn.commit()
+
+
+def lire_voyage(conn, code):
+    """Le voyage sous forme de dict, ou None. JSONB et TEXT[] reviennent en dict / list Python."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT libelle, depart, personnes, itineraire, jours_types FROM voyages WHERE code = %s",
+            (code,),
+        )
+        ligne = cur.fetchone()
+    if ligne is None:
+        return None
+    libelle, depart, personnes, itineraire, jours_types = ligne
+    return {"code": code, "libelle": libelle, "depart": depart, "personnes": personnes,
+            "itineraire": itineraire, "jours_types": jours_types}
+
+
+def enregistrer_valise_objets(conn, code, valise):
+    """Remplace la photo de la valise de ce voyage ({proprietaire: {theme: {objet: quantite}}})."""
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM valise_objets WHERE voyage = %s", (code,))
+        for proprietaire, themes in valise.items():
+            for theme, objets in themes.items():
+                for objet, quantite in objets.items():
+                    cur.execute(
+                        "INSERT INTO valise_objets (voyage, proprietaire, theme, objet, quantite) "
+                        "VALUES (%s, %s, %s, %s, %s)",
+                        (code, proprietaire, theme, objet, quantite),
+                    )
+    conn.commit()                     # DELETE + INSERT dans la même transaction : tout ou rien
+
+
+def lire_valise_objets(conn, code):
+    """{(proprietaire, theme, objet): quantite} pour ce voyage."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT proprietaire, theme, objet, quantite FROM valise_objets WHERE voyage = %s",
+            (code,),
+        )
+        return {(p, t, o): q for p, t, o, q in cur.fetchall()}
+
+
+VERDICTS = {"utile", "trop", "pas_servi", "manque"}
+
+
+def enregistrer_retour(conn, voyage, proprietaire, objet, verdict, quantite_utilisee=None):
+    """Upsert d'un verdict de bilan (changer d'avis = remplacer)."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO retours (voyage, proprietaire, objet, verdict, quantite_utilisee, maj_le)
+            VALUES (%s, %s, %s, %s, %s, now())
+            ON CONFLICT (voyage, proprietaire, objet) DO UPDATE SET
+                verdict = EXCLUDED.verdict, quantite_utilisee = EXCLUDED.quantite_utilisee, maj_le = now()
+            """,
+            (voyage, proprietaire, objet, verdict, quantite_utilisee),
+        )
+    conn.commit()
+
+
+def supprimer_retour(conn, voyage, proprietaire, objet):
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM retours WHERE voyage = %s AND proprietaire = %s AND objet = %s",
+                    (voyage, proprietaire, objet))
+    conn.commit()
+
+
+def lire_retours(conn, voyage):
+    """Les verdicts du voyage, triés (personne, objet) : liste de dicts prête pour du JSON."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT proprietaire, objet, verdict, quantite_utilisee FROM retours "
+            "WHERE voyage = %s ORDER BY proprietaire, objet",
+            (voyage,),
+        )
+        return [{"proprietaire": p, "objet": o, "verdict": v, "quantite_utilisee": q}
+                for p, o, v, q in cur.fetchall()]

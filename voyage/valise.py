@@ -7,14 +7,17 @@ On sépare les DONNÉES (les 3 tables ci-dessous, remplies une fois) de la LOGIQ
 """
 import json
 import os
+import re
 import unicodedata
+from datetime import date, timedelta
 from pathlib import Path
 
 import psycopg2
 import requests
 
 from api_climat import lieux, normales_12_mois
-from db import connecter, lire_normales, enregistrer_normales, publier_page
+from db import (connecter, lire_normales, enregistrer_normales, publier_page,
+                enregistrer_voyage, enregistrer_valise_objets)
 from dotenv import load_dotenv
 
 # Feuille de style de la checklist HTML (mobile-first). Fournie clé en main :
@@ -109,10 +112,45 @@ li .qte {
 label:has(input:checked) .nom { color: var(--doux); text-decoration: line-through; }
 label:has(input:checked) .qte { background: var(--ligne); color: var(--doux); }
 
-div.controls { display: flex; gap: .5rem; justify-content: flex-end; margin: 1rem 0 0; }
+div.controls { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: flex-end; margin: 1rem 0 0; }
 button.ctrl-btn {
     padding: .4rem .85rem; border: 1px solid var(--ligne); border-radius: 999px;
     background: transparent; color: var(--doux); font-size: .82rem; font-weight: 600; cursor: pointer;
+}
+/* ---- Mode Bilan de fin de voyage ---- */
+body:not(.mode-bilan) .bilan, body:not(.mode-bilan) div.manques, body:not(.mode-bilan) #bilan-compte { display: none; }
+body.mode-bilan li label { pointer-events: none; }             /* un tap ne décoche rien par accident */
+body.mode-bilan li label input { display: none; }
+body.mode-bilan li:has(input:checked) { order: 0; }
+body.mode-bilan label:has(input:checked) .nom { text-decoration: none; color: var(--texte); }
+body.mode-bilan label:has(input:checked) .qte { background: var(--accent-doux); color: var(--accent); }
+#bilan-compte { font-size: .8rem; color: var(--doux); margin: .5rem 0 0; font-weight: 600; }
+.bilan { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; padding: 0 .5rem .6rem; }
+.bilan button {
+    font-size: .78rem; font-weight: 600; padding: .35rem .65rem; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--ligne); background: transparent; color: var(--doux);
+}
+li[data-verdict="utile"] .bilan button[data-verdict="utile"] { background: var(--ok); border-color: var(--ok); color: #fff; }
+li[data-verdict="trop"] .bilan button[data-verdict="trop"] { background: #d97706; border-color: #d97706; color: #fff; }
+li[data-verdict="pas_servi"] .bilan button[data-verdict="pas_servi"] { background: #dc2626; border-color: #dc2626; color: #fff; }
+.bilan .utilise { display: none; align-items: center; gap: .3rem; font-size: .8rem; color: var(--doux); }
+li[data-verdict="trop"][data-qte-multi] .bilan .utilise { display: inline-flex; }
+.bilan .utilise input {
+    width: 3.5rem; padding: .25rem .35rem; font-size: 1rem;     /* 16 px : évite le zoom auto d'iOS */
+    border: 1px solid var(--ligne); border-radius: 8px; background: var(--fond); color: var(--texte);
+}
+div.manques { background: var(--carte); border-radius: 14px; padding: .8rem 1rem; margin-bottom: .6rem; }
+div.manques h3 { font-size: .95rem; margin: 0 0 .5rem; }
+.puces-manque { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .5rem; }
+.puces-manque button { border: none; background: none; color: var(--doux); cursor: pointer; font-size: 1rem; padding: 0 0 0 .25rem; }
+form.ajout-manque { display: flex; gap: .5rem; }
+form.ajout-manque input {
+    flex: 1; min-width: 0; padding: .5rem .7rem; font-size: 1rem;
+    border: 1px solid var(--ligne); border-radius: 10px; background: var(--fond); color: var(--texte);
+}
+form.ajout-manque button {
+    padding: .5rem .9rem; border: none; border-radius: 10px; background: var(--accent); color: #fff;
+    font-weight: 600; cursor: pointer;
 }
 """
 
@@ -216,6 +254,158 @@ function rafraichir() {
         .catch(function () {});                        // serveur injoignable un instant : on réessaiera
 }
 
+// ---- Mode Bilan de fin de voyage ----------------------------------------------------
+// retours : "proprietaire/objet" -> {verdict, quantite_utilisee} ; manques : proprietaire -> [objets]
+let retours = {};
+let manques = {};
+let dernierRetourLocal = 0;                            // dernier clic de bilan sur CET appareil
+const btnBilan = document.getElementById('mode-bilan');
+const compteBilan = document.getElementById('bilan-compte');
+
+function cleRetour(owner, objet) { return owner + '/' + objet; }
+
+function envoyerRetour(owner, objet, verdict, quantite) {
+    dernierRetourLocal = Date.now();
+    fetch('api/retour', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voyage: VOYAGE, proprietaire: owner, objet: objet,
+                               verdict: verdict, quantite_utilisee: quantite })
+    });
+}
+
+function chargerRetours(liste) {
+    retours = {};
+    manques = {};
+    liste.forEach(function (r) {
+        if (r.verdict === 'manque') {
+            (manques[r.proprietaire] = manques[r.proprietaire] || []).push(r.objet);
+        } else {
+            retours[cleRetour(r.proprietaire, r.objet)] = r;
+        }
+    });
+    afficherRetours();
+}
+
+function afficherRetours() {
+    let evalues = 0;
+    const objets = document.querySelectorAll('li[data-objet]');
+    objets.forEach(function (li) {
+        const r = retours[cleRetour(li.dataset.owner, li.dataset.objet)];
+        if (r) { li.dataset.verdict = r.verdict; evalues++; } else { delete li.dataset.verdict; }
+        const champ = li.querySelector('.utilise input');
+        if (champ && document.activeElement !== champ) {   // ne pas écraser une saisie en cours
+            champ.value = (r && r.quantite_utilisee !== null && r.quantite_utilisee !== undefined) ? r.quantite_utilisee : '';
+        }
+    });
+    compteBilan.textContent = 'Bilan : ' + evalues + ' / ' + objets.length + ' objets évalués';
+    document.querySelectorAll('div.manques').forEach(function (bloc) {
+        const zone = bloc.querySelector('.puces-manque');
+        zone.textContent = '';
+        (manques[bloc.dataset.owner] || []).forEach(function (objet) {
+            const puce = document.createElement('span');
+            puce.className = 'puce';
+            puce.textContent = objet;                    // textContent : le texte tapé n'est jamais interprété comme du HTML
+            const retirer = document.createElement('button');
+            retirer.type = 'button';
+            retirer.textContent = '×';
+            retirer.setAttribute('aria-label', 'Retirer ' + objet);
+            retirer.addEventListener('click', function () {
+                manques[bloc.dataset.owner] = manques[bloc.dataset.owner].filter(function (o) { return o !== objet; });
+                envoyerRetour(bloc.dataset.owner, objet, null, null);
+                afficherRetours();
+            });
+            puce.appendChild(retirer);
+            zone.appendChild(puce);
+        });
+    });
+}
+
+// Relire les retours du serveur. Une réponse est ignorée si un clic a eu lieu ici après le
+// départ de la requête (elle ne le connaît pas encore) ou il y a moins de 5 s (sauvegarde en route).
+function lireRetoursServeur() {
+    const depart = Date.now();
+    fetch('api/retours/' + encodeURIComponent(VOYAGE))
+        .then(function (r) { return r.json(); })
+        .then(function (liste) {
+            if (dernierRetourLocal >= depart || Date.now() - dernierRetourLocal < 5000) return;
+            chargerRetours(liste);
+        })
+        .catch(function () {});
+}
+
+function rafraichirRetours() {
+    if (document.hidden || !document.body.classList.contains('mode-bilan')) return;
+    lireRetoursServeur();
+}
+
+function activerBilan(actif) {
+    document.body.classList.toggle('mode-bilan', actif);
+    btnBilan.textContent = actif ? '✓ Terminer le bilan' : '📝 Bilan de fin de voyage';
+    if (actif) {
+        masquer = false;                                  // en bilan, on veut voir tous les objets
+        btnMasque.textContent = 'Masquer les rangés';
+        document.querySelectorAll('details.rayon').forEach(function (d) { d.open = true; });
+        appliquerMasque();
+        rafraichirRetours();
+    }
+    try { localStorage.setItem('valise-bilan:' + VOYAGE, actif ? '1' : ''); } catch (e) {}
+}
+
+function initialiserBilan() {
+    btnBilan.addEventListener('click', function () {
+        activerBilan(!document.body.classList.contains('mode-bilan'));
+    });
+    document.querySelectorAll('.bilan button[data-verdict]').forEach(function (b) {
+        b.addEventListener('click', function () {
+            const li = b.closest('li');
+            const cle = cleRetour(li.dataset.owner, li.dataset.objet);
+            if (retours[cle] && retours[cle].verdict === b.dataset.verdict) {   // re-toucher = annuler
+                delete retours[cle];
+                envoyerRetour(li.dataset.owner, li.dataset.objet, null, null);
+            } else {
+                retours[cle] = { verdict: b.dataset.verdict, quantite_utilisee: null };
+                envoyerRetour(li.dataset.owner, li.dataset.objet, b.dataset.verdict, null);
+            }
+            afficherRetours();
+            const champ = li.querySelector('.utilise input');
+            if (champ && b.dataset.verdict === 'trop' && li.hasAttribute('data-qte-multi')) champ.focus();
+        });
+    });
+    document.querySelectorAll('.utilise input').forEach(function (champ) {
+        champ.addEventListener('change', function () {
+            const li = champ.closest('li');
+            const cle = cleRetour(li.dataset.owner, li.dataset.objet);
+            const n = parseInt(champ.value, 10);
+            if (!retours[cle] || isNaN(n) || n < 0) return;
+            retours[cle].quantite_utilisee = n;
+            envoyerRetour(li.dataset.owner, li.dataset.objet, 'trop', n);
+        });
+    });
+    document.querySelectorAll('form.ajout-manque').forEach(function (form) {
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();                           // pas de rechargement de page
+            const owner = form.closest('div.manques').dataset.owner;
+            const champ = form.querySelector('input');
+            const objet = champ.value.trim();
+            if (!objet) return;
+            const liste = manques[owner] = manques[owner] || [];
+            if (liste.indexOf(objet) === -1) {
+                liste.push(objet);
+                envoyerRetour(owner, objet, 'manque', null);
+            }
+            champ.value = '';
+            afficherRetours();
+        });
+    });
+    lireRetoursServeur();                                 // chargement initial
+    let memorise = '';
+    try { memorise = localStorage.getItem('valise-bilan:' + VOYAGE) || ''; } catch (e) {}
+    if (memorise) activerBilan(true);                     // on reprend le bilan là où on l'a laissé
+    setInterval(rafraichirRetours, 4000);
+    document.addEventListener('visibilitychange', rafraichirRetours);
+}
+
 // Tout ce qui dépend de `sauvegarde` : à lancer seulement une fois l'état reçu du serveur
 function initialiser() {
     document.querySelectorAll('input[type=checkbox]').forEach(function (box) {
@@ -257,6 +447,7 @@ function initialiser() {
     majOnglets();
     majProgression();
 
+    initialiserBilan();
     setInterval(rafraichir, 4000);                     // toutes les 4 s
     document.addEventListener('visibilitychange', rafraichir);   // et dès qu'on revient sur la page
 }
@@ -730,11 +921,15 @@ def faire_valise(jours_types, total, personnes, hors_ue, conduit):
 
     return valise
 
-def valise_en_html(valise, libelle_voyage, total, prises, climats=None):
+def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=None, depart=None):
     """Construire la page HTML de la checklist pour l'itinéraire complet.
 
     climats : liste optionnelle de (destination, mois, normales) — une puce par étape.
+    code    : identifiant stable du voyage (date + itinéraire) ; préfixe des cases cochées.
+    depart  : date de départ, affichée dans le titre.
     """
+    cle_voyage = code or libelle_voyage
+    quand = f" · départ le {date_en_clair(depart)}" if depart else ""
     adaptateurs = ", ".join(sorted(prises)) if prises else "aucun"
     puces = f'<span class="puce">🔌 Adaptateur : {adaptateurs}</span>'
     for destination, mois, n in climats or []:
@@ -766,10 +961,23 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None):
             corps += (f'<details class="rayon" open><summary><span class="icone">{icone}</span>'
                       f'<span class="nom">{theme}</span><span class="compte"></span></summary><ul>')
             for objet, quantite in sorted(objets.items()):
-                cle = f"{libelle_voyage}/{proprietaire}/{theme}/{objet}"
-                corps += (f'<li><label><input type="checkbox" data-key="{cle}">'
-                          f'<span class="nom">{objet}</span><span class="qte">×{quantite}</span></label></li>')
+                cle = f"{cle_voyage}/{proprietaire}/{theme}/{objet}"
+                multi = " data-qte-multi" if quantite > 1 else ""       # "utilisé x / N" n'a de sens que si N > 1
+                corps += (f'<li data-owner="{proprietaire}" data-objet="{objet}" data-qte="{quantite}"{multi}>'
+                          f'<label><input type="checkbox" data-key="{cle}">'
+                          f'<span class="nom">{objet}</span><span class="qte">×{quantite}</span></label>'
+                          f'<div class="bilan">'
+                          f'<button type="button" data-verdict="utile">✅ utile</button>'
+                          f'<button type="button" data-verdict="trop">➖ en trop</button>'
+                          f'<button type="button" data-verdict="pas_servi">❌ pas servi</button>'
+                          f'<span class="utilise">utilisé <input type="number" min="0" max="{quantite}" '
+                          f'inputmode="numeric"> / {quantite}</span></div></li>')
             corps += "</ul></details>"
+        titre = "Ce qui nous a manqué" if proprietaire == "Partagé" else f"Ce qui a manqué à {proprietaire}"
+        corps += (f'<div class="manques" data-owner="{proprietaire}"><h3>{titre}</h3>'
+                  f'<div class="puces-manque"></div>'
+                  f'<form class="ajout-manque"><input type="text" placeholder="ex. bouchons d\'oreilles" '
+                  f'enterkeyhint="done"><button type="submit">Ajouter</button></form></div>')
         corps += "</section>"
 
     page = f"""<!doctype html>
@@ -781,15 +989,16 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None):
 <style>{HTML_STYLE}</style>
 </head>
 <body>
-<h1>{libelle_voyage} <span class="duree">· {total} jours</span></h1>
+<h1>{libelle_voyage} <span class="duree">· {total} jours{quand}</span></h1>
 <div class="puces">{puces}</div>
 <div class="collant">
 <div class="barres">{barres}</div>
 {onglets}
+<p id="bilan-compte"></p>
 </div>
 {corps}
-<div class="controls"><button id="toggle-masque" class="ctrl-btn">Masquer les rangés</button><button id="reset" class="ctrl-btn">Réinitialiser</button></div>
-<script>const VOYAGE = {json.dumps(libelle_voyage, ensure_ascii=False)};</script>
+<div class="controls"><button id="mode-bilan" class="ctrl-btn">📝 Bilan de fin de voyage</button><button id="toggle-masque" class="ctrl-btn">Masquer les rangés</button><button id="reset" class="ctrl-btn">Réinitialiser</button></div>
+<script>const VOYAGE = {json.dumps(cle_voyage, ensure_ascii=False)};</script>
 <script>{HTML_SCRIPT}</script>
 </body>
 </html>"""
@@ -828,6 +1037,48 @@ def lire_mois(reponse, precedent=None):
         return mois if 1 <= mois <= 12 else None
     trouves = [i for i, nom in enumerate(MOIS, start=1) if sans_accents(nom).startswith(texte)]
     return trouves[0] if len(trouves) == 1 else None
+
+
+def lire_date(reponse):
+    """'10/01/2027', '10/1/27', '2027-01-10', '10 janv. 2027' -> date ; None si invalide.
+    Le mois accepte chiffre ou nom (même logique que lire_mois)."""
+    texte = sans_accents(reponse.strip().lower()).replace(".", " ")
+    morceaux = [m for m in re.split(r"[\s/-]+", texte) if m]     # séparateurs : espace, / ou -
+    if len(morceaux) != 3:
+        return None
+    if len(morceaux[0]) == 4:                                   # format ISO : année-mois-jour
+        annee, mois_txt, jour = morceaux
+    else:
+        jour, mois_txt, annee = morceaux
+    mois = lire_mois(mois_txt)
+    if mois is None or not (jour.isdigit() and annee.isdigit()):
+        return None
+    annee = int(annee) + (2000 if len(annee) == 2 else 0)       # "27" -> 2027
+    try:
+        return date(annee, mois, int(jour))
+    except ValueError:                                          # 31 février…
+        return None
+
+
+def mois_des_etapes(depart, durees):
+    """Mois de chaque étape, déduit de la date de départ et des jours cumulés.
+    Une étape à cheval sur deux mois prend le mois de son jour du milieu."""
+    mois = []
+    debut = depart
+    for jours in durees:
+        milieu = debut + timedelta(days=(jours - 1) // 2)
+        mois.append(milieu.month)
+        debut += timedelta(days=jours)
+    return mois
+
+
+def code_voyage(depart, libelle):
+    """Identifiant stable d'un voyage : même date + même itinéraire = même voyage."""
+    return f"{depart.isoformat()} {libelle}"
+
+
+def date_en_clair(d):
+    return f"{d.day} {MOIS[d.month - 1]} {d.year}"
 
 
 def lire_activites(reponse):
@@ -888,10 +1139,17 @@ def main():
         conn = None
         print("ℹ️  Postgres indisponible : climat interrogé en direct, sans cache.")
 
+    # --- Date de départ : identifie le voyage et donne le mois de chaque étape ---
+    while True:
+        depart = lire_date(input("Date de départ (ex. 10/01/2027 ou 10 janv 2027) : "))
+        if depart:
+            break
+        print("Date invalide : jour/mois/année, par exemple 10/01/2027.")
+    debut_etape = depart
+
     # --- Saisie de l'itinéraire, étape par étape ---
     itineraire = []
     numero = 1
-    mois_precedent = None             # Entrée au mois = même mois que l'étape d'avant
     while True:
         saisie = input(f"Étape {numero} — destination (ou 'fin' pour terminer) : ").strip()
         if saisie == "":
@@ -917,13 +1175,10 @@ def main():
                 jours = int(reponse)
                 break
             print("        Nombre de jours invalide : entre un nombre positif.")
-        while True:
-            defaut = f" [Entrée = {MOIS[mois_precedent - 1]}]" if mois_precedent else ""
-            mois = lire_mois(input(f"        — mois (1-12 ou janvier, févr…){defaut} : "), mois_precedent)
-            if mois:
-                break
-            print("        Mois invalide : un nombre de 1 à 12 ou un nom de mois (janv, juillet…).")
-        mois_precedent = mois
+        mois = mois_des_etapes(debut_etape, [jours])[0]        # plus de question : calculé
+        fin_etape = debut_etape + timedelta(days=jours - 1)
+        print(f"        — du {date_en_clair(debut_etape)} au {date_en_clair(fin_etape)} ({MOIS[mois - 1]})")
+        debut_etape += timedelta(days=jours)
         while True:
             activites = lire_activites(input("        — activités ? (v)ille (p)lage (m)ontagne, combinables : "))
             if activites:
@@ -965,14 +1220,18 @@ def main():
 
     climats = [(e["destination"], e["mois"], e["normales"]) for e in itineraire]
     libelle_voyage = " › ".join(etape["destination"] for etape in itineraire)
-    html = valise_en_html(valise, libelle_voyage, total, prises, climats)
+    code = code_voyage(depart, libelle_voyage)
+    html = valise_en_html(valise, libelle_voyage, total, prises, climats, code=code, depart=depart)
     with open("valise.html", "w", encoding="utf-8") as f:
         f.write(html)
     print(f"Checklist écrite dans valise.html ({total} jours, {len(itineraire)} étape(s))")
     try:                                  # publication en base : c'est elle que le serveur affiche
         conn = connecter()
+        enregistrer_voyage(conn, code, libelle_voyage, depart, personnes, itineraire, jours_types)
+        enregistrer_valise_objets(conn, code, valise)      # la photo : référence du futur bilan
         publier_page(conn, html)
         conn.close()
+        print(f"Voyage mémorisé : {code}")
         ou = "en ligne" if os.environ.get("DATABASE_URL") else "sur le Mac"
         print(f"Checklist publiée dans la base ({ou}).")
     except psycopg2.OperationalError:
