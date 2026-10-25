@@ -7,15 +7,29 @@ page HTML cochable (persistance des coches dans le navigateur).
 
 ## Lancer le programme
 
+Pré-requis : Postgres doit tourner (`brew services start postgresql@15`) et les
+bases `valise`/`valise_test` doivent exister (voir `schema.sql`).
+
 Depuis le dossier `voyage/` :
 
 ```bash
-python3 valise.py
+.venv/bin/python3 valise.py
 ```
 
 Assistant interactif : saisis les étapes une par une (destination, jours, mois),
 puis qui fait sa valise et si tu conduis. Le programme écrit `valise.html` dans le
-dossier — ouvre-le dans un navigateur.
+dossier.
+
+Puis lance le serveur (à garder ouvert pendant que vous préparez vos valises) :
+
+```bash
+.venv/bin/python3 serveur.py
+```
+
+Ouvre `http://localhost:5000/` sur le Mac, ou `http://<ip-locale-du-mac>:5000/`
+depuis un téléphone sur le même wifi. L'état des cases est partagé entre tous
+les appareils qui ouvrent cette URL — ne plus ouvrir `valise.html` directement
+(ça ne syncroniserait rien).
 
 Exemple de saisie (Vietnam + Cambodge, 18 jours en janvier) :
 
