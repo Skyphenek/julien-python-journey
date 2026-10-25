@@ -5,6 +5,8 @@ Application Python des concepts Exercism : dicts, listes, boucles, conditions.
 On sépare les DONNÉES (les 3 tables ci-dessous, remplies une fois) de la LOGIQUE
 (la fonction faire_valise). Démarrage minimal : on enrichit au fil des voyages.
 """
+import json
+
 # Feuille de style de la checklist HTML (mobile-first). Fournie clé en main :
 # c'est de la présentation, pas de la logique. Injectée telle quelle dans le <head>.
 HTML_STYLE = """
@@ -689,6 +691,7 @@ def valise_en_html(valise, libelle_voyage, total, prises):
 <div class="controls"><button id="toggle-masque" class="ctrl-btn">Masquer les rangés</button><button id="reset" class="ctrl-btn">Réinitialiser</button></div>
 {onglets}
 {corps}
+<script>const VOYAGE = {json.dumps(libelle_voyage, ensure_ascii=False)};</script>
 <script>{HTML_SCRIPT}</script>
 </body>
 </html>"""

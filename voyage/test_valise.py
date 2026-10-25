@@ -5,7 +5,8 @@ sys.path.insert(0, str(Path(__file__).parent))   # permet d'importer valise depu
 
 from valise import (total_jours, jours_par_type,
                     statut_ue_itineraire, prises_itineraire,
-                    quantite_reelle, faire_valise)
+                    quantite_reelle, faire_valise,
+                    valise_en_html, paquet_vide)
 
 def test_total_jours():
     itin = [{"destination": "Hanoï", "jours": 7, "mois": 1},
@@ -109,3 +110,8 @@ def test_faire_valise_dimension_par_jours_du_climat():
     jpt = {"chaud": 18, "plage": 7}
     valise = faire_valise(jpt, 18, ["Julien"], hors_ue=True, conduit=False)
     assert valise["Julien"]["Vêtements"]["maillot"] == 2
+
+
+def test_valise_en_html_injecte_la_variable_voyage():
+    html = valise_en_html({"Partagé": paquet_vide()}, "Hanoï › Siem Reap", 11, {"universel"})
+    assert 'const VOYAGE = "Hanoï › Siem Reap";' in html
