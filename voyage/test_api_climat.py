@@ -156,3 +156,20 @@ def test_previsions_jours_manquants_ignores():
     trou["time"] = PREVU["time"][:4]
     n = normales_depuis_previsions(trou)
     assert n["tmax"] == 30.0                        # (30 + 31 + 29) / 3
+
+
+def test_appels_reseau_avec_delai_maximum(monkeypatch):
+    # sans timeout, un Open-Meteo muet bloquerait le bouton indéfiniment
+    import api_climat
+    vus = []
+    class Rep:
+        def raise_for_status(self): pass
+        def json(self): return {"daily": PREVU, "results": []}
+    def faux_get(url, params=None, **kw):
+        vus.append(kw.get("timeout"))
+        return Rep()
+    monkeypatch.setattr(api_climat.requests, "get", faux_get)
+    api_climat.meteo_prevue(1.0, 2.0, date(2027, 1, 10), date(2027, 1, 15))
+    api_climat.lieux("Oslo")
+    assert vus == [api_climat.DELAI_RESEAU, api_climat.DELAI_RESEAU]
+    assert api_climat.DELAI_RESEAU == 15

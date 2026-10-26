@@ -896,3 +896,13 @@ def test_page_porte_le_bouton_meteo_et_ses_dates():
     assert 'id="meteo"' in html
     assert 'const DEPART = "2027-01-10"' in html
     assert 'const FIN = "2027-01-27"' in html                    # 18 jours : 10 -> 27 janvier
+
+
+def test_appliquer_previsions_note_les_erreurs():
+    import requests
+    def hors_ligne(*a):
+        raise requests.ConnectionError("pas de réseau")
+    erreurs = []
+    appliquer_previsions(ITIN_2_ETAPES, date(2027, 1, 10), date(2027, 1, 7),
+                         chercher=hors_ligne, erreurs=erreurs)
+    assert erreurs == ["Hanoï : pas de réseau", "Phu Quoc : pas de réseau"]

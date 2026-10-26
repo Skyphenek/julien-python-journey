@@ -14,6 +14,7 @@ URL_ARCHIVE = "https://archive-api.open-meteo.com/v1/archive"
 DEBUT, FIN, NB_ANNEES = "2016-01-01", "2025-12-31", 10
 SEUIL_PLUIE_MM = 1.0         # en dessous, une bruine ne compte pas comme "jour de pluie"
 SEUIL_FORTE_PLUIE_MM = 5.0   # "vraie" pluie, celle qui mouille : distingue mousson et averses tropicales
+DELAI_RESEAU = 15            # secondes max par appel (géocodage, prévisions) : jamais de bouton bloqué
 
 
 def calculer_normales(daily, mois, nb_annees=NB_ANNEES):
@@ -59,7 +60,8 @@ def extraire_lieux(reponse_json):
 
 def lieux(nom, nb=5):
     """Géocodage : les nb lieux qui portent ce nom (homonymes possibles : Bali Inde / Indonésie)."""
-    reponse = requests.get(URL_GEO, params={"name": nom, "count": nb, "language": "fr"})
+    reponse = requests.get(URL_GEO, params={"name": nom, "count": nb, "language": "fr"},
+                           timeout=DELAI_RESEAU)
     reponse.raise_for_status()
     return extraire_lieux(reponse.json())
 
@@ -145,7 +147,7 @@ def meteo_prevue(latitude, longitude, debut, fin):
         "start_date": debut.isoformat(), "end_date": fin.isoformat(),
         "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum",
         "timezone": "auto",
-    })
+    }, timeout=DELAI_RESEAU)
     reponse.raise_for_status()
     return reponse.json()["daily"]
 
