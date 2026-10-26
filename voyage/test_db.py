@@ -208,3 +208,33 @@ def test_regles_toujours(conn):
     ajouter_regle(conn, "Julien", "Mots fléchés", "Divers", 1)
     ajouter_regle(conn, "Julien", "Mots fléchés", "Divers", 1)      # pas de doublon
     assert lire_regles(conn) == {"Julien": [{"objet": "Mots fléchés", "theme": "Divers", "quantite": 1}]}
+
+
+# --- Étape 2 (météo J-7) : le voyage stocke tout ce qu'il faut pour être régénéré ---
+
+def test_voyage_stocke_conduite_et_lessive(conn):
+    enregistrer_voyage(conn, CODE, "Tokyo › Bangkok", date(2027, 1, 10), ["Julien"],
+                       ITINERAIRE, {"ville": 7}, conduit=True, lessive=7)
+    v = lire_voyage(conn, CODE)
+    assert v["conduit"] is True
+    assert v["lessive"] == 7
+
+
+def test_voyage_ancien_format_valeurs_par_defaut(conn):
+    # les voyages enregistrés avant l'étape 2 : pas de conduite, pas de lessive
+    enregistrer_voyage(conn, CODE, "Tokyo › Bangkok", date(2027, 1, 10), ["Julien"], ITINERAIRE, {})
+    v = lire_voyage(conn, CODE)
+    assert v["conduit"] is False
+    assert v["lessive"] is None
+
+
+def test_voyage_relu_se_reconstruit(conn):
+    # ce qui sort de la base suffit à construire() : c'est tout l'enjeu du bouton météo
+    from valise import construire
+    from valise import code_voyage
+    code = code_voyage(date(2027, 1, 10), "Tokyo")          # ITINERAIRE n'a qu'une étape : Tokyo
+    enregistrer_voyage(conn, code, "Tokyo", date(2027, 1, 10), ["Julien"],
+                       ITINERAIRE, {"froid": 7, "ville": 7}, conduit=True, lessive=None)
+    c = construire(lire_voyage(conn, code))
+    assert c["code"] == code                                  # même voyage -> cases cochées gardées
+    assert c["valise"]["Julien"]["Documents"]["permis"] == 1

@@ -10,7 +10,7 @@ from valise import (total_jours, jours_par_type,
                     valise_en_html, paquet_vide, ligne_climat,
                     types_climat, libelle_lieu,
                     lire_mois, lire_activites, est_oui, un_par_pays, lire_lessive, objets_sans_rayon,
-                    construire, rendre_page,
+                    construire, rendre_page, completer_coordonnees,
                     statut_ue, adaptateur_pour, normales_avec_cache,
                     THEMES, ICONES_RAYON, puce_climat, HTML_SCRIPT,
                     lire_date, mois_des_etapes, code_voyage,
@@ -796,3 +796,34 @@ def test_rendre_page_identique_a_valise_en_html():
     attendu = valise_en_html(c["valise"], c["libelle"], c["total"], c["prises"], climats,
                              code=c["code"], depart=date(2027, 1, 10))
     assert rendre_page(VOYAGE_VIETNAM, c) == attendu
+
+
+# --- Coordonnées des étapes (prévisions météo) ---
+
+def _faux_lieux(nom):
+    return {"Hanoï": [{"nom": "Hanoi", "code_pays": "PG", "latitude": -5.0, "longitude": 145.0},
+                      {"nom": "Hanoï", "code_pays": "VN", "latitude": 21.03, "longitude": 105.85}],
+            "Nulle Part": []}[nom]
+
+
+def test_completer_coordonnees_retrouve_le_bon_pays():
+    itin = [{"destination": "Hanoï", "jours": 5, "code_pays": "VN"}]
+    complete = completer_coordonnees(itin, chercher=_faux_lieux)
+    assert (complete[0]["latitude"], complete[0]["longitude"]) == (21.03, 105.85)   # pas la Papouasie
+    assert "latitude" not in itin[0]                                                # l'original est intact
+
+
+def test_completer_coordonnees_garde_l_existant_sans_appel():
+    def interdit(nom):
+        raise AssertionError("aucun appel réseau si les coordonnées sont déjà là")
+    itin = [{"destination": "Hanoï", "jours": 5, "code_pays": "VN", "latitude": 1.0, "longitude": 2.0}]
+    assert completer_coordonnees(itin, chercher=interdit) == itin
+
+
+def test_completer_coordonnees_introuvable_ou_hors_ligne():
+    import requests
+    def hors_ligne(nom):
+        raise requests.RequestException("pas de réseau")
+    itin = [{"destination": "Nulle Part", "jours": 2, "code_pays": None}]
+    assert "latitude" not in completer_coordonnees(itin, chercher=_faux_lieux)[0]
+    assert "latitude" not in completer_coordonnees(itin, chercher=hors_ligne)[0]

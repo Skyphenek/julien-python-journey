@@ -1300,6 +1300,28 @@ def question_proposition(p):
             f"Le retirer ? (o/n) : ")
 
 
+def completer_coordonnees(itineraire, chercher=lieux):
+    """Copie de l'itinéraire où chaque étape a ses coordonnées (nécessaires aux prévisions).
+
+    Pour les voyages enregistrés avant qu'on les stocke : re-géocodage de la destination,
+    en gardant le candidat du bon pays. Introuvable ou hors ligne : l'étape reste sans
+    coordonnées (elle gardera ses normales de saison).
+    """
+    complete = []
+    for etape in itineraire:
+        etape = dict(etape)                          # copie : on ne touche pas à l'original
+        if "latitude" not in etape:
+            try:
+                candidats = chercher(etape["destination"])
+            except requests.RequestException:
+                candidats = []
+            bons = [c for c in candidats if c["code_pays"] == etape.get("code_pays")] or candidats
+            if bons:
+                etape["latitude"], etape["longitude"] = bons[0]["latitude"], bons[0]["longitude"]
+        complete.append(etape)
+    return complete
+
+
 def construire(voyage):
     """Calculer la valise d'un voyage déjà saisi. Pure : ni input(), ni base, ni réseau.
 
@@ -1421,7 +1443,8 @@ def main():
         print("        🌡️", ligne_climat(destination, mois, n))
         itineraire.append({"destination": destination, "jours": jours, "mois": mois,
                            "activites": activites, "normales": n,
-                           "code_pays": lieu["code_pays"] if lieu else None})
+                           "code_pays": lieu["code_pays"] if lieu else None,
+                           **({"latitude": lieu["latitude"], "longitude": lieu["longitude"]} if lieu else {})})
         numero += 1
 
     if conn is not None:
@@ -1460,7 +1483,8 @@ def main():
     print(f"Checklist écrite dans valise.html ({total} jours, {len(itineraire)} étape(s))")
     try:                                  # publication en base : c'est elle que le serveur affiche
         conn = connecter()
-        enregistrer_voyage(conn, code, libelle_voyage, depart, personnes, itineraire, jours_types)
+        enregistrer_voyage(conn, code, libelle_voyage, depart, personnes, itineraire, jours_types,
+                           conduit=conduit, lessive=lessive)
         enregistrer_valise_objets(conn, code, valise)      # la photo : référence du futur bilan
         publier_page(conn, html)
         conn.close()

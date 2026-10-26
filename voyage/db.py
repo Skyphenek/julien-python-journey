@@ -107,18 +107,24 @@ def lire_page(conn):
     return ligne[0] if ligne else None
 
 
-def enregistrer_voyage(conn, code, libelle, depart, personnes, itineraire, jours_types):
-    """Upsert de l'identité et du contexte d'un voyage (régénérer = mettre à jour)."""
+def enregistrer_voyage(conn, code, libelle, depart, personnes, itineraire, jours_types,
+                       conduit=False, lessive=None):
+    """Upsert de l'identité et du contexte d'un voyage (régénérer = mettre à jour).
+
+    conduit / lessive : les réglages qui permettent de reconstruire le voyage sans le terminal.
+    """
     with conn.cursor() as cur:
         cur.execute(
             """
-            INSERT INTO voyages (code, libelle, depart, personnes, itineraire, jours_types)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            INSERT INTO voyages (code, libelle, depart, personnes, itineraire, jours_types, conduit, lessive)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (code) DO UPDATE SET
                 libelle = EXCLUDED.libelle, depart = EXCLUDED.depart, personnes = EXCLUDED.personnes,
-                itineraire = EXCLUDED.itineraire, jours_types = EXCLUDED.jours_types, maj_le = now()
+                itineraire = EXCLUDED.itineraire, jours_types = EXCLUDED.jours_types,
+                conduit = EXCLUDED.conduit, lessive = EXCLUDED.lessive, maj_le = now()
             """,
-            (code, libelle, depart, list(personnes), Json(itineraire), Json(jours_types)),
+            (code, libelle, depart, list(personnes), Json(itineraire), Json(jours_types),
+             conduit, lessive),
         )
     conn.commit()
 
@@ -127,15 +133,17 @@ def lire_voyage(conn, code):
     """Le voyage sous forme de dict, ou None. JSONB et TEXT[] reviennent en dict / list Python."""
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT libelle, depart, personnes, itineraire, jours_types FROM voyages WHERE code = %s",
+            "SELECT libelle, depart, personnes, itineraire, jours_types, conduit, lessive "
+            "FROM voyages WHERE code = %s",
             (code,),
         )
         ligne = cur.fetchone()
     if ligne is None:
         return None
-    libelle, depart, personnes, itineraire, jours_types = ligne
+    libelle, depart, personnes, itineraire, jours_types, conduit, lessive = ligne
     return {"code": code, "libelle": libelle, "depart": depart, "personnes": personnes,
-            "itineraire": itineraire, "jours_types": jours_types}
+            "itineraire": itineraire, "jours_types": jours_types,
+            "conduit": conduit, "lessive": lessive}       # forme acceptée telle quelle par construire()
 
 
 def enregistrer_valise_objets(conn, code, valise):
