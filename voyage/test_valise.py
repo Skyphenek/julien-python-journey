@@ -9,7 +9,7 @@ from valise import (total_jours, jours_par_type,
                     quantite_reelle, faire_valise,
                     valise_en_html, paquet_vide, ligne_climat,
                     types_climat, libelle_lieu,
-                    lire_mois, lire_activites, est_oui, un_par_pays, lire_lessive,
+                    lire_mois, lire_activites, est_oui, un_par_pays, lire_lessive, objets_sans_rayon,
                     statut_ue, adaptateur_pour, normales_avec_cache,
                     THEMES, ICONES_RAYON, puce_climat, HTML_SCRIPT,
                     lire_date, mois_des_etapes, code_voyage,
@@ -666,3 +666,77 @@ def test_maillot_plafonne_a_trois():
     # 18 jours de plage : 18//3 = 6 -> plafond 3 (un sur soi, un qui sèche, un pour le style)
     valise = faire_valise({"plage": 18}, 18, ["Julien"], hors_ue=True, conduit=False)
     assert valise["Julien"]["Vêtements"]["maillot de bain"] == 3
+
+
+# --- Activités enrichies (9 lettres) ---
+
+def test_lire_activites_neuf_lettres():
+    assert lire_activites("tsk") == ["culte", "scooter", "snorkeling"]
+    assert lire_activites("j n r") == ["nature", "nuit", "road trip"]
+    assert lire_activites("vpm") == ["montagne", "plage", "ville"]
+
+
+def _une_activite(activite, personnes=("Julien", "Laetitia"), conduit=False):
+    return faire_valise({activite: 5}, 5, list(personnes), hors_ue=True, conduit=conduit)
+
+
+def test_activite_lieux_de_culte():
+    v = _une_activite("culte")
+    assert v["Julien"]["Vêtements"]["tenue couverte"] == 1
+    assert v["Laetitia"]["Vêtements"]["tenue couverte"] == 1
+    assert v["Laetitia"]["Accessoires"]["étole"] == 1
+    assert "étole" not in v["Julien"]["Accessoires"]
+
+
+def test_activite_lieux_de_culte_resiste_au_pays_chaud():
+    # CHAUD_PERSO réécrit des vêtements après coup : la tenue couverte ne doit pas sauter
+    v = faire_valise({"chaud": 5, "culte": 5}, 5, ["Laetitia"], hors_ue=True, conduit=False)
+    assert v["Laetitia"]["Vêtements"]["tenue couverte"] == 1
+
+
+def test_activite_snorkeling():
+    v = _une_activite("snorkeling")
+    assert v["Julien"]["Vêtements"]["top anti-UV"] == 1
+    assert v["Julien"]["Chaussures"]["chaussures d'eau"] == 1
+    assert v["Partagé"]["Divers"]["pochette étanche"] == 1
+
+
+def test_activite_nature_moustiques():
+    v = _une_activite("nature")
+    assert v["Julien"]["Vêtements"]["manches longues légères"] == 1
+    assert v["Partagé"]["Hygiène"]["répulsif moustiques"] == 1
+    assert v["Partagé"]["Tech"]["lampe frontale"] == 1
+
+
+def test_activite_transport_de_nuit():
+    v = _une_activite("nuit")
+    assert v["Julien"]["Divers"]["bouchons d'oreilles"] == 1
+    assert v["Julien"]["Divers"]["masque de sommeil"] == 1
+    assert v["Julien"]["Vêtements"]["couche légère"] == 1
+    assert v["Partagé"]["Divers"]["cadenas"] == 1
+
+
+def test_activite_road_trip():
+    v = _une_activite("road trip")
+    assert v["Partagé"]["Tech"]["support téléphone voiture"] == 1
+    assert v["Partagé"]["Tech"]["chargeur voiture USB"] == 1
+    assert v["Partagé"]["Divers"]["glacière souple"] == 1
+
+
+def test_activite_scooter():
+    v = _une_activite("scooter")
+    assert v["Julien"]["Accessoires"]["buff anti-poussière"] == 1
+    assert v["Julien"]["Accessoires"]["gants légers"] == 1
+
+
+def test_scooter_et_road_trip_impliquent_le_permis():
+    # même si on a répondu "non" à "Tu vas conduire ?" : seuls les conducteurs le prennent
+    for activite in ["scooter", "road trip"]:
+        v = _une_activite(activite, conduit=False)
+        assert v["Julien"]["Documents"]["permis"] == 1
+        assert v["Julien"]["Documents"]["permis international"] == 1
+        assert "permis" not in v["Laetitia"]["Documents"]
+
+
+def test_nouveaux_objets_tous_ranges():
+    assert objets_sans_rayon() == set()

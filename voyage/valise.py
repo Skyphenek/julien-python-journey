@@ -503,6 +503,10 @@ PAR_TYPE_COMMUN = {
     "plage": {"crème solaire": "par_semaine", "biafine": 1},
     "pluie": {"parapluie": 1},
     "averses": {"parapluie": 1},                 # un parapluie pour le groupe
+    "snorkeling": {"pochette étanche": 1},
+    "nature":     {"répulsif moustiques": 1, "lampe frontale": 1},
+    "nuit":       {"cadenas": 1},                # bagages en train / bus de nuit
+    "road trip":  {"support téléphone voiture": 1, "chargeur voiture USB": 1, "glacière souple": 1},
 }
 
 # 2b. PAR TYPE — PERSO : chacun le sien (tout ce qui se porte).
@@ -523,6 +527,12 @@ PAR_TYPE_PERSO = {
     "ville":    {"tenue habillée": 1, "baskets": 1},
     "pluie":    {"imperméable": 1, "chaussures imperméables": 1},
     "averses":  {"imperméable": 1},              # orages d'été : K-way, pieds mouillés tolérés
+    # activités enrichies : noms d'objets absents de CHAUD_PERSO (qui réécrit après coup)
+    "culte":      {"tenue couverte": 1, "étole": 1},          # épaules et genoux couverts
+    "snorkeling": {"top anti-UV": 1, "chaussures d'eau": 1},  # corail, galets, oursins
+    "scooter":    {"buff anti-poussière": 1, "gants légers": 1},
+    "nature":     {"manches longues légères": 1},             # moustiques au crépuscule
+    "nuit":       {"bouchons d'oreilles": 1, "masque de sommeil": 1, "couche légère": 1},
 }
 
 # 3. PAR PERSONNE : les affaires perso.
@@ -538,7 +548,7 @@ PAR_PERSONNE = {
 #          l'ajoute (ex. items genrés présents dans les tables partagées PAR_TYPE_PERSO
 #          comme "collants" -> pas pour Julien).
 JAMAIS = {
-    "Julien": {"collants", "sandales"},
+    "Julien": {"collants", "sandales", "étole"},
 }
 
 # 3ter. RÉGLAGES EN PAYS CHAUD, PAR PERSONNE : dès qu'un climat "chaud" est présent,
@@ -576,7 +586,10 @@ CHOIX_PERSONNE = {
 
 # Activités d'une étape : saisies par lettre, combinables ("vp" = ville + plage).
 # Le climat (chaud/froid/pluie) n'est PAS ici : il vient des données réelles.
-CHOIX_ACTIVITE = {"v": "ville", "p": "plage", "m": "montagne"}
+CHOIX_ACTIVITE = {"v": "ville", "p": "plage", "m": "montagne",     # m = montagne ou rando
+                  "t": "culte", "s": "snorkeling", "k": "scooter", "j": "nature",
+                  "n": "nuit", "r": "road trip"}
+ACTIVITES_CONDUITE = {"scooter", "road trip"}      # impliquent le permis pour les conducteurs
 
 # 3ter. THÈMES d'affichage : à quel rayon appartient chaque objet.
 #       7 rayons explicites, Divers compris. Tout objet ABSENT de ces 7 sets est
@@ -588,6 +601,7 @@ THEMES = {
         "robes", "manteau", "pull", "maillot de bain", "coupe-vent", "polaire",
         "tenue habillée", "imperméable", "t-shirts",
         "chemises", "chemises légères", "chemise habillée",
+        "tenue couverte", "top anti-UV", "manches longues légères", "couche légère",
     },
     "Sous-vêtements": {
         "caleçons", "culottes", "soutien-gorge", "chaussettes",
@@ -595,24 +609,29 @@ THEMES = {
     },
     "Chaussures": {
         "chaussures de rechange", "sandales", "tongs", "grosses chaussures",
-        "chaussures rando", "baskets", "chaussures imperméables",
+        "chaussures rando", "baskets", "chaussures imperméables", "chaussures d'eau",
     },
     "Accessoires": {
         "ceinture", "chapeau", "lunettes de soleil", "gants", "bonnet",
         "écharpe", "bijoux", "boucles d'oreille", "montre", "futa",
+        "étole", "buff anti-poussière", "gants légers",
     },
     "Hygiène": {
         "trousse toilette", "déodorant", "rasoir", "maquillage", "lisseur",
         "démaquillant", "crème solaire", "biafine", "trousse pharmacie",
+        "répulsif moustiques",
     },
     "Tech": {
         "chargeur", "adaptateur de prise",
+        "lampe frontale", "support téléphone voiture", "chargeur voiture USB",
     },
     "Documents": {
         "passeport", "carte d'identité", "permis", "permis international",
     },
     "Divers": {
         "sac de jour", "livre / liseuse", "parapluie", "gourde", "bâtons",
+        "pochette étanche", "bouchons d'oreilles", "masque de sommeil", "cadenas",
+        "glacière souple",
     },
 }
 
@@ -939,7 +958,7 @@ def faire_valise(jours_types, total, personnes, hors_ue, conduit, adaptateur=Tru
             paquet[theme_de("passeport")]["passeport"] = 1
         else:
             paquet[theme_de("carte d'identité")]["carte d'identité"] = 1
-        if conduit and personne in CONDUCTEURS:
+        if (conduit or ACTIVITES_CONDUITE & set(jours_types)) and personne in CONDUCTEURS:
             paquet[theme_de("permis")]["permis"] = 1
             if hors_ue:
                 paquet[theme_de("permis international")]["permis international"] = 1
@@ -1359,10 +1378,12 @@ def main():
         print(f"        — du {date_en_clair(debut_etape)} au {date_en_clair(fin_etape)} ({MOIS[mois - 1]})")
         debut_etape += timedelta(days=jours)
         while True:
-            activites = lire_activites(input("        — activités ? (v)ille (p)lage (m)ontagne, combinables : "))
+            print("        — activités : (v)ille (p)lage (m)ontagne/rando (t)emples/lieux de culte (s)norkeling")
+            print("                      (k) scooter (j)ungle/moustiques (n)uit en transport (r)oad trip")
+            activites = lire_activites(input("          lettres combinables (ex : vt) : "))
             if activites:
                 break
-            print("        Choix invalide : tape v, p, m ou une combinaison (ex : vp).")
+            print("        Choix invalide : tape une ou plusieurs lettres de la liste (ex : vt).")
         n = None
         if lieu:
             try:
