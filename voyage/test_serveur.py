@@ -303,3 +303,74 @@ def test_normales_requetes_invalides(client):
     assert client.get("/api/normales?latitude=1&longitude=1&mois=13").status_code == 400
     assert client.post("/api/normales", json={"latitude": 1, "longitude": 1, "mois": 5,
                                               "daily": {"time": "x"}}).status_code == 400
+
+
+# --- Création en ligne, étape 3 : POST /api/voyages ---
+
+CORPS_LISBONNE = {
+    "depart": "2027-05-01", "personnes": "l", "conduit": False, "lessive": None,
+    "etapes": [{"destination": "Lisbonne", "code_pays": "PT", "latitude": 38.72, "longitude": -9.14,
+                "jours": 4, "activites": ["ville", "plage"]}],
+}
+
+
+@pytest.fixture
+def client_creation(client):
+    conn = connecter("valise_test")
+    with conn.cursor() as cur:
+        cur.execute("TRUNCATE normales_climat, regles_perso")
+    conn.commit()
+    conn.close()
+    return client
+
+
+def test_formulaire_servi(client):
+    html = client.get("/?nouvelle").get_data(as_text=True)
+    assert "api/voyages" in html
+
+
+def test_creation_demande_les_normales_manquantes(client_creation):
+    r = client_creation.post("/api/voyages", json=CORPS_LISBONNE)
+    assert r.status_code == 409
+    assert r.get_json()["manquantes"] == [{"etape": 0, "destination": "Lisbonne",
+                                           "latitude": 38.72, "longitude": -9.14, "mois": 5}]
+
+
+def test_creation_avec_normales_en_cache(client_creation):
+    from db import enregistrer_normales, lire_valise_objets
+    conn = connecter("valise_test")
+    enregistrer_normales(conn, 38.72, -9.14, {5: {"tmin": 14.0, "tmax": 26.0, "jours_pluie": 3,
+                                                  "jours_forte_pluie": 0.5}})
+    conn.close()
+    r = client_creation.post("/api/voyages", json=CORPS_LISBONNE)
+    assert r.status_code == 201
+    corps = r.get_json()
+    assert corps["code"] == "2027-05-01 Lisbonne"
+    assert corps["url"] == "?v=2027-05-01%20Lisbonne"
+    conn = connecter("valise_test")
+    try:
+        v = lire_voyage(conn, corps["code"])
+        assert v["personnes"] == ["Laetitia"]
+        assert v["itineraire"][0]["normales"]["tmax"] == 26.0         # climat repris du cache
+        assert ("Laetitia", "Vêtements", "maillot de bain") in lire_valise_objets(conn, corps["code"])
+        assert "Lisbonne" in lire_page(conn, corps["code"])
+    finally:
+        conn.close()
+    assert "Lisbonne" in client_creation.get("/").get_data(as_text=True)     # visible à l'accueil
+
+
+def test_creation_forcee_sans_normales(client_creation):
+    # Open-Meteo injoignable depuis le téléphone : la valise est créée quand même
+    r = client_creation.post("/api/voyages", json={**CORPS_LISBONNE, "forcer": True})
+    assert r.status_code == 201
+    conn = connecter("valise_test")
+    try:
+        assert lire_voyage(conn, r.get_json()["code"])["itineraire"][0]["normales"] is None
+    finally:
+        conn.close()
+
+
+def test_creation_saisie_invalide(client_creation):
+    r = client_creation.post("/api/voyages", json={**CORPS_LISBONNE, "etapes": []})
+    assert r.status_code == 400 and "étape" in r.get_json()["erreur"]
+    assert client_creation.post("/api/voyages").status_code == 400
