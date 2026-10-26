@@ -11,7 +11,7 @@ from valise import (total_jours, jours_par_type,
                     types_climat, libelle_lieu,
                     lire_mois, lire_activites, est_oui, un_par_pays, lire_lessive, objets_sans_rayon,
                     construire, rendre_page, completer_coordonnees, appliquer_previsions, types_pour,
-                    fenetres_meteo,
+                    fenetres_meteo, valise_depuis_photo, accueil_en_html,
                     statut_ue, adaptateur_pour, normales_avec_cache,
                     THEMES, ICONES_RAYON, puce_climat, HTML_SCRIPT,
                     lire_date, mois_des_etapes, code_voyage,
@@ -928,3 +928,37 @@ def test_appliquer_previsions_retire_une_prevision_perimee():
     itin = [{**ITIN_2_ETAPES[0], "prevision": CHAUD_ORAGEUX}]
     nouveau = appliquer_previsions(itin, date(2027, 1, 10), date(2027, 1, 20), {}, [])
     assert "prevision" not in nouveau[0]                     # étape passée : plus de prévision
+
+
+# --- Une page par voyage + accueil (création en ligne, étape 1) ---
+
+def test_valise_depuis_photo_ordre_d_affichage():
+    photo = {("Julien", "Documents", "passeport"): 1, ("Partagé", "Divers", "parapluie"): 1,
+             ("Julien", "Vêtements", "t-shirts"): 5}
+    v = valise_depuis_photo(photo, ["Julien"])
+    assert list(v) == ["Partagé", "Julien"]                         # Partagé d'abord
+    assert list(v["Julien"]) == list(paquet_vide())                 # rayons dans l'ordre habituel
+    assert v["Julien"]["Vêtements"] == {"t-shirts": 5}
+    assert v["Partagé"]["Divers"] == {"parapluie": 1}
+
+
+def test_accueil_liste_les_voyages_a_venir_puis_passes():
+    voyages = [
+        {"code": "2026-10-01 Rome", "libelle": "Rome", "depart": date(2026, 10, 1),
+         "fin": date(2026, 10, 4), "personnes": ["Julien"]},
+        {"code": "2026-11-01 Oslo", "libelle": "Oslo", "depart": date(2026, 11, 1),
+         "fin": date(2026, 11, 5), "personnes": ["Julien", "Laetitia"]},
+    ]
+    html = accueil_en_html(voyages, date(2026, 10, 26))
+    assert html.index("À venir") < html.index("Oslo") < html.index("Passés") < html.index("Rome")
+    assert 'href="?v=2026-11-01%20Oslo"' in html                     # lien vers la page du voyage
+    assert "Julien · Laetitia" in html
+
+
+def test_accueil_vide():
+    assert "Aucune valise" in accueil_en_html([], date(2026, 10, 26))
+
+
+def test_page_du_voyage_a_un_lien_vers_l_accueil():
+    html = rendre_page(VOYAGE_VIETNAM, construire(VOYAGE_VIETNAM))
+    assert 'href="./"' in html and "Tous les voyages" in html

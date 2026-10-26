@@ -8,7 +8,7 @@ from db import (connecter, obtenir_etat, enregistrer_coche,
                 lire_normales, enregistrer_normales, publier_page, lire_page,
                 enregistrer_voyage, lire_voyage, enregistrer_valise_objets, lire_valise_objets,
                 enregistrer_retour, supprimer_retour, lire_retours,
-                archiver_voyage, lire_historique, ajouter_regle, lire_regles)
+                archiver_voyage, lire_historique, ajouter_regle, lire_regles, lister_voyages)
 from valise import normales_avec_cache
 
 
@@ -238,3 +238,25 @@ def test_voyage_relu_se_reconstruit(conn):
     c = construire(lire_voyage(conn, code))
     assert c["code"] == code                                  # même voyage -> cases cochées gardées
     assert c["valise"]["Julien"]["Documents"]["permis"] == 1
+
+
+# --- Une page par voyage (création en ligne, étape 1) ---
+
+def test_une_page_par_voyage(conn):
+    publier_page(conn, "<html>Rome</html>", cle="2026-12-30 Rome")
+    publier_page(conn, "<html>Oslo</html>", cle="2026-11-01 Oslo")
+    assert lire_page(conn, "2026-12-30 Rome") == "<html>Rome</html>"
+    assert lire_page(conn, "2026-11-01 Oslo") == "<html>Oslo</html>"
+    assert lire_page(conn, "2027-01-01 Inconnu") is None
+
+
+def test_lister_voyages_a_venir_et_passes_sans_les_archives(conn):
+    itin = lambda j: [{"destination": "X", "jours": j}]
+    enregistrer_voyage(conn, "2027-05-01 Lisbonne", "Lisbonne", date(2027, 5, 1), ["Laetitia"], itin(4), {})
+    enregistrer_voyage(conn, "2026-11-01 Oslo", "Oslo", date(2026, 11, 1), ["Julien", "Laetitia"], itin(5), {})
+    enregistrer_voyage(conn, "2027-04-30 Essai", "Essai", date(2027, 4, 30), ["Julien"], itin(2), {})
+    archiver_voyage(conn, "2027-04-30 Essai")
+    v = lister_voyages(conn)
+    assert [x["code"] for x in v] == ["2026-11-01 Oslo", "2027-05-01 Lisbonne"]     # par date, sans archive
+    assert v[0] == {"code": "2026-11-01 Oslo", "libelle": "Oslo", "depart": date(2026, 11, 1),
+                    "fin": date(2026, 11, 5), "personnes": ["Julien", "Laetitia"]}

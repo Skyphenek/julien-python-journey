@@ -82,13 +82,30 @@ def test_avec_le_secret_l_api_repond(client_secret):
     assert client_secret.get("/v/s3cr3t/api/etat/Hanoï").status_code == 200
 
 
-def test_page_servie_depuis_la_base(client):
+def test_page_du_voyage_servie_depuis_la_base(client):
+    from datetime import date as d
+    from db import enregistrer_voyage as ev
     conn = connecter("valise_test")
-    publier_page(conn, "<html>valise en base</html>")
+    ev(conn, "2026-12-30 Rome", "Rome", d(2026, 12, 30), ["Julien"], [{"destination": "Rome", "jours": 3}], {})
+    publier_page(conn, "<html>valise en base</html>", cle="2026-12-30 Rome")
     conn.close()
-    reponse = client.get("/")
+    reponse = client.get("/?v=2026-12-30 Rome")
     assert reponse.status_code == 200
     assert "valise en base" in reponse.get_data(as_text=True)
+
+
+def test_accueil_liste_les_voyages(client):
+    from datetime import date as d
+    from db import enregistrer_voyage as ev
+    conn = connecter("valise_test")
+    ev(conn, "2026-12-30 Rome", "Rome", d(2026, 12, 30), ["Julien"], [{"destination": "Rome", "jours": 3}], {})
+    conn.close()
+    html = client.get("/").get_data(as_text=True)
+    assert "Rome" in html and "?v=2026-12-30%20Rome" in html
+
+
+def test_voyage_inconnu_404(client):
+    assert client.get("/?v=2027-01-01 Nulle Part").status_code == 404
 
 
 
@@ -193,7 +210,7 @@ def test_meteo_applique_les_previsions_du_navigateur(client_meteo):
     conn = connecter("valise_test")
     try:
         assert lire_voyage(conn, code)["itineraire"][0]["prevision"]["tmax"] == 32.0
-        assert "prévu le" in lire_page(conn)
+        assert "prévu le" in lire_page(conn, code)
         photo = lire_valise_objets(conn, code)
         assert ("Julien", "Vêtements", "imperméable") in photo          # averses prévues -> K-way
         assert ("Julien", "Divers", "oreiller gonflable") in photo      # règles "toujours" appliquées
@@ -222,6 +239,24 @@ def test_meteo_ancienne_page_republiee_avec_le_nouveau_bouton(client_meteo):
     assert corps["erreurs"] == ["page mise à jour : recharge-la puis réessaie"]
     conn = connecter("valise_test")
     try:
-        assert "/fenetres" in lire_page(conn)                 # le nouveau bouton est en ligne
+        assert "/fenetres" in lire_page(conn, code)           # le nouveau bouton est en ligne
+    finally:
+        conn.close()
+
+
+def test_page_reconstruite_depuis_la_photo_si_absente(client_meteo):
+    # voyage enregistré, photo en base, mais aucune page à son nom (ex. page publiée en "courante")
+    from db import enregistrer_valise_objets
+    client, code = client_meteo
+    conn = connecter("valise_test")
+    enregistrer_valise_objets(conn, code, {"Partagé": {"Divers": {"parapluie": 1}},
+                                           "Julien": {"Vêtements": {"t-shirts": 4}}})
+    conn.close()
+    html = client.get("/?v=" + code).get_data(as_text=True)
+    assert "t-shirts" in html and "parapluie" in html               # fidèle à la photo, pas recalculée
+    assert "×4" in html
+    conn = connecter("valise_test")
+    try:
+        assert lire_page(conn, code) is not None                    # désormais stockée
     finally:
         conn.close()

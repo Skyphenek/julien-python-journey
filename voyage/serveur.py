@@ -14,9 +14,9 @@ import psycopg2
 from dotenv import load_dotenv
 from flask import Blueprint, Flask, jsonify, request, Response
 
-from db import (connecter, obtenir_etat, enregistrer_coche, lire_page,
+from db import (connecter, obtenir_etat, enregistrer_coche, lister_voyages,
                 VERDICTS, enregistrer_retour, supprimer_retour, lire_retours)
-from valise import actualiser_meteo, fenetres_du_voyage
+from valise import actualiser_meteo, fenetres_du_voyage, page_du_voyage, accueil_en_html
 
 load_dotenv(Path(__file__).parent / ".env")   # en local : lit voyage/.env s'il existe
 
@@ -30,16 +30,18 @@ def creer_app(nom_base="valise", secret=None):
 
     @routes.get("/")
     def accueil():
+        """Sans paramètre : la liste des voyages. ?v=<code> : la valise de ce voyage."""
+        code = request.args.get("v")
         conn = connecter(app.config["NOM_BASE"])
         try:
-            html = lire_page(conn)                # page publiée par valise.py
+            if code:
+                html = page_du_voyage(conn, code)   # stockée, ou refaite depuis la photo
+            else:
+                html = accueil_en_html(lister_voyages(conn), date.today())
         finally:
             conn.close()
-        if html is None:                          # rien en base : ancien fonctionnement (fichier local)
-            chemin = Path(__file__).parent / "valise.html"
-            if not chemin.exists():
-                return "Aucune valise publiée : lance valise.py.", 404
-            html = chemin.read_text(encoding="utf-8")
+        if html is None:
+            return f"Voyage inconnu : {code}", 404
         return Response(html, mimetype="text/html")
 
     @routes.get("/api/etat/<voyage>")
