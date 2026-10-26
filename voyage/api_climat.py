@@ -93,7 +93,7 @@ def normales(latitude, longitude, mois):
 # --- Prévisions (météo J-7) -------------------------------------------------------------
 # Même format que les normales : les seuils de valise.types_climat s'appliquent tels quels.
 URL_PREVISION = "https://api.open-meteo.com/v1/forecast"
-PORTEE_PREVISION = 16        # jours de prévision fournis par Open-Meteo (aujourd'hui compris)
+PORTEE_PREVISION = 10        # jours retenus (Open-Meteo en fournit 16, peu fiables au-delà de ~10)
 JOURS_PAR_MOIS = 30          # les comptes de pluie sont ramenés à un rythme mensuel
 
 

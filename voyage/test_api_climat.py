@@ -84,7 +84,7 @@ def test_normales_par_mois_calcule_tous_les_mois_presents():
 from datetime import date
 from api_climat import fenetre_prevision, normales_depuis_previsions, previsions
 
-AUJOURD_HUI = date(2027, 1, 3)       # portée Open-Meteo : 16 jours -> jusqu'au 18 janvier
+AUJOURD_HUI = date(2027, 1, 7)       # portée retenue : 10 jours -> jusqu'au 16 janvier
 
 
 def test_fenetre_etape_entierement_couverte():
@@ -92,12 +92,12 @@ def test_fenetre_etape_entierement_couverte():
 
 
 def test_fenetre_etape_a_moitie_couverte_tronquee():
-    # 10 -> 19 janvier : 9 jours sur 10 dans la portée (10 -> 18)
-    assert fenetre_prevision(date(2027, 1, 10), 10, AUJOURD_HUI) == (date(2027, 1, 10), date(2027, 1, 18))
+    # 10 -> 19 janvier : 7 jours sur 10 dans la portée (10 -> 16)
+    assert fenetre_prevision(date(2027, 1, 10), 10, AUJOURD_HUI) == (date(2027, 1, 10), date(2027, 1, 16))
 
 
 def test_fenetre_moins_de_la_moitie_couverte():
-    # 15 -> 24 janvier : 4 jours sur 10 seulement -> on garde les normales
+    # 15 -> 24 janvier : 2 jours sur 10 seulement -> on garde les normales
     assert fenetre_prevision(date(2027, 1, 15), 10, AUJOURD_HUI) is None
 
 
@@ -106,8 +106,8 @@ def test_fenetre_hors_portee():
 
 
 def test_fenetre_etape_deja_commencee():
-    # 1 -> 6 janvier, on est le 3 : 4 jours restants sur 6 -> prévision du 3 au 6
-    assert fenetre_prevision(date(2027, 1, 1), 6, AUJOURD_HUI) == (date(2027, 1, 3), date(2027, 1, 6))
+    # 5 -> 10 janvier, on est le 7 : 4 jours restants sur 6 -> prévision du 7 au 10
+    assert fenetre_prevision(date(2027, 1, 5), 6, AUJOURD_HUI) == (date(2027, 1, 7), date(2027, 1, 10))
 
 
 PREVU = {
@@ -141,7 +141,7 @@ def test_previsions_appelle_la_bonne_fenetre_et_date_la_source():
     n = previsions(10.2, 104.0, date(2027, 1, 10), 6, AUJOURD_HUI, chercher=faux_api)
     assert appels == [(10.2, 104.0, date(2027, 1, 10), date(2027, 1, 15))]
     assert n["tmax"] == 30.0
-    assert n["prevu_le"] == "2027-01-03"            # pour afficher "prévision du 03/01"
+    assert n["prevu_le"] == "2027-01-07"            # pour afficher "prévu le 07/01"
 
 
 def test_previsions_hors_portee_sans_appel():
