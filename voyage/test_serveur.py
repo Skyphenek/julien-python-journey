@@ -260,3 +260,46 @@ def test_page_reconstruite_depuis_la_photo_si_absente(client_meteo):
         assert lire_page(conn, code) is not None                    # désormais stockée
     finally:
         conn.close()
+
+
+# --- Création en ligne, étape 2 : recherche de destination et normales via le téléphone ---
+
+def test_lieux_url_puis_interpretation(client):
+    url = client.get("/api/lieux?nom=Hanoï").get_json()["url"]
+    assert url.startswith("https://geocoding-api.open-meteo.com/")
+    reponse = {"results": [{"name": "Hanoï", "admin1": "Hanoï", "country": "Vietnam", "country_code": "VN",
+                            "latitude": 21.02, "longitude": 105.84}]}
+    lieux = client.post("/api/lieux", json={"reponse": reponse}).get_json()["lieux"]
+    assert lieux[0]["libelle"] == "Hanoï — Hanoï, Vietnam"
+    assert client.get("/api/lieux").status_code == 400                   # nom manquant
+
+
+def _historique(jours):
+    """Un faux historique Open-Meteo : chaque jour 20-30 °C, un jour sur trois à 6 mm."""
+    from datetime import date as d, timedelta as td
+    debut = d(2021, 1, 1)
+    dates = [(debut + td(days=i)).isoformat() for i in range(jours)]
+    return {"time": dates, "temperature_2m_max": [30.0] * jours, "temperature_2m_min": [20.0] * jours,
+            "precipitation_sum": [6.0 if i % 3 == 0 else 0.0 for i in range(jours)]}
+
+
+def test_normales_absentes_du_cache_puis_envoyees_par_le_telephone(client):
+    conn = connecter("valise_test")
+    with conn.cursor() as cur:
+        cur.execute("TRUNCATE normales_climat")
+    conn.commit()
+    conn.close()
+    r = client.get("/api/normales?latitude=38.72&longitude=-9.14&mois=5").get_json()
+    assert "normales" not in r and r["url"].startswith("https://archive-api.open-meteo.com/")
+    n = client.post("/api/normales", json={"latitude": 38.72, "longitude": -9.14, "mois": 5,
+                                           "daily": _historique(5 * 365)}).get_json()["normales"]
+    assert (n["tmin"], n["tmax"]) == (20.0, 30.0)
+    # deuxième demande : servie depuis le cache, sans téléchargement
+    assert client.get("/api/normales?latitude=38.72&longitude=-9.14&mois=5").get_json()["normales"]["tmax"] == 30.0
+
+
+def test_normales_requetes_invalides(client):
+    assert client.get("/api/normales?latitude=abc&longitude=1&mois=5").status_code == 400
+    assert client.get("/api/normales?latitude=1&longitude=1&mois=13").status_code == 400
+    assert client.post("/api/normales", json={"latitude": 1, "longitude": 1, "mois": 5,
+                                              "daily": {"time": "x"}}).status_code == 400
