@@ -499,14 +499,15 @@ VETEMENTS_BASE = {
 
 # 2a. PAR TYPE — COMMUN : 1 pour le groupe (seuls les types concernés figurent ici).
 PAR_TYPE_COMMUN = {
-    "chaud": {"crème solaire": 1, "biafine": 1},
-    "plage": {"crème solaire": 1, "biafine": 1},
+    "chaud": {"crème solaire": "par_semaine", "biafine": 1},   # 1 tube / semaine de soleil
+    "plage": {"crème solaire": "par_semaine", "biafine": 1},
     "pluie": {"parapluie": 1},
+    "averses": {"parapluie": 1},                 # un parapluie pour le groupe
 }
 
 # 2b. PAR TYPE — PERSO : chacun le sien (tout ce qui se porte).
 PAR_TYPE_PERSO = {
-    "chaud":    {"chapeau": 1, "lunettes de soleil": "par_semaine",
+    "chaud":    {"chapeau": 1, "lunettes de soleil": "2_au_dela_d_une_semaine",
                  "shorts": "par_3_jours", "sandales": 1,
                  "chemises légères": "par_3_jours",
                  "chemises": 0},                 # 0 = retire les chemises normales quand il fait chaud
@@ -515,12 +516,13 @@ PAR_TYPE_PERSO = {
     "froid":    {"manteau": 1, "pull": "par_3_jours", "gants": 1, "bonnet": 1,
                  "écharpe": 1, "sous-couche thermique": "par_3_jours",
                  "grosses chaussures": 1, "collants": "par_3_jours"},
-    "plage":    {"maillot de bain": "par_3_jours", "tongs": 1, "futa": 1,
-                 "shorts": "par_3_jours", "sandales": 1, "lunettes de soleil": 1},
+    "plage":    {"maillot de bain": "maillot", "tongs": 1, "futa": 1,
+                 "shorts": "par_3_jours", "sandales": 1, "lunettes de soleil": "2_au_dela_d_une_semaine"},
     "montagne": {"chaussures rando": 1, "gourde": 1, "coupe-vent": 1, "polaire": 1,
                  "chaussettes de rando": "par_3_jours", "bâtons": 1},
     "ville":    {"tenue habillée": 1, "baskets": 1},
     "pluie":    {"imperméable": 1, "chaussures imperméables": 1},
+    "averses":  {"imperméable": 1},              # orages d'été : K-way, pieds mouillés tolérés
 }
 
 # 3. PAR PERSONNE : les affaires perso.
@@ -547,9 +549,11 @@ JAMAIS = {
 #       1 tenue / 3 j (par_3_jours), soit robe SOIT chemise + bas ; préférence chemise.
 #       Pour 15 j : 2 robes + 3 chemises = 5 tenues ; bas = 3 short habillé + 2 pantalons.
 CHAUD_PERSO = {
-    "Julien":   {"chaussettes": (3, "par_semaine")},   # 3 paires / semaine (chaussures fermées légères)
+    "Julien":   {"chaussettes": (3, "par_semaine"),    # 3 paires / semaine (chaussures fermées légères)
+                 "sweat": 1},                           # soirées fraîches : la règle "frais" ajoute un pull
     "Laetitia": {
         "chaussettes": 0,                  # aucune : que des chaussures ouvertes
+        "sweat": 1,                        # soirées fraîches : la règle "frais" ajoute un pull
         "hauts": "par_2_jours",            # jour : moins de hauts (le soir = tenues)
         "chemises légères": 0,             # jour couvert par les hauts -> on retire
         "tenue habillée": 0,               # remplacée par le modèle de tenues du soir
@@ -724,7 +728,7 @@ def types_climat(n):
     if n["tmin"] < SEUIL_FRAIS and "froid" not in types:    # froid couvre déjà les pulls
         types.append("frais")
     if n["jours_forte_pluie"] >= SEUIL_JOURS_FORTE_PLUIE:
-        types.append("pluie")
+        types.append("averses" if "chaud" in types else "pluie")   # chaud + pluie = orages
     return types
 
 
@@ -792,6 +796,10 @@ def quantite_reelle(marqueur, jours):
         return max(1, jours // 3)
     if marqueur == "par_2_jours":
         return max(1, jours // 2)
+    if marqueur == "maillot":   # 1, puis 2 dès 4 jours (un qui sèche), plafond 3 (pour le style)
+        return min(3, max(2, jours // 3)) if jours >= 4 else 1
+    if marqueur == "2_au_dela_d_une_semaine":   # ex: lunettes de soleil, une paire de secours
+        return 2 if jours > 7 else 1
     return marqueur          # déjà un nombre (ex: 1) -> tel quel
 
 
@@ -870,7 +878,14 @@ def _remplir(paquet, base_tables, type_tables, jours_types, total):
             paquet[theme_de(objet)][objet] = quantite
 
 
-def faire_valise(jours_types, total, personnes, hors_ue, conduit, adaptateur=True):
+CHAUSSURES_FERMEES = {"baskets", "grosses chaussures", "chaussures rando", "chaussures imperméables"}
+RAYONS_LAVABLES = ("Vêtements", "Sous-vêtements")   # ce qu'une lessive en route permet de réduire
+SEUIL_LESSIVE = 10      # la question "lessive ?" n'est posée qu'au-delà de 10 jours
+PLANCHER_LESSIVE = 2    # avec lessive, jamais moins de 2 d'un vêtement (un sur soi, un au lavage)
+
+
+def faire_valise(jours_types, total, personnes, hors_ue, conduit, adaptateur=True,
+                 lessive_tous_les=None):
     """Construire la checklist {proprietaire: {theme: {objet: quantité}}}.
 
     - jours_types : {type de destination: jours cumulés} (couche d'agrégation).
@@ -879,6 +894,7 @@ def faire_valise(jours_types, total, personnes, hors_ue, conduit, adaptateur=Tru
     - hors_ue     : True -> passeport, False -> carte d'identité.
     - conduit     : True -> permis (+ permis international si hors_ue).
     - adaptateur  : False -> aucune étape n'en a besoin (prises françaises partout) : on le retire.
+    - lessive_tous_les : None -> pas de lessive ; N -> vêtements et sous-vêtements prévus pour N jours.
     """
     # Un paquet par propriétaire : "Partagé" + un paquet par personne.
     # Chaque paquet est lui-même découpé par thème (via paquet_vide()).
@@ -911,6 +927,11 @@ def faire_valise(jours_types, total, personnes, hors_ue, conduit, adaptateur=Tru
                     rayon[objet] = q
                 else:
                     rayon.pop(objet, None)
+        # chaussures fermées prévues : les "de rechange" font doublon, et il faut des chaussettes
+        if CHAUSSURES_FERMEES & set(paquet["Chaussures"]):
+            paquet["Chaussures"].pop("chaussures de rechange", None)
+            if "chaussettes" not in paquet["Sous-vêtements"]:
+                paquet["Sous-vêtements"]["chaussettes"] = quantite_reelle((3, "par_semaine"), total)
         if not adaptateur:
             paquet[theme_de("adaptateur de prise")].pop("adaptateur de prise", None)
         # documents personnels (chacun les siens)
@@ -923,13 +944,28 @@ def faire_valise(jours_types, total, personnes, hors_ue, conduit, adaptateur=Tru
             if hors_ue:
                 paquet[theme_de("permis international")]["permis international"] = 1
 
+    # === LESSIVE : brouillon de valise comme si le voyage durait N jours ===
+    # On y prend seulement les rayons lavables ; toutes les règles (climats, CHAUD_PERSO,
+    # JAMAIS) s'appliquent au brouillon comme à la vraie valise.
+    if lessive_tous_les and lessive_tous_les < total:
+        jours_courts = {t: min(j, lessive_tous_les) for t, j in jours_types.items()}
+        brouillon = faire_valise(jours_courts, lessive_tous_les, personnes, hors_ue,
+                                 conduit, adaptateur)
+        for personne in personnes:
+            for rayon in RAYONS_LAVABLES:
+                complet = valise[personne][rayon]
+                # plancher : un sur soi, un au lavage — sans dépasser le voyage complet
+                valise[personne][rayon] = {
+                    objet: max(q, min(complet[objet], PLANCHER_LESSIVE))
+                    for objet, q in brouillon[personne][rayon].items()}
+
     return valise
 
 # 9. APPRENTISSAGE — exploiter les bilans des voyages précédents (session 3).
 #    Options prudentes : rien n'est appliqué sans "o" ; un oubli est reproposé à la personne
 #    concernée sur tous ses voyages ; une quantité n'est ajustée que d'après un voyage au
 #    MÊME climat (le plus récent qui a un avis sur cet objet).
-CLIMATS = {"chaud", "froid", "frais", "pluie"}       # les étiquettes météo (pas les activités)
+CLIMATS = {"chaud", "froid", "frais", "pluie", "averses"}       # les étiquettes météo (pas les activités)
 
 
 def cle_objet(texte):
@@ -1192,6 +1228,14 @@ def est_oui(reponse):
     return reponse.strip().lower() in {"o", "oui", "y", "yes"}
 
 
+def lire_lessive(reponse):
+    """Nombre de jours entre deux lessives ; None = pas de lessive (Entrée, "n", 0, saisie invalide)."""
+    reponse = reponse.strip()
+    if reponse.isdigit() and int(reponse) > 0:
+        return int(reponse)
+    return None
+
+
 def un_par_pays(candidats):
     """Garder le premier lieu de chaque pays : Hanoï (VN) x4 + Hanoi (PG) -> 2 lignes."""
     vus = set()
@@ -1351,8 +1395,13 @@ def main():
     jours_types = jours_par_type(itineraire)
     total = total_jours(itineraire)
     prises = prises_itineraire(itineraire)
+    lessive = None
+    if total > SEUIL_LESSIVE:      # sur un voyage court, la question n'a pas d'intérêt
+        lessive = lire_lessive(input("Lessive en route ? tous les combien de jours "
+                                     "(Entrée = pas de lessive) : "))
     # prises_itineraire ignore déjà les "aucun" : vide = prises françaises partout
-    valise = faire_valise(jours_types, total, personnes, hors_ue, conduit, adaptateur=bool(prises))
+    valise = faire_valise(jours_types, total, personnes, hors_ue, conduit, adaptateur=bool(prises),
+                          lessive_tous_les=lessive)
     libelle_voyage = " › ".join(etape["destination"] for etape in itineraire)
     code = code_voyage(depart, libelle_voyage)
 
