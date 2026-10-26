@@ -107,12 +107,12 @@ def creer_app(nom_base="valise", secret=None):
         """Bouton météo : régénère la valise de ce voyage avec les prévisions du jour."""
         conn = connecter(app.config["NOM_BASE"])
         try:
-            prevues = actualiser_meteo(conn, voyage, date.today())
+            resultat = actualiser_meteo(conn, voyage, date.today())
         finally:
             conn.close()
-        if prevues is None:
+        if resultat is None:
             return jsonify({"erreur": f"voyage inconnu : {voyage}"}), 404
-        return jsonify({"ok": True, "etapes_prevues": prevues})
+        return jsonify({"ok": True, **resultat})        # erreurs : raisons affichées par le bouton
 
     # Avec un secret, tout vit sous /v/<secret>/ : sans le code, chaque adresse renvoie 404
     app.register_blueprint(routes, url_prefix=f"/v/{secret}" if secret else None)

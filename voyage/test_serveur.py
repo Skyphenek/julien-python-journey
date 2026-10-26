@@ -180,7 +180,7 @@ def test_meteo_regenere_page_voyage_et_photo(client_meteo):
     client, code = client_meteo
     reponse = client.post("/api/meteo/" + code)
     assert reponse.status_code == 200
-    assert reponse.get_json() == {"ok": True, "etapes_prevues": 1}
+    assert reponse.get_json() == {"ok": True, "etapes_prevues": 1, "erreurs": []}
     conn = connecter("valise_test")
     try:
         assert lire_voyage(conn, code)["itineraire"][0]["prevision"]["tmax"] == 32.0
@@ -191,3 +191,17 @@ def test_meteo_regenere_page_voyage_et_photo(client_meteo):
         assert ("Julien", "Divers", "oreiller gonflable") in photo      # règles "toujours" appliquées
     finally:
         conn.close()
+
+
+def test_meteo_echec_api_remonte_la_raison(client_meteo, monkeypatch):
+    # un refus d'Open-Meteo ne doit plus ressembler à un succès
+    import requests
+    client, code = client_meteo
+    refus = requests.Response()
+    refus.status_code, refus.reason = 429, "Too Many Requests"
+    def refuse(*a):
+        raise requests.HTTPError(response=refus)
+    monkeypatch.setattr(valise, "previsions", refuse)
+    corps = client.post("/api/meteo/" + code).get_json()
+    assert corps["etapes_prevues"] == 0
+    assert corps["erreurs"] == ["Hanoï : 429 Too Many Requests"]
