@@ -6,6 +6,7 @@ l'équivalent SQL de :
     FROM meteo_10_ans WHERE MONTH(date) = mois
 """
 from datetime import timedelta
+from urllib.parse import urlencode
 
 import requests
 
@@ -140,14 +141,25 @@ def normales_depuis_previsions(daily):
     }
 
 
-def meteo_prevue(latitude, longitude, debut, fin):
-    """Le FROM des prévisions : météo prévue jour par jour entre deux dates."""
-    reponse = requests.get(URL_PREVISION, params={
+def parametres_prevision(latitude, longitude, debut, fin):
+    """Les paramètres de l'appel de prévision : une seule source pour le serveur et le navigateur."""
+    return {
         "latitude": latitude, "longitude": longitude,
         "start_date": debut.isoformat(), "end_date": fin.isoformat(),
         "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum",
         "timezone": "auto",
-    }, timeout=DELAI_RESEAU)
+    }
+
+
+def url_prevision(latitude, longitude, debut, fin):
+    """L'adresse complète de la prévision, appelée par le navigateur (Render prend des 429)."""
+    return URL_PREVISION + "?" + urlencode(parametres_prevision(latitude, longitude, debut, fin))
+
+
+def meteo_prevue(latitude, longitude, debut, fin):
+    """Le FROM des prévisions : météo prévue jour par jour entre deux dates."""
+    reponse = requests.get(URL_PREVISION, params=parametres_prevision(latitude, longitude, debut, fin),
+                           timeout=DELAI_RESEAU)
     reponse.raise_for_status()
     return reponse.json()["daily"]
 

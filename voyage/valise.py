@@ -15,7 +15,8 @@ from pathlib import Path
 import psycopg2
 import requests
 
-from api_climat import lieux, normales_12_mois, previsions
+from api_climat import (lieux, normales_12_mois, fenetre_prevision, normales_depuis_previsions,
+                        url_prevision)
 from db import (connecter, lire_normales, enregistrer_normales, publier_page,
                 enregistrer_voyage, enregistrer_valise_objets, lire_voyage,
                 lire_historique, lire_regles, ajouter_regle)
@@ -466,12 +467,35 @@ function initialiser() {
     btn.addEventListener('click', function () {
         btn.disabled = true;
         btn.textContent = '⏳ Prévisions en cours…';
-        fetch('api/meteo/' + encodeURIComponent(VOYAGE), { method: 'POST' })
+        const base = 'api/meteo/' + encodeURIComponent(VOYAGE);
+        // 1. le serveur dit quoi demander ; 2. le téléphone appelle Open-Meteo (Render prend des 429) ;
+        // 3. le serveur régénère la valise avec ce qu'on lui envoie
+        fetch(base + '/fenetres')
+            .then(function (r) { if (!r.ok) throw new Error('erreur ' + r.status); return r.json(); })
+            .then(function (res) {
+                return Promise.all(res.fenetres.map(function (f) {
+                    return fetch(f.url)
+                        .then(function (r) {
+                            if (!r.ok) return { erreur: r.status + ' ' + (r.statusText || 'refus Open-Meteo') };
+                            return r.json().then(function (j) { return j.daily; });
+                        })
+                        .catch(function () { return { erreur: 'Open-Meteo injoignable' }; });
+                })).then(function (resultats) {
+                    const previsions = {};
+                    res.fenetres.forEach(function (f, i) { previsions[f.etape] = resultats[i]; });
+                    return fetch(base, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ previsions: previsions }),
+                    });
+                });
+            })
             .then(function (r) { if (!r.ok) throw new Error('erreur ' + r.status); return r.json(); })
             .then(function (res) {
                 if (res.etapes_prevues > 0) {                         // succès : on le dit, puis on recharge
-                    btn.textContent = '✅ ' + res.etapes_prevues + ' étape(s) actualisée(s) avec les prévisions';
-                    setTimeout(function () { location.reload(); }, 1500);
+                    btn.textContent = '✅ ' + res.etapes_prevues + ' étape(s) actualisée(s) avec les prévisions'
+                        + (res.erreurs.length ? ' · ⚠️ ' + res.erreurs.join(' · ') : '');
+                    setTimeout(function () { location.reload(); }, res.erreurs.length ? 4000 : 1500);
                 } else if (res.erreurs.length) {
                     btn.disabled = false;
                     btn.textContent = '⚠️ Météo indisponible : ' + res.erreurs.join(' · ');
@@ -1367,36 +1391,53 @@ def completer_coordonnees(itineraire, chercher=lieux):
     return complete
 
 
-def raison_echec(exc):
-    """Message court d'une erreur réseau : "429 Too Many Requests" plutôt qu'une URL de 200 caractères."""
-    reponse = getattr(exc, "response", None)
-    if reponse is not None:
-        return f"{reponse.status_code} {reponse.reason}"
-    return str(exc)[:120] or type(exc).__name__
+def fenetres_meteo(voyage, aujourd_hui):
+    """Ce que le navigateur doit demander à Open-Meteo : une fenêtre par étape proche.
 
-
-def appliquer_previsions(itineraire, depart, aujourd_hui, chercher=None, erreurs=None):
-    """Copie de l'itinéraire où chaque étape proche reçoit sa prévision (clé "prevision").
-
-    Les normales restent en réserve ; une prévision périmée (étape passée ou plus dans la
-    portée) est retirée. Sans coordonnées : rien. Hors ligne : on garde ce qu'on avait,
-    et la raison est ajoutée à `erreurs` (liste fournie par l'appelant) pour être affichée.
+    Le serveur n'appelle pas Open-Meteo lui-même : les adresses partagées de Render prennent
+    des 429 Too Many Requests. Il fournit l'URL complète ; le téléphone fait l'appel.
     """
-    chercher = chercher or previsions          # résolu à l'appel : remplaçable dans les tests
+    fenetres = []
+    debut = voyage["depart"]
+    for i, etape in enumerate(voyage["itineraire"]):
+        fenetre = fenetre_prevision(debut, etape["jours"], aujourd_hui) if "latitude" in etape else None
+        if fenetre:
+            premier, dernier = fenetre
+            fenetres.append({"etape": i, "destination": etape["destination"],
+                             "debut": premier.isoformat(), "fin": dernier.isoformat(),
+                             "url": url_prevision(etape["latitude"], etape["longitude"], premier, dernier)})
+        debut += timedelta(days=etape["jours"])
+    return fenetres
+
+
+def appliquer_previsions(itineraire, depart, aujourd_hui, recues, erreurs):
+    """Copie de l'itinéraire où chaque étape proche reçoit la prévision envoyée par le navigateur.
+
+    recues  : {"<index d'étape>": bloc "daily" d'Open-Meteo, ou {"erreur": "raison"}}.
+    erreurs : liste fournie par l'appelant, complétée des raisons à afficher.
+    Les normales restent en réserve ; une prévision périmée (étape hors portée) est retirée ;
+    en cas d'erreur, on garde ce qu'on avait.
+    """
     nouveau = []
     debut = depart
-    for etape in itineraire:
+    for i, etape in enumerate(itineraire):
         etape = dict(etape)
-        if "latitude" in etape:
-            try:
-                n = chercher(etape["latitude"], etape["longitude"], debut, etape["jours"], aujourd_hui)
-                if n:
-                    etape["prevision"] = n
-                else:
-                    etape.pop("prevision", None)
-            except requests.RequestException as exc:
-                if erreurs is not None:
-                    erreurs.append(f"{etape['destination']} : {raison_echec(exc)}")
+        attendue = "latitude" in etape and fenetre_prevision(debut, etape["jours"], aujourd_hui)
+        recu = recues.get(str(i))
+        if not attendue:
+            etape.pop("prevision", None)
+        elif not isinstance(recu, dict):
+            erreurs.append(f"{etape['destination']} : aucune prévision reçue")
+        elif "erreur" in recu:
+            erreurs.append(f"{etape['destination']} : {str(recu['erreur'])[:120]}")
+        else:
+            try:                                        # données venues du navigateur : on vérifie
+                n = normales_depuis_previsions(recu)
+            except (KeyError, TypeError, ValueError, IndexError, ZeroDivisionError):
+                erreurs.append(f"{etape['destination']} : prévision illisible")
+            else:
+                n["prevu_le"] = aujourd_hui.isoformat()
+                etape["prevision"] = n
         nouveau.append(etape)
         debut += timedelta(days=etape["jours"])
     return nouveau
@@ -1430,8 +1471,17 @@ def rendre_page(voyage, c):
                           code=c["code"], depart=voyage["depart"])
 
 
-def actualiser_meteo(conn, code, aujourd_hui):
-    """Bouton météo : régénère un voyage en base avec les prévisions, sans terminal.
+def fenetres_du_voyage(conn, code, aujourd_hui):
+    """Bouton météo, temps 1 : les fenêtres à demander, ou None si le voyage est inconnu."""
+    voyage = lire_voyage(conn, code)
+    if voyage is None:
+        return None
+    voyage["itineraire"] = completer_coordonnees(voyage["itineraire"])
+    return fenetres_meteo(voyage, aujourd_hui)
+
+
+def actualiser_meteo(conn, code, aujourd_hui, recues):
+    """Bouton météo, temps 2 : régénère le voyage avec les prévisions reçues du navigateur.
 
     Re-géocode si besoin, applique les prévisions, reconstruit, remet les règles "toujours",
     puis republie voyage + photo + page. Les propositions o/n des bilans restent au terminal.
@@ -1443,7 +1493,7 @@ def actualiser_meteo(conn, code, aujourd_hui):
     itineraire = completer_coordonnees(voyage["itineraire"])
     erreurs = []
     voyage["itineraire"] = appliquer_previsions(itineraire, voyage["depart"], aujourd_hui,
-                                                erreurs=erreurs)
+                                                recues, erreurs)
     c = construire(voyage)
     appliquer_regles(c["valise"], lire_regles(conn))
     enregistrer_voyage(conn, code, c["libelle"], voyage["depart"], voyage["personnes"],

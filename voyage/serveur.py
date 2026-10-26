@@ -16,7 +16,7 @@ from flask import Blueprint, Flask, jsonify, request, Response
 
 from db import (connecter, obtenir_etat, enregistrer_coche, lire_page,
                 VERDICTS, enregistrer_retour, supprimer_retour, lire_retours)
-from valise import actualiser_meteo
+from valise import actualiser_meteo, fenetres_du_voyage
 
 load_dotenv(Path(__file__).parent / ".env")   # en local : lit voyage/.env s'il existe
 
@@ -102,16 +102,36 @@ def creer_app(nom_base="valise", secret=None):
             conn.close()
         return jsonify({"ok": True})
 
-    @routes.post("/api/meteo/<voyage>")
-    def meteo(voyage):
-        """Bouton météo : régénère la valise de ce voyage avec les prévisions du jour."""
+    @routes.get("/api/meteo/<voyage>/fenetres")
+    def meteo_fenetres(voyage):
+        """Bouton météo, temps 1 : les prévisions que le navigateur doit demander à Open-Meteo."""
         conn = connecter(app.config["NOM_BASE"])
         try:
-            resultat = actualiser_meteo(conn, voyage, date.today())
+            fenetres = fenetres_du_voyage(conn, voyage, date.today())
+        finally:
+            conn.close()
+        if fenetres is None:
+            return jsonify({"erreur": f"voyage inconnu : {voyage}"}), 404
+        return jsonify({"fenetres": fenetres})
+
+    @routes.post("/api/meteo/<voyage>")
+    def meteo(voyage):
+        """Bouton météo, temps 2 : régénère la valise avec les prévisions envoyées par le navigateur."""
+        corps = request.get_json(silent=True) or {}
+        ancienne_page = "previsions" not in corps     # bouton d'avant le 26/10 : POST vide
+        recues = corps.get("previsions", {})
+        if not isinstance(recues, dict):
+            return jsonify({"erreur": "previsions attendues : {index d'étape: daily}"}), 400
+        conn = connecter(app.config["NOM_BASE"])
+        try:
+            resultat = actualiser_meteo(conn, voyage, date.today(), recues)   # republie la page
         finally:
             conn.close()
         if resultat is None:
             return jsonify({"erreur": f"voyage inconnu : {voyage}"}), 404
+        if ancienne_page:                             # la page republiée porte le nouveau bouton
+            return jsonify({"ok": True, "etapes_prevues": 0,
+                            "erreurs": ["page mise à jour : recharge-la puis réessaie"]})
         return jsonify({"ok": True, **resultat})        # erreurs : raisons affichées par le bouton
 
     # Avec un secret, tout vit sous /v/<secret>/ : sans le code, chaque adresse renvoie 404
