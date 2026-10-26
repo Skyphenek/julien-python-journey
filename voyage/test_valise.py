@@ -10,6 +10,7 @@ from valise import (total_jours, jours_par_type,
                     valise_en_html, paquet_vide, ligne_climat,
                     types_climat, libelle_lieu,
                     lire_mois, lire_activites, est_oui, un_par_pays, lire_lessive, objets_sans_rayon,
+                    construire, rendre_page,
                     statut_ue, adaptateur_pour, normales_avec_cache,
                     THEMES, ICONES_RAYON, puce_climat, HTML_SCRIPT,
                     lire_date, mois_des_etapes, code_voyage,
@@ -740,3 +741,58 @@ def test_scooter_et_road_trip_impliquent_le_permis():
 
 def test_nouveaux_objets_tous_ranges():
     assert objets_sans_rayon() == set()
+
+
+# --- construire() : la génération sans terminal (base du bouton météo et de la saisie en ligne) ---
+
+VOYAGE_VIETNAM = {
+    "depart": date(2027, 1, 10),
+    "itineraire": [
+        {"destination": "Hanoï", "jours": 7, "mois": 1, "activites": ["culte", "ville"],
+         "normales": HANOI_JANV, "code_pays": "VN"},
+        {"destination": "Siem Reap", "jours": 4, "mois": 1, "activites": ["culte", "nature"],
+         "normales": SIEM_REAP_JANV, "code_pays": "KH"},
+        {"destination": "Phu Quoc", "jours": 7, "mois": 1, "activites": ["plage", "snorkeling"],
+         "normales": PHU_QUOC_JANV, "code_pays": "VN"},
+    ],
+    "personnes": ["Julien", "Laetitia"],
+    "conduit": False,
+    "lessive": 7,
+}
+
+
+def test_construire_identique_a_la_chaine_du_terminal():
+    # caractérisation : construire() reproduit exactement ce que main() enchaînait à la main
+    itin = VOYAGE_VIETNAM["itineraire"]
+    jpt = jours_par_type(itin)
+    hors_ue, _ = statut_ue_itineraire(itin)
+    attendu = faire_valise(jpt, 18, ["Julien", "Laetitia"], hors_ue, False,
+                           adaptateur=bool(prises_itineraire(itin)), lessive_tous_les=7)
+    c = construire(VOYAGE_VIETNAM)
+    assert c["valise"] == attendu
+    assert c["jours_types"] == jpt
+    assert c["total"] == 18
+    assert c["libelle"] == "Hanoï › Siem Reap › Phu Quoc"
+    assert c["code"] == code_voyage(date(2027, 1, 10), "Hanoï › Siem Reap › Phu Quoc")
+    assert c["ue_inconnu"] is False
+
+
+def test_construire_sans_lessive_ni_conduite():
+    voyage = {**VOYAGE_VIETNAM, "lessive": None}
+    c = construire(voyage)
+    assert c["valise"]["Julien"]["Sous-vêtements"]["caleçons"] == 18
+
+
+def test_construire_ne_modifie_pas_le_voyage():
+    import copy
+    avant = copy.deepcopy(VOYAGE_VIETNAM)
+    construire(VOYAGE_VIETNAM)
+    assert VOYAGE_VIETNAM == avant
+
+
+def test_rendre_page_identique_a_valise_en_html():
+    c = construire(VOYAGE_VIETNAM)
+    climats = [(e["destination"], e["mois"], e["normales"]) for e in VOYAGE_VIETNAM["itineraire"]]
+    attendu = valise_en_html(c["valise"], c["libelle"], c["total"], c["prises"], climats,
+                             code=c["code"], depart=date(2027, 1, 10))
+    assert rendre_page(VOYAGE_VIETNAM, c) == attendu
