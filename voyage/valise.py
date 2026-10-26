@@ -1300,6 +1300,56 @@ def question_proposition(p):
             f"Le retirer ? (o/n) : ")
 
 
+def completer_coordonnees(itineraire, chercher=lieux):
+    """Copie de l'itinéraire où chaque étape a ses coordonnées (nécessaires aux prévisions).
+
+    Pour les voyages enregistrés avant qu'on les stocke : re-géocodage de la destination,
+    en gardant le candidat du bon pays. Introuvable ou hors ligne : l'étape reste sans
+    coordonnées (elle gardera ses normales de saison).
+    """
+    complete = []
+    for etape in itineraire:
+        etape = dict(etape)                          # copie : on ne touche pas à l'original
+        if "latitude" not in etape:
+            try:
+                candidats = chercher(etape["destination"])
+            except requests.RequestException:
+                candidats = []
+            bons = [c for c in candidats if c["code_pays"] == etape.get("code_pays")] or candidats
+            if bons:
+                etape["latitude"], etape["longitude"] = bons[0]["latitude"], bons[0]["longitude"]
+        complete.append(etape)
+    return complete
+
+
+def construire(voyage):
+    """Calculer la valise d'un voyage déjà saisi. Pure : ni input(), ni base, ni réseau.
+
+    voyage = {"depart": date, "itineraire": [étapes], "personnes": [...],
+              "conduit": bool, "lessive": int | None}
+    Appelée par main() (terminal) et, demain, par le serveur (bouton météo, saisie en ligne).
+    """
+    itineraire = voyage["itineraire"]
+    jours_types = jours_par_type(itineraire)
+    total = total_jours(itineraire)
+    prises = prises_itineraire(itineraire)
+    hors_ue, inconnu = statut_ue_itineraire(itineraire)
+    # prises_itineraire ignore déjà les "aucun" : vide = prises françaises partout
+    valise = faire_valise(jours_types, total, voyage["personnes"], hors_ue, voyage["conduit"],
+                          adaptateur=bool(prises), lessive_tous_les=voyage.get("lessive"))
+    libelle = " › ".join(etape["destination"] for etape in itineraire)
+    return {"valise": valise, "jours_types": jours_types, "total": total, "prises": prises,
+            "libelle": libelle, "code": code_voyage(voyage["depart"], libelle),
+            "ue_inconnu": inconnu}
+
+
+def rendre_page(voyage, c):
+    """La page HTML d'une construction (après d'éventuels ajustements de c["valise"])."""
+    climats = [(e["destination"], e["mois"], e["normales"]) for e in voyage["itineraire"]]
+    return valise_en_html(c["valise"], c["libelle"], c["total"], c["prises"], climats,
+                          code=c["code"], depart=voyage["depart"])
+
+
 def ajuster_selon_bilans(valise, jours_types, code):
     """Lit l'historique en base et pose les questions ; modifie la valise selon les réponses."""
     try:
@@ -1393,7 +1443,8 @@ def main():
         print("        🌡️", ligne_climat(destination, mois, n))
         itineraire.append({"destination": destination, "jours": jours, "mois": mois,
                            "activites": activites, "normales": n,
-                           "code_pays": lieu["code_pays"] if lieu else None})
+                           "code_pays": lieu["code_pays"] if lieu else None,
+                           **({"latitude": lieu["latitude"], "longitude": lieu["longitude"]} if lieu else {})})
         numero += 1
 
     if conn is not None:
@@ -1407,36 +1458,33 @@ def main():
         print("Choix invalide : tape j, l ou 2.")
     personnes = CHOIX_PERSONNE[choix]
 
-    hors_ue, inconnu = statut_ue_itineraire(itineraire)
-    if inconnu:
+    if statut_ue_itineraire(itineraire)[1]:
         print("⚠️  Statut UE inconnu pour une étape : passeport par défaut, à vérifier.")
     conduit = est_oui(input("Tu vas conduire ? (o/n) : "))
 
-    # --- Construction ---
-    jours_types = jours_par_type(itineraire)
-    total = total_jours(itineraire)
-    prises = prises_itineraire(itineraire)
     lessive = None
-    if total > SEUIL_LESSIVE:      # sur un voyage court, la question n'a pas d'intérêt
+    if total_jours(itineraire) > SEUIL_LESSIVE:      # sur un voyage court, la question n'a pas d'intérêt
         lessive = lire_lessive(input("Lessive en route ? tous les combien de jours "
                                      "(Entrée = pas de lessive) : "))
-    # prises_itineraire ignore déjà les "aucun" : vide = prises françaises partout
-    valise = faire_valise(jours_types, total, personnes, hors_ue, conduit, adaptateur=bool(prises),
-                          lessive_tous_les=lessive)
-    libelle_voyage = " › ".join(etape["destination"] for etape in itineraire)
-    code = code_voyage(depart, libelle_voyage)
+
+    # --- Construction (sans terminal : la même fonction servira au serveur) ---
+    voyage = {"depart": depart, "itineraire": itineraire, "personnes": personnes,
+              "conduit": conduit, "lessive": lessive}
+    c = construire(voyage)
+    valise, jours_types, total, code = c["valise"], c["jours_types"], c["total"], c["code"]
+    libelle_voyage = c["libelle"]
 
     # --- Apprentissage : règles "toujours", puis propositions tirées des bilans précédents ---
     ajuster_selon_bilans(valise, jours_types, code)
 
-    climats = [(e["destination"], e["mois"], e["normales"]) for e in itineraire]
-    html = valise_en_html(valise, libelle_voyage, total, prises, climats, code=code, depart=depart)
+    html = rendre_page(voyage, c)
     with open("valise.html", "w", encoding="utf-8") as f:
         f.write(html)
     print(f"Checklist écrite dans valise.html ({total} jours, {len(itineraire)} étape(s))")
     try:                                  # publication en base : c'est elle que le serveur affiche
         conn = connecter()
-        enregistrer_voyage(conn, code, libelle_voyage, depart, personnes, itineraire, jours_types)
+        enregistrer_voyage(conn, code, libelle_voyage, depart, personnes, itineraire, jours_types,
+                           conduit=conduit, lessive=lessive)
         enregistrer_valise_objets(conn, code, valise)      # la photo : référence du futur bilan
         publier_page(conn, html)
         conn.close()

@@ -80,3 +80,9 @@ CREATE TABLE IF NOT EXISTS regles_perso (
     cree_le  TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (personne, objet)
 );
+
+-- Régénération sans terminal (météo J-7, saisie en ligne) ------------------------------
+-- Les réglages du voyage, pour pouvoir le reconstruire depuis la base. Les étapes gardent
+-- aussi leurs coordonnées (latitude/longitude) dans le JSON de l'itinéraire.
+ALTER TABLE voyages ADD COLUMN IF NOT EXISTS conduit BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE voyages ADD COLUMN IF NOT EXISTS lessive INTEGER CHECK (lessive > 0);   -- NULL = pas de lessive
