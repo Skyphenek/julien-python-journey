@@ -59,22 +59,39 @@ def extraire_lieux(reponse_json):
     return lieux
 
 
+def parametres_geocodage(nom, nb=5):
+    return {"name": nom, "count": nb, "language": "fr"}
+
+
+def url_geocodage(nom, nb=5):
+    """L'adresse de recherche d'une destination, appelée par le navigateur (Render prend des 429)."""
+    return URL_GEO + "?" + urlencode(parametres_geocodage(nom, nb))
+
+
 def lieux(nom, nb=5):
     """Géocodage : les nb lieux qui portent ce nom (homonymes possibles : Bali Inde / Indonésie)."""
-    reponse = requests.get(URL_GEO, params={"name": nom, "count": nb, "language": "fr"},
-                           timeout=DELAI_RESEAU)
+    reponse = requests.get(URL_GEO, params=parametres_geocodage(nom, nb), timeout=DELAI_RESEAU)
     reponse.raise_for_status()
     return extraire_lieux(reponse.json())
 
 
-def meteo_10_ans(latitude, longitude):
-    """Le FROM : 10 ans de météo jour par jour aux coordonnées données."""
-    reponse = requests.get(URL_ARCHIVE, params={
+def parametres_archive(latitude, longitude):
+    return {
         "latitude": latitude, "longitude": longitude,
         "start_date": DEBUT, "end_date": FIN,
         "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum",
         "timezone": "auto",
-    })
+    }
+
+
+def url_archive(latitude, longitude):
+    """L'adresse de l'historique (NB_ANNEES ans), appelée par le navigateur (Render prend des 429)."""
+    return URL_ARCHIVE + "?" + urlencode(parametres_archive(latitude, longitude))
+
+
+def meteo_10_ans(latitude, longitude):
+    """Le FROM : l'historique jour par jour (NB_ANNEES ans) aux coordonnées données."""
+    reponse = requests.get(URL_ARCHIVE, params=parametres_archive(latitude, longitude))
     reponse.raise_for_status()                        # lève une erreur si l'API répond 4xx/5xx
     return reponse.json()["daily"]
 

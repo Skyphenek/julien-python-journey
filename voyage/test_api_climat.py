@@ -173,3 +173,20 @@ def test_appels_reseau_avec_delai_maximum(monkeypatch):
     api_climat.lieux("Oslo")
     assert vus == [api_climat.DELAI_RESEAU, api_climat.DELAI_RESEAU]
     assert api_climat.DELAI_RESEAU == 15
+
+
+# --- Création en ligne, étape 2 : URL fournies au navigateur (Render prend des 429) ---
+from api_climat import url_archive, url_geocodage
+
+
+def test_url_archive_cinq_ans():
+    u = url_archive(38.72, -9.14)
+    assert u.startswith("https://archive-api.open-meteo.com/v1/archive?")
+    assert "start_date=2021-01-01" in u and "end_date=2025-12-31" in u
+    assert "latitude=38.72" in u and "precipitation_sum" in u
+
+
+def test_url_geocodage():
+    u = url_geocodage("Hanoï")
+    assert u.startswith("https://geocoding-api.open-meteo.com/v1/search?")
+    assert "name=Hano%C3%AF" in u and "language=fr" in u and "count=5" in u

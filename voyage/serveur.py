@@ -16,7 +16,9 @@ from flask import Blueprint, Flask, jsonify, request, Response
 
 from db import (connecter, obtenir_etat, enregistrer_coche, lister_voyages,
                 VERDICTS, enregistrer_retour, supprimer_retour, lire_retours)
-from valise import actualiser_meteo, fenetres_du_voyage, page_du_voyage, accueil_en_html
+from valise import (actualiser_meteo, fenetres_du_voyage, page_du_voyage, accueil_en_html,
+                    lieux_depuis_reponse, normales_ou_url, normales_depuis_historique)
+from api_climat import url_geocodage
 
 load_dotenv(Path(__file__).parent / ".env")   # en local : lit voyage/.env s'il existe
 
@@ -135,6 +137,59 @@ def creer_app(nom_base="valise", secret=None):
             return jsonify({"ok": True, "etapes_prevues": 0,
                             "erreurs": ["page mise à jour : recharge-la puis réessaie"]})
         return jsonify({"ok": True, **resultat})        # erreurs : raisons affichées par le bouton
+
+    # --- Création en ligne : le téléphone appelle Open-Meteo, le serveur interprète ---
+    @routes.get("/api/lieux")
+    def lieux_url():
+        """L'adresse de recherche d'une destination, à appeler par le navigateur."""
+        nom = (request.args.get("nom") or "").strip()
+        if not nom:
+            return jsonify({"erreur": "nom de destination manquant"}), 400
+        return jsonify({"url": url_geocodage(nom)})
+
+    @routes.post("/api/lieux")
+    def lieux_interpretes():
+        """La réponse brute du géocodage -> un lieu par pays, avec libellé."""
+        corps = request.get_json(silent=True) or {}
+        if not isinstance(corps.get("reponse"), dict):
+            return jsonify({"erreur": "reponse attendue : le JSON du géocodage"}), 400
+        return jsonify({"lieux": lieux_depuis_reponse(corps["reponse"])})
+
+    def _lieu_et_mois(source):
+        """(latitude, longitude, mois) valides, ou None."""
+        try:
+            lat, lon, mois = float(source["latitude"]), float(source["longitude"]), int(source["mois"])
+        except (KeyError, TypeError, ValueError):
+            return None
+        return (lat, lon, mois) if 1 <= mois <= 12 else None
+
+    @routes.get("/api/normales")
+    def normales_cache():
+        """Normales en cache, ou l'adresse de l'historique à télécharger par le navigateur."""
+        lieu = _lieu_et_mois(request.args)
+        if lieu is None:
+            return jsonify({"erreur": "latitude, longitude et mois (1-12) attendus"}), 400
+        conn = connecter(app.config["NOM_BASE"])
+        try:
+            return jsonify(normales_ou_url(conn, *lieu))
+        finally:
+            conn.close()
+
+    @routes.post("/api/normales")
+    def normales_recues():
+        """L'historique téléchargé par le navigateur -> normales calculées et mises en cache."""
+        corps = request.get_json(silent=True) or {}
+        lieu = _lieu_et_mois(corps)
+        if lieu is None:
+            return jsonify({"erreur": "latitude, longitude et mois (1-12) attendus"}), 400
+        conn = connecter(app.config["NOM_BASE"])
+        try:
+            n = normales_depuis_historique(conn, *lieu, corps.get("daily"))
+        finally:
+            conn.close()
+        if n is None:
+            return jsonify({"erreur": "historique illisible"}), 400
+        return jsonify({"normales": n})
 
     # Avec un secret, tout vit sous /v/<secret>/ : sans le code, chaque adresse renvoie 404
     app.register_blueprint(routes, url_prefix=f"/v/{secret}" if secret else None)

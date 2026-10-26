@@ -11,7 +11,8 @@ from valise import (total_jours, jours_par_type,
                     types_climat, libelle_lieu,
                     lire_mois, lire_activites, est_oui, un_par_pays, lire_lessive, objets_sans_rayon,
                     construire, rendre_page, completer_coordonnees, appliquer_previsions, types_pour,
-                    fenetres_meteo, valise_depuis_photo, accueil_en_html,
+                    fenetres_meteo, valise_depuis_photo, accueil_en_html, lieux_depuis_reponse,
+                    SCRIPT_RECHERCHE,
                     statut_ue, adaptateur_pour, normales_avec_cache,
                     THEMES, ICONES_RAYON, puce_climat, HTML_SCRIPT,
                     lire_date, mois_des_etapes, code_voyage,
@@ -962,3 +963,28 @@ def test_accueil_vide():
 def test_page_du_voyage_a_un_lien_vers_l_accueil():
     html = rendre_page(VOYAGE_VIETNAM, construire(VOYAGE_VIETNAM))
     assert 'href="./"' in html and "Tous les voyages" in html
+
+
+# --- Création en ligne, étape 2 : interpréter ce que le téléphone a téléchargé ---
+
+GEO_HANOI = {"results": [
+    {"name": "Hanoï", "admin1": "Hanoï", "country": "Vietnam", "country_code": "VN", "latitude": 21.02, "longitude": 105.84},
+    {"name": "Hanoi", "admin1": None, "country": "Vietnam", "country_code": "VN", "latitude": 21.0, "longitude": 105.8},
+    {"name": "Hanoi", "admin1": "Madang", "country": "Papouasie", "country_code": "PG", "latitude": -5.0, "longitude": 145.0},
+]}
+
+
+def test_lieux_depuis_reponse_un_par_pays_avec_libelle():
+    lieux = lieux_depuis_reponse(GEO_HANOI)
+    assert [l["code_pays"] for l in lieux] == ["VN", "PG"]
+    assert lieux[0]["libelle"] == "Hanoï — Hanoï, Vietnam"
+    assert (lieux[0]["latitude"], lieux[0]["longitude"]) == (21.02, 105.84)
+
+
+def test_lieux_depuis_reponse_vide_ou_invalide():
+    assert lieux_depuis_reponse({}) == []                  # destination introuvable
+    assert lieux_depuis_reponse({"results": "nope"}) == []  # réponse farfelue : pas de crash
+
+
+def test_script_recherche_utilise_les_routes_du_serveur():
+    assert "api/lieux" in SCRIPT_RECHERCHE and "api/normales" in SCRIPT_RECHERCHE

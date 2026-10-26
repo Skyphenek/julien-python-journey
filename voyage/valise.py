@@ -16,7 +16,7 @@ import psycopg2
 import requests
 
 from api_climat import (lieux, normales_12_mois, fenetre_prevision, normales_depuis_previsions,
-                        url_prevision)
+                        url_prevision, url_archive, extraire_lieux, normales_par_mois)
 from db import (connecter, lire_normales, enregistrer_normales, publier_page,
                 enregistrer_voyage, enregistrer_valise_objets, lire_voyage, lire_page,
                 lire_valise_objets,
@@ -1585,6 +1585,74 @@ def accueil_en_html(voyages, aujourd_hui):
 {corps}
 </body>
 </html>"""
+
+
+# --- Création en ligne : le téléphone télécharge, le serveur interprète (Render prend des 429) ---
+
+def lieux_depuis_reponse(reponse_json):
+    """Réponse brute du géocodage (envoyée par le téléphone) -> un lieu par pays, avec libellé.
+
+    Mêmes règles que le terminal (extraire_lieux + un_par_pays). Réponse farfelue -> [].
+    """
+    try:
+        candidats = un_par_pays(extraire_lieux(reponse_json))
+    except (AttributeError, TypeError, KeyError):
+        return []
+    return [{**lieu, "libelle": libelle_lieu(lieu)} for lieu in candidats]
+
+
+def normales_ou_url(conn, latitude, longitude, mois):
+    """Normales en cache -> {"normales": ...} ; sinon {"url": ...} : l'historique à télécharger."""
+    n = lire_normales(conn, latitude, longitude, mois)
+    return {"normales": n} if n is not None else {"url": url_archive(latitude, longitude)}
+
+
+def normales_depuis_historique(conn, latitude, longitude, mois, daily):
+    """L'historique envoyé par le téléphone -> 12 mois mis en cache ; renvoie le mois demandé.
+
+    None si les données sont illisibles (elles viennent du navigateur : on vérifie).
+    """
+    try:
+        par_mois = normales_par_mois(daily)
+    except (KeyError, TypeError, ValueError, IndexError, ZeroDivisionError):
+        return None
+    if mois not in par_mois:
+        return None
+    return normales_avec_cache(conn, latitude, longitude, mois, chercher=lambda _la, _lo: par_mois)
+
+
+# Fonctions JavaScript du formulaire de création (étape 3) : même découpage que la météo.
+SCRIPT_RECHERCHE = """
+function enJson(r) { if (!r.ok) throw new Error('erreur ' + r.status); return r.json(); }
+function envoyer(url, corps) {
+    return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(corps) }).then(enJson);
+}
+function depuisOpenMeteo(url) {
+    return fetch(url).then(function (r) {
+        if (!r.ok) throw new Error(r.status + ' ' + (r.statusText || 'refus Open-Meteo'));
+        return r.json();
+    });
+}
+// Destination -> [{nom, region, pays, code_pays, latitude, longitude, libelle}], un lieu par pays
+function chercherLieux(nom) {
+    return fetch('api/lieux?nom=' + encodeURIComponent(nom)).then(enJson)
+        .then(function (r) { return depuisOpenMeteo(r.url); })
+        .then(function (reponse) { return envoyer('api/lieux', { reponse: reponse }); })
+        .then(function (r) { return r.lieux; });
+}
+// Normales d'un lieu pour un mois : cache du serveur, sinon historique téléchargé par le téléphone
+function normalesDe(lieu, mois) {
+    const q = 'latitude=' + lieu.latitude + '&longitude=' + lieu.longitude + '&mois=' + mois;
+    return fetch('api/normales?' + q).then(enJson).then(function (r) {
+        if (r.normales) return r.normales;
+        return depuisOpenMeteo(r.url).then(function (j) {
+            return envoyer('api/normales', { latitude: lieu.latitude, longitude: lieu.longitude,
+                                             mois: mois, daily: j.daily });
+        }).then(function (r) { return r.normales; });
+    });
+}
+"""
 
 
 def ajuster_selon_bilans(valise, jours_types, code):
