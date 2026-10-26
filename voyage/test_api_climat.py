@@ -78,3 +78,81 @@ def test_normales_par_mois_calcule_tous_les_mois_presents():
     assert set(par_mois) == {1, 2}                    # seuls janvier et février sont dans les données
     assert par_mois[1]["tmax"] == 7.0
     assert par_mois[2]["tmax"] == 20.0
+
+
+# --- Prévisions (météo J-7) : même format que les normales, pour réutiliser les seuils ---
+from datetime import date
+from api_climat import fenetre_prevision, normales_depuis_previsions, previsions
+
+AUJOURD_HUI = date(2027, 1, 3)       # portée Open-Meteo : 16 jours -> jusqu'au 18 janvier
+
+
+def test_fenetre_etape_entierement_couverte():
+    assert fenetre_prevision(date(2027, 1, 10), 7, AUJOURD_HUI) == (date(2027, 1, 10), date(2027, 1, 16))
+
+
+def test_fenetre_etape_a_moitie_couverte_tronquee():
+    # 10 -> 19 janvier : 9 jours sur 10 dans la portée (10 -> 18)
+    assert fenetre_prevision(date(2027, 1, 10), 10, AUJOURD_HUI) == (date(2027, 1, 10), date(2027, 1, 18))
+
+
+def test_fenetre_moins_de_la_moitie_couverte():
+    # 15 -> 24 janvier : 4 jours sur 10 seulement -> on garde les normales
+    assert fenetre_prevision(date(2027, 1, 15), 10, AUJOURD_HUI) is None
+
+
+def test_fenetre_hors_portee():
+    assert fenetre_prevision(date(2027, 2, 1), 5, AUJOURD_HUI) is None
+
+
+def test_fenetre_etape_deja_commencee():
+    # 1 -> 6 janvier, on est le 3 : 4 jours restants sur 6 -> prévision du 3 au 6
+    assert fenetre_prevision(date(2027, 1, 1), 6, AUJOURD_HUI) == (date(2027, 1, 3), date(2027, 1, 6))
+
+
+PREVU = {
+    "time":               ["2027-01-10", "2027-01-11", "2027-01-12", "2027-01-13", "2027-01-14", "2027-01-15"],
+    "temperature_2m_max": [30.0,         31.0,         29.0,         30.0,         32.0,         28.0],
+    "temperature_2m_min": [22.0,         23.0,         21.0,         22.0,         24.0,         20.0],
+    "precipitation_sum":  [0.0,          12.0,         0.5,          2.0,          0.0,          0.0],
+}
+
+
+def test_normales_depuis_previsions_meme_format():
+    n = normales_depuis_previsions(PREVU)
+    assert n["tmax"] == 30.0                        # moyenne des 6 jours
+    assert n["tmin"] == 22.0
+    # 2 jours >= 1 mm sur 6 -> 10 par mois ; 1 jour >= 5 mm sur 6 -> 5.0 par mois
+    assert n["jours_pluie"] == 10
+    assert n["jours_forte_pluie"] == 5.0
+
+
+def test_une_grosse_averse_declenche_le_kway():
+    # c'est le seuil validé : 1 jour fort sur une semaine ~ 4/mois -> étiquette pluie/averses
+    from valise import types_climat
+    assert "averses" in types_climat(normales_depuis_previsions(PREVU))
+
+
+def test_previsions_appelle_la_bonne_fenetre_et_date_la_source():
+    appels = []
+    def faux_api(latitude, longitude, debut, fin):
+        appels.append((latitude, longitude, debut, fin))
+        return PREVU
+    n = previsions(10.2, 104.0, date(2027, 1, 10), 6, AUJOURD_HUI, chercher=faux_api)
+    assert appels == [(10.2, 104.0, date(2027, 1, 10), date(2027, 1, 15))]
+    assert n["tmax"] == 30.0
+    assert n["prevu_le"] == "2027-01-03"            # pour afficher "prévision du 03/01"
+
+
+def test_previsions_hors_portee_sans_appel():
+    def interdit(*a):
+        raise AssertionError("pas d'appel réseau hors portée")
+    assert previsions(10.2, 104.0, date(2027, 3, 1), 6, AUJOURD_HUI, chercher=interdit) is None
+
+
+def test_previsions_jours_manquants_ignores():
+    # l'API peut renvoyer null en bout de portée : ces jours ne comptent pas
+    trou = {k: v[:3] + [None] for k, v in PREVU.items() if k != "time"}
+    trou["time"] = PREVU["time"][:4]
+    n = normales_depuis_previsions(trou)
+    assert n["tmax"] == 30.0                        # (30 + 31 + 29) / 3
