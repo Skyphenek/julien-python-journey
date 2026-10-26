@@ -870,7 +870,13 @@ def _remplir(paquet, base_tables, type_tables, jours_types, total):
             paquet[theme_de(objet)][objet] = quantite
 
 
-def faire_valise(jours_types, total, personnes, hors_ue, conduit, adaptateur=True):
+RAYONS_LAVABLES = ("Vêtements", "Sous-vêtements")   # ce qu'une lessive en route permet de réduire
+SEUIL_LESSIVE = 10      # la question "lessive ?" n'est posée qu'au-delà de 10 jours
+PLANCHER_LESSIVE = 2    # avec lessive, jamais moins de 2 d'un vêtement (un sur soi, un au lavage)
+
+
+def faire_valise(jours_types, total, personnes, hors_ue, conduit, adaptateur=True,
+                 lessive_tous_les=None):
     """Construire la checklist {proprietaire: {theme: {objet: quantité}}}.
 
     - jours_types : {type de destination: jours cumulés} (couche d'agrégation).
@@ -879,6 +885,7 @@ def faire_valise(jours_types, total, personnes, hors_ue, conduit, adaptateur=Tru
     - hors_ue     : True -> passeport, False -> carte d'identité.
     - conduit     : True -> permis (+ permis international si hors_ue).
     - adaptateur  : False -> aucune étape n'en a besoin (prises françaises partout) : on le retire.
+    - lessive_tous_les : None -> pas de lessive ; N -> vêtements et sous-vêtements prévus pour N jours.
     """
     # Un paquet par propriétaire : "Partagé" + un paquet par personne.
     # Chaque paquet est lui-même découpé par thème (via paquet_vide()).
@@ -922,6 +929,21 @@ def faire_valise(jours_types, total, personnes, hors_ue, conduit, adaptateur=Tru
             paquet[theme_de("permis")]["permis"] = 1
             if hors_ue:
                 paquet[theme_de("permis international")]["permis international"] = 1
+
+    # === LESSIVE : brouillon de valise comme si le voyage durait N jours ===
+    # On y prend seulement les rayons lavables ; toutes les règles (climats, CHAUD_PERSO,
+    # JAMAIS) s'appliquent au brouillon comme à la vraie valise.
+    if lessive_tous_les and lessive_tous_les < total:
+        jours_courts = {t: min(j, lessive_tous_les) for t, j in jours_types.items()}
+        brouillon = faire_valise(jours_courts, lessive_tous_les, personnes, hors_ue,
+                                 conduit, adaptateur)
+        for personne in personnes:
+            for rayon in RAYONS_LAVABLES:
+                complet = valise[personne][rayon]
+                # plancher : un sur soi, un au lavage — sans dépasser le voyage complet
+                valise[personne][rayon] = {
+                    objet: max(q, min(complet[objet], PLANCHER_LESSIVE))
+                    for objet, q in brouillon[personne][rayon].items()}
 
     return valise
 
@@ -1192,6 +1214,14 @@ def est_oui(reponse):
     return reponse.strip().lower() in {"o", "oui", "y", "yes"}
 
 
+def lire_lessive(reponse):
+    """Nombre de jours entre deux lessives ; None = pas de lessive (Entrée, "n", 0, saisie invalide)."""
+    reponse = reponse.strip()
+    if reponse.isdigit() and int(reponse) > 0:
+        return int(reponse)
+    return None
+
+
 def un_par_pays(candidats):
     """Garder le premier lieu de chaque pays : Hanoï (VN) x4 + Hanoi (PG) -> 2 lignes."""
     vus = set()
@@ -1351,8 +1381,13 @@ def main():
     jours_types = jours_par_type(itineraire)
     total = total_jours(itineraire)
     prises = prises_itineraire(itineraire)
+    lessive = None
+    if total > SEUIL_LESSIVE:      # sur un voyage court, la question n'a pas d'intérêt
+        lessive = lire_lessive(input("Lessive en route ? tous les combien de jours "
+                                     "(Entrée = pas de lessive) : "))
     # prises_itineraire ignore déjà les "aucun" : vide = prises françaises partout
-    valise = faire_valise(jours_types, total, personnes, hors_ue, conduit, adaptateur=bool(prises))
+    valise = faire_valise(jours_types, total, personnes, hors_ue, conduit, adaptateur=bool(prises),
+                          lessive_tous_les=lessive)
     libelle_voyage = " › ".join(etape["destination"] for etape in itineraire)
     code = code_voyage(depart, libelle_voyage)
 

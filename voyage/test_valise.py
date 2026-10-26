@@ -9,7 +9,7 @@ from valise import (total_jours, jours_par_type,
                     quantite_reelle, faire_valise,
                     valise_en_html, paquet_vide, ligne_climat,
                     types_climat, libelle_lieu,
-                    lire_mois, lire_activites, est_oui, un_par_pays,
+                    lire_mois, lire_activites, est_oui, un_par_pays, lire_lessive,
                     statut_ue, adaptateur_pour, normales_avec_cache,
                     THEMES, ICONES_RAYON, puce_climat, HTML_SCRIPT,
                     lire_date, mois_des_etapes, code_voyage,
@@ -523,3 +523,66 @@ def test_appliquer_regles_toujours():
                                   "Laetitia": [{"objet": "lisseur", "theme": "Hygiène", "quantite": 1}]})
     assert v["Julien"]["Divers"]["Mots fléchés"] == 1
     assert ajouts == [("Julien", "Mots fléchés")]           # Laetitia ne voyage pas : rien pour elle
+
+
+# --- Lessive en route : plafonne les rayons Vêtements et Sous-vêtements ---
+
+def test_faire_valise_sans_lessive_inchange():
+    # non-régression : sans le paramètre, 18 jours -> 18 caleçons
+    jpt = {"chaud": 18}
+    valise = faire_valise(jpt, 18, ["Julien"], hors_ue=True, conduit=False)
+    assert valise["Julien"]["Sous-vêtements"]["caleçons"] == 18
+
+
+def test_faire_valise_lessive_plafonne_sous_vetements():
+    # lessive tous les 7 jours : on part avec 7 caleçons, pas 18
+    jpt = {"chaud": 18}
+    valise = faire_valise(jpt, 18, ["Julien"], hors_ue=True, conduit=False,
+                          lessive_tous_les=7)
+    assert valise["Julien"]["Sous-vêtements"]["caleçons"] == 7
+
+
+def test_faire_valise_lessive_plafonne_vetements_climat():
+    # shorts (chaud, par_3_jours) : 18//3 = 6 sans lessive -> 7//3 = 2 avec
+    jpt = {"chaud": 18}
+    valise = faire_valise(jpt, 18, ["Julien"], hors_ue=True, conduit=False,
+                          lessive_tous_les=7)
+    assert valise["Julien"]["Vêtements"]["shorts"] == 2
+
+
+def test_faire_valise_lessive_ne_touche_pas_le_reste():
+    # documents, tech, hygiène... restent ceux du voyage complet
+    jpt = {"chaud": 18}
+    sans = faire_valise(jpt, 18, ["Julien"], hors_ue=True, conduit=False)
+    avec = faire_valise(jpt, 18, ["Julien"], hors_ue=True, conduit=False,
+                        lessive_tous_les=7)
+    for rayon in ["Chaussures", "Accessoires", "Hygiène", "Tech", "Documents", "Divers"]:
+        assert avec["Julien"][rayon] == sans["Julien"][rayon]
+    assert avec["Partagé"] == sans["Partagé"]
+
+
+def test_lire_lessive():
+    assert lire_lessive("") is None          # Entrée = pas de lessive
+    assert lire_lessive("n") is None
+    assert lire_lessive(" non ") is None
+    assert lire_lessive("5") == 5
+    assert lire_lessive(" 7 ") == 7
+    assert lire_lessive("0") is None         # 0 jour n'a pas de sens -> pas de lessive
+    assert lire_lessive("abc") is None       # saisie invalide -> on ne plafonne pas
+
+
+def test_faire_valise_lessive_plancher_de_deux():
+    # lessive tous les 5 jours : shorts 5//3 = 1 -> plancher 2 (un sur soi, un au lavage)
+    jpt = {"chaud": 18, "plage": 7}
+    valise = faire_valise(jpt, 18, ["Julien"], hors_ue=True, conduit=False,
+                          lessive_tous_les=5)
+    assert valise["Julien"]["Vêtements"]["shorts"] == 2
+    assert valise["Julien"]["Vêtements"]["maillot de bain"] == 2
+
+
+def test_faire_valise_lessive_plancher_jamais_au_dessus_du_voyage_complet():
+    # tenue habillée : 1 sans lessive -> reste 1 (le plancher ne rajoute rien)
+    jpt = {"chaud": 18, "ville": 18}
+    valise = faire_valise(jpt, 18, ["Julien"], hors_ue=True, conduit=False,
+                          lessive_tous_les=5)
+    assert valise["Julien"]["Vêtements"]["tenue habillée"] == 1
