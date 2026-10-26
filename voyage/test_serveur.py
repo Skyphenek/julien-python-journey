@@ -152,7 +152,7 @@ from db import enregistrer_voyage, lire_voyage, lire_page, lire_valise_objets, a
 
 @pytest.fixture
 def client_meteo(client, monkeypatch):
-    """Un voyage qui part dans 3 jours ; prévision factice chaude et orageuse (aucun réseau)."""
+    """Un voyage qui part dans 3 jours (une étape, Hanoï, 7 jours)."""
     depart = date.today() + timedelta(days=3)
     itin = [{"destination": "Hanoï", "jours": 7, "mois": depart.month, "activites": ["ville"],
              "normales": {"tmin": 14.0, "tmax": 21.0, "jours_pluie": 10, "jours_forte_pluie": 1.0},
@@ -166,26 +166,34 @@ def client_meteo(client, monkeypatch):
                        conduit=False, lessive=None)
     ajouter_regle(conn, "Julien", "oreiller gonflable", "Divers")
     conn.close()
-    prevu = {"tmin": 24.0, "tmax": 32.0, "jours_pluie": 10, "jours_forte_pluie": 5.0,
-             "prevu_le": date.today().isoformat()}
-    monkeypatch.setattr(valise, "previsions", lambda *a: prevu)
     return client, code
 
 
 def test_meteo_voyage_inconnu(client):
-    assert client.post("/api/meteo/2027-01-01 Nulle Part").status_code == 404
+    assert client.post("/api/meteo/2027-01-01 Nulle Part", json={"previsions": {}}).status_code == 404
 
-
-def test_meteo_regenere_page_voyage_et_photo(client_meteo):
+def test_fenetres_du_voyage(client_meteo):
     client, code = client_meteo
-    reponse = client.post("/api/meteo/" + code)
-    assert reponse.status_code == 200
+    corps = client.get("/api/meteo/" + code + "/fenetres").get_json()
+    assert [f["destination"] for f in corps["fenetres"]] == ["Hanoï"]
+    assert corps["fenetres"][0]["url"].startswith("https://api.open-meteo.com/")
+
+
+def test_fenetres_voyage_inconnu(client):
+    assert client.get("/api/meteo/2027-01-01 Nulle Part/fenetres").status_code == 404
+
+
+def test_meteo_applique_les_previsions_du_navigateur(client_meteo):
+    client, code = client_meteo
+    jours = [(date.today() + timedelta(days=3 + i)).isoformat() for i in range(7)]
+    daily = {"time": jours, "temperature_2m_max": [32.0] * 7, "temperature_2m_min": [24.0] * 7,
+             "precipitation_sum": [0, 12.0, 0, 0, 0, 0, 0]}
+    reponse = client.post("/api/meteo/" + code, json={"previsions": {"0": daily}})
     assert reponse.get_json() == {"ok": True, "etapes_prevues": 1, "erreurs": []}
     conn = connecter("valise_test")
     try:
         assert lire_voyage(conn, code)["itineraire"][0]["prevision"]["tmax"] == 32.0
-        page = lire_page(conn)
-        assert "prévu le" in page
+        assert "prévu le" in lire_page(conn)
         photo = lire_valise_objets(conn, code)
         assert ("Julien", "Vêtements", "imperméable") in photo          # averses prévues -> K-way
         assert ("Julien", "Divers", "oreiller gonflable") in photo      # règles "toujours" appliquées
@@ -193,15 +201,27 @@ def test_meteo_regenere_page_voyage_et_photo(client_meteo):
         conn.close()
 
 
-def test_meteo_echec_api_remonte_la_raison(client_meteo, monkeypatch):
-    # un refus d'Open-Meteo ne doit plus ressembler à un succès
-    import requests
+def test_meteo_erreur_du_navigateur_remontee(client_meteo):
     client, code = client_meteo
-    refus = requests.Response()
-    refus.status_code, refus.reason = 429, "Too Many Requests"
-    def refuse(*a):
-        raise requests.HTTPError(response=refus)
-    monkeypatch.setattr(valise, "previsions", refuse)
-    corps = client.post("/api/meteo/" + code).get_json()
+    corps = client.post("/api/meteo/" + code,
+                        json={"previsions": {"0": {"erreur": "429 Too Many Requests"}}}).get_json()
     assert corps["etapes_prevues"] == 0
     assert corps["erreurs"] == ["Hanoï : 429 Too Many Requests"]
+
+
+def test_meteo_corps_invalide(client_meteo):
+    client, code = client_meteo
+    assert client.post("/api/meteo/" + code, json={"previsions": "nope"}).status_code == 400
+
+
+def test_meteo_ancienne_page_republiee_avec_le_nouveau_bouton(client_meteo):
+    # une page publiée avant le passage au navigateur envoie un POST vide : on la republie
+    client, code = client_meteo
+    corps = client.post("/api/meteo/" + code).get_json()
+    assert corps["etapes_prevues"] == 0
+    assert corps["erreurs"] == ["page mise à jour : recharge-la puis réessaie"]
+    conn = connecter("valise_test")
+    try:
+        assert "/fenetres" in lire_page(conn)                 # le nouveau bouton est en ligne
+    finally:
+        conn.close()

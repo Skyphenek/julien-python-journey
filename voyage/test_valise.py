@@ -11,6 +11,7 @@ from valise import (total_jours, jours_par_type,
                     types_climat, libelle_lieu,
                     lire_mois, lire_activites, est_oui, un_par_pays, lire_lessive, objets_sans_rayon,
                     construire, rendre_page, completer_coordonnees, appliquer_previsions, types_pour,
+                    fenetres_meteo,
                     statut_ue, adaptateur_pour, normales_avec_cache,
                     THEMES, ICONES_RAYON, puce_climat, HTML_SCRIPT,
                     lire_date, mois_des_etapes, code_voyage,
@@ -841,37 +842,6 @@ ITIN_2_ETAPES = [
 ]
 
 
-def test_appliquer_previsions_etape_proche_seulement():
-    appels = []
-    def fausses(lat, lon, debut, jours, aujourd_hui):
-        appels.append((debut, jours))
-        return CHAUD_ORAGEUX if debut == date(2027, 1, 10) else None   # 2e étape hors portée
-    itin = appliquer_previsions(ITIN_2_ETAPES, date(2027, 1, 10), date(2027, 1, 7), chercher=fausses)
-    assert appels == [(date(2027, 1, 10), 7), (date(2027, 1, 17), 7)]   # début de chaque étape
-    assert itin[0]["prevision"] == CHAUD_ORAGEUX
-    assert "prevision" not in itin[1]
-    assert itin[0]["normales"] == HANOI_JANV                       # les normales restent en réserve
-    assert "prevision" not in ITIN_2_ETAPES[0]                     # l'original est intact
-
-
-def test_appliquer_previsions_retire_une_prevision_perimee():
-    itin = [{**ITIN_2_ETAPES[0], "prevision": CHAUD_ORAGEUX}]
-    nouveau = appliquer_previsions(itin, date(2027, 1, 10), date(2027, 1, 20),
-                                   chercher=lambda *a: None)          # étape passée : plus prévue
-    assert "prevision" not in nouveau[0]
-
-
-def test_appliquer_previsions_sans_coordonnees_ou_hors_ligne():
-    import requests
-    def hors_ligne(*a):
-        raise requests.RequestException("pas de réseau")
-    sans_coords = [{k: v for k, v in ITIN_2_ETAPES[0].items() if k not in ("latitude", "longitude")}]
-    assert appliquer_previsions(sans_coords, date(2027, 1, 10), date(2027, 1, 7),
-                                chercher=lambda *a: CHAUD_ORAGEUX) == sans_coords
-    garde = [{**ITIN_2_ETAPES[0], "prevision": CHAUD_ORAGEUX}]
-    assert appliquer_previsions(garde, date(2027, 1, 10), date(2027, 1, 7), chercher=hors_ligne) == garde
-
-
 def test_la_prevision_prime_sur_les_normales():
     etape = {**ITIN_2_ETAPES[0], "prevision": CHAUD_ORAGEUX}     # Hanoï : normales douces, prévu chaud
     assert "chaud" not in types_pour(ITIN_2_ETAPES[0])
@@ -897,12 +867,64 @@ def test_page_porte_le_bouton_meteo_et_ses_dates():
     assert 'const DEPART = "2027-01-10"' in html
     assert 'const FIN = "2027-01-27"' in html                    # 18 jours : 10 -> 27 janvier
 
+# --- Météo B : le navigateur appelle Open-Meteo, le serveur applique ce qu'il reçoit ---
+# (les serveurs partagés de Render prennent des 429 Too Many Requests)
 
-def test_appliquer_previsions_note_les_erreurs():
-    import requests
-    def hors_ligne(*a):
-        raise requests.ConnectionError("pas de réseau")
+DAILY_CHAUD_ORAGEUX = {
+    "time":               ["2027-01-10", "2027-01-11", "2027-01-12", "2027-01-13"],
+    "temperature_2m_max": [32.0, 31.0, 33.0, 32.0],
+    "temperature_2m_min": [24.0, 24.0, 25.0, 23.0],
+    "precipitation_sum":  [0.0, 14.0, 0.0, 1.0],
+}
+
+
+def test_fenetres_meteo_etapes_proches_avec_url():
+    voyage = {"depart": date(2027, 1, 10), "itineraire": ITIN_2_ETAPES}
+    f = fenetres_meteo(voyage, date(2027, 1, 7))           # portée : jusqu'au 16 janvier
+    assert len(f) == 1                                       # Phu Quoc (17 -> 23) hors portée
+    assert f[0]["etape"] == 0 and f[0]["destination"] == "Hanoï"
+    assert (f[0]["debut"], f[0]["fin"]) == ("2027-01-10", "2027-01-16")
+    assert f[0]["url"].startswith("https://api.open-meteo.com/v1/forecast?")
+    assert "latitude=21.03" in f[0]["url"] and "start_date=2027-01-10" in f[0]["url"]
+
+
+def test_fenetres_meteo_ignore_les_etapes_sans_coordonnees():
+    sans = [{k: v for k, v in ITIN_2_ETAPES[0].items() if k not in ("latitude", "longitude")}]
+    assert fenetres_meteo({"depart": date(2027, 1, 10), "itineraire": sans}, date(2027, 1, 7)) == []
+
+
+def test_appliquer_previsions_recues():
+    erreurs = []
+    itin = appliquer_previsions(ITIN_2_ETAPES, date(2027, 1, 10), date(2027, 1, 7),
+                                {"0": DAILY_CHAUD_ORAGEUX}, erreurs)
+    p = itin[0]["prevision"]
+    assert (p["tmax"], p["tmin"], p["prevu_le"]) == (32.0, 24.0, "2027-01-07")
+    assert "prevision" not in itin[1]                        # hors portée : rien attendu
+    assert erreurs == []
+    assert itin[0]["normales"] == HANOI_JANV                 # normales gardées en réserve
+    assert "prevision" not in ITIN_2_ETAPES[0]               # original intact
+
+
+def test_appliquer_previsions_erreur_du_navigateur_gardee_et_signalee():
+    erreurs = []
+    deja = [{**ITIN_2_ETAPES[0], "prevision": CHAUD_ORAGEUX}]
+    itin = appliquer_previsions(deja, date(2027, 1, 10), date(2027, 1, 7),
+                                {"0": {"erreur": "429 Too Many Requests"}}, erreurs)
+    assert itin[0]["prevision"] == CHAUD_ORAGEUX              # on garde ce qu'on avait
+    assert erreurs == ["Hanoï : 429 Too Many Requests"]
+
+
+def test_appliquer_previsions_manquante_ou_illisible():
+    erreurs = []
+    appliquer_previsions(ITIN_2_ETAPES, date(2027, 1, 10), date(2027, 1, 7), {}, erreurs)
+    assert erreurs == ["Hanoï : aucune prévision reçue"]
     erreurs = []
     appliquer_previsions(ITIN_2_ETAPES, date(2027, 1, 10), date(2027, 1, 7),
-                         chercher=hors_ligne, erreurs=erreurs)
-    assert erreurs == ["Hanoï : pas de réseau", "Phu Quoc : pas de réseau"]
+                         {"0": {"time": "n'importe quoi"}}, erreurs)
+    assert erreurs == ["Hanoï : prévision illisible"]
+
+
+def test_appliquer_previsions_retire_une_prevision_perimee():
+    itin = [{**ITIN_2_ETAPES[0], "prevision": CHAUD_ORAGEUX}]
+    nouveau = appliquer_previsions(itin, date(2027, 1, 10), date(2027, 1, 20), {}, [])
+    assert "prevision" not in nouveau[0]                     # étape passée : plus de prévision
