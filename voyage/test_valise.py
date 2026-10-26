@@ -12,7 +12,7 @@ from valise import (total_jours, jours_par_type,
                     lire_mois, lire_activites, est_oui, un_par_pays, lire_lessive, objets_sans_rayon,
                     construire, rendre_page, completer_coordonnees, appliquer_previsions, types_pour,
                     fenetres_meteo, valise_depuis_photo, accueil_en_html, lieux_depuis_reponse,
-                    SCRIPT_RECHERCHE,
+                    SCRIPT_RECHERCHE, voyage_depuis_formulaire, formulaire_en_html, CHOIX_ACTIVITE,
                     statut_ue, adaptateur_pour, normales_avec_cache,
                     THEMES, ICONES_RAYON, puce_climat, HTML_SCRIPT,
                     lire_date, mois_des_etapes, code_voyage,
@@ -988,3 +988,67 @@ def test_lieux_depuis_reponse_vide_ou_invalide():
 
 def test_script_recherche_utilise_les_routes_du_serveur():
     assert "api/lieux" in SCRIPT_RECHERCHE and "api/normales" in SCRIPT_RECHERCHE
+
+
+# --- Création en ligne, étape 3 : le formulaire ---
+
+FORMULAIRE_LISBONNE = {
+    "depart": "2027-05-01", "personnes": "2", "conduit": False, "lessive": None,
+    "etapes": [{"destination": "Lisbonne", "code_pays": "PT", "latitude": 38.72, "longitude": -9.14,
+                "jours": 4, "activites": ["ville", "plage"]}],
+}
+
+
+def test_voyage_depuis_formulaire():
+    v = voyage_depuis_formulaire(FORMULAIRE_LISBONNE)
+    assert v["depart"] == date(2027, 5, 1)
+    assert v["personnes"] == ["Julien", "Laetitia"]
+    assert (v["conduit"], v["lessive"]) == (False, None)
+    e = v["itineraire"][0]
+    assert (e["destination"], e["jours"], e["mois"], e["code_pays"]) == ("Lisbonne", 4, 5, "PT")
+    assert (e["latitude"], e["longitude"], e["activites"]) == (38.72, -9.14, ["plage", "ville"])
+    assert e["normales"] is None                                   # remplies par le serveur, depuis le cache
+
+
+def test_voyage_depuis_formulaire_mois_par_etape_et_lessive():
+    corps = {**FORMULAIRE_LISBONNE, "personnes": "l", "lessive": 7,
+             "etapes": [{**FORMULAIRE_LISBONNE["etapes"][0], "jours": 28},
+                        {**FORMULAIRE_LISBONNE["etapes"][0], "destination": "Porto", "jours": 8}]}
+    v = voyage_depuis_formulaire(corps)
+    assert [e["mois"] for e in v["itineraire"]] == [5, 6]           # Porto : 29 mai -> 5 juin, milieu le 1er juin
+    assert v["personnes"] == ["Laetitia"] and v["lessive"] == 7
+
+
+import pytest
+
+
+@pytest.mark.parametrize("modif, message", [
+    ({"depart": "31/02/2027"}, "date"),
+    ({"personnes": "x"}, "qui part"),
+    ({"etapes": []}, "étape"),
+    ({"lessive": 0}, "lessive"),
+    ({"etapes": [{**FORMULAIRE_LISBONNE["etapes"][0], "jours": 0}]}, "jours"),
+    ({"etapes": [{**FORMULAIRE_LISBONNE["etapes"][0], "activites": ["piscine"]}]}, "activité"),
+    ({"etapes": [{**FORMULAIRE_LISBONNE["etapes"][0], "latitude": None}]}, "destination"),
+    ({"etapes": [{**FORMULAIRE_LISBONNE["etapes"][0], "destination": " "}]}, "destination"),
+])
+def test_voyage_depuis_formulaire_refuse_les_saisies_invalides(modif, message):
+    with pytest.raises(ValueError, match=message):
+        voyage_depuis_formulaire({**FORMULAIRE_LISBONNE, **modif})
+
+
+def test_formulaire_contient_les_champs_et_les_activites():
+    html = formulaire_en_html()
+    assert 'type="date"' in html and "api/voyages" in html and "chercherLieux" in html
+    for code, activite in CHOIX_ACTIVITE.items():
+        assert f'value="{activite}"' in html                          # une case par activité
+    assert 'href="./"' in html                                       # retour à l'accueil
+
+
+def test_accueil_propose_une_nouvelle_valise():
+    assert 'href="?nouvelle"' in accueil_en_html([], date(2026, 10, 26))
+
+
+def test_formulaire_hidden_l_emporte_sur_le_style_des_labels():
+    # bug vu dans Chrome : la ligne lessive restait affichée pour 3 jours
+    assert "[hidden] { display: none !important; }" in formulaire_en_html()

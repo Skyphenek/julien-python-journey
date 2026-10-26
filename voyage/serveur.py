@@ -8,6 +8,7 @@ Même code en local (Mac) et en ligne (Render) ; seules les variables d'environn
 import os
 from datetime import date
 from pathlib import Path
+from urllib.parse import quote
 
 import psycopg2
 
@@ -17,7 +18,8 @@ from flask import Blueprint, Flask, jsonify, request, Response
 from db import (connecter, obtenir_etat, enregistrer_coche, lister_voyages,
                 VERDICTS, enregistrer_retour, supprimer_retour, lire_retours)
 from valise import (actualiser_meteo, fenetres_du_voyage, page_du_voyage, accueil_en_html,
-                    lieux_depuis_reponse, normales_ou_url, normales_depuis_historique)
+                    lieux_depuis_reponse, normales_ou_url, normales_depuis_historique,
+                    formulaire_en_html, creer_voyage)
 from api_climat import url_geocodage
 
 load_dotenv(Path(__file__).parent / ".env")   # en local : lit voyage/.env s'il existe
@@ -33,6 +35,8 @@ def creer_app(nom_base="valise", secret=None):
     @routes.get("/")
     def accueil():
         """Sans paramètre : la liste des voyages. ?v=<code> : la valise de ce voyage."""
+        if "nouvelle" in request.args:                # formulaire de création (sans base)
+            return Response(formulaire_en_html(), mimetype="text/html")
         code = request.args.get("v")
         conn = connecter(app.config["NOM_BASE"])
         try:
@@ -137,6 +141,20 @@ def creer_app(nom_base="valise", secret=None):
             return jsonify({"ok": True, "etapes_prevues": 0,
                             "erreurs": ["page mise à jour : recharge-la puis réessaie"]})
         return jsonify({"ok": True, **resultat})        # erreurs : raisons affichées par le bouton
+
+    @routes.post("/api/voyages")
+    def creer():
+        """Formulaire de création : 201 + adresse de la valise, 409 s'il manque des normales."""
+        conn = connecter(app.config["NOM_BASE"])
+        try:
+            resultat = creer_voyage(conn, request.get_json(silent=True))
+        except ValueError as exc:
+            return jsonify({"erreur": str(exc)}), 400
+        finally:
+            conn.close()
+        if "manquantes" in resultat:
+            return jsonify(resultat), 409
+        return jsonify({"code": resultat["code"], "url": "?v=" + quote(resultat["code"])}), 201
 
     # --- Création en ligne : le téléphone appelle Open-Meteo, le serveur interprète ---
     @routes.get("/api/lieux")

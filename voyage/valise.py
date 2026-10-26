@@ -1552,6 +1552,8 @@ a.voyage {
 a.voyage strong { display: block; font-size: 1rem; }
 a.voyage span { font-size: .85rem; color: var(--doux); }
 p.vide { color: var(--doux); }
+a.nouvelle { display: inline-block; padding: .55rem 1rem; border-radius: 999px; background: var(--accent);
+             color: #fff; text-decoration: none; font-weight: 600; }
 """
 
 
@@ -1582,6 +1584,7 @@ def accueil_en_html(voyages, aujourd_hui):
 </head>
 <body>
 <h1>🧳 Nos valises</h1>
+<p><a class="nouvelle" href="?nouvelle">➕ Nouvelle valise</a></p>
 {corps}
 </body>
 </html>"""
@@ -1653,6 +1656,275 @@ function normalesDe(lieu, mois) {
     });
 }
 """
+
+
+# --- Création en ligne, étape 3 : le formulaire ---
+
+LIBELLES_ACTIVITE = {
+    "ville": "🏙️ Ville", "plage": "🏖️ Plage", "montagne": "⛰️ Montagne / rando",
+    "culte": "🛕 Lieux de culte", "snorkeling": "🤿 Snorkeling", "scooter": "🛵 Scooter / moto",
+    "nature": "🦟 Nature / moustiques", "nuit": "🌙 Transport de nuit", "road trip": "🚗 Road trip",
+}
+
+
+def voyage_depuis_formulaire(corps):
+    """Le formulaire envoyé par le téléphone -> voyage accepté par construire() (normales à None).
+
+    Mêmes règles que le terminal. Données venues du navigateur : tout est vérifié,
+    ValueError avec un message lisible sinon. Les mois sont calculés ici, pas par le téléphone.
+    """
+    if not isinstance(corps, dict):
+        raise ValueError("formulaire vide")
+    try:
+        depart = date.fromisoformat(str(corps.get("depart")))
+    except ValueError:
+        raise ValueError("date de départ invalide") from None
+    personnes = CHOIX_PERSONNE.get(corps.get("personnes"))
+    if personnes is None:
+        raise ValueError("qui part : Julien, Laetitia ou les deux")
+    lessive = corps.get("lessive")
+    if lessive is not None and (type(lessive) is not int or lessive < 1):
+        raise ValueError("lessive : un nombre de jours positif, ou vide")
+    etapes = corps.get("etapes")
+    if not isinstance(etapes, list) or not etapes:
+        raise ValueError("ajoute au moins une étape")
+    connues = set(CHOIX_ACTIVITE.values())
+    itineraire = []
+    for n, e in enumerate(etapes, start=1):
+        if not isinstance(e, dict):
+            raise ValueError(f"étape {n} illisible")
+        destination = str(e.get("destination") or "").strip()
+        lat, lon = e.get("latitude"), e.get("longitude")
+        if not destination or type(lat) not in (int, float) or type(lon) not in (int, float):
+            raise ValueError(f"étape {n} : choisis une destination dans la liste")
+        jours = e.get("jours")
+        if type(jours) is not int or not 1 <= jours <= 365:
+            raise ValueError(f"étape {n} : nombre de jours invalide")
+        activites = e.get("activites") or []
+        if not isinstance(activites, list) or not set(activites) <= connues:
+            raise ValueError(f"étape {n} : activité inconnue")
+        itineraire.append({"destination": destination, "jours": jours, "activites": sorted(set(activites)),
+                           "normales": None, "code_pays": e.get("code_pays") or None,
+                           "latitude": float(lat), "longitude": float(lon)})
+    for etape, mois in zip(itineraire, mois_des_etapes(depart, [e["jours"] for e in itineraire])):
+        etape["mois"] = mois
+    return {"depart": depart, "itineraire": itineraire, "personnes": personnes,
+            "conduit": bool(corps.get("conduit")), "lessive": lessive}
+
+
+def creer_voyage(conn, corps):
+    """Formulaire -> voyage créé et publié : {"code": ...}.
+
+    Normales lues dans le cache ; s'il en manque (et sans "forcer"), renvoie
+    {"manquantes": [...]} : le téléphone les télécharge (normalesDe) puis renvoie le formulaire.
+    """
+    voyage = voyage_depuis_formulaire(corps)
+    manquantes = []
+    for i, e in enumerate(voyage["itineraire"]):
+        e["normales"] = lire_normales(conn, e["latitude"], e["longitude"], e["mois"])
+        if e["normales"] is None:
+            manquantes.append({"etape": i, "destination": e["destination"], "latitude": e["latitude"],
+                               "longitude": e["longitude"], "mois": e["mois"]})
+    if manquantes and not corps.get("forcer"):
+        return {"manquantes": manquantes}
+    c = construire(voyage)
+    appliquer_regles(c["valise"], lire_regles(conn))
+    enregistrer_voyage(conn, c["code"], c["libelle"], voyage["depart"], voyage["personnes"],
+                       voyage["itineraire"], c["jours_types"],
+                       conduit=voyage["conduit"], lessive=voyage["lessive"])
+    enregistrer_valise_objets(conn, c["code"], c["valise"])
+    publier_page(conn, rendre_page(voyage, c), cle=c["code"])
+    return {"code": c["code"]}
+
+
+FORMULAIRE_STYLE = """
+[hidden] { display: none !important; }          /* sinon "form label { display: block }" l'emporte */
+div.bloc { background: var(--carte); border-radius: 14px; padding: .8rem 1rem; margin-bottom: .6rem;
+           box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+form label { display: block; margin: .45rem 0; }
+form input[type=text], form input[type=date], form input[type=number] {
+ font-size: 1rem; padding: .45rem .6rem; border: 1px solid var(--ligne); border-radius: 8px;
+ background: var(--fond); color: var(--texte);
+}
+form input[type=number] { width: 4.5rem; }
+fieldset { border: none; padding: 0; margin: .45rem 0; }
+legend { font-weight: 600; padding: 0; }
+fieldset label { display: inline-flex; gap: .3rem; margin-right: .9rem; }
+.ligne { display: flex; gap: .4rem; margin-top: .25rem; }
+.ligne input { flex: 1; min-width: 0; }
+.entete { display: flex; justify-content: space-between; align-items: center; }
+.entete button { border: none; background: none; color: var(--doux); font-size: 1rem; cursor: pointer; }
+.lieux label.lieu { font-size: .9rem; margin: .25rem 0; }
+.activites { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .4rem; }
+.activites label { display: inline-flex; gap: .3rem; margin: 0; padding: .3rem .6rem; font-size: .85rem;
+                   border: 1px solid var(--ligne); border-radius: 999px; }
+.activites label:has(input:checked) { background: var(--accent-doux); border-color: var(--accent); }
+button.principal { width: 100%; padding: .85rem; border: none; border-radius: 12px; background: var(--accent);
+                   color: #fff; font-size: 1rem; font-weight: 600; cursor: pointer; }
+button.principal:disabled { opacity: .6; }
+#message { color: var(--doux); min-height: 1.2rem; }
+"""
+
+SCRIPT_FORMULAIRE = """
+const etapes = document.getElementById('etapes');
+const modele = document.getElementById('modele-etape');
+const message = document.getElementById('message');
+let compteur = 0;
+
+function totalJours() {
+    let total = 0;
+    etapes.querySelectorAll('.jours').forEach(function (j) { total += parseInt(j.value, 10) || 0; });
+    return total;
+}
+function majLessive() { document.getElementById('bloc-lessive').hidden = totalJours() <= 10; }
+function numeroter() {
+    etapes.querySelectorAll('.etape').forEach(function (e, i) { e.querySelector('.numero').textContent = 'Étape ' + (i + 1); });
+    majLessive();
+}
+
+// Destination : recherche via le téléphone (chercherLieux), choix parmi les homonymes
+function chercher(etape) {
+    const nom = etape.querySelector('.destination').value.trim();
+    const zone = etape.querySelector('.lieux');
+    etape.lieu = null;
+    if (!nom) return;
+    zone.textContent = '⏳ Recherche…';
+    chercherLieux(nom).then(function (lieux) {
+        zone.textContent = '';
+        if (!lieux.length) { zone.textContent = "❌ Introuvable : vérifie l'orthographe"; return; }
+        lieux.forEach(function (lieu, i) {
+            const label = document.createElement('label');
+            label.className = 'lieu';
+            const radio = document.createElement('input');
+            radio.type = 'radio';
+            radio.name = 'lieu-' + etape.id;
+            radio.addEventListener('change', function () { etape.lieu = lieu; });
+            if (i === 0) { radio.checked = true; etape.lieu = lieu; }     // le premier par défaut
+            label.append(radio, ' 📍 ' + lieu.libelle);
+            zone.append(label);
+        });
+    }).catch(function (e) { zone.textContent = '⚠️ Recherche impossible (' + e.message + ')'; });
+}
+
+function ajouterEtape() {
+    const etape = modele.content.firstElementChild.cloneNode(true);
+    etape.id = 'etape-' + (++compteur);
+    etape.querySelector('.chercher').addEventListener('click', function () { chercher(etape); });
+    etape.querySelector('.destination').addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') { ev.preventDefault(); chercher(etape); }
+    });
+    etape.querySelector('.jours').addEventListener('input', majLessive);
+    etape.querySelector('.retirer').addEventListener('click', function () {
+        if (etapes.children.length > 1) { etape.remove(); numeroter(); }
+    });
+    etapes.append(etape);
+    numeroter();
+}
+document.getElementById('ajouter-etape').addEventListener('click', ajouterEtape);
+ajouterEtape();
+
+function lireFormulaire() {
+    const corps = {
+        depart: document.getElementById('depart').value,
+        personnes: document.querySelector('input[name=personnes]:checked').value,
+        conduit: document.getElementById('conduit').checked,
+        lessive: null,
+        etapes: [],
+    };
+    const lessive = parseInt(document.getElementById('lessive').value, 10);
+    if (totalJours() > 10 && lessive > 0) corps.lessive = lessive;
+    etapes.querySelectorAll('.etape').forEach(function (e) {
+        const lieu = e.lieu || {};
+        corps.etapes.push({
+            destination: lieu.nom || e.querySelector('.destination').value,
+            code_pays: lieu.code_pays || null,
+            latitude: lieu.latitude !== undefined ? lieu.latitude : null,
+            longitude: lieu.longitude !== undefined ? lieu.longitude : null,
+            jours: parseInt(e.querySelector('.jours').value, 10),
+            activites: Array.from(e.querySelectorAll('.activites input:checked')).map(function (c) { return c.value; }),
+        });
+    });
+    return corps;
+}
+function envoyerVoyage(corps) {
+    return fetch('api/voyages', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify(corps) })
+        .then(function (r) { return r.json().then(function (j) { return { statut: r.status, corps: j }; }); });
+}
+
+// Envoi : le serveur dit s'il manque des normales ; le téléphone les télécharge puis renvoie
+document.getElementById('creation').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    const bouton = document.getElementById('creer');
+    const corps = lireFormulaire();
+    bouton.disabled = true;
+    message.textContent = '⏳ Création de la valise…';
+    envoyerVoyage(corps).then(function (res) {
+        if (res.statut !== 409) return res;
+        message.textContent = '⏳ Climat de saison : téléchargement (' + res.corps.manquantes.length + ' étape(s))…';
+        return Promise.all(res.corps.manquantes.map(function (m) {
+            return normalesDe(m, m.mois).catch(function () { return null; });   // échec : climat inconnu
+        })).then(function () { corps.forcer = true; return envoyerVoyage(corps); });
+    }).then(function (res) {
+        if (res.statut === 201) { location.href = res.corps.url; return; }
+        bouton.disabled = false;
+        message.textContent = '⚠️ ' + (res.corps.erreur || 'erreur ' + res.statut);
+    }).catch(function (e) {
+        bouton.disabled = false;
+        message.textContent = '⚠️ Échec (' + e.message + '), réessaie';
+    });
+});
+"""
+
+
+def formulaire_en_html():
+    """Page de création d'une valise : les questions du terminal, en formulaire."""
+    cases = "".join(f'<label><input type="checkbox" value="{activite}"{" checked" if activite == "ville" else ""}>'
+                    f'{LIBELLES_ACTIVITE[activite]}</label>' for activite in CHOIX_ACTIVITE.values())
+    return f"""<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nouvelle valise</title>
+<style>{HTML_STYLE}{FORMULAIRE_STYLE}</style>
+</head>
+<body>
+<a class="retour" href="./">← Tous les voyages</a>
+<h1>➕ Nouvelle valise</h1>
+<form id="creation">
+<div class="bloc">
+<label>Date de départ<br><input type="date" id="depart" required></label>
+<fieldset><legend>Qui part ?</legend>
+<label><input type="radio" name="personnes" value="j">Julien</label>
+<label><input type="radio" name="personnes" value="l">Laetitia</label>
+<label><input type="radio" name="personnes" value="2" checked>Les deux</label>
+</fieldset>
+</div>
+<div id="etapes"></div>
+<p><button type="button" id="ajouter-etape" class="ctrl-btn">➕ Ajouter une étape</button></p>
+<div class="bloc">
+<label><input type="checkbox" id="conduit"> On conduit (voiture ou scooter)</label>
+<label id="bloc-lessive" hidden>Lessive en route : tous les
+<input type="number" id="lessive" min="1" inputmode="numeric"> jours (vide = pas de lessive)</label>
+</div>
+<p id="message"></p>
+<button type="submit" id="creer" class="principal">Créer la valise</button>
+</form>
+<template id="modele-etape">
+<div class="etape bloc">
+<div class="entete"><strong class="numero"></strong><button type="button" class="retirer" title="Retirer l'étape">✕</button></div>
+<label>Destination<span class="ligne"><input type="text" class="destination" placeholder="ex. Lisbonne"
+ enterkeyhint="search"><button type="button" class="chercher ctrl-btn">Chercher</button></span></label>
+<div class="lieux"></div>
+<label>Jours <input type="number" class="jours" min="1" max="365" value="3" inputmode="numeric"></label>
+<div class="activites">{cases}</div>
+</div>
+</template>
+<script>{SCRIPT_RECHERCHE}</script>
+<script>{SCRIPT_FORMULAIRE}</script>
+</body>
+</html>"""
 
 
 def ajuster_selon_bilans(valise, jours_types, code):
