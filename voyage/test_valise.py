@@ -660,3 +660,9 @@ def test_creme_solaire_un_tube_par_semaine_de_soleil():
     long = faire_valise({"chaud": 21, "plage": 7}, 21, ["Julien"], hors_ue=True, conduit=False)
     assert court["Partagé"]["Hygiène"]["crème solaire"] == 1
     assert long["Partagé"]["Hygiène"]["crème solaire"] == 3
+
+
+def test_maillot_plafonne_a_trois():
+    # 18 jours de plage : 18//3 = 6 -> plafond 3 (un sur soi, un qui sèche, un pour le style)
+    valise = faire_valise({"plage": 18}, 18, ["Julien"], hors_ue=True, conduit=False)
+    assert valise["Julien"]["Vêtements"]["maillot de bain"] == 3

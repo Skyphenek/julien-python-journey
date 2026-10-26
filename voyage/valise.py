@@ -516,7 +516,7 @@ PAR_TYPE_PERSO = {
     "froid":    {"manteau": 1, "pull": "par_3_jours", "gants": 1, "bonnet": 1,
                  "écharpe": 1, "sous-couche thermique": "par_3_jours",
                  "grosses chaussures": 1, "collants": "par_3_jours"},
-    "plage":    {"maillot de bain": "par_3_jours_2_des_4_jours", "tongs": 1, "futa": 1,
+    "plage":    {"maillot de bain": "maillot", "tongs": 1, "futa": 1,
                  "shorts": "par_3_jours", "sandales": 1, "lunettes de soleil": "2_au_dela_d_une_semaine"},
     "montagne": {"chaussures rando": 1, "gourde": 1, "coupe-vent": 1, "polaire": 1,
                  "chaussettes de rando": "par_3_jours", "bâtons": 1},
@@ -796,8 +796,8 @@ def quantite_reelle(marqueur, jours):
         return max(1, jours // 3)
     if marqueur == "par_2_jours":
         return max(1, jours // 2)
-    if marqueur == "par_3_jours_2_des_4_jours":  # maillot : un sur soi, un qui sèche
-        return max(2, jours // 3) if jours >= 4 else 1
+    if marqueur == "maillot":   # 1, puis 2 dès 4 jours (un qui sèche), plafond 3 (pour le style)
+        return min(3, max(2, jours // 3)) if jours >= 4 else 1
     if marqueur == "2_au_dela_d_une_semaine":   # ex: lunettes de soleil, une paire de secours
         return 2 if jours > 7 else 1
     return marqueur          # déjà un nombre (ex: 1) -> tel quel
