@@ -86,25 +86,40 @@ def enregistrer_normales(conn, latitude, longitude, normales_par_mois):
     conn.commit()
 
 
-def publier_page(conn, html):
-    """Enregistre la page de checklist courante (remplace la précédente)."""
+def publier_page(conn, html, cle="courante"):
+    """Enregistre la page de checklist d'un voyage (cle = son code) ; remplace la précédente."""
     with conn.cursor() as cur:
         cur.execute(
             """
-            INSERT INTO page_valise (cle, html, maj_le) VALUES ('courante', %s, now())
+            INSERT INTO page_valise (cle, html, maj_le) VALUES (%s, %s, now())
             ON CONFLICT (cle) DO UPDATE SET html = EXCLUDED.html, maj_le = now()
             """,
-            (html,),
+            (cle, html),
         )
     conn.commit()
 
 
-def lire_page(conn):
-    """La page de checklist courante, ou None si rien n'a encore été publié."""
+def lire_page(conn, cle="courante"):
+    """La page de checklist d'un voyage (cle = son code), ou None si rien n'a été publié."""
     with conn.cursor() as cur:
-        cur.execute("SELECT html FROM page_valise WHERE cle = 'courante'")
+        cur.execute("SELECT html FROM page_valise WHERE cle = %s", (cle,))
         ligne = cur.fetchone()
     return ligne[0] if ligne else None
+
+
+def lister_voyages(conn):
+    """Les voyages non archivés, par date de départ : de quoi afficher l'accueil."""
+    from datetime import timedelta
+    with conn.cursor() as cur:
+        cur.execute("SELECT code, libelle, depart, personnes, itineraire FROM voyages "
+                    "WHERE NOT archive ORDER BY depart, code")
+        lignes = cur.fetchall()
+    voyages = []
+    for code, libelle, depart, personnes, itineraire in lignes:
+        jours = sum(e.get("jours", 0) for e in itineraire)
+        voyages.append({"code": code, "libelle": libelle, "depart": depart,
+                        "fin": depart + timedelta(days=max(jours, 1) - 1), "personnes": personnes})
+    return voyages
 
 
 def enregistrer_voyage(conn, code, libelle, depart, personnes, itineraire, jours_types,

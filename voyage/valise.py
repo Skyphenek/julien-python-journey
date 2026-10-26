@@ -18,7 +18,8 @@ import requests
 from api_climat import (lieux, normales_12_mois, fenetre_prevision, normales_depuis_previsions,
                         url_prevision)
 from db import (connecter, lire_normales, enregistrer_normales, publier_page,
-                enregistrer_voyage, enregistrer_valise_objets, lire_voyage,
+                enregistrer_voyage, enregistrer_valise_objets, lire_voyage, lire_page,
+                lire_valise_objets,
                 lire_historique, lire_regles, ajouter_regle)
 from dotenv import load_dotenv
 
@@ -43,6 +44,7 @@ body {
     line-height: 1.45; background: var(--fond); color: var(--texte);
 }
 h1 { font-size: 1.25rem; margin: 0 0 .6rem; line-height: 1.3; }
+a.retour { display: inline-block; margin: 0 0 .5rem; font-size: .85rem; color: var(--accent); text-decoration: none; }
 h1 .duree { color: var(--doux); font-weight: 500; }
 
 /* En-tête compact : climat et adaptateur en puces */
@@ -1212,6 +1214,7 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
 <style>{HTML_STYLE}</style>
 </head>
 <body>
+<a class="retour" href="./">← Tous les voyages</a>
 <h1>{libelle_voyage} <span class="duree">· {total} jours{quand}</span></h1>
 <div class="puces">{puces}</div>
 <div class="collant">
@@ -1500,8 +1503,88 @@ def actualiser_meteo(conn, code, aujourd_hui, recues):
                        voyage["itineraire"], c["jours_types"],
                        conduit=voyage["conduit"], lessive=voyage["lessive"])
     enregistrer_valise_objets(conn, code, c["valise"])
-    publier_page(conn, rendre_page(voyage, c))
+    publier_page(conn, rendre_page(voyage, c), cle=code)
     return {"etapes_prevues": sum("prevision" in e for e in voyage["itineraire"]), "erreurs": erreurs}
+
+
+def valise_depuis_photo(photo, personnes):
+    """La photo en base {(proprietaire, theme, objet): q} remise en valise d'affichage.
+
+    Partagé d'abord, puis les voyageurs ; rayons dans l'ordre habituel (paquet_vide).
+    """
+    proprietaires = ["Partagé"] + list(personnes)
+    proprietaires += sorted({p for p, _t, _o in photo} - set(proprietaires))
+    valise = {p: paquet_vide() for p in proprietaires}
+    for (p, theme, objet), quantite in photo.items():
+        valise[p].setdefault(theme, {})[objet] = quantite
+    return valise
+
+
+def page_du_voyage(conn, code):
+    """La page d'un voyage ; si aucune n'est stockée à son nom, refaite depuis la photo en base.
+
+    La photo (ce qui a été réellement proposé) prime sur un recalcul : les règles ont pu
+    changer depuis, et le bilan se fait par rapport à la photo. None si le voyage est inconnu.
+    """
+    html = lire_page(conn, code)
+    if html is not None:
+        return html
+    voyage = lire_voyage(conn, code)
+    if voyage is None:
+        return None
+    c = construire(voyage)
+    photo = lire_valise_objets(conn, code)
+    if photo:
+        c["valise"] = valise_depuis_photo(photo, voyage["personnes"])
+    else:
+        appliquer_regles(c["valise"], lire_regles(conn))
+    html = rendre_page(voyage, c)
+    publier_page(conn, html, cle=code)
+    return html
+
+
+ACCUEIL_STYLE = """
+section.liste h2 { font-size: .95rem; color: var(--doux); margin: 1.2rem 0 .5rem; }
+a.voyage {
+ display: block; background: var(--carte); border-radius: 14px; padding: .8rem 1rem; margin-bottom: .6rem;
+ color: var(--texte); text-decoration: none; box-shadow: 0 1px 2px rgba(0,0,0,.06);
+}
+a.voyage strong { display: block; font-size: 1rem; }
+a.voyage span { font-size: .85rem; color: var(--doux); }
+p.vide { color: var(--doux); }
+"""
+
+
+def accueil_en_html(voyages, aujourd_hui):
+    """Page d'accueil : les voyages à venir (le plus proche d'abord), puis les passés."""
+    from urllib.parse import quote
+    a_venir = [v for v in voyages if v["fin"] >= aujourd_hui]
+    passes = sorted((v for v in voyages if v["fin"] < aujourd_hui), key=lambda v: v["depart"], reverse=True)
+
+    def carte(v):
+        return (f'<a class="voyage" href="?v={quote(v["code"])}"><strong>{v["libelle"]}</strong>'
+                f'<span>{date_en_clair(v["depart"])} → {date_en_clair(v["fin"])} · '
+                f'{" · ".join(v["personnes"])}</span></a>')
+
+    corps = ""
+    for titre, liste in [("À venir", a_venir), ("Passés", passes)]:
+        if liste:
+            corps += f'<section class="liste"><h2>{titre}</h2>{"".join(carte(v) for v in liste)}</section>'
+    if not voyages:
+        corps = '<p class="vide">Aucune valise pour l\'instant.</p>'
+    return f"""<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nos valises</title>
+<style>{HTML_STYLE}{ACCUEIL_STYLE}</style>
+</head>
+<body>
+<h1>🧳 Nos valises</h1>
+{corps}
+</body>
+</html>"""
 
 
 def ajuster_selon_bilans(valise, jours_types, code):
@@ -1640,7 +1723,7 @@ def main():
         enregistrer_voyage(conn, code, libelle_voyage, depart, personnes, itineraire, jours_types,
                            conduit=conduit, lessive=lessive)
         enregistrer_valise_objets(conn, code, valise)      # la photo : référence du futur bilan
-        publier_page(conn, html)
+        publier_page(conn, html, cle=code)                 # une page par voyage
         conn.close()
         print(f"Voyage mémorisé : {code}")
         ou = "en ligne" if os.environ.get("DATABASE_URL") else "sur le Mac"

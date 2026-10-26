@@ -12,7 +12,7 @@ import requests
 
 URL_GEO = "https://geocoding-api.open-meteo.com/v1/search"
 URL_ARCHIVE = "https://archive-api.open-meteo.com/v1/archive"
-DEBUT, FIN, NB_ANNEES = "2016-01-01", "2025-12-31", 10
+DEBUT, FIN, NB_ANNEES = "2021-01-01", "2025-12-31", 5     # 5 ans : assez stable, 2x plus léger
 SEUIL_PLUIE_MM = 1.0         # en dessous, une bruine ne compte pas comme "jour de pluie"
 SEUIL_FORTE_PLUIE_MM = 5.0   # "vraie" pluie, celle qui mouille : distingue mousson et averses tropicales
 DELAI_RESEAU = 15            # secondes max par appel (géocodage, prévisions) : jamais de bouton bloqué
