@@ -142,3 +142,52 @@ def test_voyage_inconnu_refuse(client_voyage):
     reponse = client_voyage.post("/api/retour", json={"voyage": "1999 Atlantide", "proprietaire": "Julien",
                                                       "objet": "pull", "verdict": "utile"})
     assert reponse.status_code == 400
+
+
+# --- Bouton météo : POST /api/meteo/<voyage> régénère la valise avec les prévisions ---
+from datetime import date, timedelta
+import valise
+from db import enregistrer_voyage, lire_voyage, lire_page, lire_valise_objets, ajouter_regle
+
+
+@pytest.fixture
+def client_meteo(client, monkeypatch):
+    """Un voyage qui part dans 3 jours ; prévision factice chaude et orageuse (aucun réseau)."""
+    depart = date.today() + timedelta(days=3)
+    itin = [{"destination": "Hanoï", "jours": 7, "mois": depart.month, "activites": ["ville"],
+             "normales": {"tmin": 14.0, "tmax": 21.0, "jours_pluie": 10, "jours_forte_pluie": 1.0},
+             "code_pays": "VN", "latitude": 21.03, "longitude": 105.85}]
+    code = valise.code_voyage(depart, "Hanoï")
+    conn = connecter("valise_test")
+    with conn.cursor() as cur:
+        cur.execute("TRUNCATE regles_perso")
+    conn.commit()
+    enregistrer_voyage(conn, code, "Hanoï", depart, ["Julien"], itin, {"ville": 7},
+                       conduit=False, lessive=None)
+    ajouter_regle(conn, "Julien", "oreiller gonflable", "Divers")
+    conn.close()
+    prevu = {"tmin": 24.0, "tmax": 32.0, "jours_pluie": 10, "jours_forte_pluie": 5.0,
+             "prevu_le": date.today().isoformat()}
+    monkeypatch.setattr(valise, "previsions", lambda *a: prevu)
+    return client, code
+
+
+def test_meteo_voyage_inconnu(client):
+    assert client.post("/api/meteo/2027-01-01 Nulle Part").status_code == 404
+
+
+def test_meteo_regenere_page_voyage_et_photo(client_meteo):
+    client, code = client_meteo
+    reponse = client.post("/api/meteo/" + code)
+    assert reponse.status_code == 200
+    assert reponse.get_json() == {"ok": True, "etapes_prevues": 1}
+    conn = connecter("valise_test")
+    try:
+        assert lire_voyage(conn, code)["itineraire"][0]["prevision"]["tmax"] == 32.0
+        page = lire_page(conn)
+        assert "prévu le" in page
+        photo = lire_valise_objets(conn, code)
+        assert ("Julien", "Vêtements", "imperméable") in photo          # averses prévues -> K-way
+        assert ("Julien", "Divers", "oreiller gonflable") in photo      # règles "toujours" appliquées
+    finally:
+        conn.close()

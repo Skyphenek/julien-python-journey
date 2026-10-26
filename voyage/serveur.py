@@ -6,6 +6,7 @@ Même code en local (Mac) et en ligne (Render) ; seules les variables d'environn
 - PORT          : imposé par l'hébergeur (sinon 8000)
 """
 import os
+from datetime import date
 from pathlib import Path
 
 import psycopg2
@@ -15,6 +16,7 @@ from flask import Blueprint, Flask, jsonify, request, Response
 
 from db import (connecter, obtenir_etat, enregistrer_coche, lire_page,
                 VERDICTS, enregistrer_retour, supprimer_retour, lire_retours)
+from valise import actualiser_meteo
 
 load_dotenv(Path(__file__).parent / ".env")   # en local : lit voyage/.env s'il existe
 
@@ -99,6 +101,18 @@ def creer_app(nom_base="valise", secret=None):
         finally:
             conn.close()
         return jsonify({"ok": True})
+
+    @routes.post("/api/meteo/<voyage>")
+    def meteo(voyage):
+        """Bouton météo : régénère la valise de ce voyage avec les prévisions du jour."""
+        conn = connecter(app.config["NOM_BASE"])
+        try:
+            prevues = actualiser_meteo(conn, voyage, date.today())
+        finally:
+            conn.close()
+        if prevues is None:
+            return jsonify({"erreur": f"voyage inconnu : {voyage}"}), 404
+        return jsonify({"ok": True, "etapes_prevues": prevues})
 
     # Avec un secret, tout vit sous /v/<secret>/ : sans le code, chaque adresse renvoie 404
     app.register_blueprint(routes, url_prefix=f"/v/{secret}" if secret else None)

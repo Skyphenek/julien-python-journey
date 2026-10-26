@@ -10,7 +10,7 @@ from valise import (total_jours, jours_par_type,
                     valise_en_html, paquet_vide, ligne_climat,
                     types_climat, libelle_lieu,
                     lire_mois, lire_activites, est_oui, un_par_pays, lire_lessive, objets_sans_rayon,
-                    construire, rendre_page, completer_coordonnees,
+                    construire, rendre_page, completer_coordonnees, appliquer_previsions, types_pour,
                     statut_ue, adaptateur_pour, normales_avec_cache,
                     THEMES, ICONES_RAYON, puce_climat, HTML_SCRIPT,
                     lire_date, mois_des_etapes, code_voyage,
@@ -827,3 +827,72 @@ def test_completer_coordonnees_introuvable_ou_hors_ligne():
     itin = [{"destination": "Nulle Part", "jours": 2, "code_pays": None}]
     assert "latitude" not in completer_coordonnees(itin, chercher=_faux_lieux)[0]
     assert "latitude" not in completer_coordonnees(itin, chercher=hors_ligne)[0]
+
+
+# --- Étape 4 (météo J-7) : les prévisions remplacent les normales des étapes proches ---
+
+CHAUD_ORAGEUX = {"tmin": 24.0, "tmax": 32.0, "jours_pluie": 10, "jours_forte_pluie": 5.0,
+                 "prevu_le": "2027-01-07"}
+ITIN_2_ETAPES = [
+    {"destination": "Hanoï", "jours": 7, "mois": 1, "activites": ["ville"], "normales": HANOI_JANV,
+     "code_pays": "VN", "latitude": 21.03, "longitude": 105.85},
+    {"destination": "Phu Quoc", "jours": 7, "mois": 1, "activites": ["plage"], "normales": PHU_QUOC_JANV,
+     "code_pays": "VN", "latitude": 10.23, "longitude": 103.96},
+]
+
+
+def test_appliquer_previsions_etape_proche_seulement():
+    appels = []
+    def fausses(lat, lon, debut, jours, aujourd_hui):
+        appels.append((debut, jours))
+        return CHAUD_ORAGEUX if debut == date(2027, 1, 10) else None   # 2e étape hors portée
+    itin = appliquer_previsions(ITIN_2_ETAPES, date(2027, 1, 10), date(2027, 1, 7), chercher=fausses)
+    assert appels == [(date(2027, 1, 10), 7), (date(2027, 1, 17), 7)]   # début de chaque étape
+    assert itin[0]["prevision"] == CHAUD_ORAGEUX
+    assert "prevision" not in itin[1]
+    assert itin[0]["normales"] == HANOI_JANV                       # les normales restent en réserve
+    assert "prevision" not in ITIN_2_ETAPES[0]                     # l'original est intact
+
+
+def test_appliquer_previsions_retire_une_prevision_perimee():
+    itin = [{**ITIN_2_ETAPES[0], "prevision": CHAUD_ORAGEUX}]
+    nouveau = appliquer_previsions(itin, date(2027, 1, 10), date(2027, 1, 20),
+                                   chercher=lambda *a: None)          # étape passée : plus prévue
+    assert "prevision" not in nouveau[0]
+
+
+def test_appliquer_previsions_sans_coordonnees_ou_hors_ligne():
+    import requests
+    def hors_ligne(*a):
+        raise requests.RequestException("pas de réseau")
+    sans_coords = [{k: v for k, v in ITIN_2_ETAPES[0].items() if k not in ("latitude", "longitude")}]
+    assert appliquer_previsions(sans_coords, date(2027, 1, 10), date(2027, 1, 7),
+                                chercher=lambda *a: CHAUD_ORAGEUX) == sans_coords
+    garde = [{**ITIN_2_ETAPES[0], "prevision": CHAUD_ORAGEUX}]
+    assert appliquer_previsions(garde, date(2027, 1, 10), date(2027, 1, 7), chercher=hors_ligne) == garde
+
+
+def test_la_prevision_prime_sur_les_normales():
+    etape = {**ITIN_2_ETAPES[0], "prevision": CHAUD_ORAGEUX}     # Hanoï : normales douces, prévu chaud
+    assert "chaud" not in types_pour(ITIN_2_ETAPES[0])
+    assert types_pour(etape) == ["chaud", "averses", "ville"]
+
+
+def test_puce_climat_signale_la_prevision():
+    assert "prévu le 07/01" in puce_climat("Hanoï", CHAUD_ORAGEUX)
+    assert "prévu" not in puce_climat("Hanoï", HANOI_JANV)
+
+
+def test_rendre_page_affiche_la_prevision():
+    voyage = {**VOYAGE_VIETNAM,
+              "itineraire": [{**VOYAGE_VIETNAM["itineraire"][0], "prevision": CHAUD_ORAGEUX}]
+                            + VOYAGE_VIETNAM["itineraire"][1:]}
+    html = rendre_page(voyage, construire(voyage))
+    assert "prévu le 07/01" in html
+
+
+def test_page_porte_le_bouton_meteo_et_ses_dates():
+    html = rendre_page(VOYAGE_VIETNAM, construire(VOYAGE_VIETNAM))
+    assert 'id="meteo"' in html
+    assert 'const DEPART = "2027-01-10"' in html
+    assert 'const FIN = "2027-01-27"' in html                    # 18 jours : 10 -> 27 janvier

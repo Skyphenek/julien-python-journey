@@ -15,9 +15,9 @@ from pathlib import Path
 import psycopg2
 import requests
 
-from api_climat import lieux, normales_12_mois
+from api_climat import lieux, normales_12_mois, previsions
 from db import (connecter, lire_normales, enregistrer_normales, publier_page,
-                enregistrer_voyage, enregistrer_valise_objets,
+                enregistrer_voyage, enregistrer_valise_objets, lire_voyage,
                 lire_historique, lire_regles, ajouter_regle)
 from dotenv import load_dotenv
 
@@ -453,6 +453,29 @@ function initialiser() {
     document.addEventListener('visibilitychange', rafraichir);   // et dès qu'on revient sur la page
 }
 
+// Bouton météo : visible de J-10 (portée des prévisions) jusqu'à la fin du voyage
+(function () {
+    const btn = document.getElementById('meteo');
+    if (!btn || typeof DEPART === 'undefined') return;
+    const aujourdhui = new Date(new Date().toDateString());           // minuit local
+    const ouverture = new Date(DEPART + 'T00:00:00');
+    ouverture.setDate(ouverture.getDate() - 10);                      // en jours : insensible au changement d'heure
+    const fermeture = new Date(FIN + 'T00:00:00');
+    if (aujourdhui < ouverture || aujourdhui > fermeture) return;
+    btn.hidden = false;
+    btn.addEventListener('click', function () {
+        btn.disabled = true;
+        btn.textContent = '⏳ Prévisions en cours…';
+        fetch('api/meteo/' + encodeURIComponent(VOYAGE), { method: 'POST' })
+            .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+            .then(function () { location.reload(); })                 // la page a été republiée
+            .catch(function () {
+                btn.disabled = false;
+                btn.textContent = '⚠️ Échec, réessaie';
+            });
+    });
+})();
+
 // Démarrage : on va chercher l'état de CE voyage sur le serveur, puis on initialise
 fetch('api/etat/' + encodeURIComponent(VOYAGE))
     .then(function (r) { return r.json(); })
@@ -732,7 +755,10 @@ def puce_climat(destination, n):
     """Version courte pour l'en-tête de la checklist : 'Hanoï 14–21° · 🌧️ 3 j forts'."""
     if n is None:
         return f"{destination} ?"
-    return f"{destination} {round(n['tmin'])}–{round(n['tmax'])}° · 🌧️ {round(n['jours_forte_pluie'])} j forts"
+    puce = f"{destination} {round(n['tmin'])}–{round(n['tmax'])}° · 🌧️ {round(n['jours_forte_pluie'])} j forts"
+    if "prevu_le" in n:                          # prévision (J-10) plutôt que normale de saison
+        puce += f" · prévu le {n['prevu_le'][8:10]}/{n['prevu_le'][5:7]}"
+    return puce
 
 
 def types_climat(n):
@@ -785,9 +811,14 @@ def prises_itineraire(itineraire):
             prises.add(prise)
     return prises
 
+def climat_de(etape):
+    """Le climat retenu pour une étape : la prévision si on en a une, sinon les normales."""
+    return etape.get("prevision") or etape.get("normales")
+
+
 def types_pour(etape):
     """Types d'une étape = climat (déduit des normales) + activités (saisies par l'utilisateur)."""
-    return types_climat(etape.get("normales")) + etape.get("activites", [])
+    return types_climat(climat_de(etape)) + etape.get("activites", [])
 
 def total_jours(itineraire):
     """Compter le nombre de jours d'un itinéraire (liste de tuples [(ville, nb_jours), ...])."""
@@ -1084,6 +1115,10 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
     """
     cle_voyage = code or libelle_voyage
     quand = f" · départ le {date_en_clair(depart)}" if depart else ""
+    dates_js = ""                       # pour le bouton météo (affiché de J-10 à la fin du voyage)
+    if depart:
+        fin = depart + timedelta(days=total - 1)
+        dates_js = f' const DEPART = "{depart.isoformat()}"; const FIN = "{fin.isoformat()}";'
     adaptateurs = ", ".join(sorted(prises)) if prises else "aucun"
     puces = f'<span class="puce">🔌 Adaptateur : {adaptateurs}</span>'
     for destination, mois, n in climats or []:
@@ -1151,8 +1186,8 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
 <p id="bilan-compte"></p>
 </div>
 {corps}
-<div class="controls"><button id="mode-bilan" class="ctrl-btn">📝 Bilan de fin de voyage</button><button id="toggle-masque" class="ctrl-btn">Masquer les rangés</button><button id="reset" class="ctrl-btn">Réinitialiser</button></div>
-<script>const VOYAGE = {json.dumps(cle_voyage, ensure_ascii=False)};</script>
+<div class="controls"><button id="meteo" class="ctrl-btn" hidden>🌦️ Actualiser avec la météo</button><button id="mode-bilan" class="ctrl-btn">📝 Bilan de fin de voyage</button><button id="toggle-masque" class="ctrl-btn">Masquer les rangés</button><button id="reset" class="ctrl-btn">Réinitialiser</button></div>
+<script>const VOYAGE = {json.dumps(cle_voyage, ensure_ascii=False)};{dates_js}</script>
 <script>{HTML_SCRIPT}</script>
 </body>
 </html>"""
@@ -1322,6 +1357,31 @@ def completer_coordonnees(itineraire, chercher=lieux):
     return complete
 
 
+def appliquer_previsions(itineraire, depart, aujourd_hui, chercher=None):
+    """Copie de l'itinéraire où chaque étape proche reçoit sa prévision (clé "prevision").
+
+    Les normales restent en réserve ; une prévision périmée (étape passée ou plus dans la
+    portée) est retirée. Sans coordonnées : rien. Hors ligne : on garde ce qu'on avait.
+    """
+    chercher = chercher or previsions          # résolu à l'appel : remplaçable dans les tests
+    nouveau = []
+    debut = depart
+    for etape in itineraire:
+        etape = dict(etape)
+        if "latitude" in etape:
+            try:
+                n = chercher(etape["latitude"], etape["longitude"], debut, etape["jours"], aujourd_hui)
+                if n:
+                    etape["prevision"] = n
+                else:
+                    etape.pop("prevision", None)
+            except requests.RequestException:
+                pass
+        nouveau.append(etape)
+        debut += timedelta(days=etape["jours"])
+    return nouveau
+
+
 def construire(voyage):
     """Calculer la valise d'un voyage déjà saisi. Pure : ni input(), ni base, ni réseau.
 
@@ -1345,9 +1405,31 @@ def construire(voyage):
 
 def rendre_page(voyage, c):
     """La page HTML d'une construction (après d'éventuels ajustements de c["valise"])."""
-    climats = [(e["destination"], e["mois"], e["normales"]) for e in voyage["itineraire"]]
+    climats = [(e["destination"], e["mois"], climat_de(e)) for e in voyage["itineraire"]]
     return valise_en_html(c["valise"], c["libelle"], c["total"], c["prises"], climats,
                           code=c["code"], depart=voyage["depart"])
+
+
+def actualiser_meteo(conn, code, aujourd_hui):
+    """Bouton météo : régénère un voyage en base avec les prévisions, sans terminal.
+
+    Re-géocode si besoin, applique les prévisions, reconstruit, remet les règles "toujours",
+    puis republie voyage + photo + page. Les propositions o/n des bilans restent au terminal.
+    Renvoie le nombre d'étapes prévues, ou None si le voyage est inconnu.
+    """
+    voyage = lire_voyage(conn, code)
+    if voyage is None:
+        return None
+    itineraire = completer_coordonnees(voyage["itineraire"])
+    voyage["itineraire"] = appliquer_previsions(itineraire, voyage["depart"], aujourd_hui)
+    c = construire(voyage)
+    appliquer_regles(c["valise"], lire_regles(conn))
+    enregistrer_voyage(conn, code, c["libelle"], voyage["depart"], voyage["personnes"],
+                       voyage["itineraire"], c["jours_types"],
+                       conduit=voyage["conduit"], lessive=voyage["lessive"])
+    enregistrer_valise_objets(conn, code, c["valise"])
+    publier_page(conn, rendre_page(voyage, c))
+    return sum("prevision" in e for e in voyage["itineraire"])
 
 
 def ajuster_selon_bilans(valise, jours_types, code):
