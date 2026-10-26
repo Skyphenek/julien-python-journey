@@ -57,7 +57,7 @@ def test_types_climat_chaud_et_soirees_fraiches():
 def test_pluie_saison_seche_vs_mousson():
     # Phu Quoc : 10 jours "humides" en janvier mais peu de vraie pluie -> pas d'imperméable
     assert "pluie" not in types_climat(PHU_QUOC_JANV)
-    assert "pluie" in types_climat(PHU_QUOC_AOUT)
+    assert "averses" in types_climat(PHU_QUOC_AOUT)   # chaud + pluie = averses (voir plus bas)
 
 
 def test_frais_ajoute_un_pull():
@@ -586,3 +586,77 @@ def test_faire_valise_lessive_plancher_jamais_au_dessus_du_voyage_complet():
     valise = faire_valise(jpt, 18, ["Julien"], hors_ue=True, conduit=False,
                           lessive_tous_les=5)
     assert valise["Julien"]["Vêtements"]["tenue habillée"] == 1
+
+
+# --- Retours sur la valise test Berlin › Sotchi (2026-10-26) ---
+
+def test_lunettes_de_soleil_une_puis_deux_au_dela_d_une_semaine():
+    courte = faire_valise({"chaud": 7}, 7, ["Julien"], hors_ue=True, conduit=False)
+    longue = faire_valise({"chaud": 20}, 20, ["Julien"], hors_ue=True, conduit=False)
+    tres_longue = faire_valise({"chaud": 30}, 30, ["Julien"], hors_ue=True, conduit=False)
+    plage = faire_valise({"plage": 10}, 10, ["Julien"], hors_ue=True, conduit=False)
+    assert courte["Julien"]["Accessoires"]["lunettes de soleil"] == 1
+    assert longue["Julien"]["Accessoires"]["lunettes de soleil"] == 2
+    assert tres_longue["Julien"]["Accessoires"]["lunettes de soleil"] == 2   # plafond : 2, pas 4
+    assert plage["Julien"]["Accessoires"]["lunettes de soleil"] == 2
+
+
+def test_chaussettes_si_chaussures_fermees_meme_en_pays_chaud():
+    # Laetitia : pays chaud = chaussures ouvertes, sauf si la ville ajoute des baskets
+    ville = faire_valise({"chaud": 14, "ville": 14}, 14, ["Laetitia"], hors_ue=True, conduit=False)
+    plage = faire_valise({"chaud": 14, "plage": 14}, 14, ["Laetitia"], hors_ue=True, conduit=False)
+    assert ville["Laetitia"]["Sous-vêtements"]["chaussettes"] == 6      # 3 paires / semaine
+    assert "chaussettes" not in plage["Laetitia"]["Sous-vêtements"]
+
+
+def test_pas_de_chaussures_de_rechange_si_autre_paire_fermee():
+    ville = faire_valise({"ville": 10}, 10, ["Julien"], hors_ue=True, conduit=False)
+    plage = faire_valise({"plage": 10}, 10, ["Julien"], hors_ue=True, conduit=False)
+    assert "chaussures de rechange" not in ville["Julien"]["Chaussures"]   # les baskets suffisent
+    assert "chaussures de rechange" in plage["Julien"]["Chaussures"]
+
+
+def test_types_climat_averses_si_chaud_et_pluie():
+    orage_ete = {"tmin": 15, "tmax": 26, "jours_pluie": 12, "jours_forte_pluie": 6}   # Prague en août
+    pluie_froide = {"tmin": 2, "tmax": 8, "jours_pluie": 15, "jours_forte_pluie": 6}
+    assert types_climat(orage_ete) == ["chaud", "averses"]
+    assert "pluie" in types_climat(pluie_froide)
+
+
+def test_averses_kway_et_un_parapluie_pour_deux():
+    jpt = {"chaud": 20, "averses": 6}
+    valise = faire_valise(jpt, 20, ["Julien", "Laetitia"], hors_ue=True, conduit=False)
+    for p in ["Julien", "Laetitia"]:
+        assert "imperméable" in valise[p]["Vêtements"]
+        assert "chaussures imperméables" not in valise[p]["Chaussures"]
+        assert "parapluie" not in valise[p]["Divers"]
+    assert valise["Partagé"]["Divers"]["parapluie"] == 1
+
+
+def test_vraie_pluie_garde_les_chaussures_impermeables():
+    # Londres en hiver + Bangkok : la pluie froide d'une étape garde les chaussures imperméables
+    jpt = {"froid": 5, "pluie": 5, "chaud": 10}
+    valise = faire_valise(jpt, 15, ["Julien"], hors_ue=True, conduit=False)
+    assert "chaussures imperméables" in valise["Julien"]["Chaussures"]
+
+
+def test_maillot_deux_des_quatre_jours_de_plage():
+    court = faire_valise({"plage": 3}, 3, ["Julien"], hors_ue=True, conduit=False)
+    quatre = faire_valise({"chaud": 10, "plage": 4}, 10, ["Julien"], hors_ue=True, conduit=False)
+    assert court["Julien"]["Vêtements"]["maillot de bain"] == 1
+    assert quatre["Julien"]["Vêtements"]["maillot de bain"] == 2    # un sur soi, un qui sèche
+
+
+def test_un_seul_sweat_en_pays_chaud():
+    jpt = {"chaud": 20, "ville": 20}
+    valise = faire_valise(jpt, 20, ["Julien", "Laetitia"], hors_ue=True, conduit=False,
+                          lessive_tous_les=10)
+    assert valise["Julien"]["Vêtements"]["sweat"] == 1
+    assert valise["Laetitia"]["Vêtements"]["sweat"] == 1
+
+
+def test_creme_solaire_un_tube_par_semaine_de_soleil():
+    court = faire_valise({"chaud": 6}, 6, ["Julien"], hors_ue=True, conduit=False)
+    long = faire_valise({"chaud": 21, "plage": 7}, 21, ["Julien"], hors_ue=True, conduit=False)
+    assert court["Partagé"]["Hygiène"]["crème solaire"] == 1
+    assert long["Partagé"]["Hygiène"]["crème solaire"] == 3
