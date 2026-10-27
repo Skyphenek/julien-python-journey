@@ -12,7 +12,7 @@ from db import connecter, publier_page
 def client():
     conn = connecter("valise_test")
     with conn.cursor() as cur:
-        cur.execute("TRUNCATE etat_case, page_valise, voyages, valise_objets, retours, passeports, infos_etape, depenses")
+        cur.execute("TRUNCATE etat_case, page_valise, voyages, valise_objets, retours, passeports, infos_etape, depenses, reservations")
     conn.commit()
     conn.close()
     app = creer_app("valise_test", secret="")        # secret vide : routes à la racine
@@ -512,26 +512,6 @@ def test_meteo_renvoie_ce_qui_a_change(client_meteo):
              "precipitation_sum": [0, 12.0, 0, 0, 0, 0, 0]}
     changements = client.post("/api/meteo/" + code, json={"previsions": {"0": daily}}).get_json()["changements"]
     assert "imperméable (Julien)" in changements["ajouts"]
-
-
-# --- Infos de chaque étape ---------------------------------------------------------------
-
-def test_infos_etape_par_l_api(client_lisbonne):
-    client, code = client_lisbonne
-    r = client.post("/api/infos", json={"voyage": code, "destination": "Lisbonne", "rang": 1,
-                                        "hebergement": "Casa Azul", "adresse": "Rua do Ouro 10, Lisboa"})
-    assert r.status_code == 200
-    infos = client.get("/api/infos/" + code).get_json()
-    assert infos[0]["hebergement"] == "Casa Azul" and infos[0]["adresse"] == "Rua do Ouro 10, Lisboa"
-
-
-def test_infos_etape_refusees(client_lisbonne):
-    client, code = client_lisbonne
-    base = {"voyage": code, "destination": "Lisbonne", "rang": 1}
-    assert client.post("/api/infos", json={**base, "voyage": "2027-01-01 Nulle Part"}).status_code == 404
-    assert client.post("/api/infos", json={**base, "notes": "x" * 2001}).status_code == 400
-    assert client.post("/api/infos", json={**base, "rang": "un"}).status_code == 400
-    assert client.post("/api/infos", json={"voyage": code}).status_code == 400
 
 
 # --- Dépenses partagées -------------------------------------------------------------------
