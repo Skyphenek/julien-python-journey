@@ -66,3 +66,15 @@ def test_script_des_rubriques():
 
 def test_version_page():
     assert VERSION_PAGE >= 7
+
+
+def test_javascript_de_la_page_syntaxiquement_valide(tmp_path):
+    """Une apostrophe mal échappée casse tout le script de la page : Node le voit, pas Python."""
+    import shutil, subprocess
+    import pytest
+    if shutil.which("node") is None:
+        pytest.skip("Node absent")
+    fichier = tmp_path / "page.js"
+    fichier.write_text('const VOYAGE="x", DEPART="2027-01-10", FIN="2027-01-20", METEO_DU=null;\n' + HTML_SCRIPT)
+    resultat = subprocess.run(["node", "--check", str(fichier)], capture_output=True, text=True)
+    assert resultat.returncode == 0, resultat.stderr

@@ -97,3 +97,18 @@ CREATE TABLE IF NOT EXISTS passeports (
 
 -- Mode « bagage cabine seulement » (réglage du voyage) : vêtements plafonnés, liquides ≤ 100 ml.
 ALTER TABLE voyages ADD COLUMN IF NOT EXISTS cabine BOOLEAN NOT NULL DEFAULT false;
+
+-- Infos de chaque étape (hôtel, adresse, réservation…), saisies à deux dans la rubrique Sur place.
+-- Une ville visitée deux fois (aller / retour) a deux fiches : rang 1, rang 2.
+CREATE TABLE IF NOT EXISTS infos_etape (
+    voyage      TEXT        NOT NULL REFERENCES voyages(code) ON DELETE CASCADE,
+    destination TEXT        NOT NULL,
+    rang        SMALLINT    NOT NULL DEFAULT 1,
+    hebergement TEXT        NOT NULL DEFAULT '',
+    adresse     TEXT        NOT NULL DEFAULT '',
+    reservation TEXT        NOT NULL DEFAULT '',
+    arrivee     TEXT        NOT NULL DEFAULT '',
+    notes       TEXT        NOT NULL DEFAULT '',
+    maj_le      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (voyage, destination, rang)
+);
