@@ -47,7 +47,7 @@ def test_vaccins_deux_mois_avant_avec_lien_sante():
     t = par_id(avant_de_partir(VIETNAM_CAMBODGE, DEPART, AUJOURD_HUI))["vaccins"]
     assert t["quand"] == DEPART - timedelta(days=60)
     assert "Vietnam" in t["texte"] and "Cambodge" in t["texte"]
-    assert t["lien"] == FORMALITES["VN"]["sante"]
+    assert t["lien"] == FORMALITES["VN"]["page_sante"]
 
 
 def test_vietnam_sans_visa_sous_le_seuil_compte_tous_les_jours_sur_place():
@@ -76,11 +76,11 @@ def test_assurance_obligatoire_signalee():
 
 
 def test_pays_hors_table_renvoie_vers_france_diplomatie():
-    itin = [{"destination": "Kyoto", "jours": 10, "code_pays": "JP"}]
+    itin = [{"destination": "Pékin", "jours": 10, "code_pays": "CN"}]
     t = par_id(avant_de_partir(itin, DEPART, AUJOURD_HUI))
-    assert "Kyoto" in t["formalites-JP"]["texte"]
-    assert "diplomatie.gouv.fr" in t["formalites-JP"]["lien"]
-    assert "passeport" in t and "vaccins" in t
+    assert "Pékin" in t["formalites-CN"]["texte"] and "santé" in t["formalites-CN"]["texte"]
+    assert "diplomatie.gouv.fr" in t["formalites-CN"]["lien"]
+    assert "passeport" in t and "vaccins" not in t      # la tâche « vérifier » couvre la santé
 
 
 def test_pays_inconnu_sans_code():
@@ -101,10 +101,21 @@ def test_taches_triees_par_echeance():
     assert [t["quand"] for t in taches] == sorted(t["quand"] for t in taches)
 
 
-def test_chaque_pays_de_la_table_a_ses_sources():
+def test_chaque_pays_de_la_table_est_complet():
+    from valise import statut_ue
     for code, f in FORMALITES.items():
-        assert f["entree"].startswith("https://") and f["sante"].startswith("https://"), code
+        assert f["entree"].startswith("https://") and f["page_sante"].startswith("https://"), code
         assert isinstance(f["verifie_le"], date), code
+        assert f["passeport_mois"] in (0, 3, 5, 6), code
+        assert f["sante"] in (None, "centre", "medecin"), code
+        assert f["sans_visa_jusqua"] or f["visa"], code          # sans exemption, il faut dire quoi demander
+        assert statut_ue(code) != "ue", code                     # UE / Schengen : pas de fiche
+        for jours, id_, texte, lien in f["taches"]:
+            assert lien is None or lien.startswith("https://"), (code, id_)
+
+
+def test_au_moins_vingt_pays():
+    assert len(FORMALITES) >= 20
 
 
 # --- Étape 2 : affichage dans la page ----------------------------------------------------
@@ -119,10 +130,18 @@ def page_vn_kh():
                           18, set(), code="2027-01-10 X", depart=DEPART, taches=taches)
 
 
-def test_rayon_avant_de_partir_en_tete_du_partage():
+def test_onglet_avant_de_partir_separe_et_en_premier():
     html = page_vn_kh()
+    nav = html.split('<nav class="tabs">')[1].split("</nav>")[0]
+    assert nav.index('data-owner="Avant de partir"') < nav.index('data-owner="Partagé"')
+    assert '<section data-owner="Avant de partir" class="avant">' in html
     partage = html.split('<section data-owner="Partagé">')[1].split("</section>")[0]
-    assert partage.index("Avant de partir") < partage.index("trousse toilette")
+    assert "visa-KH" not in partage
+
+
+def test_onglet_avant_exclu_de_la_progression_et_pas_ouvert_par_defaut():
+    assert "section[data-owner]:not(.avant)" in HTML_SCRIPT
+    assert "data-avant" in HTML_SCRIPT and "data-avant" in page_vn_kh()
 
 
 def test_tache_cochable_avec_cle_stable_et_echeance():
@@ -163,8 +182,8 @@ def test_echeance_depassee_marquee_par_le_script():
     assert "retard" in HTML_SCRIPT and "retard" in HTML_STYLE
 
 
-def test_mode_bilan_masque_le_rayon_avant_de_partir():
-    assert "body.mode-bilan details.avant" in HTML_STYLE
+def test_mode_bilan_masque_l_onglet_avant_de_partir():
+    assert 'body.mode-bilan [data-owner="Avant de partir"]' in HTML_STYLE
 
 
 
@@ -205,3 +224,71 @@ def test_passeport_d_un_absent_ignore():
 def test_sans_passeports_texte_generique():
     t = par_id(avant_de_partir(VIETNAM_CAMBODGE, DEPART, AUJOURD_HUI))["passeport"]
     assert t["texte"].startswith("Passeports valides au moins jusqu'au 27/07/2027")
+
+
+
+# --- Règles par pays (États-Unis, Maroc, Royaume-Uni…) ----------------------------------
+NEW_YORK = [{"destination": "New York", "jours": 7, "code_pays": "US"}]
+ETE = date(2027, 7, 1)
+
+
+def test_new_york_pas_de_vaccins_mais_esta():
+    t = par_id(avant_de_partir(NEW_YORK, ETE, AUJOURD_HUI))
+    assert "vaccins" not in t
+    assert t["esta-US"]["lien"] == "https://esta.cbp.dhs.gov/"
+    assert "pas de visa" in t["visa-US"]["texte"] and "ESTA" not in t["visa-US"]["texte"]
+
+
+def test_new_york_passeport_valide_pendant_le_sejour_suffit():
+    # retour le 07/07/2027 ; le passeport de Julien expire le 17/12/2027 -> OK (règle 6 mois = faux ❌)
+    t = par_id(avant_de_partir(NEW_YORK, ETE, AUJOURD_HUI, passeports={"Julien": date(2027, 12, 17)},
+                               personnes=["Julien"]))["passeport"]
+    assert t["texte"].startswith("✅") and "07/07/2027" in t["texte"]
+
+
+def test_new_york_assurance_indispensable():
+    t = par_id(avant_de_partir(NEW_YORK, ETE, AUJOURD_HUI))["assurance"]
+    assert "soins très chers" in t["texte"]
+
+
+def test_regle_passeport_la_plus_stricte_de_l_itineraire():
+    itin = NEW_YORK + [{"destination": "Lima", "jours": 7, "code_pays": "PE"}]
+    t = par_id(avant_de_partir(itin, ETE, AUJOURD_HUI))["passeport"]
+    assert "14/01/2028" in t["texte"]                       # retour 14/07/2027 + 6 mois (Pérou)
+
+
+def test_maroc_vaccins_chez_le_medecin_un_mois_avant():
+    itin = [{"destination": "Marrakech", "jours": 5, "code_pays": "MA"}]
+    t = par_id(avant_de_partir(itin, DEPART, AUJOURD_HUI))["vaccins"]
+    assert t["quand"] == DEPART - timedelta(days=30)
+    assert "médecin" in t["texte"] and "Maroc" in t["texte"]
+
+
+def test_centre_de_vaccination_l_emporte_et_note_affichee():
+    itin = [{"destination": "Marrakech", "jours": 5, "code_pays": "MA"},
+            {"destination": "Dakar", "jours": 5, "code_pays": "SN"}]
+    t = par_id(avant_de_partir(itin, DEPART, AUJOURD_HUI))["vaccins"]
+    assert t["quand"] == DEPART - timedelta(days=60)
+    assert "centre de vaccinations" in t["texte"] and "fièvre jaune" in t["texte"]
+    assert "Maroc" in t["texte"] and "Sénégal" in t["texte"]
+
+
+def test_royaume_uni_eta_et_ceam():
+    itin = [{"destination": "Londres", "jours": 4, "code_pays": "GB"}]
+    t = par_id(avant_de_partir(itin, DEPART, AUJOURD_HUI))
+    assert "eta-GB" in t and "ceam-GB" in t and "vaccins" not in t
+
+
+def test_thailande_au_dela_de_30_jours_signale_le_depassement():
+    itin = [{"destination": "Bangkok", "jours": 35, "code_pays": "TH"}]
+    t = par_id(avant_de_partir(itin, DEPART, AUJOURD_HUI))["visa-TH"]
+    assert "dépasse" in t["texte"] and "30 j" in t["texte"]
+
+
+def test_passeport_ok_jamais_en_retard():
+    taches = avant_de_partir(VIETNAM_CAMBODGE, DEPART, AUJOURD_HUI, personnes=DEUX,
+                             passeports={"Julien": date(2027, 12, 17), "Laetitia": date(2029, 6, 20)})
+    assert par_id(taches)["passeport"]["ok"] is True
+    html = valise_en_html({"Partagé": paquet_vide()}, "X", 18, set(), code="c", taches=taches)
+    li = html.split("Partagé/Avant de partir/passeport")[0].rsplit("<li", 1)[1]
+    assert "data-quand" not in li and 'class="tache ok"' in li

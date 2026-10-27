@@ -163,7 +163,7 @@ li.tache { flex-wrap: wrap; }
 li.tache .echeance { font-size: .75rem; color: var(--doux); white-space: nowrap; font-variant-numeric: tabular-nums; }
 li.tache a.source { font-size: .75rem; color: var(--accent); padding: 0 .5rem .5rem 2.6rem; }
 li.retard:not(:has(input:checked)) .echeance { color: #dc2626; font-weight: 700; }
-body.mode-bilan details.avant { display: none; }
+body.mode-bilan [data-owner="Avant de partir"] { display: none !important; }
 """
 
 # Script JS de la page (persistance des coches). Dans une constante à part car le JS
@@ -183,7 +183,7 @@ function majProgression() {
     document.querySelectorAll('div.barre').forEach(function (barre) {
         const owner = barre.dataset.owner;
         const selecteur = owner ? 'section[data-owner="' + owner + '"] input[type=checkbox]'
-                                : 'section[data-owner] input[type=checkbox]';
+                                : 'section[data-owner]:not(.avant) input[type=checkbox]';   // le total = la valise seule
         const boxes = document.querySelectorAll(selecteur);
         let faites = 0;
         boxes.forEach(function (b) { if (b.checked) faites++; });
@@ -465,7 +465,9 @@ function initialiser() {
 
     majRayons();
     document.querySelectorAll('details.rayon.fini').forEach(function (d) { d.open = false; });  // déjà rangés au chargement
-    if (onglets.length) activer(onglets[0].dataset.owner);
+    // Onglet ouvert au chargement : le premier de la valise (« Avant de partir » reste à un tap)
+    const premier = Array.from(onglets).find(function (b) { return !b.hasAttribute('data-avant'); }) || onglets[0];
+    if (premier) activer(premier.dataset.owner);
     majOnglets();
     majProgression();
 
@@ -1161,10 +1163,10 @@ def appliquer_regles(valise, regles):
 
 
 # 10. AVANT DE PARTIR — tâches datées déduites des pays (visa, passeport, santé, assurance).
-#     Rien pour un voyage en Europe (carte d'identité) ; données par pays dans formalites.py.
-VALIDITE_PASSEPORT_MOIS = 6     # règle prudente : 6 mois après le RETOUR couvre VN (entrée) et KH (fin du visa)
+#     Rien pour un voyage en Europe (carte d'identité) ; règles par pays dans formalites.py.
+PASSEPORT_PAR_DEFAUT = 6        # mois après le retour, pour un pays hors table (prudence)
 FRAICHEUR_FORMALITES = 180      # jours : au-delà, la fiche pays est signalée « à revérifier »
-DELAIS = {"passeport": 60, "vaccins": 60, "visa": 30, "assurance": 14}   # jours avant le départ
+DELAIS = {"passeport": 60, "centre": 60, "medecin": 30, "visa": 30, "assurance": 14}   # jours avant le départ
 
 
 def ajouter_mois(d, n):
@@ -1178,15 +1180,16 @@ def ajouter_mois(d, n):
             continue
 
 
-def _tache(id_, quand, texte, lien=None):
-    return {"id": id_, "quand": quand, "texte": texte, "lien": lien}
+def _tache(id_, quand, texte, lien=None, ok=False):
+    """ok = déjà vérifiée par l'app (passeports valides) : jamais signalée en retard."""
+    return {"id": id_, "quand": quand, "texte": texte, "lien": lien, "ok": ok}
 
 
-def texte_passeports(limite, passeports, personnes):
+def texte_passeports(limite, regle, passeports, personnes):
     """La tâche passeport : vérifiée si on connaît les dates d'expiration, générique sinon."""
     exige = f"{limite:%d/%m/%Y}"
     if not passeports or not personnes:
-        return f"Passeports valides au moins jusqu'au {exige} ({VALIDITE_PASSEPORT_MOIS} mois après le retour)"
+        return f"Passeports valides au moins jusqu'au {exige} ({regle})"
     trop_courts = [f"{p} (expire le {passeports[p]:%d/%m/%Y})"
                    for p in personnes if p in passeports and passeports[p] < limite]
     if trop_courts:
@@ -1197,6 +1200,37 @@ def texte_passeports(limite, passeports, personnes):
         return (f"Passeports valides au moins jusqu'au {exige} : {connus} ; "
                 f"{', '.join(inconnus)} : date inconnue, à vérifier")
     return f"✅ Passeports OK : {connus} (minimum exigé : {exige})"
+
+
+def _tache_sante(fiches, avant):
+    """Une seule tâche santé : centre de vaccinations si un pays le demande, sinon médecin, sinon rien."""
+    concernees = [f for f in fiches if f["sante"]]
+    if not concernees:
+        return None
+    noms = ", ".join(f["pays"] for f in concernees)
+    notes = "".join(f" — {f['pays']} : {f['sante_note']}" for f in concernees if f["sante_note"])
+    centres = [f for f in concernees if f["sante"] == "centre"]
+    if centres:
+        return _tache("vaccins", avant(DELAIS["centre"]),
+                      f"Consultation en centre de vaccinations internationales : vaccins, paludisme, "
+                      f"dengue ({noms}){notes}", centres[0]["page_sante"])
+    return _tache("vaccins", avant(DELAIS["medecin"]),
+                  f"Vaccins : rappels à jour, hépatite A et typhoïde à voir avec ton médecin ({noms}){notes}",
+                  concernees[0]["page_sante"])
+
+
+def _tache_visa(cle, f, jours, avant, suffixe):
+    exemption = f["sans_visa_jusqua"]
+    if exemption and jours <= exemption:
+        return _tache(f"visa-{cle}", avant(DELAIS["visa"]),
+                      f"{f['pays']} : pas de visa ({jours} j sur place, exemption jusqu'à {exemption} j){suffixe}",
+                      f["entree"])
+    if f["visa"]:
+        return _tache(f"visa-{cle}", avant(DELAIS["visa"]), f"{f['pays']} : visa — {f['visa']}{suffixe}",
+                      f["visa_lien"] or f["entree"])
+    return _tache(f"visa-{cle}", avant(DELAIS["visa"]),
+                  f"{f['pays']} : {jours} j sur place dépasse l'exemption de {exemption} j — "
+                  f"visa à demander, voir la fiche officielle{suffixe}", f["entree"])
 
 
 def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=()):
@@ -1220,19 +1254,21 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
     avant = lambda jours: depart - timedelta(days=jours)
     retour = depart + timedelta(days=total_jours(itineraire) - 1)
     connus = [FORMALITES[c] for c, _e in hors_ue if c in FORMALITES]
-    noms = ", ".join(FORMALITES[c]["pays"] if c in FORMALITES else e["destination"] for c, e in hors_ue)
 
-    limite = ajouter_mois(retour, VALIDITE_PASSEPORT_MOIS)
-    taches = [
-        _tache("passeport", avant(DELAIS["passeport"]), texte_passeports(limite, passeports, personnes)),
-        _tache("vaccins", avant(DELAIS["vaccins"]),
-               f"Consultation voyage : vaccins, paludisme, dengue ({noms})",
-               connus[0]["sante"] if connus else DIPLOMATIE),
-    ]
-    obligatoire = [f["pays"] for f in connus if f["assurance_obligatoire"]]
+    # Passeport : la règle la plus exigeante de l'itinéraire (pays hors table -> 6 mois)
+    mois = max(FORMALITES[c]["passeport_mois"] if c in FORMALITES else PASSEPORT_PAR_DEFAUT
+               for c, _e in hors_ue)
+    regle = f"{mois} mois après le retour" if mois else "valides pendant tout le séjour"
+    texte = texte_passeports(ajouter_mois(retour, mois), regle, passeports, personnes)
+    taches = [_tache("passeport", avant(DELAIS["passeport"]), texte, ok=texte.startswith("✅"))]
+
+    sante = _tache_sante(connus, avant)
+    if sante:
+        taches.append(sante)
     texte = "Assurance voyage : hospitalisation et rapatriement"
-    if obligatoire:
-        texte += " — obligatoire au " + ", ".join(obligatoire)
+    precisions = [f["assurance"] for f in connus if f["assurance"]]
+    if precisions:
+        texte += " — " + " ; ".join(precisions)
     taches.append(_tache("assurance", avant(DELAIS["assurance"]), texte))
 
     for cle, etape in hors_ue:
@@ -1244,17 +1280,10 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
             continue
         a_reverifier = (aujourd_hui - f["verifie_le"]).days > FRAICHEUR_FORMALITES
         suffixe = f" — infos du {f['verifie_le']:%d/%m/%Y}, à revérifier" if a_reverifier else ""
-        jours = jours_par_pays[cle]
-        if f["sans_visa_jusqua"] and jours <= f["sans_visa_jusqua"]:
-            taches.append(_tache(f"visa-{cle}", avant(DELAIS["visa"]),
-                                 f"{f['pays']} : pas de visa ({jours} j sur place, exemption jusqu'à "
-                                 f"{f['sans_visa_jusqua']} j){suffixe}", f["entree"]))
-        else:
-            taches.append(_tache(f"visa-{cle}", avant(DELAIS["visa"]),
-                                 f"{f['pays']} : visa — {f['visa']}{suffixe}", f["visa_lien"]))
-        for jours_avant, id_, texte in f["taches"]:
-            taches.append(_tache(f"{id_}-{cle}", avant(jours_avant), f"{f['pays']} : {texte}{suffixe}",
-                                 f["entree"]))
+        taches.append(_tache_visa(cle, f, jours_par_pays[cle], avant, suffixe))
+        for jours_avant, id_, texte_pays, lien in f["taches"]:
+            taches.append(_tache(f"{id_}-{cle}", avant(jours_avant), f"{f['pays']} : {texte_pays}{suffixe}",
+                                 lien or f["entree"]))
     return sorted(taches, key=lambda t: t["quand"])
 
 
@@ -1266,7 +1295,8 @@ def rayon_avant_de_partir(taches, cle_voyage):
         cle = f"{cle_voyage}/Partagé/Avant de partir/{t['id']}"
         lien = (f'<a class="source" href="{echapper(t["lien"])}" target="_blank" rel="noopener">source ↗</a>'
                 if t["lien"] else "")
-        rayon += (f'<li class="tache" data-quand="{t["quand"].isoformat()}">'
+        quand = "" if t.get("ok") else f' data-quand="{t["quand"].isoformat()}"'    # vérifiée : pas de retard
+        rayon += (f'<li class="tache{" ok" if t.get("ok") else ""}"{quand}>'
                   f'<label><input type="checkbox" data-key="{echapper(cle)}">'
                   f'<span class="nom">{echapper(t["texte"], quote=False)}</span>'
                   f'<span class="echeance">avant le {t["quand"]:%d/%m}</span></label>{lien}</li>')
@@ -1280,7 +1310,7 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
     climats : liste optionnelle de (destination, mois, normales) — une puce par étape.
     code    : identifiant stable du voyage (date + itinéraire) ; préfixe des cases cochées.
     depart  : date de départ, affichée dans le titre.
-    taches  : tâches « Avant de partir » (avant_de_partir), en tête de l'onglet Partagé.
+    taches  : tâches « Avant de partir » (avant_de_partir), dans leur propre onglet, en premier.
     """
     cle_voyage = code or libelle_voyage
     quand = f" · départ le {date_en_clair(depart)}" if depart else ""
@@ -1305,15 +1335,17 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
                    f'<div class="progress-track"><div class="progress-fill"></div></div></div>')
 
     onglets = '<nav class="tabs">'          # un bouton par propriétaire (Partagé/Julien/...)
+    if taches:                              # les démarches d'abord, dans leur propre onglet
+        onglets += '<button data-owner="Avant de partir" data-avant>🛂 Formalités <span class="tab-count"></span></button>'
     for proprietaire in valise:
         onglets += f'<button data-owner="{proprietaire}">{proprietaire} <span class="tab-count"></span></button>'
     onglets += '</nav>'
 
     corps = ""
+    if taches:                              # hors progression de la valise (classe .avant)
+        corps += f'<section data-owner="Avant de partir" class="avant">{rayon_avant_de_partir(taches, cle_voyage)}</section>'
     for proprietaire, themes in valise.items():
         corps += f'<section data-owner="{proprietaire}">'
-        if proprietaire == "Partagé" and taches:
-            corps += rayon_avant_de_partir(taches, cle_voyage)
         for theme, objets in themes.items():
             if not objets:
                 continue
