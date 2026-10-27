@@ -15,7 +15,7 @@ import psycopg2
 from dotenv import load_dotenv
 from flask import Blueprint, Flask, jsonify, request, Response
 
-from db import (connecter, obtenir_etat, enregistrer_coche, lister_voyages, lire_voyage, archiver_voyage,
+from db import (emprunter, obtenir_etat, enregistrer_coche, lister_voyages, lire_voyage, archiver_voyage,
                 VERDICTS, enregistrer_retour, supprimer_retour, lire_retours)
 from valise import (actualiser_meteo, fenetres_du_voyage, page_du_voyage, accueil_en_html,
                     lieux_depuis_reponse, normales_ou_url, normales_depuis_historique,
@@ -38,7 +38,7 @@ def creer_app(nom_base="valise", secret=None):
         if "nouvelle" in request.args:                # formulaire de création (sans base)
             return Response(formulaire_en_html(), mimetype="text/html")
         if "modifier" in request.args:                # le même formulaire, prérempli
-            conn = connecter(app.config["NOM_BASE"])
+            conn = emprunter(app.config["NOM_BASE"])
             try:
                 voyage = lire_voyage(conn, request.args["modifier"])
             finally:
@@ -47,7 +47,7 @@ def creer_app(nom_base="valise", secret=None):
                 return f"Voyage inconnu : {request.args['modifier']}", 404
             return Response(formulaire_en_html(voyage), mimetype="text/html")
         code = request.args.get("v")
-        conn = connecter(app.config["NOM_BASE"])
+        conn = emprunter(app.config["NOM_BASE"])
         try:
             if code:
                 html = page_du_voyage(conn, code)   # stockée, ou refaite depuis la photo
@@ -61,7 +61,7 @@ def creer_app(nom_base="valise", secret=None):
 
     @routes.get("/api/etat/<voyage>")
     def etat(voyage):
-        conn = connecter(app.config["NOM_BASE"])
+        conn = emprunter(app.config["NOM_BASE"])
         try:
             return jsonify(obtenir_etat(conn, voyage))
         finally:
@@ -76,7 +76,7 @@ def creer_app(nom_base="valise", secret=None):
         if len(segments) != 4:
             return jsonify({"erreur": "payload invalide"}), 400
         voyage, proprietaire, theme, objet = segments
-        conn = connecter(app.config["NOM_BASE"])
+        conn = emprunter(app.config["NOM_BASE"])
         try:
             enregistrer_coche(conn, voyage, proprietaire, theme, objet, bool(corps["coche"]))
         finally:
@@ -85,7 +85,7 @@ def creer_app(nom_base="valise", secret=None):
 
     @routes.get("/api/retours/<voyage>")
     def retours(voyage):
-        conn = connecter(app.config["NOM_BASE"])
+        conn = emprunter(app.config["NOM_BASE"])
         try:
             return jsonify(lire_retours(conn, voyage))
         finally:
@@ -106,7 +106,7 @@ def creer_app(nom_base="valise", secret=None):
             return jsonify({"erreur": f"verdict inconnu : {verdict}"}), 400
         if quantite is not None and (not isinstance(quantite, int) or quantite < 0):
             return jsonify({"erreur": "quantite_utilisee doit être un entier positif"}), 400
-        conn = connecter(app.config["NOM_BASE"])
+        conn = emprunter(app.config["NOM_BASE"])
         try:
             if verdict is None:
                 supprimer_retour(conn, voyage, proprietaire, objet)
@@ -122,7 +122,7 @@ def creer_app(nom_base="valise", secret=None):
     @routes.get("/api/meteo/<voyage>/fenetres")
     def meteo_fenetres(voyage):
         """Bouton météo, temps 1 : les prévisions que le navigateur doit demander à Open-Meteo."""
-        conn = connecter(app.config["NOM_BASE"])
+        conn = emprunter(app.config["NOM_BASE"])
         try:
             fenetres = fenetres_du_voyage(conn, voyage, date.today())
         finally:
@@ -139,7 +139,7 @@ def creer_app(nom_base="valise", secret=None):
         recues = corps.get("previsions", {})
         if not isinstance(recues, dict):
             return jsonify({"erreur": "previsions attendues : {index d'étape: daily}"}), 400
-        conn = connecter(app.config["NOM_BASE"])
+        conn = emprunter(app.config["NOM_BASE"])
         try:
             resultat = actualiser_meteo(conn, voyage, date.today(), recues)   # republie la page
         finally:
@@ -154,7 +154,7 @@ def creer_app(nom_base="valise", secret=None):
     @routes.post("/api/voyages")
     def creer():
         """Formulaire de création : 201 + adresse de la valise, 409 s'il manque des normales."""
-        conn = connecter(app.config["NOM_BASE"])
+        conn = emprunter(app.config["NOM_BASE"])
         try:
             resultat = creer_voyage(conn, request.get_json(silent=True))
         except ValueError as exc:
@@ -168,7 +168,7 @@ def creer_app(nom_base="valise", secret=None):
     @routes.post("/api/voyages/<code>/archiver")
     def retirer(code):
         """Bouton « Retirer » : le voyage quitte l'accueil (archivé, rien n'est supprimé)."""
-        conn = connecter(app.config["NOM_BASE"])
+        conn = emprunter(app.config["NOM_BASE"])
         try:
             if lire_voyage(conn, code) is None:
                 return jsonify({"erreur": f"voyage inconnu : {code}"}), 404
@@ -208,7 +208,7 @@ def creer_app(nom_base="valise", secret=None):
         lieu = _lieu_et_mois(request.args)
         if lieu is None:
             return jsonify({"erreur": "latitude, longitude et mois (1-12) attendus"}), 400
-        conn = connecter(app.config["NOM_BASE"])
+        conn = emprunter(app.config["NOM_BASE"])
         try:
             return jsonify(normales_ou_url(conn, *lieu))
         finally:
@@ -221,7 +221,7 @@ def creer_app(nom_base="valise", secret=None):
         lieu = _lieu_et_mois(corps)
         if lieu is None:
             return jsonify({"erreur": "latitude, longitude et mois (1-12) attendus"}), 400
-        conn = connecter(app.config["NOM_BASE"])
+        conn = emprunter(app.config["NOM_BASE"])
         try:
             n = normales_depuis_historique(conn, *lieu, corps.get("daily"))
         finally:
