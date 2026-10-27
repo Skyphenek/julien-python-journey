@@ -284,3 +284,13 @@ def test_remplacer_voyage_deplace_cases_et_bilan_puis_archive(conn):
     assert obtenir_etat(conn, "2027-01-10 Hanoï") == {}
     assert [r["objet"] for r in lire_retours(conn, "2027-01-12 Hanoï")] == ["pull"]
     assert [v["code"] for v in lister_voyages(conn)] == ["2027-01-12 Hanoï"]      # l'ancien est archivé
+
+
+
+def test_voyage_cabine_enregistre(conn):
+    from datetime import date
+    enregistrer_voyage(conn, "2027-03-05 Rome", "Rome", date(2027, 3, 5), ["Julien"], [{"jours": 3}], {},
+                       cabine=True)
+    assert lire_voyage(conn, "2027-03-05 Rome")["cabine"] is True
+    enregistrer_voyage(conn, "2027-03-06 Rome", "Rome", date(2027, 3, 6), ["Julien"], [{"jours": 3}], {})
+    assert lire_voyage(conn, "2027-03-06 Rome")["cabine"] is False
