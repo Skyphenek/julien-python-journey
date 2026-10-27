@@ -18,13 +18,15 @@ import psycopg2
 from dotenv import load_dotenv
 from flask import Blueprint, Flask, abort, jsonify, request, Response, send_from_directory
 
-from db import (emprunter, ajouter_depense, lire_depenses, supprimer_depense, enregistrer_infos_etape, lire_infos_etapes, CHAMPS_ETAPE, obtenir_etat, enregistrer_coche, lister_voyages, lire_voyage, archiver_voyage,
+from db import (emprunter, ajouter_depense, lire_depenses, supprimer_depense, obtenir_etat,
+                enregistrer_reservation, lire_reservations, supprimer_reservation, enregistrer_coche, lister_voyages, lire_voyage, archiver_voyage,
                 VERDICTS, enregistrer_retour, supprimer_retour, lire_retours)
 from valise import (solde_depenses, actualiser_meteo, fenetres_du_voyage, page_du_voyage, accueil_en_html,
                     lieux_depuis_reponse, normales_ou_url, normales_depuis_historique,
                     formulaire_en_html, creer_voyage, VERSION_PAGE)
 from api_climat import url_geocodage
 from pwa import manifeste, script_service_worker, TAILLES_ICONE
+from programme import valider_reservation
 
 load_dotenv(Path(__file__).parent / ".env")   # en local : lit voyage/.env s'il existe
 
@@ -169,34 +171,6 @@ def creer_app(nom_base="valise", secret=None):
             return jsonify(resultat), 409
         return jsonify({"code": resultat["code"], "url": "?v=" + quote(resultat["code"])}), 201
 
-    @routes.get("/api/infos/<voyage>")
-    def infos_etapes(voyage):
-        """Les fiches des étapes (hôtel, adresse…) : lues par la page à l'ouverture."""
-        conn = emprunter(app.config["NOM_BASE"])
-        try:
-            return jsonify(lire_infos_etapes(conn, voyage))
-        finally:
-            conn.close()
-
-    @routes.post("/api/infos")
-    def infos_etape():
-        """Enregistre la fiche d'une étape. Texte libre, longueur bornée."""
-        corps = request.get_json(silent=True) or {}
-        destination, rang = corps.get("destination"), corps.get("rang")
-        if not isinstance(destination, str) or not destination or type(rang) is not int or not 1 <= rang <= 20:
-            return jsonify({"erreur": "étape invalide"}), 400
-        champs = {c: corps.get(c) or "" for c in CHAMPS_ETAPE}
-        if any(not isinstance(v, str) or len(v) > (2000 if c == "notes" else 300) for c, v in champs.items()):
-            return jsonify({"erreur": "champ trop long ou invalide"}), 400
-        conn = emprunter(app.config["NOM_BASE"])
-        try:
-            if lire_voyage(conn, corps.get("voyage")) is None:
-                return jsonify({"erreur": "voyage inconnu"}), 404
-            enregistrer_infos_etape(conn, corps["voyage"], destination, rang, champs)
-        finally:
-            conn.close()
-        return jsonify({"ok": True})
-
     def _en_json(valeur):
         """Decimal -> texte (« 12.13 »), date -> ISO : ce que le navigateur lit sans perte."""
         if isinstance(valeur, Decimal):
@@ -253,6 +227,40 @@ def creer_app(nom_base="valise", secret=None):
         conn = emprunter(app.config["NOM_BASE"])
         try:
             supprimer_depense(conn, voyage, identifiant)
+        finally:
+            conn.close()
+        return jsonify({"ok": True})
+
+    @routes.get("/api/reservations/<voyage>")
+    def reservations(voyage):
+        """Le carnet 🗓️ Programme : lu par la page à l'ouverture (et gardé hors ligne)."""
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            return jsonify(_en_json(lire_reservations(conn, voyage)))
+        finally:
+            conn.close()
+
+    @routes.post("/api/reservations")
+    def enregistrer_une_reservation():
+        """Crée ou modifie (même id) une réservation. Tout est vérifié (programme.valider_reservation)."""
+        try:
+            r = valider_reservation(request.get_json(silent=True))
+        except ValueError as erreur:
+            return jsonify({"erreur": str(erreur)}), 400
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            if lire_voyage(conn, r["voyage"]) is None:
+                return jsonify({"erreur": "voyage inconnu"}), 404
+            enregistrer_reservation(conn, r)
+        finally:
+            conn.close()
+        return jsonify({"ok": True})
+
+    @routes.delete("/api/reservations/<voyage>/<identifiant>")
+    def retirer_reservation(voyage, identifiant):
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            supprimer_reservation(conn, voyage, identifiant)
         finally:
             conn.close()
         return jsonify({"ok": True})

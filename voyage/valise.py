@@ -31,6 +31,7 @@ from formalites import FORMALITES, DIPLOMATIE
 from devises import DEVISE_PAR_PAYS
 from urgences import URGENCES
 from pwa import TETE_PWA, SCRIPT_PRECHARGEMENT
+from programme import etapes_du_voyage, bloc_programme, STYLE_PROGRAMME, SCRIPT_PROGRAMME
 
 # Fuseaux horaires : toujours la base du paquet tzdata (version figée dans requirements.txt),
 # jamais celle de la machine : celle de macOS ignorait encore le passage du Maroc à GMT
@@ -107,16 +108,6 @@ div.urgences h4 { font-size: .9rem; margin: .5rem 0 .2rem; }
 div.urgences h4 .source { font-weight: 400; font-size: .75rem; color: var(--accent); }
 div.urgences li { font-size: .9rem; padding: .15rem 0; }
 div.urgences li a { color: var(--accent); font-weight: 600; text-decoration: none; }
-div.etapes li.etape { border-top: 1px solid var(--ligne); padding: .6rem 0; }
-div.etapes li.etape:first-child { border-top: none; }
-div.etapes .dates { font-size: .8rem; color: var(--doux); }
-div.etapes .fiche { font-size: .9rem; margin-top: .3rem; }
-div.etapes .fiche p { margin: .15rem 0; overflow-wrap: anywhere; }
-div.etapes .fiche .vide-fiche { color: var(--doux); }
-div.etapes form label { display: block; font-size: .8rem; color: var(--doux); margin: .35rem 0; }
-div.etapes form input, div.etapes form textarea { display: block; width: 100%; box-sizing: border-box; font-size: 1rem;
-    padding: .4rem .5rem; border: 1px solid var(--ligne); border-radius: 8px; background: var(--fond); color: var(--texte); }
-div.etapes .actions { display: flex; gap: .4rem; margin-top: .4rem; }
 div.depenses form { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; margin: .4rem 0; font-size: .9rem; }
 div.depenses form input[type=text], div.depenses form input[type=number], div.depenses form select {
     font-size: 1rem; padding: .35rem .5rem; border: 1px solid var(--ligne); border-radius: 8px;
@@ -611,87 +602,6 @@ function majHorloges() {
 }
 majHorloges();
 setInterval(majHorloges, 30000);
-
-// Infos de chaque étape (hôtel, adresse, réservation…) : saisies à deux, synchronisées par le
-// serveur (api/infos), gardées sur le téléphone pour rester lisibles sans réseau. Tout le texte
-// saisi est affiché en textContent (jamais en HTML).
-const CHAMPS_ETAPE = [['hebergement', '🏨 Hébergement'], ['adresse', '📍 Adresse'], ['reservation', '🎫 Réservation'],
-                      ['arrivee', '🕐 Arrivée'], ['notes', '📝 Notes']];
-let infosEtapes = {};
-let ficheEnCours = null;                                       // pas de rafraîchissement pendant une saisie
-function cleEtape(li) { return li.dataset.destination + '#' + li.dataset.rang; }
-function ligne(texte, enfant) { const p = document.createElement('p'); p.textContent = texte; if (enfant) p.append(enfant); return p; }
-function afficherFiche(li) {
-    const fiche = li.querySelector('.fiche'), info = infosEtapes[cleEtape(li)] || {};
-    fiche.replaceChildren();
-    CHAMPS_ETAPE.forEach(function (c) {
-        if (!info[c[0]]) return;
-        if (c[0] === 'adresse') {
-            const lien = document.createElement('a');
-            lien.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(info.adresse);
-            lien.target = '_blank'; lien.rel = 'noopener'; lien.textContent = ' ↗ Maps';
-            fiche.append(ligne(c[1] + ' : ' + info[c[0]], lien));
-        } else {
-            fiche.append(ligne(c[1] + ' : ' + info[c[0]]));
-        }
-    });
-    if (!fiche.children.length) { const v = ligne("Pas encore d'infos."); v.className = 'vide-fiche'; fiche.append(v); }
-    const bouton = document.createElement('button');
-    bouton.type = 'button'; bouton.className = 'ctrl-btn'; bouton.textContent = '✏️ Infos';
-    bouton.addEventListener('click', function () { editerFiche(li); });
-    fiche.append(bouton);
-}
-function editerFiche(li) {
-    ficheEnCours = cleEtape(li);
-    const fiche = li.querySelector('.fiche'), info = infosEtapes[cleEtape(li)] || {};
-    const form = document.createElement('form');
-    CHAMPS_ETAPE.forEach(function (c) {
-        const label = document.createElement('label');
-        const champ = document.createElement(c[0] === 'notes' ? 'textarea' : 'input');
-        champ.name = c[0]; champ.value = info[c[0]] || ''; champ.maxLength = c[0] === 'notes' ? 2000 : 300;
-        label.append(c[1], champ);
-        form.append(label);
-    });
-    const actions = document.createElement('div'); actions.className = 'actions';
-    const ok = document.createElement('button'); ok.type = 'submit'; ok.className = 'ctrl-btn'; ok.textContent = 'Enregistrer';
-    const annuler = document.createElement('button'); annuler.type = 'button'; annuler.className = 'ctrl-btn'; annuler.textContent = 'Annuler';
-    annuler.addEventListener('click', function () { ficheEnCours = null; afficherFiche(li); });
-    actions.append(ok, annuler); form.append(actions);
-    form.addEventListener('submit', function (ev) {
-        ev.preventDefault();
-        const corps = { voyage: VOYAGE, destination: li.dataset.destination, rang: Number(li.dataset.rang) };
-        CHAMPS_ETAPE.forEach(function (c) { corps[c[0]] = form.elements[c[0]].value.trim(); });
-        ok.disabled = true; ok.textContent = '⏳';
-        envoyerOuGarder({ url: 'api/infos', methode: 'POST', corps: corps, cle: 'infos:' + VOYAGE + '/' + cleEtape(li) })
-            .then(function () {
-                infosEtapes[cleEtape(li)] = corps; garderInfos(); ficheEnCours = null; afficherFiche(li);
-            })
-            .catch(function () { ok.disabled = false; ok.textContent = '⚠️ Échec, réessaie'; });
-    });
-    fiche.replaceChildren(form);
-}
-function garderInfos() { try { localStorage.setItem('infos:' + VOYAGE, JSON.stringify(infosEtapes)); } catch (e) {} }
-function afficherEtapes() {
-    document.querySelectorAll('div.etapes li.etape').forEach(function (li) { if (cleEtape(li) !== ficheEnCours) afficherFiche(li); });
-}
-function chargerInfos() {
-    if (!document.querySelector('div.etapes') || ficheEnCours) return;
-    fetch('api/infos/' + encodeURIComponent(VOYAGE), { headers: { 'X-Valise-Vite': '1' } })
-        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-        .then(function (liste) {
-            infosEtapes = {};
-            liste.concat(enAttente('api/infos', VOYAGE).map(function (e) { return e.corps; }))
-                .forEach(function (i) { infosEtapes[i.destination + '#' + i.rang] = i; });
-            garderInfos(); afficherEtapes();
-        })
-        .catch(function () {                                   // hors ligne : la dernière copie connue
-            try { infosEtapes = JSON.parse(localStorage.getItem('infos:' + VOYAGE) || '{}'); } catch (e) {}
-            afficherEtapes();
-        });
-}
-chargerInfos();
-document.addEventListener('visibilitychange', function () { if (!document.hidden) chargerInfos(); });
-document.addEventListener('file-videe', chargerInfos);
 
 // Dépenses partagées : saisie convertie en euros au moment même (taux gardés sur le téléphone),
 // liste et solde calculés par le serveur (api/depenses). Texte saisi affiché en textContent.
@@ -1774,37 +1684,16 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # 7 = hub en rubriques ; 8 = décalage horaire dans Sur place ; 9 = météo automatique à J-10 ;
 # 10 = horloges calculées depuis la base du serveur (pas celle du téléphone) ; 11 = devises ;
 # 12 = « fermer la maison » dans Avant ; 13 = infos de chaque étape dans Sur place ;
-# 14 = dépenses partagées ; 15 = urgences du pays.
-VERSION_PAGE = 16
+# 14 = dépenses partagées ; 15 = urgences du pays ; 16 = PWA (hors ligne) ;
+# 17 = carnet 🗓️ Programme (remplace les infos d'étapes).
+VERSION_PAGE = 17
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
-RUBRIQUES = [("valise", "🧳 Valise"), ("avant", "🛂 Avant"), ("sur-place", "📍 Sur place"),
+RUBRIQUES = [("valise", "🧳 Valise"), ("avant", "🛂 Avant"), ("programme", "🗓️ Programme"), ("sur-place", "📍 Sur place"),
              ("souvenirs", "🎁 Souvenirs")]
 A_VENIR = {"sur-place": "Bientôt : devises, décalage horaire, vocabulaire, visites à faire.",
            "souvenirs": "Bientôt : les souvenirs à rapporter, et pour qui."}
 MARQUE_VERSION = f'<meta name="valise-version" content="{VERSION_PAGE}">'
-
-
-# --- Sur place : infos de chaque étape (hôtel, adresse, réservation) -----------------------
-def etapes_du_voyage(itineraire, depart):
-    """[{"destination", "rang", "du", "au"}] : rang = 1re, 2e… visite de la même ville."""
-    etapes, vues, debut = [], {}, depart
-    for etape in itineraire:
-        vues[etape["destination"]] = vues.get(etape["destination"], 0) + 1
-        fin = debut + timedelta(days=etape["jours"] - 1)
-        etapes.append({"destination": etape["destination"], "rang": vues[etape["destination"]],
-                       "du": debut, "au": fin})
-        debut = fin + timedelta(days=1)
-    return etapes
-
-
-def bloc_etapes(etapes):
-    """Le bloc « Étapes » : les fiches sont remplies et modifiées par le script (api/infos)."""
-    lignes = "".join(f'<li class="etape" data-destination="{echapper(e["destination"])}" data-rang="{e["rang"]}">'
-                     f'<strong>{echapper(e["destination"], quote=False)}</strong> '
-                     f'<span class="dates">{e["du"]:%d/%m} → {e["au"]:%d/%m}</span>'
-                     f'<div class="fiche"></div></li>' for e in etapes)
-    return f'<div class="info etapes"><h3>🏨 Étapes</h3><ul>{lignes}</ul></div>'
 
 
 # --- Sur place : urgences du pays -----------------------------------------------------------
@@ -2185,10 +2074,10 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
                   f'{rayon_taches("Fermer la maison", "🏠", "Fermer la maison", maison, cle_voyage) if maison else ""}'
                   f'</section>' if taches or maison
                   else '<p class="vide">Rien à préparer pour ce voyage : la carte d\'identité suffit.</p>'),
+        "programme": bloc_programme(etapes or []),
         **{r: f'<p class="vide">{texte}</p>' for r, texte in A_VENIR.items()},
     }
     blocs_sur_place = ((bloc_urgences(urgences) if urgences else "")
-                       + (bloc_etapes(etapes) if etapes else "")
                        + (bloc_depenses(personnes, [d["devise"] for d in devises or []]) if personnes else "")
                        + (bloc_decalage(fuseaux, jour or date.today()) if fuseaux else "")
                        + (bloc_devises(devises) if devises else ""))
@@ -2210,7 +2099,7 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
 {MARQUE_VERSION}
 <title>Valise — {libelle_voyage}</title>
 {TETE_PWA}
-<style>{HTML_STYLE}</style>
+<style>{HTML_STYLE}{STYLE_PROGRAMME}</style>
 </head>
 <body>
 <a class="retour" href="./">← Tous les voyages</a>
@@ -2222,6 +2111,7 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
 {blocs}<div class="controls"><button id="meteo" class="ctrl-btn" hidden>🌦️ Actualiser avec la météo</button><a id="modifier" class="ctrl-btn" href="?modifier={quote(cle_voyage)}">✏️ Modifier</a><button id="retirer" class="ctrl-btn">🗑️ Retirer</button><button id="mode-bilan" class="ctrl-btn">📝 Bilan de fin de voyage</button><button id="toggle-masque" class="ctrl-btn">Masquer les rangés</button><button id="reset" class="ctrl-btn">Réinitialiser</button></div>
 <script>const VOYAGE = {json.dumps(cle_voyage, ensure_ascii=False)};{dates_js} const METEO_DU = {json.dumps(meteo_du)};</script>
 <script>{HTML_SCRIPT}</script>
+<script>{SCRIPT_PROGRAMME}</script>
 </body>
 </html>"""
     return page

@@ -127,3 +127,25 @@ CREATE TABLE IF NOT EXISTS depenses (
     jour        DATE          NOT NULL,
     cree_le     TIMESTAMPTZ   NOT NULL DEFAULT now()
 );
+
+-- Carnet 🗓️ Programme : ce qui est réservé (vol, hôtel, transport, activité, resto, autre).
+-- id choisi par le téléphone : une réservation créée hors ligne puis renvoyée n'est jamais
+-- doublée (même id -> mise à jour). jour_fin : départ de l'hôtel, ou arrivée d'un vol de nuit.
+-- Les anciennes fiches d'étapes (infos_etape) y sont reprises en « Hôtel » par migrer_programme.py.
+CREATE TABLE IF NOT EXISTS reservations (
+    id          TEXT        PRIMARY KEY,
+    voyage      TEXT        NOT NULL REFERENCES voyages(code) ON DELETE CASCADE,
+    type        TEXT        NOT NULL,
+    titre       TEXT        NOT NULL,
+    jour        DATE        NOT NULL,
+    heure       TEXT        NOT NULL DEFAULT '',
+    jour_fin    DATE,
+    heure_fin   TEXT        NOT NULL DEFAULT '',
+    lieu        TEXT        NOT NULL DEFAULT '',
+    reference   TEXT        NOT NULL DEFAULT '',
+    telephone   TEXT        NOT NULL DEFAULT '',
+    lien        TEXT        NOT NULL DEFAULT '',
+    notes       TEXT        NOT NULL DEFAULT '',
+    maj_le      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS reservations_voyage ON reservations (voyage, jour);

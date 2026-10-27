@@ -51,7 +51,7 @@ def test_page_bloc_urgences_en_tete_de_sur_place():
               "itineraire": [dict(etape("Hanoï", "VN"), mois=1, activites=[], normales=None)]}
     html = rendre_page(voyage, construire(voyage))
     sur_place = html.split('<div class="rubrique" data-rubrique="sur-place"')[1].split('<div class="rubrique"')[0]
-    assert sur_place.index('class="info urgences"') < sur_place.index('class="info etapes"')
+    assert sur_place.index('class="info urgences"') < sur_place.index('class="info depenses"')
     assert 'href="tel:113"' in sur_place and "57 Tran Hung Dao" in sur_place
     assert "banque" in sur_place                                   # opposition carte : le numéro de ta banque
     assert VERSION_PAGE >= 15

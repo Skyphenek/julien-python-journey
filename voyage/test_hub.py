@@ -20,8 +20,8 @@ def rubrique(html, nom):
     return html.split(f'<div class="rubrique" data-rubrique="{nom}"')[1].split('<div class="rubrique"')[0]
 
 
-def test_quatre_rubriques_dans_l_ordre():
-    assert [r[0] for r in RUBRIQUES] == ["valise", "avant", "sur-place", "souvenirs"]
+def test_rubriques_dans_l_ordre():
+    assert [r[0] for r in RUBRIQUES] == ["valise", "avant", "programme", "sur-place", "souvenirs"]
     nav = page().split('<nav class="rubriques">')[1].split("</nav>")[0]
     positions = [nav.index(f'data-rubrique="{r}"') for r, _ in RUBRIQUES]
     assert positions == sorted(positions)

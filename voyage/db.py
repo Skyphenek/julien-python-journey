@@ -293,7 +293,7 @@ def lire_passeports(conn):
 
 def remplacer_voyage(conn, ancien, nouveau):
     """Voyage modifié dont le code a changé (date ou étapes) : les cases cochées, le bilan et les
-    infos des étapes et les dépenses suivent le nouveau code, puis l'ancien est archivé (rien n'est supprimé)."""
+    infos des étapes, les dépenses et les réservations suivent le nouveau code, puis l'ancien est archivé (rien n'est supprimé)."""
     with conn.cursor() as cur:
         cur.execute("""INSERT INTO etat_case (voyage, proprietaire, theme, objet, coche, maj_le)
                        SELECT %s, proprietaire, theme, objet, coche, maj_le FROM etat_case WHERE voyage = %s
@@ -309,6 +309,7 @@ def remplacer_voyage(conn, ancien, nouveau):
                        FROM infos_etape WHERE voyage = %s ON CONFLICT DO NOTHING""", (nouveau, ancien))
         cur.execute("DELETE FROM infos_etape WHERE voyage = %s", (ancien,))
         cur.execute("UPDATE depenses SET voyage = %s WHERE voyage = %s", (nouveau, ancien))
+        cur.execute("UPDATE reservations SET voyage = %s WHERE voyage = %s", (nouveau, ancien))
         cur.execute("UPDATE voyages SET archive = true WHERE code = %s", (ancien,))
     conn.commit()
 
@@ -415,6 +416,38 @@ def lire_depenses(conn, voyage):
                        WHERE voyage = %s ORDER BY jour DESC, id DESC""", (voyage,))
         cles = ("id", "libelle", "montant", "devise", "montant_eur", "paye_par", "pour", "jour")
         return [dict(zip(cles, ligne)) for ligne in cur.fetchall()]
+
+
+# --- Carnet 🗓️ Programme : les réservations du voyage ------------------------------------------
+CHAMPS_RESERVATION = ("type", "titre", "jour", "heure", "jour_fin", "heure_fin", "lieu", "reference",
+                      "telephone", "lien", "notes")
+
+
+def enregistrer_reservation(conn, r):
+    """Crée ou met à jour (même id) une réservation déjà validée ; jamais celle d'un autre voyage."""
+    with conn.cursor() as cur:
+        cur.execute(
+            f"""INSERT INTO reservations (id, voyage, {", ".join(CHAMPS_RESERVATION)})
+                VALUES (%s, %s, {", ".join(["%s"] * len(CHAMPS_RESERVATION))})
+                ON CONFLICT (id) DO UPDATE SET
+                {", ".join(f"{c} = EXCLUDED.{c}" for c in CHAMPS_RESERVATION)}, maj_le = now()
+                WHERE reservations.voyage = EXCLUDED.voyage""",
+            (r["id"], r["voyage"], *(r[c] for c in CHAMPS_RESERVATION)))
+    conn.commit()
+
+
+def lire_reservations(conn, voyage):
+    """Dans l'ordre du voyage : par jour, puis par heure (sans heure : en fin de journée)."""
+    with conn.cursor() as cur:
+        cur.execute(f"""SELECT id, {", ".join(CHAMPS_RESERVATION)} FROM reservations WHERE voyage = %s
+                        ORDER BY jour, heure = '', heure, titre""", (voyage,))
+        return [dict(zip(("id", *CHAMPS_RESERVATION), ligne)) for ligne in cur.fetchall()]
+
+
+def supprimer_reservation(conn, voyage, identifiant):
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM reservations WHERE voyage = %s AND id = %s", (voyage, identifiant))
+    conn.commit()
 
 
 def supprimer_depense(conn, voyage, identifiant):

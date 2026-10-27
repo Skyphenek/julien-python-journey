@@ -116,7 +116,7 @@ def script_service_worker(version):
     return _SW.replace("__VERSION__", str(version))
 
 
-# Accueil : demande au worker de garder chaque voyage à venir (page + état + infos + dépenses)
+# Accueil : demande au worker de garder chaque voyage à venir (page + état + programme + dépenses)
 SCRIPT_PRECHARGEMENT = """
 if ('serviceWorker' in navigator && navigator.onLine) {
     navigator.serviceWorker.ready.then(function (reg) {
@@ -124,7 +124,7 @@ if ('serviceWorker' in navigator && navigator.onLine) {
         document.querySelectorAll('a.voyage[data-a-venir]').forEach(function (a) {
             const code = encodeURIComponent(a.dataset.code);
             adresses.push(a.href);
-            ['api/etat/', 'api/infos/', 'api/depenses/'].forEach(function (api) {
+            ['api/etat/', 'api/reservations/', 'api/depenses/'].forEach(function (api) {
                 adresses.push(new URL(api + code, location.href).href);
             });
         });
