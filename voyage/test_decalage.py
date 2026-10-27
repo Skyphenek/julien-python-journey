@@ -62,3 +62,36 @@ def test_page_sans_coordonnees_garde_le_texte_a_venir():
               "itineraire": [{"destination": "X", "jours": 3, "mois": 1, "activites": [], "normales": None}]}
     html = rendre_page(voyage, construire(voyage))
     assert "Bientôt" in html.split('data-rubrique="sur-place"')[2]
+
+
+# --- Base de fuseaux : celle du projet (tzdata), jamais celle de la machine ou du téléphone ---
+
+def test_base_de_fuseaux_du_projet():
+    import zoneinfo
+    assert zoneinfo.TZPATH == ()                     # ni macOS ni Linux : le paquet tzdata, figé par version
+
+
+def test_maroc_a_gmt_depuis_septembre_2026():
+    # Décret n° 2.26.530 : le Maroc quitte GMT+1 le 20/09/2026 (tzdata 2026c)
+    assert decalages([etape("Marrakech", 31.63, -8.0, 5)], date(2026, 12, 27))[0]["heures"] == -1
+    assert decalages([etape("Marrakech", 31.63, -8.0, 5)], date(2027, 7, 1))[0]["heures"] == -2
+
+
+def test_table_horaire_pour_les_horloges():
+    from valise import table_horaire
+    t = table_horaire("Africa/Casablanca", date(2026, 9, 1), jours=60)
+    assert [m for _debut, m in t] == [60, 0]                     # +1 h, puis GMT le 20/09
+    debut_gmt = t[1][0] / 1000
+    from datetime import datetime, timezone
+    assert datetime.fromtimestamp(debut_gmt, timezone.utc) == datetime(2026, 9, 20, 1, tzinfo=timezone.utc)
+    paris = table_horaire("Europe/Paris", date(2026, 10, 1), jours=200)
+    assert [m for _d, m in paris] == [120, 60, 120]              # heure d'hiver le 25/10, d'été le 28/03
+
+
+def test_horloges_calculees_par_la_page():
+    voyage = {"depart": date(2026, 12, 27), "personnes": ["Julien"], "conduit": False, "lessive": None,
+              "itineraire": [dict(etape("Marrakech", 31.63, -8.0, 5), mois=12, code_pays="MA", activites=[],
+                                  normales=None)]}
+    html = rendre_page(voyage, construire(voyage), aujourd_hui=date(2026, 10, 27))
+    assert 'data-horaire="[[' in html and 'data-paris="[[' in html
+    assert "data-horaire" in HTML_SCRIPT and VERSION_PAGE >= 10

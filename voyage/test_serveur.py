@@ -207,7 +207,8 @@ def test_meteo_applique_les_previsions_du_navigateur(client_meteo):
     daily = {"time": jours, "temperature_2m_max": [32.0] * 7, "temperature_2m_min": [24.0] * 7,
              "precipitation_sum": [0, 12.0, 0, 0, 0, 0, 0]}
     reponse = client.post("/api/meteo/" + code, json={"previsions": {"0": daily}})
-    assert reponse.get_json() == {"ok": True, "etapes_prevues": 1, "erreurs": []}
+    assert reponse.get_json() == {"ok": True, "etapes_prevues": 1, "erreurs": [],
+                                  "changements": None}            # pas de photo avant : pas de liste
     conn = connecter("valise_test")
     try:
         assert lire_voyage(conn, code)["itineraire"][0]["prevision"]["tmax"] == 32.0
@@ -497,3 +498,17 @@ def test_creation_en_mode_cabine(client_lisbonne):
         assert lire_voyage(conn, r.get_json()["code"])["cabine"] is True
     finally:
         conn.close()
+
+
+
+def test_meteo_renvoie_ce_qui_a_change(client_meteo):
+    from db import enregistrer_valise_objets
+    client, code = client_meteo
+    conn = connecter("valise_test")
+    enregistrer_valise_objets(conn, code, {"Julien": {"Vêtements": {"t-shirts": 7}}})   # photo d'avant
+    conn.close()
+    jours = [(date.today() + timedelta(days=3 + i)).isoformat() for i in range(7)]
+    daily = {"time": jours, "temperature_2m_max": [32.0] * 7, "temperature_2m_min": [24.0] * 7,
+             "precipitation_sum": [0, 12.0, 0, 0, 0, 0, 0]}
+    changements = client.post("/api/meteo/" + code, json={"previsions": {"0": daily}}).get_json()["changements"]
+    assert "imperméable (Julien)" in changements["ajouts"]
