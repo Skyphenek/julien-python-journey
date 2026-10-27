@@ -27,6 +27,7 @@ from valise import (solde_depenses, actualiser_meteo, fenetres_du_voyage, page_d
 from api_climat import url_geocodage
 from pwa import manifeste, script_service_worker, TAILLES_ICONE
 from programme import valider_reservation
+from vocabulaire import LANGUES
 
 load_dotenv(Path(__file__).parent / ".env")   # en local : lit voyage/.env s'il existe
 
@@ -346,6 +347,14 @@ def creer_app(nom_base="valise", secret=None):
         if taille not in TAILLES_ICONE:
             abort(404)
         return send_from_directory(Path(__file__).parent / "static", f"icone-{taille}.png", mimetype="image/png")
+
+    @routes.get("/audio/<code>/<nom>.mp3")
+    def audio(code, nom):
+        """Le son d'une phrase du vocabulaire (généré par generer_audios.py)."""
+        if code not in LANGUES or not re.fullmatch(r"[a-z0-9_-]{1,40}", nom):
+            abort(404)
+        return send_from_directory(Path(__file__).parent / "static" / "audio" / code, f"{nom}.mp3",
+                                   mimetype="audio/mpeg", max_age=86400)
 
     # Avec un secret, tout vit sous /v/<secret>/ : sans le code, chaque adresse renvoie 404
     app.register_blueprint(routes, url_prefix=f"/v/{secret}" if secret else None)

@@ -1,0 +1,1922 @@
+{
+ "audio/ar-EG/addition.mp3": [
+  "ar-EG-SalmaNeural",
+  "الحساب لو سمحت"
+ ],
+ "audio/ar-EG/aide.mp3": [
+  "ar-EG-SalmaNeural",
+  "الحقوني!"
+ ],
+ "audio/ar-EG/au_revoir.mp3": [
+  "ar-EG-SalmaNeural",
+  "مع السلامة"
+ ],
+ "audio/ar-EG/baisser.mp3": [
+  "ar-EG-SalmaNeural",
+  "ممكن تنزل شوية؟"
+ ],
+ "audio/ar-EG/bonjour.mp3": [
+  "ar-EG-SalmaNeural",
+  "أهلاً"
+ ],
+ "audio/ar-EG/combien.mp3": [
+  "ar-EG-SalmaNeural",
+  "بكام؟"
+ ],
+ "audio/ar-EG/comprends_pas.mp3": [
+  "ar-EG-SalmaNeural",
+  "مش فاهم"
+ ],
+ "audio/ar-EG/delicieux.mp3": [
+  "ar-EG-SalmaNeural",
+  "حلو أوي"
+ ],
+ "audio/ar-EG/eau.mp3": [
+  "ar-EG-SalmaNeural",
+  "مية"
+ ],
+ "audio/ar-EG/ici.mp3": [
+  "ar-EG-SalmaNeural",
+  "هنا كويس"
+ ],
+ "audio/ar-EG/medecin.mp3": [
+  "ar-EG-SalmaNeural",
+  "محتاج دكتور"
+ ],
+ "audio/ar-EG/merci.mp3": [
+  "ar-EG-SalmaNeural",
+  "شكراً"
+ ],
+ "audio/ar-EG/nombre-01.mp3": [
+  "ar-EG-SalmaNeural",
+  "واحد"
+ ],
+ "audio/ar-EG/nombre-02.mp3": [
+  "ar-EG-SalmaNeural",
+  "اتنين"
+ ],
+ "audio/ar-EG/nombre-03.mp3": [
+  "ar-EG-SalmaNeural",
+  "تلاتة"
+ ],
+ "audio/ar-EG/nombre-04.mp3": [
+  "ar-EG-SalmaNeural",
+  "أربعة"
+ ],
+ "audio/ar-EG/nombre-05.mp3": [
+  "ar-EG-SalmaNeural",
+  "خمسة"
+ ],
+ "audio/ar-EG/nombre-06.mp3": [
+  "ar-EG-SalmaNeural",
+  "ستة"
+ ],
+ "audio/ar-EG/nombre-07.mp3": [
+  "ar-EG-SalmaNeural",
+  "سبعة"
+ ],
+ "audio/ar-EG/nombre-08.mp3": [
+  "ar-EG-SalmaNeural",
+  "تمانية"
+ ],
+ "audio/ar-EG/nombre-09.mp3": [
+  "ar-EG-SalmaNeural",
+  "تسعة"
+ ],
+ "audio/ar-EG/nombre-10.mp3": [
+  "ar-EG-SalmaNeural",
+  "عشرة"
+ ],
+ "audio/ar-EG/nombre-11.mp3": [
+  "ar-EG-SalmaNeural",
+  "مية"
+ ],
+ "audio/ar-EG/nombre-12.mp3": [
+  "ar-EG-SalmaNeural",
+  "ألف"
+ ],
+ "audio/ar-EG/non.mp3": [
+  "ar-EG-SalmaNeural",
+  "لأ"
+ ],
+ "audio/ar-EG/oui.mp3": [
+  "ar-EG-SalmaNeural",
+  "أيوه"
+ ],
+ "audio/ar-EG/pardon.mp3": [
+  "ar-EG-SalmaNeural",
+  "لو سمحت"
+ ],
+ "audio/ar-EG/pas_epice.mp3": [
+  "ar-EG-SalmaNeural",
+  "من غير شطة"
+ ],
+ "audio/ar-EG/regarder.mp3": [
+  "ar-EG-SalmaNeural",
+  "بتفرج بس"
+ ],
+ "audio/ar-EG/svp.mp3": [
+  "ar-EG-SalmaNeural",
+  "من فضلك"
+ ],
+ "audio/ar-EG/toilettes.mp3": [
+  "ar-EG-SalmaNeural",
+  "فين الحمام؟"
+ ],
+ "audio/ar-EG/trop_cher.mp3": [
+  "ar-EG-SalmaNeural",
+  "غالي أوي"
+ ],
+ "audio/ar-MA/addition.mp3": [
+  "ar-MA-MounaNeural",
+  "الحساب عافاك"
+ ],
+ "audio/ar-MA/aide.mp3": [
+  "ar-MA-MounaNeural",
+  "عتقوني!"
+ ],
+ "audio/ar-MA/au_revoir.mp3": [
+  "ar-MA-MounaNeural",
+  "بسلامة"
+ ],
+ "audio/ar-MA/baisser.mp3": [
+  "ar-MA-MounaNeural",
+  "نقص شوية"
+ ],
+ "audio/ar-MA/bonjour.mp3": [
+  "ar-MA-MounaNeural",
+  "السلام عليكم"
+ ],
+ "audio/ar-MA/combien.mp3": [
+  "ar-MA-MounaNeural",
+  "بشحال؟"
+ ],
+ "audio/ar-MA/comprends_pas.mp3": [
+  "ar-MA-MounaNeural",
+  "ما فهمتش"
+ ],
+ "audio/ar-MA/delicieux.mp3": [
+  "ar-MA-MounaNeural",
+  "بنين"
+ ],
+ "audio/ar-MA/eau.mp3": [
+  "ar-MA-MounaNeural",
+  "الما"
+ ],
+ "audio/ar-MA/ici.mp3": [
+  "ar-MA-MounaNeural",
+  "وقف هنا"
+ ],
+ "audio/ar-MA/medecin.mp3": [
+  "ar-MA-MounaNeural",
+  "خصني طبيب"
+ ],
+ "audio/ar-MA/merci.mp3": [
+  "ar-MA-MounaNeural",
+  "شكرا"
+ ],
+ "audio/ar-MA/nombre-01.mp3": [
+  "ar-MA-MounaNeural",
+  "واحد"
+ ],
+ "audio/ar-MA/nombre-02.mp3": [
+  "ar-MA-MounaNeural",
+  "جوج"
+ ],
+ "audio/ar-MA/nombre-03.mp3": [
+  "ar-MA-MounaNeural",
+  "تلاتة"
+ ],
+ "audio/ar-MA/nombre-04.mp3": [
+  "ar-MA-MounaNeural",
+  "ربعة"
+ ],
+ "audio/ar-MA/nombre-05.mp3": [
+  "ar-MA-MounaNeural",
+  "خمسة"
+ ],
+ "audio/ar-MA/nombre-06.mp3": [
+  "ar-MA-MounaNeural",
+  "ستة"
+ ],
+ "audio/ar-MA/nombre-07.mp3": [
+  "ar-MA-MounaNeural",
+  "سبعة"
+ ],
+ "audio/ar-MA/nombre-08.mp3": [
+  "ar-MA-MounaNeural",
+  "تمنية"
+ ],
+ "audio/ar-MA/nombre-09.mp3": [
+  "ar-MA-MounaNeural",
+  "تسعود"
+ ],
+ "audio/ar-MA/nombre-10.mp3": [
+  "ar-MA-MounaNeural",
+  "عشرة"
+ ],
+ "audio/ar-MA/nombre-11.mp3": [
+  "ar-MA-MounaNeural",
+  "مية"
+ ],
+ "audio/ar-MA/nombre-12.mp3": [
+  "ar-MA-MounaNeural",
+  "ألف"
+ ],
+ "audio/ar-MA/non.mp3": [
+  "ar-MA-MounaNeural",
+  "لا"
+ ],
+ "audio/ar-MA/oui.mp3": [
+  "ar-MA-MounaNeural",
+  "إيه"
+ ],
+ "audio/ar-MA/pardon.mp3": [
+  "ar-MA-MounaNeural",
+  "سمح لي"
+ ],
+ "audio/ar-MA/pas_epice.mp3": [
+  "ar-MA-MounaNeural",
+  "بلا حار"
+ ],
+ "audio/ar-MA/regarder.mp3": [
+  "ar-MA-MounaNeural",
+  "غير كانشوف"
+ ],
+ "audio/ar-MA/svp.mp3": [
+  "ar-MA-MounaNeural",
+  "عافاك"
+ ],
+ "audio/ar-MA/toilettes.mp3": [
+  "ar-MA-MounaNeural",
+  "فين الطواليت؟"
+ ],
+ "audio/ar-MA/trop_cher.mp3": [
+  "ar-MA-MounaNeural",
+  "غالي بزاف"
+ ],
+ "audio/de/addition.mp3": [
+  "de-DE-KatjaNeural",
+  "Die Rechnung, bitte"
+ ],
+ "audio/de/aide.mp3": [
+  "de-DE-KatjaNeural",
+  "Hilfe!"
+ ],
+ "audio/de/au_revoir.mp3": [
+  "de-DE-KatjaNeural",
+  "Tschüss"
+ ],
+ "audio/de/baisser.mp3": [
+  "de-DE-KatjaNeural",
+  "Geht es günstiger?"
+ ],
+ "audio/de/bonjour.mp3": [
+  "de-DE-KatjaNeural",
+  "Guten Tag"
+ ],
+ "audio/de/combien.mp3": [
+  "de-DE-KatjaNeural",
+  "Wie viel kostet das?"
+ ],
+ "audio/de/comprends_pas.mp3": [
+  "de-DE-KatjaNeural",
+  "Ich verstehe nicht"
+ ],
+ "audio/de/delicieux.mp3": [
+  "de-DE-KatjaNeural",
+  "Lecker!"
+ ],
+ "audio/de/eau.mp3": [
+  "de-DE-KatjaNeural",
+  "Wasser"
+ ],
+ "audio/de/ici.mp3": [
+  "de-DE-KatjaNeural",
+  "Halten Sie hier"
+ ],
+ "audio/de/medecin.mp3": [
+  "de-DE-KatjaNeural",
+  "Ich brauche einen Arzt"
+ ],
+ "audio/de/merci.mp3": [
+  "de-DE-KatjaNeural",
+  "Danke"
+ ],
+ "audio/de/nombre-01.mp3": [
+  "de-DE-KatjaNeural",
+  "eins"
+ ],
+ "audio/de/nombre-02.mp3": [
+  "de-DE-KatjaNeural",
+  "zwei"
+ ],
+ "audio/de/nombre-03.mp3": [
+  "de-DE-KatjaNeural",
+  "drei"
+ ],
+ "audio/de/nombre-04.mp3": [
+  "de-DE-KatjaNeural",
+  "vier"
+ ],
+ "audio/de/nombre-05.mp3": [
+  "de-DE-KatjaNeural",
+  "fünf"
+ ],
+ "audio/de/nombre-06.mp3": [
+  "de-DE-KatjaNeural",
+  "sechs"
+ ],
+ "audio/de/nombre-07.mp3": [
+  "de-DE-KatjaNeural",
+  "sieben"
+ ],
+ "audio/de/nombre-08.mp3": [
+  "de-DE-KatjaNeural",
+  "acht"
+ ],
+ "audio/de/nombre-09.mp3": [
+  "de-DE-KatjaNeural",
+  "neun"
+ ],
+ "audio/de/nombre-10.mp3": [
+  "de-DE-KatjaNeural",
+  "zehn"
+ ],
+ "audio/de/nombre-11.mp3": [
+  "de-DE-KatjaNeural",
+  "hundert"
+ ],
+ "audio/de/nombre-12.mp3": [
+  "de-DE-KatjaNeural",
+  "tausend"
+ ],
+ "audio/de/non.mp3": [
+  "de-DE-KatjaNeural",
+  "Nein"
+ ],
+ "audio/de/oui.mp3": [
+  "de-DE-KatjaNeural",
+  "Ja"
+ ],
+ "audio/de/pardon.mp3": [
+  "de-DE-KatjaNeural",
+  "Entschuldigung"
+ ],
+ "audio/de/pas_epice.mp3": [
+  "de-DE-KatjaNeural",
+  "Nicht scharf"
+ ],
+ "audio/de/regarder.mp3": [
+  "de-DE-KatjaNeural",
+  "Ich schaue nur"
+ ],
+ "audio/de/svp.mp3": [
+  "de-DE-KatjaNeural",
+  "Bitte"
+ ],
+ "audio/de/toilettes.mp3": [
+  "de-DE-KatjaNeural",
+  "Wo ist die Toilette?"
+ ],
+ "audio/de/trop_cher.mp3": [
+  "de-DE-KatjaNeural",
+  "Das ist zu teuer"
+ ],
+ "audio/en/addition.mp3": [
+  "en-GB-SoniaNeural",
+  "The bill, please"
+ ],
+ "audio/en/aide.mp3": [
+  "en-GB-SoniaNeural",
+  "Help!"
+ ],
+ "audio/en/au_revoir.mp3": [
+  "en-GB-SoniaNeural",
+  "Goodbye"
+ ],
+ "audio/en/baisser.mp3": [
+  "en-GB-SoniaNeural",
+  "Can you do a better price?"
+ ],
+ "audio/en/bonjour.mp3": [
+  "en-GB-SoniaNeural",
+  "Hello"
+ ],
+ "audio/en/combien.mp3": [
+  "en-GB-SoniaNeural",
+  "How much is it?"
+ ],
+ "audio/en/comprends_pas.mp3": [
+  "en-GB-SoniaNeural",
+  "I don't understand"
+ ],
+ "audio/en/delicieux.mp3": [
+  "en-GB-SoniaNeural",
+  "Delicious!"
+ ],
+ "audio/en/eau.mp3": [
+  "en-GB-SoniaNeural",
+  "Water"
+ ],
+ "audio/en/ici.mp3": [
+  "en-GB-SoniaNeural",
+  "Stop here, please"
+ ],
+ "audio/en/medecin.mp3": [
+  "en-GB-SoniaNeural",
+  "I need a doctor"
+ ],
+ "audio/en/merci.mp3": [
+  "en-GB-SoniaNeural",
+  "Thank you"
+ ],
+ "audio/en/nombre-01.mp3": [
+  "en-GB-SoniaNeural",
+  "one"
+ ],
+ "audio/en/nombre-02.mp3": [
+  "en-GB-SoniaNeural",
+  "two"
+ ],
+ "audio/en/nombre-03.mp3": [
+  "en-GB-SoniaNeural",
+  "three"
+ ],
+ "audio/en/nombre-04.mp3": [
+  "en-GB-SoniaNeural",
+  "four"
+ ],
+ "audio/en/nombre-05.mp3": [
+  "en-GB-SoniaNeural",
+  "five"
+ ],
+ "audio/en/nombre-06.mp3": [
+  "en-GB-SoniaNeural",
+  "six"
+ ],
+ "audio/en/nombre-07.mp3": [
+  "en-GB-SoniaNeural",
+  "seven"
+ ],
+ "audio/en/nombre-08.mp3": [
+  "en-GB-SoniaNeural",
+  "eight"
+ ],
+ "audio/en/nombre-09.mp3": [
+  "en-GB-SoniaNeural",
+  "nine"
+ ],
+ "audio/en/nombre-10.mp3": [
+  "en-GB-SoniaNeural",
+  "ten"
+ ],
+ "audio/en/nombre-11.mp3": [
+  "en-GB-SoniaNeural",
+  "one hundred"
+ ],
+ "audio/en/nombre-12.mp3": [
+  "en-GB-SoniaNeural",
+  "one thousand"
+ ],
+ "audio/en/non.mp3": [
+  "en-GB-SoniaNeural",
+  "No"
+ ],
+ "audio/en/oui.mp3": [
+  "en-GB-SoniaNeural",
+  "Yes"
+ ],
+ "audio/en/pardon.mp3": [
+  "en-GB-SoniaNeural",
+  "Excuse me"
+ ],
+ "audio/en/pas_epice.mp3": [
+  "en-GB-SoniaNeural",
+  "Not spicy, please"
+ ],
+ "audio/en/regarder.mp3": [
+  "en-GB-SoniaNeural",
+  "I'm just looking"
+ ],
+ "audio/en/svp.mp3": [
+  "en-GB-SoniaNeural",
+  "Please"
+ ],
+ "audio/en/toilettes.mp3": [
+  "en-GB-SoniaNeural",
+  "Where is the bathroom?"
+ ],
+ "audio/en/trop_cher.mp3": [
+  "en-GB-SoniaNeural",
+  "It's too expensive"
+ ],
+ "audio/es/addition.mp3": [
+  "es-MX-DaliaNeural",
+  "La cuenta, por favor"
+ ],
+ "audio/es/aide.mp3": [
+  "es-MX-DaliaNeural",
+  "¡Ayuda!"
+ ],
+ "audio/es/au_revoir.mp3": [
+  "es-MX-DaliaNeural",
+  "Adiós"
+ ],
+ "audio/es/baisser.mp3": [
+  "es-MX-DaliaNeural",
+  "¿Me hace un descuento?"
+ ],
+ "audio/es/bonjour.mp3": [
+  "es-MX-DaliaNeural",
+  "Hola"
+ ],
+ "audio/es/combien.mp3": [
+  "es-MX-DaliaNeural",
+  "¿Cuánto cuesta?"
+ ],
+ "audio/es/comprends_pas.mp3": [
+  "es-MX-DaliaNeural",
+  "No entiendo"
+ ],
+ "audio/es/delicieux.mp3": [
+  "es-MX-DaliaNeural",
+  "¡Delicioso!"
+ ],
+ "audio/es/eau.mp3": [
+  "es-MX-DaliaNeural",
+  "Agua"
+ ],
+ "audio/es/ici.mp3": [
+  "es-MX-DaliaNeural",
+  "Pare aquí"
+ ],
+ "audio/es/medecin.mp3": [
+  "es-MX-DaliaNeural",
+  "Necesito un médico"
+ ],
+ "audio/es/merci.mp3": [
+  "es-MX-DaliaNeural",
+  "Gracias"
+ ],
+ "audio/es/nombre-01.mp3": [
+  "es-MX-DaliaNeural",
+  "uno"
+ ],
+ "audio/es/nombre-02.mp3": [
+  "es-MX-DaliaNeural",
+  "dos"
+ ],
+ "audio/es/nombre-03.mp3": [
+  "es-MX-DaliaNeural",
+  "tres"
+ ],
+ "audio/es/nombre-04.mp3": [
+  "es-MX-DaliaNeural",
+  "cuatro"
+ ],
+ "audio/es/nombre-05.mp3": [
+  "es-MX-DaliaNeural",
+  "cinco"
+ ],
+ "audio/es/nombre-06.mp3": [
+  "es-MX-DaliaNeural",
+  "seis"
+ ],
+ "audio/es/nombre-07.mp3": [
+  "es-MX-DaliaNeural",
+  "siete"
+ ],
+ "audio/es/nombre-08.mp3": [
+  "es-MX-DaliaNeural",
+  "ocho"
+ ],
+ "audio/es/nombre-09.mp3": [
+  "es-MX-DaliaNeural",
+  "nueve"
+ ],
+ "audio/es/nombre-10.mp3": [
+  "es-MX-DaliaNeural",
+  "diez"
+ ],
+ "audio/es/nombre-11.mp3": [
+  "es-MX-DaliaNeural",
+  "cien"
+ ],
+ "audio/es/nombre-12.mp3": [
+  "es-MX-DaliaNeural",
+  "mil"
+ ],
+ "audio/es/non.mp3": [
+  "es-MX-DaliaNeural",
+  "No"
+ ],
+ "audio/es/oui.mp3": [
+  "es-MX-DaliaNeural",
+  "Sí"
+ ],
+ "audio/es/pardon.mp3": [
+  "es-MX-DaliaNeural",
+  "Disculpe"
+ ],
+ "audio/es/pas_epice.mp3": [
+  "es-MX-DaliaNeural",
+  "Sin picante"
+ ],
+ "audio/es/regarder.mp3": [
+  "es-MX-DaliaNeural",
+  "Solo estoy mirando"
+ ],
+ "audio/es/svp.mp3": [
+  "es-MX-DaliaNeural",
+  "Por favor"
+ ],
+ "audio/es/toilettes.mp3": [
+  "es-MX-DaliaNeural",
+  "¿Dónde está el baño?"
+ ],
+ "audio/es/trop_cher.mp3": [
+  "es-MX-DaliaNeural",
+  "Es muy caro"
+ ],
+ "audio/hi/addition.mp3": [
+  "hi-IN-SwaraNeural",
+  "बिल दीजिए"
+ ],
+ "audio/hi/aide.mp3": [
+  "hi-IN-SwaraNeural",
+  "बचाओ!"
+ ],
+ "audio/hi/au_revoir.mp3": [
+  "hi-IN-SwaraNeural",
+  "फिर मिलेंगे"
+ ],
+ "audio/hi/baisser.mp3": [
+  "hi-IN-SwaraNeural",
+  "कम कीजिए"
+ ],
+ "audio/hi/bonjour.mp3": [
+  "hi-IN-SwaraNeural",
+  "नमस्ते"
+ ],
+ "audio/hi/combien.mp3": [
+  "hi-IN-SwaraNeural",
+  "कितने का है?"
+ ],
+ "audio/hi/comprends_pas.mp3": [
+  "hi-IN-SwaraNeural",
+  "मैं नहीं समझा"
+ ],
+ "audio/hi/delicieux.mp3": [
+  "hi-IN-SwaraNeural",
+  "बहुत स्वादिष्ट"
+ ],
+ "audio/hi/eau.mp3": [
+  "hi-IN-SwaraNeural",
+  "पानी"
+ ],
+ "audio/hi/ici.mp3": [
+  "hi-IN-SwaraNeural",
+  "यहाँ रुकिए"
+ ],
+ "audio/hi/medecin.mp3": [
+  "hi-IN-SwaraNeural",
+  "मुझे डॉक्टर चाहिए"
+ ],
+ "audio/hi/merci.mp3": [
+  "hi-IN-SwaraNeural",
+  "धन्यवाद"
+ ],
+ "audio/hi/nombre-01.mp3": [
+  "hi-IN-SwaraNeural",
+  "एक"
+ ],
+ "audio/hi/nombre-02.mp3": [
+  "hi-IN-SwaraNeural",
+  "दो"
+ ],
+ "audio/hi/nombre-03.mp3": [
+  "hi-IN-SwaraNeural",
+  "तीन"
+ ],
+ "audio/hi/nombre-04.mp3": [
+  "hi-IN-SwaraNeural",
+  "चार"
+ ],
+ "audio/hi/nombre-05.mp3": [
+  "hi-IN-SwaraNeural",
+  "पाँच"
+ ],
+ "audio/hi/nombre-06.mp3": [
+  "hi-IN-SwaraNeural",
+  "छह"
+ ],
+ "audio/hi/nombre-07.mp3": [
+  "hi-IN-SwaraNeural",
+  "सात"
+ ],
+ "audio/hi/nombre-08.mp3": [
+  "hi-IN-SwaraNeural",
+  "आठ"
+ ],
+ "audio/hi/nombre-09.mp3": [
+  "hi-IN-SwaraNeural",
+  "नौ"
+ ],
+ "audio/hi/nombre-10.mp3": [
+  "hi-IN-SwaraNeural",
+  "दस"
+ ],
+ "audio/hi/nombre-11.mp3": [
+  "hi-IN-SwaraNeural",
+  "सौ"
+ ],
+ "audio/hi/nombre-12.mp3": [
+  "hi-IN-SwaraNeural",
+  "हज़ार"
+ ],
+ "audio/hi/non.mp3": [
+  "hi-IN-SwaraNeural",
+  "नहीं"
+ ],
+ "audio/hi/oui.mp3": [
+  "hi-IN-SwaraNeural",
+  "हाँ"
+ ],
+ "audio/hi/pardon.mp3": [
+  "hi-IN-SwaraNeural",
+  "माफ़ कीजिए"
+ ],
+ "audio/hi/pas_epice.mp3": [
+  "hi-IN-SwaraNeural",
+  "तीखा नहीं"
+ ],
+ "audio/hi/regarder.mp3": [
+  "hi-IN-SwaraNeural",
+  "बस देख रहा हूँ"
+ ],
+ "audio/hi/svp.mp3": [
+  "hi-IN-SwaraNeural",
+  "कृपया"
+ ],
+ "audio/hi/toilettes.mp3": [
+  "hi-IN-SwaraNeural",
+  "टॉयलेट कहाँ है?"
+ ],
+ "audio/hi/trop_cher.mp3": [
+  "hi-IN-SwaraNeural",
+  "बहुत महँगा है"
+ ],
+ "audio/id/addition.mp3": [
+  "id-ID-GadisNeural",
+  "Minta bon"
+ ],
+ "audio/id/aide.mp3": [
+  "id-ID-GadisNeural",
+  "Tolong!"
+ ],
+ "audio/id/au_revoir.mp3": [
+  "id-ID-GadisNeural",
+  "Sampai jumpa"
+ ],
+ "audio/id/baisser.mp3": [
+  "id-ID-GadisNeural",
+  "Bisa kurang?"
+ ],
+ "audio/id/bonjour.mp3": [
+  "id-ID-GadisNeural",
+  "Halo"
+ ],
+ "audio/id/combien.mp3": [
+  "id-ID-GadisNeural",
+  "Berapa harganya?"
+ ],
+ "audio/id/comprends_pas.mp3": [
+  "id-ID-GadisNeural",
+  "Saya tidak mengerti"
+ ],
+ "audio/id/delicieux.mp3": [
+  "id-ID-GadisNeural",
+  "Enak!"
+ ],
+ "audio/id/eau.mp3": [
+  "id-ID-GadisNeural",
+  "Air putih"
+ ],
+ "audio/id/ici.mp3": [
+  "id-ID-GadisNeural",
+  "Berhenti di sini"
+ ],
+ "audio/id/medecin.mp3": [
+  "id-ID-GadisNeural",
+  "Saya perlu dokter"
+ ],
+ "audio/id/merci.mp3": [
+  "id-ID-GadisNeural",
+  "Terima kasih"
+ ],
+ "audio/id/nombre-01.mp3": [
+  "id-ID-GadisNeural",
+  "satu"
+ ],
+ "audio/id/nombre-02.mp3": [
+  "id-ID-GadisNeural",
+  "dua"
+ ],
+ "audio/id/nombre-03.mp3": [
+  "id-ID-GadisNeural",
+  "tiga"
+ ],
+ "audio/id/nombre-04.mp3": [
+  "id-ID-GadisNeural",
+  "empat"
+ ],
+ "audio/id/nombre-05.mp3": [
+  "id-ID-GadisNeural",
+  "lima"
+ ],
+ "audio/id/nombre-06.mp3": [
+  "id-ID-GadisNeural",
+  "enam"
+ ],
+ "audio/id/nombre-07.mp3": [
+  "id-ID-GadisNeural",
+  "tujuh"
+ ],
+ "audio/id/nombre-08.mp3": [
+  "id-ID-GadisNeural",
+  "delapan"
+ ],
+ "audio/id/nombre-09.mp3": [
+  "id-ID-GadisNeural",
+  "sembilan"
+ ],
+ "audio/id/nombre-10.mp3": [
+  "id-ID-GadisNeural",
+  "sepuluh"
+ ],
+ "audio/id/nombre-11.mp3": [
+  "id-ID-GadisNeural",
+  "seratus"
+ ],
+ "audio/id/nombre-12.mp3": [
+  "id-ID-GadisNeural",
+  "seribu"
+ ],
+ "audio/id/non.mp3": [
+  "id-ID-GadisNeural",
+  "Tidak"
+ ],
+ "audio/id/oui.mp3": [
+  "id-ID-GadisNeural",
+  "Ya"
+ ],
+ "audio/id/pardon.mp3": [
+  "id-ID-GadisNeural",
+  "Maaf"
+ ],
+ "audio/id/pas_epice.mp3": [
+  "id-ID-GadisNeural",
+  "Tidak pedas"
+ ],
+ "audio/id/regarder.mp3": [
+  "id-ID-GadisNeural",
+  "Saya lihat-lihat saja"
+ ],
+ "audio/id/svp.mp3": [
+  "id-ID-GadisNeural",
+  "Tolong"
+ ],
+ "audio/id/toilettes.mp3": [
+  "id-ID-GadisNeural",
+  "Di mana toilet?"
+ ],
+ "audio/id/trop_cher.mp3": [
+  "id-ID-GadisNeural",
+  "Terlalu mahal"
+ ],
+ "audio/it/addition.mp3": [
+  "it-IT-ElsaNeural",
+  "Il conto, per favore"
+ ],
+ "audio/it/aide.mp3": [
+  "it-IT-ElsaNeural",
+  "Aiuto!"
+ ],
+ "audio/it/au_revoir.mp3": [
+  "it-IT-ElsaNeural",
+  "Arrivederci"
+ ],
+ "audio/it/baisser.mp3": [
+  "it-IT-ElsaNeural",
+  "Mi fa uno sconto?"
+ ],
+ "audio/it/bonjour.mp3": [
+  "it-IT-ElsaNeural",
+  "Buongiorno"
+ ],
+ "audio/it/combien.mp3": [
+  "it-IT-ElsaNeural",
+  "Quanto costa?"
+ ],
+ "audio/it/comprends_pas.mp3": [
+  "it-IT-ElsaNeural",
+  "Non capisco"
+ ],
+ "audio/it/delicieux.mp3": [
+  "it-IT-ElsaNeural",
+  "Buonissimo!"
+ ],
+ "audio/it/eau.mp3": [
+  "it-IT-ElsaNeural",
+  "Acqua"
+ ],
+ "audio/it/ici.mp3": [
+  "it-IT-ElsaNeural",
+  "Si fermi qui"
+ ],
+ "audio/it/medecin.mp3": [
+  "it-IT-ElsaNeural",
+  "Ho bisogno di un medico"
+ ],
+ "audio/it/merci.mp3": [
+  "it-IT-ElsaNeural",
+  "Grazie"
+ ],
+ "audio/it/nombre-01.mp3": [
+  "it-IT-ElsaNeural",
+  "uno"
+ ],
+ "audio/it/nombre-02.mp3": [
+  "it-IT-ElsaNeural",
+  "due"
+ ],
+ "audio/it/nombre-03.mp3": [
+  "it-IT-ElsaNeural",
+  "tre"
+ ],
+ "audio/it/nombre-04.mp3": [
+  "it-IT-ElsaNeural",
+  "quattro"
+ ],
+ "audio/it/nombre-05.mp3": [
+  "it-IT-ElsaNeural",
+  "cinque"
+ ],
+ "audio/it/nombre-06.mp3": [
+  "it-IT-ElsaNeural",
+  "sei"
+ ],
+ "audio/it/nombre-07.mp3": [
+  "it-IT-ElsaNeural",
+  "sette"
+ ],
+ "audio/it/nombre-08.mp3": [
+  "it-IT-ElsaNeural",
+  "otto"
+ ],
+ "audio/it/nombre-09.mp3": [
+  "it-IT-ElsaNeural",
+  "nove"
+ ],
+ "audio/it/nombre-10.mp3": [
+  "it-IT-ElsaNeural",
+  "dieci"
+ ],
+ "audio/it/nombre-11.mp3": [
+  "it-IT-ElsaNeural",
+  "cento"
+ ],
+ "audio/it/nombre-12.mp3": [
+  "it-IT-ElsaNeural",
+  "mille"
+ ],
+ "audio/it/non.mp3": [
+  "it-IT-ElsaNeural",
+  "No"
+ ],
+ "audio/it/oui.mp3": [
+  "it-IT-ElsaNeural",
+  "Sì"
+ ],
+ "audio/it/pardon.mp3": [
+  "it-IT-ElsaNeural",
+  "Mi scusi"
+ ],
+ "audio/it/pas_epice.mp3": [
+  "it-IT-ElsaNeural",
+  "Non piccante"
+ ],
+ "audio/it/regarder.mp3": [
+  "it-IT-ElsaNeural",
+  "Sto solo guardando"
+ ],
+ "audio/it/svp.mp3": [
+  "it-IT-ElsaNeural",
+  "Per favore"
+ ],
+ "audio/it/toilettes.mp3": [
+  "it-IT-ElsaNeural",
+  "Dov'è il bagno?"
+ ],
+ "audio/it/trop_cher.mp3": [
+  "it-IT-ElsaNeural",
+  "È troppo caro"
+ ],
+ "audio/ja/addition.mp3": [
+  "ja-JP-NanamiNeural",
+  "お会計お願いします"
+ ],
+ "audio/ja/aide.mp3": [
+  "ja-JP-NanamiNeural",
+  "助けて!"
+ ],
+ "audio/ja/au_revoir.mp3": [
+  "ja-JP-NanamiNeural",
+  "さようなら"
+ ],
+ "audio/ja/baisser.mp3": [
+  "ja-JP-NanamiNeural",
+  "安くできますか?"
+ ],
+ "audio/ja/bonjour.mp3": [
+  "ja-JP-NanamiNeural",
+  "こんにちは"
+ ],
+ "audio/ja/combien.mp3": [
+  "ja-JP-NanamiNeural",
+  "いくらですか?"
+ ],
+ "audio/ja/comprends_pas.mp3": [
+  "ja-JP-NanamiNeural",
+  "わかりません"
+ ],
+ "audio/ja/delicieux.mp3": [
+  "ja-JP-NanamiNeural",
+  "おいしい"
+ ],
+ "audio/ja/eau.mp3": [
+  "ja-JP-NanamiNeural",
+  "お水"
+ ],
+ "audio/ja/ici.mp3": [
+  "ja-JP-NanamiNeural",
+  "ここで止めてください"
+ ],
+ "audio/ja/medecin.mp3": [
+  "ja-JP-NanamiNeural",
+  "医者が必要です"
+ ],
+ "audio/ja/merci.mp3": [
+  "ja-JP-NanamiNeural",
+  "ありがとうございます"
+ ],
+ "audio/ja/nombre-01.mp3": [
+  "ja-JP-NanamiNeural",
+  "一"
+ ],
+ "audio/ja/nombre-02.mp3": [
+  "ja-JP-NanamiNeural",
+  "二"
+ ],
+ "audio/ja/nombre-03.mp3": [
+  "ja-JP-NanamiNeural",
+  "三"
+ ],
+ "audio/ja/nombre-04.mp3": [
+  "ja-JP-NanamiNeural",
+  "四"
+ ],
+ "audio/ja/nombre-05.mp3": [
+  "ja-JP-NanamiNeural",
+  "五"
+ ],
+ "audio/ja/nombre-06.mp3": [
+  "ja-JP-NanamiNeural",
+  "六"
+ ],
+ "audio/ja/nombre-07.mp3": [
+  "ja-JP-NanamiNeural",
+  "七"
+ ],
+ "audio/ja/nombre-08.mp3": [
+  "ja-JP-NanamiNeural",
+  "八"
+ ],
+ "audio/ja/nombre-09.mp3": [
+  "ja-JP-NanamiNeural",
+  "九"
+ ],
+ "audio/ja/nombre-10.mp3": [
+  "ja-JP-NanamiNeural",
+  "十"
+ ],
+ "audio/ja/nombre-11.mp3": [
+  "ja-JP-NanamiNeural",
+  "百"
+ ],
+ "audio/ja/nombre-12.mp3": [
+  "ja-JP-NanamiNeural",
+  "千"
+ ],
+ "audio/ja/non.mp3": [
+  "ja-JP-NanamiNeural",
+  "いいえ"
+ ],
+ "audio/ja/oui.mp3": [
+  "ja-JP-NanamiNeural",
+  "はい"
+ ],
+ "audio/ja/pardon.mp3": [
+  "ja-JP-NanamiNeural",
+  "すみません"
+ ],
+ "audio/ja/pas_epice.mp3": [
+  "ja-JP-NanamiNeural",
+  "辛くしないでください"
+ ],
+ "audio/ja/regarder.mp3": [
+  "ja-JP-NanamiNeural",
+  "見ているだけです"
+ ],
+ "audio/ja/svp.mp3": [
+  "ja-JP-NanamiNeural",
+  "お願いします"
+ ],
+ "audio/ja/toilettes.mp3": [
+  "ja-JP-NanamiNeural",
+  "トイレはどこですか?"
+ ],
+ "audio/ja/trop_cher.mp3": [
+  "ja-JP-NanamiNeural",
+  "高すぎます"
+ ],
+ "audio/km/addition.mp3": [
+  "km-KH-SreymomNeural",
+  "គិតលុយ"
+ ],
+ "audio/km/aide.mp3": [
+  "km-KH-SreymomNeural",
+  "ជួយផង!"
+ ],
+ "audio/km/au_revoir.mp3": [
+  "km-KH-SreymomNeural",
+  "លាហើយ"
+ ],
+ "audio/km/baisser.mp3": [
+  "km-KH-SreymomNeural",
+  "ចុះថ្លៃបានទេ?"
+ ],
+ "audio/km/bonjour.mp3": [
+  "km-KH-SreymomNeural",
+  "ជំរាបសួរ"
+ ],
+ "audio/km/combien.mp3": [
+  "km-KH-SreymomNeural",
+  "ថ្លៃប៉ុន្មាន?"
+ ],
+ "audio/km/comprends_pas.mp3": [
+  "km-KH-SreymomNeural",
+  "ខ្ញុំមិនយល់ទេ"
+ ],
+ "audio/km/delicieux.mp3": [
+  "km-KH-SreymomNeural",
+  "ឆ្ងាញ់"
+ ],
+ "audio/km/eau.mp3": [
+  "km-KH-SreymomNeural",
+  "ទឹក"
+ ],
+ "audio/km/ici.mp3": [
+  "km-KH-SreymomNeural",
+  "ឈប់នៅទីនេះ"
+ ],
+ "audio/km/medecin.mp3": [
+  "km-KH-SreymomNeural",
+  "ខ្ញុំត្រូវការគ្រូពេទ្យ"
+ ],
+ "audio/km/merci.mp3": [
+  "km-KH-SreymomNeural",
+  "អរគុណ"
+ ],
+ "audio/km/nombre-01.mp3": [
+  "km-KH-SreymomNeural",
+  "មួយ"
+ ],
+ "audio/km/nombre-02.mp3": [
+  "km-KH-SreymomNeural",
+  "ពីរ"
+ ],
+ "audio/km/nombre-03.mp3": [
+  "km-KH-SreymomNeural",
+  "បី"
+ ],
+ "audio/km/nombre-04.mp3": [
+  "km-KH-SreymomNeural",
+  "បួន"
+ ],
+ "audio/km/nombre-05.mp3": [
+  "km-KH-SreymomNeural",
+  "ប្រាំ"
+ ],
+ "audio/km/nombre-06.mp3": [
+  "km-KH-SreymomNeural",
+  "ប្រាំមួយ"
+ ],
+ "audio/km/nombre-07.mp3": [
+  "km-KH-SreymomNeural",
+  "ប្រាំពីរ"
+ ],
+ "audio/km/nombre-08.mp3": [
+  "km-KH-SreymomNeural",
+  "ប្រាំបី"
+ ],
+ "audio/km/nombre-09.mp3": [
+  "km-KH-SreymomNeural",
+  "ប្រាំបួន"
+ ],
+ "audio/km/nombre-10.mp3": [
+  "km-KH-SreymomNeural",
+  "ដប់"
+ ],
+ "audio/km/nombre-11.mp3": [
+  "km-KH-SreymomNeural",
+  "មួយរយ"
+ ],
+ "audio/km/nombre-12.mp3": [
+  "km-KH-SreymomNeural",
+  "មួយពាន់"
+ ],
+ "audio/km/non.mp3": [
+  "km-KH-SreymomNeural",
+  "ទេ"
+ ],
+ "audio/km/oui.mp3": [
+  "km-KH-SreymomNeural",
+  "បាទ, ចាស"
+ ],
+ "audio/km/pardon.mp3": [
+  "km-KH-SreymomNeural",
+  "សុំទោស"
+ ],
+ "audio/km/pas_epice.mp3": [
+  "km-KH-SreymomNeural",
+  "កុំដាក់ហឹរ"
+ ],
+ "audio/km/regarder.mp3": [
+  "km-KH-SreymomNeural",
+  "ខ្ញុំគ្រាន់តែមើល"
+ ],
+ "audio/km/svp.mp3": [
+  "km-KH-SreymomNeural",
+  "សូម"
+ ],
+ "audio/km/toilettes.mp3": [
+  "km-KH-SreymomNeural",
+  "បង្គន់នៅឯណា?"
+ ],
+ "audio/km/trop_cher.mp3": [
+  "km-KH-SreymomNeural",
+  "ថ្លៃពេក"
+ ],
+ "audio/pt-BR/addition.mp3": [
+  "pt-BR-FranciscaNeural",
+  "A conta, por favor"
+ ],
+ "audio/pt-BR/aide.mp3": [
+  "pt-BR-FranciscaNeural",
+  "Socorro!"
+ ],
+ "audio/pt-BR/au_revoir.mp3": [
+  "pt-BR-FranciscaNeural",
+  "Tchau"
+ ],
+ "audio/pt-BR/baisser.mp3": [
+  "pt-BR-FranciscaNeural",
+  "Faz um desconto?"
+ ],
+ "audio/pt-BR/bonjour.mp3": [
+  "pt-BR-FranciscaNeural",
+  "Oi, Bom dia"
+ ],
+ "audio/pt-BR/combien.mp3": [
+  "pt-BR-FranciscaNeural",
+  "Quanto custa?"
+ ],
+ "audio/pt-BR/comprends_pas.mp3": [
+  "pt-BR-FranciscaNeural",
+  "Não entendo"
+ ],
+ "audio/pt-BR/delicieux.mp3": [
+  "pt-BR-FranciscaNeural",
+  "Delicioso!"
+ ],
+ "audio/pt-BR/eau.mp3": [
+  "pt-BR-FranciscaNeural",
+  "Água"
+ ],
+ "audio/pt-BR/ici.mp3": [
+  "pt-BR-FranciscaNeural",
+  "Pare aqui"
+ ],
+ "audio/pt-BR/medecin.mp3": [
+  "pt-BR-FranciscaNeural",
+  "Preciso de um médico"
+ ],
+ "audio/pt-BR/merci.mp3": [
+  "pt-BR-FranciscaNeural",
+  "Obrigado, Obrigada"
+ ],
+ "audio/pt-BR/nombre-01.mp3": [
+  "pt-BR-FranciscaNeural",
+  "um"
+ ],
+ "audio/pt-BR/nombre-02.mp3": [
+  "pt-BR-FranciscaNeural",
+  "dois"
+ ],
+ "audio/pt-BR/nombre-03.mp3": [
+  "pt-BR-FranciscaNeural",
+  "três"
+ ],
+ "audio/pt-BR/nombre-04.mp3": [
+  "pt-BR-FranciscaNeural",
+  "quatro"
+ ],
+ "audio/pt-BR/nombre-05.mp3": [
+  "pt-BR-FranciscaNeural",
+  "cinco"
+ ],
+ "audio/pt-BR/nombre-06.mp3": [
+  "pt-BR-FranciscaNeural",
+  "seis"
+ ],
+ "audio/pt-BR/nombre-07.mp3": [
+  "pt-BR-FranciscaNeural",
+  "sete"
+ ],
+ "audio/pt-BR/nombre-08.mp3": [
+  "pt-BR-FranciscaNeural",
+  "oito"
+ ],
+ "audio/pt-BR/nombre-09.mp3": [
+  "pt-BR-FranciscaNeural",
+  "nove"
+ ],
+ "audio/pt-BR/nombre-10.mp3": [
+  "pt-BR-FranciscaNeural",
+  "dez"
+ ],
+ "audio/pt-BR/nombre-11.mp3": [
+  "pt-BR-FranciscaNeural",
+  "cem"
+ ],
+ "audio/pt-BR/nombre-12.mp3": [
+  "pt-BR-FranciscaNeural",
+  "mil"
+ ],
+ "audio/pt-BR/non.mp3": [
+  "pt-BR-FranciscaNeural",
+  "Não"
+ ],
+ "audio/pt-BR/oui.mp3": [
+  "pt-BR-FranciscaNeural",
+  "Sim"
+ ],
+ "audio/pt-BR/pardon.mp3": [
+  "pt-BR-FranciscaNeural",
+  "Desculpe"
+ ],
+ "audio/pt-BR/pas_epice.mp3": [
+  "pt-BR-FranciscaNeural",
+  "Sem picante"
+ ],
+ "audio/pt-BR/regarder.mp3": [
+  "pt-BR-FranciscaNeural",
+  "Só estou olhando"
+ ],
+ "audio/pt-BR/svp.mp3": [
+  "pt-BR-FranciscaNeural",
+  "Por favor"
+ ],
+ "audio/pt-BR/toilettes.mp3": [
+  "pt-BR-FranciscaNeural",
+  "Onde fica o banheiro?"
+ ],
+ "audio/pt-BR/trop_cher.mp3": [
+  "pt-BR-FranciscaNeural",
+  "É muito caro"
+ ],
+ "audio/pt/addition.mp3": [
+  "pt-PT-RaquelNeural",
+  "A conta, por favor"
+ ],
+ "audio/pt/aide.mp3": [
+  "pt-PT-RaquelNeural",
+  "Socorro!"
+ ],
+ "audio/pt/au_revoir.mp3": [
+  "pt-PT-RaquelNeural",
+  "Adeus"
+ ],
+ "audio/pt/baisser.mp3": [
+  "pt-PT-RaquelNeural",
+  "Faz um desconto?"
+ ],
+ "audio/pt/bonjour.mp3": [
+  "pt-PT-RaquelNeural",
+  "Bom dia"
+ ],
+ "audio/pt/combien.mp3": [
+  "pt-PT-RaquelNeural",
+  "Quanto custa?"
+ ],
+ "audio/pt/comprends_pas.mp3": [
+  "pt-PT-RaquelNeural",
+  "Não percebo"
+ ],
+ "audio/pt/delicieux.mp3": [
+  "pt-PT-RaquelNeural",
+  "Delicioso!"
+ ],
+ "audio/pt/eau.mp3": [
+  "pt-PT-RaquelNeural",
+  "Água"
+ ],
+ "audio/pt/ici.mp3": [
+  "pt-PT-RaquelNeural",
+  "Pare aqui"
+ ],
+ "audio/pt/medecin.mp3": [
+  "pt-PT-RaquelNeural",
+  "Preciso de um médico"
+ ],
+ "audio/pt/merci.mp3": [
+  "pt-PT-RaquelNeural",
+  "Obrigado, Obrigada"
+ ],
+ "audio/pt/nombre-01.mp3": [
+  "pt-PT-RaquelNeural",
+  "um"
+ ],
+ "audio/pt/nombre-02.mp3": [
+  "pt-PT-RaquelNeural",
+  "dois"
+ ],
+ "audio/pt/nombre-03.mp3": [
+  "pt-PT-RaquelNeural",
+  "três"
+ ],
+ "audio/pt/nombre-04.mp3": [
+  "pt-PT-RaquelNeural",
+  "quatro"
+ ],
+ "audio/pt/nombre-05.mp3": [
+  "pt-PT-RaquelNeural",
+  "cinco"
+ ],
+ "audio/pt/nombre-06.mp3": [
+  "pt-PT-RaquelNeural",
+  "seis"
+ ],
+ "audio/pt/nombre-07.mp3": [
+  "pt-PT-RaquelNeural",
+  "sete"
+ ],
+ "audio/pt/nombre-08.mp3": [
+  "pt-PT-RaquelNeural",
+  "oito"
+ ],
+ "audio/pt/nombre-09.mp3": [
+  "pt-PT-RaquelNeural",
+  "nove"
+ ],
+ "audio/pt/nombre-10.mp3": [
+  "pt-PT-RaquelNeural",
+  "dez"
+ ],
+ "audio/pt/nombre-11.mp3": [
+  "pt-PT-RaquelNeural",
+  "cem"
+ ],
+ "audio/pt/nombre-12.mp3": [
+  "pt-PT-RaquelNeural",
+  "mil"
+ ],
+ "audio/pt/non.mp3": [
+  "pt-PT-RaquelNeural",
+  "Não"
+ ],
+ "audio/pt/oui.mp3": [
+  "pt-PT-RaquelNeural",
+  "Sim"
+ ],
+ "audio/pt/pardon.mp3": [
+  "pt-PT-RaquelNeural",
+  "Desculpe"
+ ],
+ "audio/pt/pas_epice.mp3": [
+  "pt-PT-RaquelNeural",
+  "Sem picante"
+ ],
+ "audio/pt/regarder.mp3": [
+  "pt-PT-RaquelNeural",
+  "Só estou a ver"
+ ],
+ "audio/pt/svp.mp3": [
+  "pt-PT-RaquelNeural",
+  "Por favor"
+ ],
+ "audio/pt/toilettes.mp3": [
+  "pt-PT-RaquelNeural",
+  "Onde é a casa de banho?"
+ ],
+ "audio/pt/trop_cher.mp3": [
+  "pt-PT-RaquelNeural",
+  "É muito caro"
+ ],
+ "audio/th/addition.mp3": [
+  "th-TH-PremwadeeNeural",
+  "เช็คบิล"
+ ],
+ "audio/th/aide.mp3": [
+  "th-TH-PremwadeeNeural",
+  "ช่วยด้วย"
+ ],
+ "audio/th/au_revoir.mp3": [
+  "th-TH-PremwadeeNeural",
+  "ลาก่อน"
+ ],
+ "audio/th/baisser.mp3": [
+  "th-TH-PremwadeeNeural",
+  "ลดได้ไหม"
+ ],
+ "audio/th/bonjour.mp3": [
+  "th-TH-PremwadeeNeural",
+  "สวัสดีค่ะ"
+ ],
+ "audio/th/combien.mp3": [
+  "th-TH-PremwadeeNeural",
+  "เท่าไหร่"
+ ],
+ "audio/th/comprends_pas.mp3": [
+  "th-TH-PremwadeeNeural",
+  "ไม่เข้าใจ"
+ ],
+ "audio/th/delicieux.mp3": [
+  "th-TH-PremwadeeNeural",
+  "อร่อย"
+ ],
+ "audio/th/eau.mp3": [
+  "th-TH-PremwadeeNeural",
+  "น้ำเปล่า"
+ ],
+ "audio/th/ici.mp3": [
+  "th-TH-PremwadeeNeural",
+  "จอดที่นี่"
+ ],
+ "audio/th/medecin.mp3": [
+  "th-TH-PremwadeeNeural",
+  "ต้องการหมอ"
+ ],
+ "audio/th/merci.mp3": [
+  "th-TH-PremwadeeNeural",
+  "ขอบคุณค่ะ"
+ ],
+ "audio/th/nombre-01.mp3": [
+  "th-TH-PremwadeeNeural",
+  "หนึ่ง"
+ ],
+ "audio/th/nombre-02.mp3": [
+  "th-TH-PremwadeeNeural",
+  "สอง"
+ ],
+ "audio/th/nombre-03.mp3": [
+  "th-TH-PremwadeeNeural",
+  "สาม"
+ ],
+ "audio/th/nombre-04.mp3": [
+  "th-TH-PremwadeeNeural",
+  "สี่"
+ ],
+ "audio/th/nombre-05.mp3": [
+  "th-TH-PremwadeeNeural",
+  "ห้า"
+ ],
+ "audio/th/nombre-06.mp3": [
+  "th-TH-PremwadeeNeural",
+  "หก"
+ ],
+ "audio/th/nombre-07.mp3": [
+  "th-TH-PremwadeeNeural",
+  "เจ็ด"
+ ],
+ "audio/th/nombre-08.mp3": [
+  "th-TH-PremwadeeNeural",
+  "แปด"
+ ],
+ "audio/th/nombre-09.mp3": [
+  "th-TH-PremwadeeNeural",
+  "เก้า"
+ ],
+ "audio/th/nombre-10.mp3": [
+  "th-TH-PremwadeeNeural",
+  "สิบ"
+ ],
+ "audio/th/nombre-11.mp3": [
+  "th-TH-PremwadeeNeural",
+  "หนึ่งร้อย"
+ ],
+ "audio/th/nombre-12.mp3": [
+  "th-TH-PremwadeeNeural",
+  "หนึ่งพัน"
+ ],
+ "audio/th/non.mp3": [
+  "th-TH-PremwadeeNeural",
+  "ไม่ใช่"
+ ],
+ "audio/th/oui.mp3": [
+  "th-TH-PremwadeeNeural",
+  "ใช่"
+ ],
+ "audio/th/pardon.mp3": [
+  "th-TH-PremwadeeNeural",
+  "ขอโทษ"
+ ],
+ "audio/th/pas_epice.mp3": [
+  "th-TH-PremwadeeNeural",
+  "ไม่เผ็ด"
+ ],
+ "audio/th/regarder.mp3": [
+  "th-TH-PremwadeeNeural",
+  "ดูก่อน"
+ ],
+ "audio/th/svp.mp3": [
+  "th-TH-PremwadeeNeural",
+  "กรุณา"
+ ],
+ "audio/th/toilettes.mp3": [
+  "th-TH-PremwadeeNeural",
+  "ห้องน้ำอยู่ที่ไหน"
+ ],
+ "audio/th/trop_cher.mp3": [
+  "th-TH-PremwadeeNeural",
+  "แพงไป"
+ ],
+ "audio/tr/addition.mp3": [
+  "tr-TR-EmelNeural",
+  "Hesap lütfen"
+ ],
+ "audio/tr/aide.mp3": [
+  "tr-TR-EmelNeural",
+  "İmdat!"
+ ],
+ "audio/tr/au_revoir.mp3": [
+  "tr-TR-EmelNeural",
+  "Hoşça kalın"
+ ],
+ "audio/tr/baisser.mp3": [
+  "tr-TR-EmelNeural",
+  "İndirim olur mu?"
+ ],
+ "audio/tr/bonjour.mp3": [
+  "tr-TR-EmelNeural",
+  "Merhaba"
+ ],
+ "audio/tr/combien.mp3": [
+  "tr-TR-EmelNeural",
+  "Ne kadar?"
+ ],
+ "audio/tr/comprends_pas.mp3": [
+  "tr-TR-EmelNeural",
+  "Anlamıyorum"
+ ],
+ "audio/tr/delicieux.mp3": [
+  "tr-TR-EmelNeural",
+  "Çok lezzetli"
+ ],
+ "audio/tr/eau.mp3": [
+  "tr-TR-EmelNeural",
+  "Su"
+ ],
+ "audio/tr/ici.mp3": [
+  "tr-TR-EmelNeural",
+  "Burada durun"
+ ],
+ "audio/tr/medecin.mp3": [
+  "tr-TR-EmelNeural",
+  "Doktora ihtiyacım var"
+ ],
+ "audio/tr/merci.mp3": [
+  "tr-TR-EmelNeural",
+  "Teşekkür ederim"
+ ],
+ "audio/tr/nombre-01.mp3": [
+  "tr-TR-EmelNeural",
+  "bir"
+ ],
+ "audio/tr/nombre-02.mp3": [
+  "tr-TR-EmelNeural",
+  "iki"
+ ],
+ "audio/tr/nombre-03.mp3": [
+  "tr-TR-EmelNeural",
+  "üç"
+ ],
+ "audio/tr/nombre-04.mp3": [
+  "tr-TR-EmelNeural",
+  "dört"
+ ],
+ "audio/tr/nombre-05.mp3": [
+  "tr-TR-EmelNeural",
+  "beş"
+ ],
+ "audio/tr/nombre-06.mp3": [
+  "tr-TR-EmelNeural",
+  "altı"
+ ],
+ "audio/tr/nombre-07.mp3": [
+  "tr-TR-EmelNeural",
+  "yedi"
+ ],
+ "audio/tr/nombre-08.mp3": [
+  "tr-TR-EmelNeural",
+  "sekiz"
+ ],
+ "audio/tr/nombre-09.mp3": [
+  "tr-TR-EmelNeural",
+  "dokuz"
+ ],
+ "audio/tr/nombre-10.mp3": [
+  "tr-TR-EmelNeural",
+  "on"
+ ],
+ "audio/tr/nombre-11.mp3": [
+  "tr-TR-EmelNeural",
+  "yüz"
+ ],
+ "audio/tr/nombre-12.mp3": [
+  "tr-TR-EmelNeural",
+  "bin"
+ ],
+ "audio/tr/non.mp3": [
+  "tr-TR-EmelNeural",
+  "Hayır"
+ ],
+ "audio/tr/oui.mp3": [
+  "tr-TR-EmelNeural",
+  "Evet"
+ ],
+ "audio/tr/pardon.mp3": [
+  "tr-TR-EmelNeural",
+  "Affedersiniz"
+ ],
+ "audio/tr/pas_epice.mp3": [
+  "tr-TR-EmelNeural",
+  "Acısız olsun"
+ ],
+ "audio/tr/regarder.mp3": [
+  "tr-TR-EmelNeural",
+  "Sadece bakıyorum"
+ ],
+ "audio/tr/svp.mp3": [
+  "tr-TR-EmelNeural",
+  "Lütfen"
+ ],
+ "audio/tr/toilettes.mp3": [
+  "tr-TR-EmelNeural",
+  "Tuvalet nerede?"
+ ],
+ "audio/tr/trop_cher.mp3": [
+  "tr-TR-EmelNeural",
+  "Çok pahalı"
+ ],
+ "audio/vi/addition.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "Tính tiền"
+ ],
+ "audio/vi/aide.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "Cứu tôi với!"
+ ],
+ "audio/vi/au_revoir.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "Tạm biệt"
+ ],
+ "audio/vi/baisser.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "Bớt đi được không?"
+ ],
+ "audio/vi/bonjour.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "Xin chào"
+ ],
+ "audio/vi/combien.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "Bao nhiêu tiền?"
+ ],
+ "audio/vi/comprends_pas.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "Tôi không hiểu"
+ ],
+ "audio/vi/delicieux.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "Ngon quá!"
+ ],
+ "audio/vi/eau.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "Nước"
+ ],
+ "audio/vi/ici.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "Dừng ở đây"
+ ],
+ "audio/vi/medecin.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "Tôi cần bác sĩ"
+ ],
+ "audio/vi/merci.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "Cảm ơn"
+ ],
+ "audio/vi/nombre-01.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "một"
+ ],
+ "audio/vi/nombre-02.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "hai"
+ ],
+ "audio/vi/nombre-03.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "ba"
+ ],
+ "audio/vi/nombre-04.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "bốn"
+ ],
+ "audio/vi/nombre-05.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "năm"
+ ],
+ "audio/vi/nombre-06.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "sáu"
+ ],
+ "audio/vi/nombre-07.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "bảy"
+ ],
+ "audio/vi/nombre-08.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "tám"
+ ],
+ "audio/vi/nombre-09.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "chín"
+ ],
+ "audio/vi/nombre-10.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "mười"
+ ],
+ "audio/vi/nombre-11.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "một trăm"
+ ],
+ "audio/vi/nombre-12.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "một nghìn"
+ ],
+ "audio/vi/non.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "Không"
+ ],
+ "audio/vi/oui.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "Vâng"
+ ],
+ "audio/vi/pardon.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "Xin lỗi"
+ ],
+ "audio/vi/pas_epice.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "Không cay"
+ ],
+ "audio/vi/regarder.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "Tôi chỉ xem thôi"
+ ],
+ "audio/vi/svp.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "Làm ơn"
+ ],
+ "audio/vi/toilettes.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "Nhà vệ sinh ở đâu?"
+ ],
+ "audio/vi/trop_cher.mp3": [
+  "vi-VN-HoaiMyNeural",
+  "Đắt quá!"
+ ]
+}
