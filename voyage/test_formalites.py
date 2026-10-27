@@ -135,7 +135,7 @@ def test_onglet_avant_de_partir_separe_et_en_dernier():
     nav = html.split('<nav class="tabs">')[1].split("</nav>")[0]
     assert nav.index('data-owner="Partagé"') < nav.index('data-owner="Julien"') < nav.index('data-owner="Avant de partir"')
     assert nav.find('<button data-owner="Partagé"') == 0          # Partagé en premier : l'onglet ouvert
-    assert '<section data-owner="Avant de partir" class="avant">' in html
+    assert '<section data-owner="Avant de partir" class="avant" hidden>' in html
     partage = html.split('<section data-owner="Partagé">')[1].split("</section>")[0]
     assert "visa-KH" not in partage
 
@@ -293,3 +293,14 @@ def test_passeport_ok_jamais_en_retard():
     html = valise_en_html({"Partagé": paquet_vide()}, "X", 18, set(), code="c", taches=taches)
     li = html.split("Partagé/Avant de partir/passeport")[0].rsplit("<li", 1)[1]
     assert "data-quand" not in li and 'class="tache ok"' in li
+
+
+def test_page_arrive_deja_ouverte_sur_partage():
+    """Pas de flash à l'ouverture : seul Partagé est visible avant même le JavaScript."""
+    html = page_vn_kh()
+    assert '<section data-owner="Partagé">' in html                       # visible
+    assert '<section data-owner="Julien" hidden>' in html
+    assert '<section data-owner="Avant de partir" class="avant" hidden>' in html
+    assert '<button data-owner="Partagé" class="actif">' in html
+    assert html.index('<section data-owner="Julien"') < html.index('<section data-owner="Avant de partir"')
+    assert "s.hidden = " in HTML_SCRIPT                                    # les onglets basculent hidden
