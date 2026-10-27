@@ -292,8 +292,8 @@ def lire_passeports(conn):
 
 
 def remplacer_voyage(conn, ancien, nouveau):
-    """Voyage modifié dont le code a changé (date ou étapes) : les cases cochées et le bilan
-    suivent le nouveau code, puis l'ancien est archivé (rien n'est supprimé)."""
+    """Voyage modifié dont le code a changé (date ou étapes) : les cases cochées, le bilan et les
+    infos des étapes suivent le nouveau code, puis l'ancien est archivé (rien n'est supprimé)."""
     with conn.cursor() as cur:
         cur.execute("""INSERT INTO etat_case (voyage, proprietaire, theme, objet, coche, maj_le)
                        SELECT %s, proprietaire, theme, objet, coche, maj_le FROM etat_case WHERE voyage = %s
@@ -303,6 +303,11 @@ def remplacer_voyage(conn, ancien, nouveau):
                        SELECT %s, proprietaire, objet, verdict, quantite_utilisee, maj_le FROM retours
                        WHERE voyage = %s ON CONFLICT DO NOTHING""", (nouveau, ancien))
         cur.execute("DELETE FROM retours WHERE voyage = %s", (ancien,))
+        cur.execute("""INSERT INTO infos_etape (voyage, destination, rang, hebergement, adresse, reservation,
+                                                arrivee, notes, maj_le)
+                       SELECT %s, destination, rang, hebergement, adresse, reservation, arrivee, notes, maj_le
+                       FROM infos_etape WHERE voyage = %s ON CONFLICT DO NOTHING""", (nouveau, ancien))
+        cur.execute("DELETE FROM infos_etape WHERE voyage = %s", (ancien,))
         cur.execute("UPDATE voyages SET archive = true WHERE code = %s", (ancien,))
     conn.commit()
 
@@ -361,3 +366,29 @@ def emprunter(nom_base="valise"):
         pool.putconn(conn, close=True)             # morte : on la jette, le pool en ouvre une neuve
         conn = pool.getconn()
     return ConnexionEmpruntee(pool, conn)
+
+
+
+# --- Infos de chaque étape (rubrique Sur place) ----------------------------------------------
+CHAMPS_ETAPE = ("hebergement", "adresse", "reservation", "arrivee", "notes")
+
+
+def enregistrer_infos_etape(conn, voyage, destination, rang, champs):
+    """Remplace la fiche d'une étape (champs absents = vides)."""
+    valeurs = [str(champs.get(c) or "") for c in CHAMPS_ETAPE]
+    with conn.cursor() as cur:
+        cur.execute(
+            f"""INSERT INTO infos_etape (voyage, destination, rang, {", ".join(CHAMPS_ETAPE)})
+                VALUES (%s, %s, %s, {", ".join(["%s"] * len(CHAMPS_ETAPE))})
+                ON CONFLICT (voyage, destination, rang) DO UPDATE SET
+                {", ".join(f"{c} = EXCLUDED.{c}" for c in CHAMPS_ETAPE)}, maj_le = now()""",
+            (voyage, destination, rang, *valeurs))
+    conn.commit()
+
+
+def lire_infos_etapes(conn, voyage):
+    """[{"destination", "rang", <champs>}] du voyage."""
+    with conn.cursor() as cur:
+        cur.execute(f"SELECT destination, rang, {', '.join(CHAMPS_ETAPE)} FROM infos_etape "
+                    "WHERE voyage = %s ORDER BY destination, rang", (voyage,))
+        return [dict(zip(("destination", "rang", *CHAMPS_ETAPE), ligne)) for ligne in cur.fetchall()]

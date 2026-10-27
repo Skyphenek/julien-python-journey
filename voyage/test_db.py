@@ -17,7 +17,7 @@ from valise import normales_avec_cache
 def conn():
     connexion = connecter("valise_test")
     with connexion.cursor() as cur:
-        cur.execute("TRUNCATE etat_case, normales_climat, page_valise, voyages, valise_objets, retours, regles_perso, passeports")
+        cur.execute("TRUNCATE etat_case, normales_climat, page_valise, voyages, valise_objets, retours, regles_perso, passeports, infos_etape")
     connexion.commit()
     yield connexion
     connexion.close()

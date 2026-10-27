@@ -15,7 +15,7 @@ import psycopg2
 from dotenv import load_dotenv
 from flask import Blueprint, Flask, jsonify, request, Response
 
-from db import (emprunter, obtenir_etat, enregistrer_coche, lister_voyages, lire_voyage, archiver_voyage,
+from db import (emprunter, enregistrer_infos_etape, lire_infos_etapes, CHAMPS_ETAPE, obtenir_etat, enregistrer_coche, lister_voyages, lire_voyage, archiver_voyage,
                 VERDICTS, enregistrer_retour, supprimer_retour, lire_retours)
 from valise import (actualiser_meteo, fenetres_du_voyage, page_du_voyage, accueil_en_html,
                     lieux_depuis_reponse, normales_ou_url, normales_depuis_historique,
@@ -164,6 +164,34 @@ def creer_app(nom_base="valise", secret=None):
         if "manquantes" in resultat:
             return jsonify(resultat), 409
         return jsonify({"code": resultat["code"], "url": "?v=" + quote(resultat["code"])}), 201
+
+    @routes.get("/api/infos/<voyage>")
+    def infos_etapes(voyage):
+        """Les fiches des étapes (hôtel, adresse…) : lues par la page à l'ouverture."""
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            return jsonify(lire_infos_etapes(conn, voyage))
+        finally:
+            conn.close()
+
+    @routes.post("/api/infos")
+    def infos_etape():
+        """Enregistre la fiche d'une étape. Texte libre, longueur bornée."""
+        corps = request.get_json(silent=True) or {}
+        destination, rang = corps.get("destination"), corps.get("rang")
+        if not isinstance(destination, str) or not destination or type(rang) is not int or not 1 <= rang <= 20:
+            return jsonify({"erreur": "étape invalide"}), 400
+        champs = {c: corps.get(c) or "" for c in CHAMPS_ETAPE}
+        if any(not isinstance(v, str) or len(v) > (2000 if c == "notes" else 300) for c, v in champs.items()):
+            return jsonify({"erreur": "champ trop long ou invalide"}), 400
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            if lire_voyage(conn, corps.get("voyage")) is None:
+                return jsonify({"erreur": "voyage inconnu"}), 404
+            enregistrer_infos_etape(conn, corps["voyage"], destination, rang, champs)
+        finally:
+            conn.close()
+        return jsonify({"ok": True})
 
     @routes.post("/api/voyages/<code>/archiver")
     def retirer(code):

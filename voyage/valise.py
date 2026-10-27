@@ -100,6 +100,16 @@ div.info ul { list-style: none; padding: 0; margin: 0; }
 div.info li { padding: .35rem 0; }
 div.info .horloge { display: block; font-size: .8rem; color: var(--doux); font-variant-numeric: tabular-nums; }
 div.info p.conseil { font-size: .85rem; color: var(--doux); margin: .5rem 0 0; }
+div.etapes li.etape { border-top: 1px solid var(--ligne); padding: .6rem 0; }
+div.etapes li.etape:first-child { border-top: none; }
+div.etapes .dates { font-size: .8rem; color: var(--doux); }
+div.etapes .fiche { font-size: .9rem; margin-top: .3rem; }
+div.etapes .fiche p { margin: .15rem 0; overflow-wrap: anywhere; }
+div.etapes .fiche .vide-fiche { color: var(--doux); }
+div.etapes form label { display: block; font-size: .8rem; color: var(--doux); margin: .35rem 0; }
+div.etapes form input, div.etapes form textarea { display: block; width: 100%; box-sizing: border-box; font-size: 1rem;
+    padding: .4rem .5rem; border: 1px solid var(--ligne); border-radius: 8px; background: var(--fond); color: var(--texte); }
+div.etapes .actions { display: flex; gap: .4rem; margin-top: .4rem; }
 div.devises .taux { display: block; font-size: .8rem; color: var(--doux); font-variant-numeric: tabular-nums; }
 div.devises .convertisseur { display: flex; align-items: center; gap: .3rem; margin-top: .3rem; font-size: .9rem; }
 div.devises .convertisseur input { width: 7.5rem; min-width: 0; font-size: 1rem; padding: .35rem .5rem;
@@ -506,6 +516,86 @@ function majHorloges() {
 }
 majHorloges();
 setInterval(majHorloges, 30000);
+
+// Infos de chaque étape (hôtel, adresse, réservation…) : saisies à deux, synchronisées par le
+// serveur (api/infos), gardées sur le téléphone pour rester lisibles sans réseau. Tout le texte
+// saisi est affiché en textContent (jamais en HTML).
+const CHAMPS_ETAPE = [['hebergement', '🏨 Hébergement'], ['adresse', '📍 Adresse'], ['reservation', '🎫 Réservation'],
+                      ['arrivee', '🕐 Arrivée'], ['notes', '📝 Notes']];
+let infosEtapes = {};
+let ficheEnCours = null;                                       // pas de rafraîchissement pendant une saisie
+function cleEtape(li) { return li.dataset.destination + '#' + li.dataset.rang; }
+function ligne(texte, enfant) { const p = document.createElement('p'); p.textContent = texte; if (enfant) p.append(enfant); return p; }
+function afficherFiche(li) {
+    const fiche = li.querySelector('.fiche'), info = infosEtapes[cleEtape(li)] || {};
+    fiche.replaceChildren();
+    CHAMPS_ETAPE.forEach(function (c) {
+        if (!info[c[0]]) return;
+        if (c[0] === 'adresse') {
+            const lien = document.createElement('a');
+            lien.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(info.adresse);
+            lien.target = '_blank'; lien.rel = 'noopener'; lien.textContent = ' ↗ Maps';
+            fiche.append(ligne(c[1] + ' : ' + info[c[0]], lien));
+        } else {
+            fiche.append(ligne(c[1] + ' : ' + info[c[0]]));
+        }
+    });
+    if (!fiche.children.length) { const v = ligne("Pas encore d'infos."); v.className = 'vide-fiche'; fiche.append(v); }
+    const bouton = document.createElement('button');
+    bouton.type = 'button'; bouton.className = 'ctrl-btn'; bouton.textContent = '✏️ Infos';
+    bouton.addEventListener('click', function () { editerFiche(li); });
+    fiche.append(bouton);
+}
+function editerFiche(li) {
+    ficheEnCours = cleEtape(li);
+    const fiche = li.querySelector('.fiche'), info = infosEtapes[cleEtape(li)] || {};
+    const form = document.createElement('form');
+    CHAMPS_ETAPE.forEach(function (c) {
+        const label = document.createElement('label');
+        const champ = document.createElement(c[0] === 'notes' ? 'textarea' : 'input');
+        champ.name = c[0]; champ.value = info[c[0]] || ''; champ.maxLength = c[0] === 'notes' ? 2000 : 300;
+        label.append(c[1], champ);
+        form.append(label);
+    });
+    const actions = document.createElement('div'); actions.className = 'actions';
+    const ok = document.createElement('button'); ok.type = 'submit'; ok.className = 'ctrl-btn'; ok.textContent = 'Enregistrer';
+    const annuler = document.createElement('button'); annuler.type = 'button'; annuler.className = 'ctrl-btn'; annuler.textContent = 'Annuler';
+    annuler.addEventListener('click', function () { ficheEnCours = null; afficherFiche(li); });
+    actions.append(ok, annuler); form.append(actions);
+    form.addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        const corps = { voyage: VOYAGE, destination: li.dataset.destination, rang: Number(li.dataset.rang) };
+        CHAMPS_ETAPE.forEach(function (c) { corps[c[0]] = form.elements[c[0]].value.trim(); });
+        ok.disabled = true; ok.textContent = '⏳';
+        fetch('api/infos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) })
+            .then(function (r) { if (!r.ok) throw new Error(r.status); })
+            .then(function () {
+                infosEtapes[cleEtape(li)] = corps; garderInfos(); ficheEnCours = null; afficherFiche(li);
+            })
+            .catch(function () { ok.disabled = false; ok.textContent = '⚠️ Échec, réessaie'; });
+    });
+    fiche.replaceChildren(form);
+}
+function garderInfos() { try { localStorage.setItem('infos:' + VOYAGE, JSON.stringify(infosEtapes)); } catch (e) {} }
+function afficherEtapes() {
+    document.querySelectorAll('div.etapes li.etape').forEach(function (li) { if (cleEtape(li) !== ficheEnCours) afficherFiche(li); });
+}
+function chargerInfos() {
+    if (!document.querySelector('div.etapes') || ficheEnCours) return;
+    fetch('api/infos/' + encodeURIComponent(VOYAGE))
+        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+        .then(function (liste) {
+            infosEtapes = {};
+            liste.forEach(function (i) { infosEtapes[i.destination + '#' + i.rang] = i; });
+            garderInfos(); afficherEtapes();
+        })
+        .catch(function () {                                   // hors ligne : la dernière copie connue
+            try { infosEtapes = JSON.parse(localStorage.getItem('infos:' + VOYAGE) || '{}'); } catch (e) {}
+            afficherEtapes();
+        });
+}
+chargerInfos();
+document.addEventListener('visibilitychange', function () { if (!document.hidden) chargerInfos(); });
 
 // Devises : taux du jour (euro -> devise) téléchargés par le téléphone une fois par jour,
 // gardés pour le hors-ligne. Deux adresses de la même source, la seconde en secours.
@@ -1496,8 +1586,8 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # 4 = puce « bagage cabine » ; 5 = onglet Formalités en dernier ; 6 = ouverte sur Partagé sans flash ;
 # 7 = hub en rubriques ; 8 = décalage horaire dans Sur place ; 9 = météo automatique à J-10 ;
 # 10 = horloges calculées depuis la base du serveur (pas celle du téléphone) ; 11 = devises ;
-# 12 = « fermer la maison » dans Avant.
-VERSION_PAGE = 12
+# 12 = « fermer la maison » dans Avant ; 13 = infos de chaque étape dans Sur place.
+VERSION_PAGE = 13
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
 RUBRIQUES = [("valise", "🧳 Valise"), ("avant", "🛂 Avant"), ("sur-place", "📍 Sur place"),
@@ -1505,6 +1595,28 @@ RUBRIQUES = [("valise", "🧳 Valise"), ("avant", "🛂 Avant"), ("sur-place", "
 A_VENIR = {"sur-place": "Bientôt : devises, décalage horaire, vocabulaire, visites à faire.",
            "souvenirs": "Bientôt : les souvenirs à rapporter, et pour qui."}
 MARQUE_VERSION = f'<meta name="valise-version" content="{VERSION_PAGE}">'
+
+
+# --- Sur place : infos de chaque étape (hôtel, adresse, réservation) -----------------------
+def etapes_du_voyage(itineraire, depart):
+    """[{"destination", "rang", "du", "au"}] : rang = 1re, 2e… visite de la même ville."""
+    etapes, vues, debut = [], {}, depart
+    for etape in itineraire:
+        vues[etape["destination"]] = vues.get(etape["destination"], 0) + 1
+        fin = debut + timedelta(days=etape["jours"] - 1)
+        etapes.append({"destination": etape["destination"], "rang": vues[etape["destination"]],
+                       "du": debut, "au": fin})
+        debut = fin + timedelta(days=1)
+    return etapes
+
+
+def bloc_etapes(etapes):
+    """Le bloc « Étapes » : les fiches sont remplies et modifiées par le script (api/infos)."""
+    lignes = "".join(f'<li class="etape" data-destination="{echapper(e["destination"])}" data-rang="{e["rang"]}">'
+                     f'<strong>{echapper(e["destination"], quote=False)}</strong> '
+                     f'<span class="dates">{e["du"]:%d/%m} → {e["au"]:%d/%m}</span>'
+                     f'<div class="fiche"></div></li>' for e in etapes)
+    return f'<div class="info etapes"><h3>🏨 Étapes</h3><ul>{lignes}</ul></div>'
 
 
 # --- Sur place : décalage horaire ---------------------------------------------------------
@@ -1698,7 +1810,7 @@ def rayon_avant_de_partir(taches, cle_voyage):
 
 def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=None, depart=None,
                    taches=None, cabine=False, fuseaux=None, meteo_du=None, jour=None, devises=None,
-                   maison=None):
+                   maison=None, etapes=None):
     """Construire la page HTML de la checklist pour l'itinéraire complet.
 
     climats : liste optionnelle de (destination, mois, normales) — une puce par étape.
@@ -1778,7 +1890,8 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
                   else '<p class="vide">Rien à préparer pour ce voyage : la carte d\'identité suffit.</p>'),
         **{r: f'<p class="vide">{texte}</p>' for r, texte in A_VENIR.items()},
     }
-    blocs_sur_place = ((bloc_decalage(fuseaux, jour or date.today()) if fuseaux else "")
+    blocs_sur_place = ((bloc_etapes(etapes) if etapes else "")
+                       + (bloc_decalage(fuseaux, jour or date.today()) if fuseaux else "")
                        + (bloc_devises(devises) if devises else ""))
     if blocs_sur_place:
         contenus["sur-place"] = blocs_sur_place + '<p class="vide">Bientôt : vocabulaire, visites à faire.</p>'
@@ -2067,7 +2180,8 @@ def rendre_page(voyage, c, aujourd_hui=None, passeports=None):
                                         if e.get("prevision")), default=None),
                           jour=aujourd_hui or date.today(),
                           devises=devises_du_voyage(voyage["itineraire"]),
-                          maison=fermer_la_maison(c["total"], voyage["depart"]))
+                          maison=fermer_la_maison(c["total"], voyage["depart"]),
+                          etapes=etapes_du_voyage(voyage["itineraire"], voyage["depart"]))
 
 
 def fenetres_du_voyage(conn, code, aujourd_hui):
