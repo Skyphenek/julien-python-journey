@@ -1638,39 +1638,40 @@ def bloc_devises(devises):
 
 
 # --- Avant : fermer la maison ---------------------------------------------------------------
-# Générée selon la durée et la saison du voyage ; Gaïa à chaque fois.
+# Générée selon la durée et la saison du voyage. Gaïa reste seule jusqu'à 3 jours ; au-delà,
+# elle est gardée (la personne arrose aussi les plantes). Une gardienne dans l'immeuble : pas
+# d'Opération Tranquillité Vacances ni de garde du courrier, on la prévient.
 MARGE_CROQUETTES = 2                 # jours de provisions en plus de la durée du voyage
-OTV = "https://www.service-public.gouv.fr/particuliers/vosdroits/F34634"    # Opération Tranquillité Vacances
+GARDE_GAIA_DES = 4                   # jours de voyage à partir desquels Gaïa est gardée
 MOIS_CHAUFFAGE = {10, 11, 12, 1, 2, 3, 4}
 
 
 def fermer_la_maison(total, depart):
     """Les tâches pour fermer l'appartement, triées par échéance (même format que avant_de_partir)."""
     avant = lambda jours: depart - timedelta(days=jours)
+    retour = depart + timedelta(days=total - 1)
     taches = [
-        _tache("gaia-garde", avant(14), "Gaïa : réserver sa garde (proche ou pet-sitter), clés et consignes"),
-        _tache("gaia-provisions", avant(3), f"Gaïa : croquettes, litière et friandises pour {total + MARGE_CROQUETTES} "
-                                            f"jours ({total} jours de voyage + {MARGE_CROQUETTES} de marge)"),
-        _tache("gaia-fiche", avant(1), "Gaïa : fiche pour la personne qui la garde (repas, vétérinaire, "
-                                        "arthrose : pas de caresses sur le dos ni les hanches)"),
+        _tache("gaia-provisions", avant(3), f"Gaïa : croquettes, eau, litière propre et friandises pour "
+                                            f"{total + MARGE_CROQUETTES} jours ({total} jours de voyage + "
+                                            f"{MARGE_CROQUETTES} de marge)"),
         _tache("appareils", avant(0), "Débrancher box, télé et multiprises (sauf le frigo)"),
         _tache("poubelles", avant(0), "Sortir les poubelles"),
         _tache("fenetres", avant(0), "Fermer fenêtres et volets, porte à clé"),
     ]
-    if total >= 4:
-        taches.append(_tache("frigo", avant(1), "Vider le frigo des produits frais"))
+    if total >= GARDE_GAIA_DES:
+        taches += [
+            _tache("gaia-garde", avant(14), "Gaïa : réserver sa garde (proche ou pet-sitter), avec "
+                                            "l'arrosage des plantes ; clés et consignes"),
+            _tache("gaia-fiche", avant(1), "Gaïa : fiche pour la personne qui la garde (repas, vétérinaire, "
+                                            "arthrose : pas de caresses sur le dos ni les hanches, plantes)"),
+            _tache("gardienne", avant(2), f"Prévenir la gardienne : absents du {depart:%d/%m} au {retour:%d/%m}, "
+                                          f"courrier ; lui laisser un double des clés si besoin"),
+            _tache("frigo", avant(1), "Vider le frigo des produits frais"),
+        ]
     if depart.month in MOIS_CHAUFFAGE:
         taches.append(_tache("chauffage", avant(0), "Chauffage en mode absence (hors-gel)"))
     if total >= 7:
-        taches += [
-            _tache("tranquillite", avant(7), "Opération Tranquillité Vacances : inscription en ligne, au plus "
-                                             "tard 3 jours avant le départ (police à Paris)", OTV),
-            _tache("plantes", avant(2), "Confier l'arrosage des plantes"),
-            _tache("voisin", avant(2), "Prévenir un voisin, lui laisser un double des clés"),
-            _tache("eau", avant(0), "Couper l'arrivée d'eau"),
-        ]
-    if total >= 10:
-        taches.append(_tache("courrier", avant(7), "Courrier : le faire relever ou garder par La Poste"))
+        taches.append(_tache("eau", avant(0), "Couper l'arrivée d'eau"))
     return sorted(taches, key=lambda t: t["quand"])
 
 

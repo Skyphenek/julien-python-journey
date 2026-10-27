@@ -11,21 +11,28 @@ def ids(taches):
     return {t["id"] for t in taches}
 
 
-def test_court_sejour_d_ete():
+def test_court_sejour_gaia_reste_seule_avec_ses_provisions():
     t = fermer_la_maison(3, date(2027, 7, 1))
-    assert {"gaia-garde", "gaia-provisions", "gaia-fiche", "fenetres", "poubelles", "appareils"} <= ids(t)
-    assert not {"tranquillite", "courrier", "eau", "chauffage", "voisin", "frigo"} & ids(t)
+    assert {"gaia-provisions", "fenetres", "poubelles", "appareils"} <= ids(t)
+    assert not {"gaia-garde", "gaia-fiche", "gardienne", "eau", "chauffage", "frigo"} & ids(t)
     provisions = next(x for x in t if x["id"] == "gaia-provisions")
-    assert "5 jours" in provisions["texte"]                   # 3 jours de voyage + 2 de marge
+    assert "5 jours" in provisions["texte"] and "eau" in provisions["texte"]   # 3 jours + 2 de marge
+
+
+def test_garde_de_gaia_des_le_quatrieme_jour_avec_les_plantes():
+    t = {x["id"]: x for x in fermer_la_maison(4, date(2027, 7, 1))}
+    assert "gaia-garde" in t and "gaia-fiche" in t and "plantes" in t["gaia-garde"]["texte"]
+    assert "gardienne" in t
 
 
 def test_long_sejour_d_hiver():
     depart = date(2027, 1, 10)
     t = {x["id"]: x for x in fermer_la_maison(18, depart)}
-    assert {"tranquillite", "courrier", "eau", "chauffage", "voisin", "frigo", "plantes"} <= set(t)
+    assert {"gardienne", "eau", "chauffage", "frigo", "gaia-garde"} <= set(t)
+    assert not {"tranquillite", "courrier", "plantes", "voisin"} & set(t)    # gardienne dans l'immeuble
     assert t["gaia-garde"]["quand"] == depart - timedelta(days=14)
     assert t["fenetres"]["quand"] == depart
-    assert "Tranquillité Vacances" in t["tranquillite"]["texte"] and t["tranquillite"]["lien"].startswith("https://")
+    assert "du 10/01 au 27/01" in t["gardienne"]["texte"] and "courrier" in t["gardienne"]["texte"]
 
 
 def test_triee_par_echeance():
