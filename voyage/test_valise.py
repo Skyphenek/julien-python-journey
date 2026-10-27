@@ -1055,3 +1055,10 @@ def test_accueil_propose_une_nouvelle_valise():
 def test_formulaire_hidden_l_emporte_sur_le_style_des_labels():
     # bug vu dans Chrome : la ligne lessive restait affichée pour 3 jours
     assert "[hidden] { display: none !important; }" in formulaire_en_html()
+
+
+
+def test_page_porte_sa_version():
+    from valise import MARQUE_VERSION, VERSION_PAGE
+    assert VERSION_PAGE >= 2
+    assert MARQUE_VERSION in valise_en_html({"Partagé": paquet_vide()}, "Rome", 3, set())

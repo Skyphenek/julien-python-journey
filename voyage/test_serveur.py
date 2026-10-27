@@ -87,7 +87,8 @@ def test_page_du_voyage_servie_depuis_la_base(client):
     from db import enregistrer_voyage as ev
     conn = connecter("valise_test")
     ev(conn, "2026-12-30 Rome", "Rome", d(2026, 12, 30), ["Julien"], [{"destination": "Rome", "jours": 3}], {})
-    publier_page(conn, "<html>valise en base</html>", cle="2026-12-30 Rome")
+    from valise import MARQUE_VERSION
+    publier_page(conn, f"<html>{MARQUE_VERSION}valise en base</html>", cle="2026-12-30 Rome")
     conn.close()
     reponse = client.get("/?v=2026-12-30 Rome")
     assert reponse.status_code == 200
@@ -387,5 +388,27 @@ def test_page_republiee_utilise_les_passeports(client_meteo):
     conn = connecter("valise_test")
     try:
         assert "Julien jusqu'au 01/01/2099" in lire_page(conn, code)
+    finally:
+        conn.close()
+
+
+
+def test_page_d_une_ancienne_version_refaite_depuis_la_photo(client):
+    """Après une mise en ligne qui change les pages, les pages stockées se mettent à jour seules."""
+    from db import enregistrer_voyage as ev, enregistrer_valise_objets
+    from valise import MARQUE_VERSION
+    conn = connecter("valise_test")
+    itin = [{"destination": "New York", "jours": 7, "mois": 5, "code_pays": "US", "activites": ["ville"],
+             "normales": None}]
+    ev(conn, "2027-05-27 New York", "New York", date(2027, 5, 27), ["Julien"], itin, {"ville": 7})
+    enregistrer_valise_objets(conn, "2027-05-27 New York",
+                              {"Julien": {"Divers": {"guide papier": 1}}})         # photo : l'objet ajouté reste
+    publier_page(conn, "<html>vieille page sans version</html>", cle="2027-05-27 New York")
+    conn.close()
+    html = client.get("/?v=2027-05-27 New York").get_data(as_text=True)
+    assert MARQUE_VERSION in html and "guide papier" in html and "esta-US" in html
+    conn = connecter("valise_test")
+    try:
+        assert MARQUE_VERSION in lire_page(conn, "2027-05-27 New York")             # republiée
     finally:
         conn.close()
