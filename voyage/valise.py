@@ -29,6 +29,7 @@ from db import (connecter, lire_normales, enregistrer_normales, publier_page,
 from dotenv import load_dotenv
 from formalites import FORMALITES, DIPLOMATIE
 from devises import DEVISE_PAR_PAYS
+from urgences import URGENCES
 
 # Fuseaux horaires : toujours la base du paquet tzdata (version figée dans requirements.txt),
 # jamais celle de la machine : celle de macOS ignorait encore le passage du Maroc à GMT
@@ -101,6 +102,10 @@ div.info ul { list-style: none; padding: 0; margin: 0; }
 div.info li { padding: .35rem 0; }
 div.info .horloge { display: block; font-size: .8rem; color: var(--doux); font-variant-numeric: tabular-nums; }
 div.info p.conseil { font-size: .85rem; color: var(--doux); margin: .5rem 0 0; }
+div.urgences h4 { font-size: .9rem; margin: .5rem 0 .2rem; }
+div.urgences h4 .source { font-weight: 400; font-size: .75rem; color: var(--accent); }
+div.urgences li { font-size: .9rem; padding: .15rem 0; }
+div.urgences li a { color: var(--accent); font-weight: 600; text-decoration: none; }
 div.etapes li.etape { border-top: 1px solid var(--ligne); padding: .6rem 0; }
 div.etapes li.etape:first-child { border-top: none; }
 div.etapes .dates { font-size: .8rem; color: var(--doux); }
@@ -1543,6 +1548,7 @@ def appliquer_regles(valise, regles):
 # 10. AVANT DE PARTIR — tâches datées déduites des pays (visa, passeport, santé, assurance).
 #     Rien pour un voyage en Europe (carte d'identité) ; règles par pays dans formalites.py.
 PASSEPORT_PAR_DEFAUT = 6        # mois après le retour, pour un pays hors table (prudence)
+ARIANE = "https://www.diplomatie.gouv.fr/fr/conseils-aux-voyageurs/"     # inscription au Fil d'Ariane
 FRAICHEUR_FORMALITES = 180      # jours : au-delà, la fiche pays est signalée « à revérifier »
 DELAIS = {"passeport": 60, "centre": 60, "medecin": 30, "visa": 30, "assurance": 14}   # jours avant le départ
 
@@ -1643,6 +1649,8 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
     sante = _tache_sante(connus, avant)
     if sante:
         taches.append(sante)
+    taches.append(_tache("ariane", avant(7), "S'inscrire au Fil d'Ariane (gratuit) : alertes sécurité du pays "
+                                             "et contact en cas de crise", ARIANE))
     texte = "Assurance voyage : hospitalisation et rapatriement"
     precisions = [f["assurance"] for f in connus if f["assurance"]]
     if precisions:
@@ -1672,8 +1680,8 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # 7 = hub en rubriques ; 8 = décalage horaire dans Sur place ; 9 = météo automatique à J-10 ;
 # 10 = horloges calculées depuis la base du serveur (pas celle du téléphone) ; 11 = devises ;
 # 12 = « fermer la maison » dans Avant ; 13 = infos de chaque étape dans Sur place ;
-# 14 = dépenses partagées.
-VERSION_PAGE = 14
+# 14 = dépenses partagées ; 15 = urgences du pays.
+VERSION_PAGE = 15
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
 RUBRIQUES = [("valise", "🧳 Valise"), ("avant", "🛂 Avant"), ("sur-place", "📍 Sur place"),
@@ -1703,6 +1711,61 @@ def bloc_etapes(etapes):
                      f'<span class="dates">{e["du"]:%d/%m} → {e["au"]:%d/%m}</span>'
                      f'<div class="fiche"></div></li>' for e in etapes)
     return f'<div class="info etapes"><h3>🏨 Étapes</h3><ul>{lignes}</ul></div>'
+
+
+# --- Sur place : urgences du pays -----------------------------------------------------------
+def lien_tel(numero):
+    """« +84 24 3944 57 00 » -> « tel:+842439445700 » (un tap pour appeler)."""
+    return "tel:" + "".join(c for c in numero if c.isdigit() or c == "+")
+
+
+def urgences_du_voyage(itineraire):
+    """[{"pays", "numeros", "ambassade", "autres", "lien"}], un par pays, dans l'ordre du voyage.
+
+    Toute étape dans l'UE / Schengen partage une seule entrée « 112 » ; pays hors table : un
+    renvoi vers France Diplomatie, sans numéro inventé.
+    """
+    vus, resultat = set(), []
+    for etape in itineraire:
+        code = etape.get("code_pays")
+        if statut_ue(code) == "ue":
+            cle = "UE"
+            entree = {"pays": "Union européenne", "numeros": [("Urgences (toute l'UE)", "112")],
+                      "ambassade": None, "autres": [], "lien": None}
+        elif code in URGENCES:
+            cle = code
+            entree = {"pays": FORMALITES[code]["pays"], **URGENCES[code],
+                      "lien": FORMALITES[code]["entree"].replace("entree-sejour", "contacts-utiles")}
+        else:
+            cle = code or etape["destination"]
+            entree = {"pays": f"{etape['destination']} ({code or '?'})", "numeros": [], "ambassade": None,
+                      "autres": [], "lien": DIPLOMATIE}
+        if cle not in vus:
+            vus.add(cle)
+            resultat.append(entree)
+    return resultat
+
+
+def bloc_urgences(urgences):
+    """Le bloc « Urgences » : numéros à un tap, ambassade, rappel de l'opposition bancaire."""
+    def appel(libelle, numero):
+        return (f'<li>{echapper(libelle, quote=False)} : <a href="{lien_tel(numero)}">'
+                f'{echapper(numero, quote=False)}</a></li>')
+    corps = ""
+    for u in urgences:
+        lignes = "".join(appel(l, n) for l, n in u["numeros"])
+        a = u["ambassade"]
+        if a:
+            tel = f' · <a href="{lien_tel(a["telephone"])}">{a["telephone"]}</a>' if a["telephone"] else ""
+            lignes += f'<li>🇫🇷 Ambassade ({echapper(a["ville"], quote=False)}) : {echapper(a["adresse"], quote=False)}{tel}</li>'
+        lignes += "".join(appel(l, n) for l, n in u["autres"])
+        lien = f' <a class="source" href="{u["lien"]}" target="_blank" rel="noopener">contacts officiels ↗</a>' if u["lien"] else ""
+        if not lignes:
+            lignes = '<li>Pas de numéros dans notre table : voir les contacts officiels.</li>'
+        corps += f'<h4>{echapper(u["pays"], quote=False)}{lien}</h4><ul>{lignes}</ul>'
+    return (f'<div class="info urgences"><h3>🆘 Urgences</h3>{corps}'
+            f'<p class="conseil">💳 Carte perdue ou volée : appelle le numéro d\'opposition de ta banque '
+            f'(dans son appli ou au dos de la carte), à noter avant de partir.</p></div>')
 
 
 # --- Sur place : dépenses partagées --------------------------------------------------------
@@ -1950,7 +2013,7 @@ def rayon_avant_de_partir(taches, cle_voyage):
 
 def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=None, depart=None,
                    taches=None, cabine=False, fuseaux=None, meteo_du=None, jour=None, devises=None,
-                   maison=None, etapes=None, personnes=None):
+                   maison=None, etapes=None, personnes=None, urgences=None):
     """Construire la page HTML de la checklist pour l'itinéraire complet.
 
     climats : liste optionnelle de (destination, mois, normales) — une puce par étape.
@@ -2030,7 +2093,8 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
                   else '<p class="vide">Rien à préparer pour ce voyage : la carte d\'identité suffit.</p>'),
         **{r: f'<p class="vide">{texte}</p>' for r, texte in A_VENIR.items()},
     }
-    blocs_sur_place = ((bloc_etapes(etapes) if etapes else "")
+    blocs_sur_place = ((bloc_urgences(urgences) if urgences else "")
+                       + (bloc_etapes(etapes) if etapes else "")
                        + (bloc_depenses(personnes, [d["devise"] for d in devises or []]) if personnes else "")
                        + (bloc_decalage(fuseaux, jour or date.today()) if fuseaux else "")
                        + (bloc_devises(devises) if devises else ""))
@@ -2323,7 +2387,8 @@ def rendre_page(voyage, c, aujourd_hui=None, passeports=None):
                           devises=devises_du_voyage(voyage["itineraire"]),
                           maison=fermer_la_maison(c["total"], voyage["depart"]),
                           etapes=etapes_du_voyage(voyage["itineraire"], voyage["depart"]),
-                          personnes=list(voyage["personnes"]))
+                          personnes=list(voyage["personnes"]),
+                          urgences=urgences_du_voyage(voyage["itineraire"]))
 
 
 def fenetres_du_voyage(conn, code, aujourd_hui):
