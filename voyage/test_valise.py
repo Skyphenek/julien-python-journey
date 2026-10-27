@@ -335,7 +335,8 @@ def test_un_voyageur_une_seule_barre():
 def test_appels_api_relatifs():
     # En ligne, la page vit sous /v/<secret>/ : "api/..." (relatif) suit, "/api/..." (absolu) casserait
     assert "fetch('/api/" not in HTML_SCRIPT
-    assert "fetch('api/coche'" in HTML_SCRIPT
+    assert "url: '/api/" not in HTML_SCRIPT                      # envois via la file d'attente
+    assert "url: 'api/coche'" in HTML_SCRIPT
 
 
 

@@ -5,6 +5,7 @@ Même code en local (Mac) et en ligne (Render) ; seules les variables d'environn
 - ACCES_SECRET  : code secret ; toutes les routes passent sous /v/<secret>/ (sinon à la racine)
 - PORT          : imposé par l'hébergeur (sinon 8000)
 """
+import json
 import os
 import re
 from decimal import Decimal, InvalidOperation
@@ -15,14 +16,15 @@ from urllib.parse import quote
 import psycopg2
 
 from dotenv import load_dotenv
-from flask import Blueprint, Flask, jsonify, request, Response
+from flask import Blueprint, Flask, abort, jsonify, request, Response, send_from_directory
 
 from db import (emprunter, ajouter_depense, lire_depenses, supprimer_depense, enregistrer_infos_etape, lire_infos_etapes, CHAMPS_ETAPE, obtenir_etat, enregistrer_coche, lister_voyages, lire_voyage, archiver_voyage,
                 VERDICTS, enregistrer_retour, supprimer_retour, lire_retours)
 from valise import (solde_depenses, actualiser_meteo, fenetres_du_voyage, page_du_voyage, accueil_en_html,
                     lieux_depuis_reponse, normales_ou_url, normales_depuis_historique,
-                    formulaire_en_html, creer_voyage)
+                    formulaire_en_html, creer_voyage, VERSION_PAGE)
 from api_climat import url_geocodage
+from pwa import manifeste, script_service_worker, TAILLES_ICONE
 
 load_dotenv(Path(__file__).parent / ".env")   # en local : lit voyage/.env s'il existe
 
@@ -319,6 +321,23 @@ def creer_app(nom_base="valise", secret=None):
         if n is None:
             return jsonify({"erreur": "historique illisible"}), 400
         return jsonify({"normales": n})
+
+    # PWA : manifeste, worker et icônes à côté des pages (adresses relatives, même portée)
+    @routes.get("/manifest.webmanifest")
+    def manifeste_pwa():
+        return Response(json.dumps(manifeste(), ensure_ascii=False), mimetype="application/manifest+json")
+
+    @routes.get("/sw.js")
+    def service_worker():
+        reponse = Response(script_service_worker(VERSION_PAGE), mimetype="text/javascript")
+        reponse.headers["Cache-Control"] = "no-cache"
+        return reponse
+
+    @routes.get("/icone-<int:taille>.png")
+    def icone(taille):
+        if taille not in TAILLES_ICONE:
+            abort(404)
+        return send_from_directory(Path(__file__).parent / "static", f"icone-{taille}.png", mimetype="image/png")
 
     # Avec un secret, tout vit sous /v/<secret>/ : sans le code, chaque adresse renvoie 404
     app.register_blueprint(routes, url_prefix=f"/v/{secret}" if secret else None)
