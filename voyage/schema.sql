@@ -112,3 +112,18 @@ CREATE TABLE IF NOT EXISTS infos_etape (
     maj_le      TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (voyage, destination, rang)
 );
+
+-- Dépenses partagées (rubrique Sur place) : montant dans la devise payée, converti en euros au
+-- moment de la saisie (taux du téléphone) pour que le solde ne bouge plus ensuite.
+CREATE TABLE IF NOT EXISTS depenses (
+    id          SERIAL        PRIMARY KEY,
+    voyage      TEXT          NOT NULL REFERENCES voyages(code) ON DELETE CASCADE,
+    libelle     TEXT          NOT NULL,
+    montant     NUMERIC(14,2) NOT NULL CHECK (montant > 0),
+    devise      TEXT          NOT NULL,
+    montant_eur NUMERIC(12,2) NOT NULL CHECK (montant_eur >= 0),
+    paye_par    TEXT          NOT NULL,
+    pour        TEXT[]        NOT NULL,
+    jour        DATE          NOT NULL,
+    cree_le     TIMESTAMPTZ   NOT NULL DEFAULT now()
+);
