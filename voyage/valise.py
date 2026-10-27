@@ -13,6 +13,7 @@ from html import escape as echapper
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from urllib.parse import quote
+import zoneinfo
 from zoneinfo import ZoneInfo
 
 import psycopg2
@@ -26,6 +27,11 @@ from db import (connecter, lire_normales, enregistrer_normales, publier_page,
                 lire_historique, lire_regles, ajouter_regle, lire_passeports, remplacer_voyage)
 from dotenv import load_dotenv
 from formalites import FORMALITES, DIPLOMATIE
+
+# Fuseaux horaires : toujours la base du paquet tzdata (version figée dans requirements.txt),
+# jamais celle de la machine : celle de macOS ignorait encore le passage du Maroc à GMT
+# (20/09/2026), celle de Render peut différer. Même résultat partout.
+zoneinfo.reset_tzpath(to=[])
 
 # Feuille de style de la checklist HTML (mobile-first). Fournie clé en main :
 # c'est de la présentation, pas de la logique. Injectée telle quelle dans le <head>.
@@ -469,13 +475,28 @@ function majRubriques() {
     span.textContent = faites + '/' + boxes.length;
 }
 
-// Horloges de la rubrique Sur place : heure locale de chaque fuseau, et celle de Paris
+// Horloges de la rubrique Sur place : heure sur place et à Paris. Les décalages viennent des
+// tables calculées par le serveur (data-horaire, data-paris) : la base de fuseaux du téléphone
+// peut être périmée (ex. Maroc passé à GMT le 20/09/2026). Au-delà des tables : celle du téléphone.
 function majHorloges() {
-    const heure = function (fuseau) {
+    const bloc = document.querySelector('div.decalage');
+    if (!bloc) return;
+    const maintenant = Date.now();
+    const valide = maintenant < Number(bloc.dataset.jusqua);
+    const heure = function (table, fuseau) {
+        if (valide) {
+            let minutes = null;
+            JSON.parse(table).forEach(function (t) { if (t[0] <= maintenant) minutes = t[1]; });
+            if (minutes !== null) {
+                return new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })
+                    .format(new Date(maintenant + minutes * 60000));
+            }
+        }
         return new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: fuseau }).format(new Date());
     };
     document.querySelectorAll('li[data-fuseau]').forEach(function (li) {
-        li.querySelector('.horloge').textContent = 'il est ' + heure(li.dataset.fuseau) + ' sur place, ' + heure('Europe/Paris') + ' à Paris';
+        li.querySelector('.horloge').textContent = 'il est ' + heure(li.dataset.horaire, li.dataset.fuseau)
+            + ' sur place, ' + heure(bloc.dataset.paris, 'Europe/Paris') + ' à Paris';
     });
 }
 majHorloges();
@@ -1428,8 +1449,9 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # règles) : au prochain affichage, une page d'une autre version est refaite depuis la photo.
 # 1 = avant le marqueur ; 2 = onglet Formalités (27/10/2026) ; 3 = boutons modifier / retirer ;
 # 4 = puce « bagage cabine » ; 5 = onglet Formalités en dernier ; 6 = ouverte sur Partagé sans flash ;
-# 7 = hub en rubriques ; 8 = décalage horaire dans Sur place ; 9 = météo automatique à J-10.
-VERSION_PAGE = 9
+# 7 = hub en rubriques ; 8 = décalage horaire dans Sur place ; 9 = météo automatique à J-10 ;
+# 10 = horloges calculées depuis la base du serveur (pas celle du téléphone).
+VERSION_PAGE = 10
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
 RUBRIQUES = [("valise", "🧳 Valise"), ("avant", "🛂 Avant"), ("sur-place", "📍 Sur place"),
@@ -1501,13 +1523,35 @@ def conseil_decalage(heures):
     return None
 
 
-def bloc_decalage(groupes):
+HORIZON_HORLOGES = 400         # jours couverts par les tables horaires embarquées dans la page
+
+
+def table_horaire(fuseau, depuis, jours=HORIZON_HORLOGES):
+    """[[début en ms depuis 1970 (UTC), décalage en minutes], …] : l'heure légale du fuseau,
+    à l'heure près, de `depuis` à `depuis + jours`. Les horloges de la page s'en servent au lieu
+    de la base de fuseaux du téléphone, qui peut être périmée."""
+    tz, utc = ZoneInfo(fuseau), ZoneInfo("UTC")
+    instant = datetime(depuis.year, depuis.month, depuis.day, tzinfo=utc)
+    table = []
+    for _ in range(jours * 24):
+        minutes = round(instant.astimezone(tz).utcoffset().total_seconds() / 60)
+        if not table or table[-1][1] != minutes:
+            table.append([int(instant.timestamp() * 1000), minutes])
+        instant += timedelta(hours=1)
+    return table
+
+
+def bloc_decalage(groupes, jour):
     """Le bloc « Décalage horaire » de la rubrique Sur place (horloges remplies par le script)."""
-    lignes = "".join(f'<li data-fuseau="{echapper(g["fuseau"])}"><strong>{echapper(", ".join(g["destinations"]), quote=False)}</strong>'
+    lignes = "".join(f'<li data-fuseau="{echapper(g["fuseau"])}" data-horaire="{json.dumps(table_horaire(g["fuseau"], jour))}">'
+                     f'<strong>{echapper(", ".join(g["destinations"]), quote=False)}</strong>'
                      f' : {texte_decalage(g["heures"])}<span class="horloge"></span></li>' for g in groupes)
     conseil = conseil_decalage(groupes[0]["heures"])
     conseil = f'<p class="conseil">💤 {conseil}</p>' if conseil else ""
-    return f'<div class="info decalage"><h3>🕐 Décalage horaire</h3><ul>{lignes}</ul>{conseil}</div>'
+    fin = int(datetime(jour.year, jour.month, jour.day, tzinfo=ZoneInfo("UTC")).timestamp() * 1000
+              + HORIZON_HORLOGES * 86_400_000)
+    return (f'<div class="info decalage" data-paris="{json.dumps(table_horaire(REFERENCE_HORAIRE, jour))}" '
+            f'data-jusqua="{fin}"><h3>🕐 Décalage horaire</h3><ul>{lignes}</ul>{conseil}</div>')
 
 
 def rayon_avant_de_partir(taches, cle_voyage):
@@ -1527,7 +1571,7 @@ def rayon_avant_de_partir(taches, cle_voyage):
 
 
 def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=None, depart=None,
-                   taches=None, cabine=False, fuseaux=None, meteo_du=None):
+                   taches=None, cabine=False, fuseaux=None, meteo_du=None, jour=None):
     """Construire la page HTML de la checklist pour l'itinéraire complet.
 
     climats : liste optionnelle de (destination, mois, normales) — une puce par étape.
@@ -1605,7 +1649,7 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
         **{r: f'<p class="vide">{texte}</p>' for r, texte in A_VENIR.items()},
     }
     if fuseaux:
-        contenus["sur-place"] = (bloc_decalage(fuseaux)
+        contenus["sur-place"] = (bloc_decalage(fuseaux, jour or date.today())
                                  + '<p class="vide">Bientôt : devises, vocabulaire, visites à faire.</p>')
     nav_rubriques = '<nav class="rubriques">'
     blocs = ""
@@ -1889,7 +1933,8 @@ def rendre_page(voyage, c, aujourd_hui=None, passeports=None):
                           cabine=voyage.get("cabine", False),
                           fuseaux=decalages(voyage["itineraire"], voyage["depart"]),
                           meteo_du=max((e["prevision"].get("prevu_le") for e in voyage["itineraire"]
-                                        if e.get("prevision")), default=None))
+                                        if e.get("prevision")), default=None),
+                          jour=aujourd_hui or date.today())
 
 
 def fenetres_du_voyage(conn, code, aujourd_hui):
