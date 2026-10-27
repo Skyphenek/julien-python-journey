@@ -93,6 +93,11 @@ div.info ul { list-style: none; padding: 0; margin: 0; }
 div.info li { padding: .35rem 0; }
 div.info .horloge { display: block; font-size: .8rem; color: var(--doux); font-variant-numeric: tabular-nums; }
 div.info p.conseil { font-size: .85rem; color: var(--doux); margin: .5rem 0 0; }
+#bandeau-meteo { display: flex; gap: .5rem; align-items: flex-start; background: var(--accent-doux);
+                 border-radius: 12px; padding: .6rem .8rem; margin: .4rem 0; font-size: .85rem; }
+#bandeau-meteo[hidden] { display: none; }
+#bandeau-meteo span { flex: 1; }
+#bandeau-meteo button.fermer { border: none; background: none; color: var(--doux); cursor: pointer; font-size: 1rem; }
 
 /* Rayons repliables (élément <details> natif : replier ne demande aucun JavaScript) */
 details.rayon {
@@ -549,17 +554,50 @@ function initialiser() {
     document.addEventListener('visibilitychange', rafraichir);   // et dès qu'on revient sur la page
 }
 
-// Bouton météo : visible de J-10 (portée des prévisions) jusqu'à la fin du voyage
+// Météo de J-10 à la fin du voyage : automatique à l'ouverture (une fois par jour et par
+// téléphone, sauf si l'autre l'a déjà fait aujourd'hui), bouton pour la refaire à la main.
+// Après le rechargement, un bandeau dit ce qui a changé dans la valise.
 (function () {
     const btn = document.getElementById('meteo');
+    const bandeau = document.getElementById('bandeau-meteo');
+    function afficherBandeau(texte) {
+        if (!bandeau) return;
+        const span = document.createElement('span');
+        span.textContent = texte;
+        const fermer = document.createElement('button');
+        fermer.type = 'button'; fermer.className = 'fermer'; fermer.textContent = '✕';
+        fermer.addEventListener('click', function () { bandeau.hidden = true; });
+        bandeau.replaceChildren(span, fermer);
+        bandeau.hidden = false;
+    }
+    try {                                                              // message laissé avant le rechargement
+        const message = sessionStorage.getItem('meteo-bandeau:' + VOYAGE);
+        if (message) { sessionStorage.removeItem('meteo-bandeau:' + VOYAGE); afficherBandeau(message); }
+    } catch (e) {}
     if (!btn || typeof DEPART === 'undefined') return;
+    const d = new Date();
+    const jour = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     const aujourdhui = new Date(new Date().toDateString());           // minuit local
     const ouverture = new Date(DEPART + 'T00:00:00');
     ouverture.setDate(ouverture.getDate() - 10);                      // en jours : insensible au changement d'heure
     const fermeture = new Date(FIN + 'T00:00:00');
     if (aujourdhui < ouverture || aujourdhui > fermeture) return;
     btn.hidden = false;
-    btn.addEventListener('click', function () {
+
+    function resume(res) {
+        let texte = '🌦️ Prévisions du ' + jour.slice(8) + '/' + jour.slice(5, 7) + ' appliquées';
+        const c = res.changements;
+        if (c) {
+            const parts = [];
+            if (c.ajouts.length) parts.push('ajouté : ' + c.ajouts.join(', '));
+            if (c.retraits.length) parts.push('retiré : ' + c.retraits.join(', '));
+            if (c.quantites.length) parts.push('quantités : ' + c.quantites.join(', '));
+            texte += parts.length ? ' — ' + parts.join(' ; ') : ' — valise inchangée';
+        }
+        return texte + (res.erreurs.length ? ' · ⚠️ ' + res.erreurs.join(' · ') : '');
+    }
+
+    function actualiser(auto) {
         btn.disabled = true;
         btn.textContent = '⏳ Prévisions en cours…';
         const base = 'api/meteo/' + encodeURIComponent(VOYAGE);
@@ -587,22 +625,31 @@ function initialiser() {
             })
             .then(function (r) { if (!r.ok) throw new Error('erreur ' + r.status); return r.json(); })
             .then(function (res) {
-                if (res.etapes_prevues > 0) {                         // succès : on le dit, puis on recharge
-                    btn.textContent = '✅ ' + res.etapes_prevues + ' étape(s) actualisée(s) avec les prévisions'
-                        + (res.erreurs.length ? ' · ⚠️ ' + res.erreurs.join(' · ') : '');
-                    setTimeout(function () { location.reload(); }, res.erreurs.length ? 4000 : 1500);
-                } else if (res.erreurs.length) {
-                    btn.disabled = false;
-                    btn.textContent = '⚠️ Météo indisponible : ' + res.erreurs.join(' · ');
-                } else {
-                    btn.textContent = 'ℹ️ Aucune étape à moins de 10 jours : normales de saison gardées';
+                if (res.etapes_prevues > 0) {                         // succès : bandeau après rechargement
+                    try { sessionStorage.setItem('meteo-bandeau:' + VOYAGE, resume(res)); } catch (e) {}
+                    btn.textContent = '✅ ' + res.etapes_prevues + ' étape(s) actualisée(s)';
+                    setTimeout(function () { location.reload(); }, auto ? 0 : 800);
+                    return;
                 }
+                btn.disabled = false;
+                btn.textContent = '🌦️ Actualiser avec la météo';
+                if (res.erreurs.length) afficherBandeau('⚠️ Météo non actualisée : ' + res.erreurs.join(' · '));
+                else if (!auto) afficherBandeau('ℹ️ Aucune étape à moins de 10 jours : normales de saison gardées');
             })
             .catch(function (e) {
                 btn.disabled = false;
-                btn.textContent = '⚠️ Échec (' + e.message + '), réessaie';
+                btn.textContent = '🌦️ Actualiser avec la météo';
+                afficherBandeau('⚠️ Météo non actualisée (' + e.message + ') : réessaie avec le bouton');
             });
-    });
+    }
+    btn.addEventListener('click', function () { actualiser(false); });
+
+    let tentee = null;
+    try { tentee = localStorage.getItem('meteo-auto:' + VOYAGE); } catch (e) {}
+    if (METEO_DU !== jour && tentee !== jour) {
+        try { localStorage.setItem('meteo-auto:' + VOYAGE, jour); } catch (e) {}
+        actualiser(true);
+    }
 })();
 
 // Démarrage : on va chercher l'état de CE voyage sur le serveur, puis on initialise
@@ -1381,8 +1428,8 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # règles) : au prochain affichage, une page d'une autre version est refaite depuis la photo.
 # 1 = avant le marqueur ; 2 = onglet Formalités (27/10/2026) ; 3 = boutons modifier / retirer ;
 # 4 = puce « bagage cabine » ; 5 = onglet Formalités en dernier ; 6 = ouverte sur Partagé sans flash ;
-# 7 = hub en rubriques ; 8 = décalage horaire dans Sur place.
-VERSION_PAGE = 8
+# 7 = hub en rubriques ; 8 = décalage horaire dans Sur place ; 9 = météo automatique à J-10.
+VERSION_PAGE = 9
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
 RUBRIQUES = [("valise", "🧳 Valise"), ("avant", "🛂 Avant"), ("sur-place", "📍 Sur place"),
@@ -1480,7 +1527,7 @@ def rayon_avant_de_partir(taches, cle_voyage):
 
 
 def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=None, depart=None,
-                   taches=None, cabine=False, fuseaux=None):
+                   taches=None, cabine=False, fuseaux=None, meteo_du=None):
     """Construire la page HTML de la checklist pour l'itinéraire complet.
 
     climats : liste optionnelle de (destination, mois, normales) — une puce par étape.
@@ -1581,9 +1628,10 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
 <a class="retour" href="./">← Tous les voyages</a>
 <h1>{libelle_voyage} <span class="duree">· {total} jours{quand}</span></h1>
 <div class="puces">{puces}</div>
+<div id="bandeau-meteo" hidden></div>
 {nav_rubriques}
 {blocs}<div class="controls"><button id="meteo" class="ctrl-btn" hidden>🌦️ Actualiser avec la météo</button><a id="modifier" class="ctrl-btn" href="?modifier={quote(cle_voyage)}">✏️ Modifier</a><button id="retirer" class="ctrl-btn">🗑️ Retirer</button><button id="mode-bilan" class="ctrl-btn">📝 Bilan de fin de voyage</button><button id="toggle-masque" class="ctrl-btn">Masquer les rangés</button><button id="reset" class="ctrl-btn">Réinitialiser</button></div>
-<script>const VOYAGE = {json.dumps(cle_voyage, ensure_ascii=False)};{dates_js}</script>
+<script>const VOYAGE = {json.dumps(cle_voyage, ensure_ascii=False)};{dates_js} const METEO_DU = {json.dumps(meteo_du)};</script>
 <script>{HTML_SCRIPT}</script>
 </body>
 </html>"""
@@ -1839,7 +1887,9 @@ def rendre_page(voyage, c, aujourd_hui=None, passeports=None):
     return valise_en_html(c["valise"], c["libelle"], c["total"], c["prises"], climats,
                           code=c["code"], depart=voyage["depart"], taches=taches,
                           cabine=voyage.get("cabine", False),
-                          fuseaux=decalages(voyage["itineraire"], voyage["depart"]))
+                          fuseaux=decalages(voyage["itineraire"], voyage["depart"]),
+                          meteo_du=max((e["prevision"].get("prevu_le") for e in voyage["itineraire"]
+                                        if e.get("prevision")), default=None))
 
 
 def fenetres_du_voyage(conn, code, aujourd_hui):
@@ -1851,12 +1901,26 @@ def fenetres_du_voyage(conn, code, aujourd_hui):
     return fenetres_meteo(voyage, aujourd_hui)
 
 
+def difference_valises(avant, apres):
+    """Ce que la météo a changé : photo d'avant {(proprietaire, theme, objet): q} contre la valise
+    recalculée. {"ajouts", "retraits", "quantites"} (libellés triés), ou None sans photo d'avant."""
+    if not avant:
+        return None
+    a = {(p, o): q for (p, _t, o), q in avant.items()}
+    b = {(p, o): q for p, themes in apres.items() for objets in themes.values() for o, q in objets.items()}
+    libelle = lambda p, o: o if p == "Partagé" else f"{o} ({p})"
+    return {"ajouts": sorted(libelle(*k) for k in b.keys() - a.keys()),
+            "retraits": sorted(libelle(*k) for k in a.keys() - b.keys()),
+            "quantites": sorted(f"{libelle(*k)} : {a[k]} → {b[k]}" for k in a.keys() & b.keys() if a[k] != b[k])}
+
+
 def actualiser_meteo(conn, code, aujourd_hui, recues):
     """Bouton météo, temps 2 : régénère le voyage avec les prévisions reçues du navigateur.
 
     Re-géocode si besoin, applique les prévisions, reconstruit, remet les règles "toujours",
     puis republie voyage + photo + page. Les propositions o/n des bilans restent au terminal.
-    Renvoie {"etapes_prevues": n, "erreurs": [...]}, ou None si le voyage est inconnu.
+    Renvoie {"etapes_prevues": n, "erreurs": [...], "changements": difference_valises(...)},
+    ou None si le voyage est inconnu.
     """
     voyage = lire_voyage(conn, code)
     if voyage is None:
@@ -1867,13 +1931,15 @@ def actualiser_meteo(conn, code, aujourd_hui, recues):
                                                 recues, erreurs)
     c = construire(voyage)
     appliquer_regles(c["valise"], lire_regles(conn))
+    avant = lire_valise_objets(conn, code)
     enregistrer_voyage(conn, code, c["libelle"], voyage["depart"], voyage["personnes"],
                        voyage["itineraire"], c["jours_types"],
                        conduit=voyage["conduit"], lessive=voyage["lessive"],
                        cabine=voyage.get("cabine", False))
     enregistrer_valise_objets(conn, code, c["valise"])
     publier_page(conn, rendre_page(voyage, c, passeports=lire_passeports(conn)), cle=code)
-    return {"etapes_prevues": sum("prevision" in e for e in voyage["itineraire"]), "erreurs": erreurs}
+    return {"etapes_prevues": sum("prevision" in e for e in voyage["itineraire"]), "erreurs": erreurs,
+            "changements": difference_valises(avant, c["valise"])}
 
 
 def valise_depuis_photo(photo, personnes):
