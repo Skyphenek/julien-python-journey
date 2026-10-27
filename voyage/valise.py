@@ -76,6 +76,16 @@ nav.tabs button {
 nav.tabs button.actif { background: var(--accent); color: #fff; }
 nav.tabs .tab-count { font-size: .72rem; opacity: .75; }
 
+/* Hub : la page d'un voyage est découpée en rubriques (Valise, Avant, Sur place, Souvenirs) */
+nav.rubriques { display: flex; gap: .2rem; margin: .3rem 0 .2rem; border-bottom: 1px solid var(--ligne); }
+nav.rubriques button {
+    flex: 1; padding: .55rem .2rem; border: none; border-bottom: 3px solid transparent; background: none;
+    color: var(--doux); font-size: .85rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+nav.rubriques button.actif { color: var(--texte); border-bottom-color: var(--accent); }
+nav.rubriques .compte-rubrique { font-size: .7rem; opacity: .75; }
+div.rubrique p.vide { color: var(--doux); padding: 1rem .2rem; }
+
 /* Rayons repliables (élément <details> natif : replier ne demande aucun JavaScript) */
 details.rayon {
     background: var(--carte); border-radius: 14px; margin-bottom: .6rem;
@@ -120,7 +130,7 @@ label:has(input:checked) .nom { color: var(--doux); text-decoration: line-throug
 label:has(input:checked) .qte { background: var(--ligne); color: var(--doux); }
 
 div.controls { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: flex-end; margin: 1rem 0 0; }
-button.ctrl-btn {
+button.ctrl-btn, a.ctrl-btn {
     padding: .4rem .85rem; border: 1px solid var(--ligne); border-radius: 999px;
     background: transparent; color: var(--doux); font-size: .82rem; font-weight: 600; cursor: pointer;
 }
@@ -173,7 +183,7 @@ a.ctrl-btn { display: inline-block; text-decoration: none; }
 HTML_SCRIPT = """
 // Références aux éléments de la page (tout en haut : dispo avant tout appel)
 let sauvegarde = {};                                    // rempli après la réponse du serveur
-const sections = document.querySelectorAll('section[data-owner]');
+const sections = document.querySelectorAll('section[data-owner]:not(.avant)');   // les onglets de la valise
 const onglets = document.querySelectorAll('nav.tabs button');
 const btnMasque = document.getElementById('toggle-masque');
 const btnReset = document.getElementById('reset');
@@ -192,6 +202,7 @@ function majProgression() {
         barre.querySelector('.barre-compte').textContent = faites + ' / ' + boxes.length;
         barre.querySelector('.progress-fill').style.width = boxes.length ? (faites / boxes.length * 100) + '%' : '0%';
     });
+    if (typeof majRubriques === 'function') majRubriques();
 }
 
 // Compteur affiché sur chaque onglet (cochées / total de la personne)
@@ -355,6 +366,7 @@ function rafraichirRetours() {
 
 function activerBilan(actif) {
     document.body.classList.toggle('mode-bilan', actif);
+    if (actif) ouvrirRubrique('valise');                  // le bilan porte sur la valise
     btnBilan.textContent = actif ? '✓ Terminer le bilan' : '📝 Bilan de fin de voyage';
     if (actif) {
         masquer = false;                                  // en bilan, on veut voir tous les objets
@@ -418,6 +430,30 @@ function initialiserBilan() {
     if (memorise) activerBilan(true);                     // on reprend le bilan là où on l'a laissé
     setInterval(rafraichirRetours, 4000);
     document.addEventListener('visibilitychange', rafraichirRetours);
+}
+
+// Rubriques du hub (Valise, Avant, Sur place, Souvenirs) : le serveur envoie Valise ouverte.
+// Lien direct possible : ?v=<voyage>#avant
+const rubriques = document.querySelectorAll('div.rubrique');
+const boutonsRubrique = document.querySelectorAll('nav.rubriques button');
+function ouvrirRubrique(nom) {
+    rubriques.forEach(function (r) { r.hidden = r.dataset.rubrique !== nom; });
+    boutonsRubrique.forEach(function (b) { b.classList.toggle('actif', b.dataset.rubrique === nom); });
+}
+boutonsRubrique.forEach(function (b) {
+    b.addEventListener('click', function () { ouvrirRubrique(b.dataset.rubrique); history.replaceState(null, '', '#' + b.dataset.rubrique); });
+});
+if (location.hash && document.querySelector('div.rubrique[data-rubrique="' + location.hash.slice(1) + '"]')) {
+    ouvrirRubrique(location.hash.slice(1));
+}
+// Compteur de la rubrique Avant (tâches cochées / total)
+function majRubriques() {
+    const boxes = document.querySelectorAll('section.avant input[type=checkbox]');
+    const span = document.querySelector('nav.rubriques .compte-rubrique');
+    if (!span || !boxes.length) return;
+    let faites = 0;
+    boxes.forEach(function (b) { if (b.checked) faites++; });
+    span.textContent = faites + '/' + boxes.length;
 }
 
 // Retirer le voyage : deux taps (pas de fenêtre de confirmation), puis retour à l'accueil.
@@ -1324,8 +1360,15 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # Version des pages stockées en base. À INCRÉMENTER à chaque changement de la page (rendu, script,
 # règles) : au prochain affichage, une page d'une autre version est refaite depuis la photo.
 # 1 = avant le marqueur ; 2 = onglet Formalités (27/10/2026) ; 3 = boutons modifier / retirer ;
-# 4 = puce « bagage cabine » ; 5 = onglet Formalités en dernier ; 6 = ouverte sur Partagé sans flash.
-VERSION_PAGE = 6
+# 4 = puce « bagage cabine » ; 5 = onglet Formalités en dernier ; 6 = ouverte sur Partagé sans flash ;
+# 7 = hub en rubriques.
+VERSION_PAGE = 7
+
+# Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
+RUBRIQUES = [("valise", "🧳 Valise"), ("avant", "🛂 Avant"), ("sur-place", "📍 Sur place"),
+             ("souvenirs", "🎁 Souvenirs")]
+A_VENIR = {"sur-place": "Bientôt : devises, décalage horaire, vocabulaire, visites à faire.",
+           "souvenirs": "Bientôt : les souvenirs à rapporter, et pour qui."}
 MARQUE_VERSION = f'<meta name="valise-version" content="{VERSION_PAGE}">'
 
 
@@ -1383,8 +1426,6 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
     for proprietaire in valise:
         actif = ' class="actif"' if proprietaire == ouvert else ""
         onglets += f'<button data-owner="{proprietaire}"{actif}>{proprietaire} <span class="tab-count"></span></button>'
-    if taches:                              # les démarches dans leur propre onglet, en dernier
-        onglets += '<button data-owner="Avant de partir" data-avant>🛂 Formalités <span class="tab-count"></span></button>'
     onglets += '</nav>'
 
     corps = ""
@@ -1416,9 +1457,22 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
                   f'<form class="ajout-manque"><input type="text" placeholder="ex. bouchons d\'oreilles" '
                   f'enterkeyhint="done"><button type="submit">Ajouter</button></form></div>')
         corps += "</section>"
-    if taches:                              # en dernier, hors progression de la valise (classe .avant)
-        corps += (f'<section data-owner="Avant de partir" class="avant" hidden>'
-                  f'{rayon_avant_de_partir(taches, cle_voyage)}</section>')
+
+    # --- Les rubriques du hub ---
+    contenus = {
+        "valise": (f'<div class="collant">\n<div class="barres">{barres}</div>\n{onglets}\n'
+                   f'<p id="bilan-compte"></p>\n</div>\n{corps}'),
+        "avant": (f'<section data-owner="Avant de partir" class="avant">{rayon_avant_de_partir(taches, cle_voyage)}</section>'
+                  if taches else '<p class="vide">Rien à préparer pour ce voyage : la carte d\'identité suffit.</p>'),
+        **{r: f'<p class="vide">{texte}</p>' for r, texte in A_VENIR.items()},
+    }
+    nav_rubriques = '<nav class="rubriques">'
+    blocs = ""
+    for i, (nom, libelle) in enumerate(RUBRIQUES):
+        compte = ' <span class="compte-rubrique"></span>' if nom == "avant" and taches else ""
+        nav_rubriques += f'<button data-rubrique="{nom}"{" class=\"actif\"" if i == 0 else ""}>{libelle}{compte}</button>'
+        blocs += f'<div class="rubrique" data-rubrique="{nom}"{"" if i == 0 else " hidden"}>\n{contenus[nom]}\n</div>\n'
+    nav_rubriques += '</nav>'
 
     page = f"""<!doctype html>
 <html lang="fr">
@@ -1433,13 +1487,8 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
 <a class="retour" href="./">← Tous les voyages</a>
 <h1>{libelle_voyage} <span class="duree">· {total} jours{quand}</span></h1>
 <div class="puces">{puces}</div>
-<div class="collant">
-<div class="barres">{barres}</div>
-{onglets}
-<p id="bilan-compte"></p>
-</div>
-{corps}
-<div class="controls"><button id="meteo" class="ctrl-btn" hidden>🌦️ Actualiser avec la météo</button><a id="modifier" class="ctrl-btn" href="?modifier={quote(cle_voyage)}">✏️ Modifier</a><button id="retirer" class="ctrl-btn">🗑️ Retirer</button><button id="mode-bilan" class="ctrl-btn">📝 Bilan de fin de voyage</button><button id="toggle-masque" class="ctrl-btn">Masquer les rangés</button><button id="reset" class="ctrl-btn">Réinitialiser</button></div>
+{nav_rubriques}
+{blocs}<div class="controls"><button id="meteo" class="ctrl-btn" hidden>🌦️ Actualiser avec la météo</button><a id="modifier" class="ctrl-btn" href="?modifier={quote(cle_voyage)}">✏️ Modifier</a><button id="retirer" class="ctrl-btn">🗑️ Retirer</button><button id="mode-bilan" class="ctrl-btn">📝 Bilan de fin de voyage</button><button id="toggle-masque" class="ctrl-btn">Masquer les rangés</button><button id="reset" class="ctrl-btn">Réinitialiser</button></div>
 <script>const VOYAGE = {json.dumps(cle_voyage, ensure_ascii=False)};{dates_js}</script>
 <script>{HTML_SCRIPT}</script>
 </body>

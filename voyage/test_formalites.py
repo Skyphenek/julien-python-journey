@@ -130,19 +130,18 @@ def page_vn_kh():
                           18, set(), code="2027-01-10 X", depart=DEPART, taches=taches)
 
 
-def test_onglet_avant_de_partir_separe_et_en_dernier():
+def test_formalites_separees_de_la_valise():
     html = page_vn_kh()
     nav = html.split('<nav class="tabs">')[1].split("</nav>")[0]
-    assert nav.index('data-owner="Partagé"') < nav.index('data-owner="Julien"') < nav.index('data-owner="Avant de partir"')
     assert nav.find('<button data-owner="Partagé"') == 0          # Partagé en premier : l'onglet ouvert
-    assert '<section data-owner="Avant de partir" class="avant" hidden>' in html
+    assert '<section data-owner="Avant de partir" class="avant">' in html
     partage = html.split('<section data-owner="Partagé">')[1].split("</section>")[0]
     assert "visa-KH" not in partage
 
 
 def test_onglet_avant_exclu_de_la_progression_et_pas_ouvert_par_defaut():
     assert "section[data-owner]:not(.avant)" in HTML_SCRIPT
-    assert "data-avant" in HTML_SCRIPT and "data-avant" in page_vn_kh()
+    assert "data-avant" in HTML_SCRIPT
 
 
 def test_tache_cochable_avec_cle_stable_et_echeance():
@@ -300,7 +299,7 @@ def test_page_arrive_deja_ouverte_sur_partage():
     html = page_vn_kh()
     assert '<section data-owner="Partagé">' in html                       # visible
     assert '<section data-owner="Julien" hidden>' in html
-    assert '<section data-owner="Avant de partir" class="avant" hidden>' in html
+    assert '<div class="rubrique" data-rubrique="avant" hidden>' in html
     assert '<button data-owner="Partagé" class="actif">' in html
     assert html.index('<section data-owner="Julien"') < html.index('<section data-owner="Avant de partir"')
     assert "s.hidden = " in HTML_SCRIPT                                    # les onglets basculent hidden
