@@ -231,7 +231,7 @@ function majRayons() {
 // Onglets : n'afficher qu'une personne à la fois
 function activer(nom) {
     ownerActif = nom;
-    sections.forEach(function (s) { s.style.display = (s.dataset.owner === nom) ? '' : 'none'; });
+    sections.forEach(function (s) { s.hidden = s.dataset.owner !== nom; });   // le serveur envoie déjà Partagé seul
     onglets.forEach(function (b) { b.classList.toggle('actif', b.dataset.owner === nom); });
     appliquerMasque();
 }
@@ -1324,8 +1324,8 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # Version des pages stockées en base. À INCRÉMENTER à chaque changement de la page (rendu, script,
 # règles) : au prochain affichage, une page d'une autre version est refaite depuis la photo.
 # 1 = avant le marqueur ; 2 = onglet Formalités (27/10/2026) ; 3 = boutons modifier / retirer ;
-# 4 = puce « bagage cabine » ; 5 = onglet Formalités en dernier.
-VERSION_PAGE = 5
+# 4 = puce « bagage cabine » ; 5 = onglet Formalités en dernier ; 6 = ouverte sur Partagé sans flash.
+VERSION_PAGE = 6
 MARQUE_VERSION = f'<meta name="valise-version" content="{VERSION_PAGE}">'
 
 
@@ -1379,17 +1379,18 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
                    f'<div class="progress-track"><div class="progress-fill"></div></div></div>')
 
     onglets = '<nav class="tabs">'          # un bouton par propriétaire (Partagé/Julien/...)
+    ouvert = next(iter(valise))             # Partagé : l'onglet ouvert dès l'arrivée de la page (pas de flash)
     for proprietaire in valise:
-        onglets += f'<button data-owner="{proprietaire}">{proprietaire} <span class="tab-count"></span></button>'
+        actif = ' class="actif"' if proprietaire == ouvert else ""
+        onglets += f'<button data-owner="{proprietaire}"{actif}>{proprietaire} <span class="tab-count"></span></button>'
     if taches:                              # les démarches dans leur propre onglet, en dernier
         onglets += '<button data-owner="Avant de partir" data-avant>🛂 Formalités <span class="tab-count"></span></button>'
     onglets += '</nav>'
 
     corps = ""
-    if taches:                              # hors progression de la valise (classe .avant)
-        corps += f'<section data-owner="Avant de partir" class="avant">{rayon_avant_de_partir(taches, cle_voyage)}</section>'
     for proprietaire, themes in valise.items():
-        corps += f'<section data-owner="{proprietaire}">'
+        cache = "" if proprietaire == ouvert else " hidden"
+        corps += f'<section data-owner="{proprietaire}"{cache}>'
         for theme, objets in themes.items():
             if not objets:
                 continue
@@ -1415,6 +1416,9 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
                   f'<form class="ajout-manque"><input type="text" placeholder="ex. bouchons d\'oreilles" '
                   f'enterkeyhint="done"><button type="submit">Ajouter</button></form></div>')
         corps += "</section>"
+    if taches:                              # en dernier, hors progression de la valise (classe .avant)
+        corps += (f'<section data-owner="Avant de partir" class="avant" hidden>'
+                  f'{rayon_avant_de_partir(taches, cle_voyage)}</section>')
 
     page = f"""<!doctype html>
 <html lang="fr">
