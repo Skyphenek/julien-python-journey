@@ -412,3 +412,77 @@ def test_page_d_une_ancienne_version_refaite_depuis_la_photo(client):
         assert MARQUE_VERSION in lire_page(conn, "2027-05-27 New York")             # republiée
     finally:
         conn.close()
+
+
+
+# --- Modifier / retirer un voyage ---------------------------------------------------------
+
+@pytest.fixture
+def client_lisbonne(client_creation):
+    """Lisbonne créée par le formulaire, normales en cache, une case cochée."""
+    from db import enregistrer_normales, enregistrer_coche
+    conn = connecter("valise_test")
+    for mois in (5, 6):
+        enregistrer_normales(conn, 38.72, -9.14, {mois: {"tmin": 14.0, "tmax": 26.0, "jours_pluie": 3,
+                                                         "jours_forte_pluie": 0.5}})
+    conn.close()
+    code = client_creation.post("/api/voyages", json=CORPS_LISBONNE).get_json()["code"]
+    conn = connecter("valise_test")
+    enregistrer_coche(conn, code, "Laetitia", "Vêtements", "maillot de bain", True)
+    conn.close()
+    return client_creation, code
+
+
+def test_formulaire_de_modification_prerempli(client_lisbonne):
+    client, code = client_lisbonne
+    html = client.get("/?modifier=" + code).get_data(as_text=True)
+    assert "Modifier la valise" in html
+    assert '"remplace": "2027-05-01 Lisbonne"' in html and '"destination": "Lisbonne"' in html
+    assert '"personnes": "l"' in html and '"latitude": 38.72' in html
+
+
+def test_formulaire_de_modification_voyage_inconnu(client):
+    assert client.get("/?modifier=2027-01-01 Nulle Part").status_code == 404
+
+
+def test_modifier_sans_changer_le_code_garde_les_cases(client_lisbonne):
+    client, code = client_lisbonne
+    corps = {**CORPS_LISBONNE, "remplace": code,
+             "etapes": [{**CORPS_LISBONNE["etapes"][0], "jours": 6}]}
+    r = client.post("/api/voyages", json=corps)
+    assert r.status_code == 201 and r.get_json()["code"] == code
+    conn = connecter("valise_test")
+    try:
+        assert lire_voyage(conn, code)["itineraire"][0]["jours"] == 6
+        assert any(cle.endswith("maillot de bain") for cle in client.get("/api/etat/" + code).get_json())
+    finally:
+        conn.close()
+
+
+def test_modifier_la_date_deplace_les_cases_et_archive_l_ancien(client_lisbonne):
+    client, code = client_lisbonne
+    r = client.post("/api/voyages", json={**CORPS_LISBONNE, "depart": "2027-06-01", "remplace": code})
+    nouveau = r.get_json()["code"]
+    assert r.status_code == 201 and nouveau == "2027-06-01 Lisbonne"
+    assert client.get("/api/etat/" + nouveau).get_json() == {
+        "2027-06-01 Lisbonne/Laetitia/Vêtements/maillot de bain": True}
+    accueil = client.get("/").get_data(as_text=True)
+    assert "2027-06-01" in accueil and "2027-05-01" not in accueil
+
+
+def test_remplacer_un_voyage_inconnu_refuse(client_creation):
+    r = client_creation.post("/api/voyages", json={**CORPS_LISBONNE, "remplace": "2027-01-01 Nulle Part"})
+    assert r.status_code == 400
+
+
+def test_retirer_un_voyage(client_lisbonne):
+    client, code = client_lisbonne
+    assert client.post("/api/voyages/" + code + "/archiver").status_code == 200
+    assert "Lisbonne" not in client.get("/").get_data(as_text=True)
+    assert client.post("/api/voyages/2027-01-01 Nulle Part/archiver").status_code == 404
+
+
+def test_page_a_les_boutons_modifier_et_retirer(client_lisbonne):
+    client, code = client_lisbonne
+    html = client.get("/?v=" + code).get_data(as_text=True)
+    assert 'href="?modifier=2027-05-01%20Lisbonne"' in html and 'id="retirer"' in html

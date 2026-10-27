@@ -280,3 +280,19 @@ def lire_passeports(conn):
     with conn.cursor() as cur:
         cur.execute("SELECT personne, expire_le FROM passeports")
         return dict(cur.fetchall())
+
+
+def remplacer_voyage(conn, ancien, nouveau):
+    """Voyage modifié dont le code a changé (date ou étapes) : les cases cochées et le bilan
+    suivent le nouveau code, puis l'ancien est archivé (rien n'est supprimé)."""
+    with conn.cursor() as cur:
+        cur.execute("""INSERT INTO etat_case (voyage, proprietaire, theme, objet, coche, maj_le)
+                       SELECT %s, proprietaire, theme, objet, coche, maj_le FROM etat_case WHERE voyage = %s
+                       ON CONFLICT DO NOTHING""", (nouveau, ancien))
+        cur.execute("DELETE FROM etat_case WHERE voyage = %s", (ancien,))
+        cur.execute("""INSERT INTO retours (voyage, proprietaire, objet, verdict, quantite_utilisee, maj_le)
+                       SELECT %s, proprietaire, objet, verdict, quantite_utilisee, maj_le FROM retours
+                       WHERE voyage = %s ON CONFLICT DO NOTHING""", (nouveau, ancien))
+        cur.execute("DELETE FROM retours WHERE voyage = %s", (ancien,))
+        cur.execute("UPDATE voyages SET archive = true WHERE code = %s", (ancien,))
+    conn.commit()

@@ -15,7 +15,7 @@ import psycopg2
 from dotenv import load_dotenv
 from flask import Blueprint, Flask, jsonify, request, Response
 
-from db import (connecter, obtenir_etat, enregistrer_coche, lister_voyages,
+from db import (connecter, obtenir_etat, enregistrer_coche, lister_voyages, lire_voyage, archiver_voyage,
                 VERDICTS, enregistrer_retour, supprimer_retour, lire_retours)
 from valise import (actualiser_meteo, fenetres_du_voyage, page_du_voyage, accueil_en_html,
                     lieux_depuis_reponse, normales_ou_url, normales_depuis_historique,
@@ -37,6 +37,15 @@ def creer_app(nom_base="valise", secret=None):
         """Sans paramètre : la liste des voyages. ?v=<code> : la valise de ce voyage."""
         if "nouvelle" in request.args:                # formulaire de création (sans base)
             return Response(formulaire_en_html(), mimetype="text/html")
+        if "modifier" in request.args:                # le même formulaire, prérempli
+            conn = connecter(app.config["NOM_BASE"])
+            try:
+                voyage = lire_voyage(conn, request.args["modifier"])
+            finally:
+                conn.close()
+            if voyage is None:
+                return f"Voyage inconnu : {request.args['modifier']}", 404
+            return Response(formulaire_en_html(voyage), mimetype="text/html")
         code = request.args.get("v")
         conn = connecter(app.config["NOM_BASE"])
         try:
@@ -155,6 +164,18 @@ def creer_app(nom_base="valise", secret=None):
         if "manquantes" in resultat:
             return jsonify(resultat), 409
         return jsonify({"code": resultat["code"], "url": "?v=" + quote(resultat["code"])}), 201
+
+    @routes.post("/api/voyages/<code>/archiver")
+    def retirer(code):
+        """Bouton « Retirer » : le voyage quitte l'accueil (archivé, rien n'est supprimé)."""
+        conn = connecter(app.config["NOM_BASE"])
+        try:
+            if lire_voyage(conn, code) is None:
+                return jsonify({"erreur": f"voyage inconnu : {code}"}), 404
+            archiver_voyage(conn, code)
+        finally:
+            conn.close()
+        return jsonify({"ok": True})
 
     # --- Création en ligne : le téléphone appelle Open-Meteo, le serveur interprète ---
     @routes.get("/api/lieux")
