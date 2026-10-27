@@ -94,3 +94,6 @@ CREATE TABLE IF NOT EXISTS passeports (
     expire_le DATE        NOT NULL,
     maj_le    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Mode « bagage cabine seulement » (réglage du voyage) : vêtements plafonnés, liquides ≤ 100 ml.
+ALTER TABLE voyages ADD COLUMN IF NOT EXISTS cabine BOOLEAN NOT NULL DEFAULT false;

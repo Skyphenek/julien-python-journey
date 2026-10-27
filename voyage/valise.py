@@ -715,7 +715,7 @@ THEMES = {
     "Hygiène": {
         "trousse toilette", "déodorant", "rasoir", "maquillage", "lisseur",
         "démaquillant", "crème solaire", "biafine", "trousse pharmacie",
-        "répulsif moustiques",
+        "répulsif moustiques", "sac transparent 1 L (liquides ≤ 100 ml)",
     },
     "Tech": {
         "chargeur", "adaptateur de prise",
@@ -1005,10 +1005,14 @@ CHAUSSURES_FERMEES = {"baskets", "grosses chaussures", "chaussures rando", "chau
 RAYONS_LAVABLES = ("Vêtements", "Sous-vêtements")   # ce qu'une lessive en route permet de réduire
 SEUIL_LESSIVE = 10      # la question "lessive ?" n'est posée qu'au-delà de 10 jours
 PLANCHER_LESSIVE = 2    # avec lessive, jamais moins de 2 d'un vêtement (un sur soi, un au lavage)
+# Mode « bagage cabine seulement » (réglage du voyage)
+PLAFOND_CABINE = 4                                     # au plus 4 de chaque vêtement / sous-vêtement
+INTERDITS_CABINE = {"bâtons"}                          # refusés au contrôle de sûreté
+SAC_LIQUIDES = "sac transparent 1 L (liquides ≤ 100 ml)"
 
 
 def faire_valise(jours_types, total, personnes, hors_ue, conduit, adaptateur=True,
-                 lessive_tous_les=None):
+                 lessive_tous_les=None, cabine=False):
     """Construire la checklist {proprietaire: {theme: {objet: quantité}}}.
 
     - jours_types : {type de destination: jours cumulés} (couche d'agrégation).
@@ -1018,6 +1022,7 @@ def faire_valise(jours_types, total, personnes, hors_ue, conduit, adaptateur=Tru
     - conduit     : True -> permis (+ permis international si hors_ue).
     - adaptateur  : False -> aucune étape n'en a besoin (prises françaises partout) : on le retire.
     - lessive_tous_les : None -> pas de lessive ; N -> vêtements et sous-vêtements prévus pour N jours.
+    - cabine      : True -> bagage cabine seulement (plafond vêtements, liquides, interdits).
     """
     # Un paquet par propriétaire : "Partagé" + un paquet par personne.
     # Chaque paquet est lui-même découpé par thème (via paquet_vide()).
@@ -1081,6 +1086,18 @@ def faire_valise(jours_types, total, personnes, hors_ue, conduit, adaptateur=Tru
                 valise[personne][rayon] = {
                     objet: max(q, min(complet[objet], PLANCHER_LESSIVE))
                     for objet, q in brouillon[personne][rayon].items()}
+
+    # === CABINE : tout doit tenir dans un bagage cabine et passer le contrôle de sûreté ===
+    if cabine:
+        for proprietaire, paquet in valise.items():
+            for objet in INTERDITS_CABINE:
+                paquet[theme_de(objet)].pop(objet, None)
+            if proprietaire == "Partagé":
+                continue
+            for rayon in RAYONS_LAVABLES:
+                paquet[rayon] = {objet: min(q, PLAFOND_CABINE) for objet, q in paquet[rayon].items()}
+            paquet["Chaussures"].pop("chaussures de rechange", None)    # une paire aux pieds suffit
+        valise["Partagé"][theme_de(SAC_LIQUIDES)][SAC_LIQUIDES] = 1
 
     return valise
 
@@ -1306,8 +1323,9 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 
 # Version des pages stockées en base. À INCRÉMENTER à chaque changement de la page (rendu, script,
 # règles) : au prochain affichage, une page d'une autre version est refaite depuis la photo.
-# 1 = avant le marqueur ; 2 = onglet Formalités (27/10/2026) ; 3 = boutons modifier / retirer.
-VERSION_PAGE = 3
+# 1 = avant le marqueur ; 2 = onglet Formalités (27/10/2026) ; 3 = boutons modifier / retirer ;
+# 4 = puce « bagage cabine ».
+VERSION_PAGE = 4
 MARQUE_VERSION = f'<meta name="valise-version" content="{VERSION_PAGE}">'
 
 
@@ -1328,7 +1346,7 @@ def rayon_avant_de_partir(taches, cle_voyage):
 
 
 def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=None, depart=None,
-                   taches=None):
+                   taches=None, cabine=False):
     """Construire la page HTML de la checklist pour l'itinéraire complet.
 
     climats : liste optionnelle de (destination, mois, normales) — une puce par étape.
@@ -1344,6 +1362,8 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
         dates_js = f' const DEPART = "{depart.isoformat()}"; const FIN = "{fin.isoformat()}";'
     adaptateurs = ", ".join(sorted(prises)) if prises else "aucun"
     puces = f'<span class="puce">🔌 Adaptateur : {adaptateurs}</span>'
+    if cabine:
+        puces += f'<span class="puce" title="Vêtements plafonnés à {PLAFOND_CABINE}, liquides ≤ 100 ml">🎒 Bagage cabine</span>'
     for destination, mois, n in climats or []:
         # Puce courte à l'écran, phrase complète en info-bulle (title)
         puces += f'<span class="puce" title="{ligne_climat(destination, mois, n)}">🌡️ {puce_climat(destination, n)}</span>'
@@ -1652,7 +1672,8 @@ def construire(voyage):
     hors_ue, inconnu = statut_ue_itineraire(itineraire)
     # prises_itineraire ignore déjà les "aucun" : vide = prises françaises partout
     valise = faire_valise(jours_types, total, voyage["personnes"], hors_ue, voyage["conduit"],
-                          adaptateur=bool(prises), lessive_tous_les=voyage.get("lessive"))
+                          adaptateur=bool(prises), lessive_tous_les=voyage.get("lessive"),
+                          cabine=voyage.get("cabine", False))
     libelle = " › ".join(etape["destination"] for etape in itineraire)
     return {"valise": valise, "jours_types": jours_types, "total": total, "prises": prises,
             "libelle": libelle, "code": code_voyage(voyage["depart"], libelle),
@@ -1669,7 +1690,8 @@ def rendre_page(voyage, c, aujourd_hui=None, passeports=None):
     taches = avant_de_partir(voyage["itineraire"], voyage["depart"], aujourd_hui or date.today(),
                              passeports=passeports, personnes=voyage["personnes"])
     return valise_en_html(c["valise"], c["libelle"], c["total"], c["prises"], climats,
-                          code=c["code"], depart=voyage["depart"], taches=taches)
+                          code=c["code"], depart=voyage["depart"], taches=taches,
+                          cabine=voyage.get("cabine", False))
 
 
 def fenetres_du_voyage(conn, code, aujourd_hui):
@@ -1699,7 +1721,8 @@ def actualiser_meteo(conn, code, aujourd_hui, recues):
     appliquer_regles(c["valise"], lire_regles(conn))
     enregistrer_voyage(conn, code, c["libelle"], voyage["depart"], voyage["personnes"],
                        voyage["itineraire"], c["jours_types"],
-                       conduit=voyage["conduit"], lessive=voyage["lessive"])
+                       conduit=voyage["conduit"], lessive=voyage["lessive"],
+                       cabine=voyage.get("cabine", False))
     enregistrer_valise_objets(conn, code, c["valise"])
     publier_page(conn, rendre_page(voyage, c, passeports=lire_passeports(conn)), cle=code)
     return {"etapes_prevues": sum("prevision" in e for e in voyage["itineraire"]), "erreurs": erreurs}
@@ -1915,7 +1938,7 @@ def voyage_depuis_formulaire(corps):
     for etape, mois in zip(itineraire, mois_des_etapes(depart, [e["jours"] for e in itineraire])):
         etape["mois"] = mois
     return {"depart": depart, "itineraire": itineraire, "personnes": personnes,
-            "conduit": bool(corps.get("conduit")), "lessive": lessive}
+            "conduit": bool(corps.get("conduit")), "lessive": lessive, "cabine": corps.get("cabine") is True}
 
 
 def creer_voyage(conn, corps):
@@ -1942,7 +1965,8 @@ def creer_voyage(conn, corps):
     appliquer_regles(c["valise"], lire_regles(conn))
     enregistrer_voyage(conn, c["code"], c["libelle"], voyage["depart"], voyage["personnes"],
                        voyage["itineraire"], c["jours_types"],
-                       conduit=voyage["conduit"], lessive=voyage["lessive"])
+                       conduit=voyage["conduit"], lessive=voyage["lessive"],
+                       cabine=voyage.get("cabine", False))
     enregistrer_valise_objets(conn, c["code"], c["valise"])
     publier_page(conn, rendre_page(voyage, c, passeports=lire_passeports(conn)), cle=c["code"])
     if remplace and remplace != c["code"]:
@@ -1954,7 +1978,7 @@ def formulaire_initial(voyage):
     """Un voyage en base -> les valeurs du formulaire de modification (lues par remplir() en JS)."""
     personnes = next(cle for cle, liste in CHOIX_PERSONNE.items() if liste == list(voyage["personnes"]))
     return {"remplace": voyage["code"], "depart": voyage["depart"].isoformat(), "personnes": personnes,
-            "conduit": voyage["conduit"], "lessive": voyage["lessive"],
+            "conduit": voyage["conduit"], "lessive": voyage["lessive"], "cabine": voyage.get("cabine", False),
             "etapes": [{"destination": e["destination"], "code_pays": e.get("code_pays"),
                         "latitude": e.get("latitude"), "longitude": e.get("longitude"),
                         "jours": e["jours"], "activites": e.get("activites", [])}
@@ -2051,6 +2075,7 @@ function remplir(v) {
     document.getElementById('depart').value = v.depart;
     document.querySelector('input[name=personnes][value="' + v.personnes + '"]').checked = true;
     document.getElementById('conduit').checked = !!v.conduit;
+    document.getElementById('cabine').checked = !!v.cabine;
     if (v.lessive) document.getElementById('lessive').value = v.lessive;
     v.etapes.forEach(function (e) {
         ajouterEtape();
@@ -2072,6 +2097,7 @@ function lireFormulaire() {
         depart: document.getElementById('depart').value,
         personnes: document.querySelector('input[name=personnes]:checked').value,
         conduit: document.getElementById('conduit').checked,
+        cabine: document.getElementById('cabine').checked,
         lessive: null,
         etapes: [],
     };
@@ -2157,6 +2183,7 @@ def formulaire_en_html(voyage=None):
 <p><button type="button" id="ajouter-etape" class="ctrl-btn">➕ Ajouter une étape</button></p>
 <div class="bloc">
 <label><input type="checkbox" id="conduit"> On conduit (voiture ou scooter)</label>
+<label><input type="checkbox" id="cabine"> 🎒 Bagage cabine seulement</label>
 <label id="bloc-lessive" hidden>Lessive en route : tous les
 <input type="number" id="lessive" min="1" inputmode="numeric"> jours (vide = pas de lessive)</label>
 </div>

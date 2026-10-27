@@ -486,3 +486,14 @@ def test_page_a_les_boutons_modifier_et_retirer(client_lisbonne):
     client, code = client_lisbonne
     html = client.get("/?v=" + code).get_data(as_text=True)
     assert 'href="?modifier=2027-05-01%20Lisbonne"' in html and 'id="retirer"' in html
+
+
+
+def test_creation_en_mode_cabine(client_lisbonne):
+    client, code = client_lisbonne
+    r = client.post("/api/voyages", json={**CORPS_LISBONNE, "cabine": True, "remplace": code})
+    conn = connecter("valise_test")
+    try:
+        assert lire_voyage(conn, r.get_json()["code"])["cabine"] is True
+    finally:
+        conn.close()
