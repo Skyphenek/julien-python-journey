@@ -8,7 +8,8 @@ from db import (connecter, obtenir_etat, enregistrer_coche,
                 lire_normales, enregistrer_normales, publier_page, lire_page,
                 enregistrer_voyage, lire_voyage, enregistrer_valise_objets, lire_valise_objets,
                 enregistrer_retour, supprimer_retour, lire_retours,
-                archiver_voyage, lire_historique, ajouter_regle, lire_regles, lister_voyages)
+                archiver_voyage, lire_historique, ajouter_regle, lire_regles, lister_voyages,
+                enregistrer_passeport, lire_passeports)
 from valise import normales_avec_cache
 
 
@@ -16,7 +17,7 @@ from valise import normales_avec_cache
 def conn():
     connexion = connecter("valise_test")
     with connexion.cursor() as cur:
-        cur.execute("TRUNCATE etat_case, normales_climat, page_valise, voyages, valise_objets, retours, regles_perso")
+        cur.execute("TRUNCATE etat_case, normales_climat, page_valise, voyages, valise_objets, retours, regles_perso, passeports")
     connexion.commit()
     yield connexion
     connexion.close()
@@ -260,3 +261,12 @@ def test_lister_voyages_a_venir_et_passes_sans_les_archives(conn):
     assert [x["code"] for x in v] == ["2026-11-01 Oslo", "2027-05-01 Lisbonne"]     # par date, sans archive
     assert v[0] == {"code": "2026-11-01 Oslo", "libelle": "Oslo", "depart": date(2026, 11, 1),
                     "fin": date(2026, 11, 5), "personnes": ["Julien", "Laetitia"]}
+
+
+def test_passeports_enregistres_puis_mis_a_jour(conn):
+    from datetime import date
+    assert lire_passeports(conn) == {}
+    enregistrer_passeport(conn, "Julien", date(2027, 12, 17))
+    enregistrer_passeport(conn, "Laetitia", date(2029, 6, 20))
+    enregistrer_passeport(conn, "Julien", date(2037, 12, 1))          # renouvelé : on remplace
+    assert lire_passeports(conn) == {"Julien": date(2037, 12, 1), "Laetitia": date(2029, 6, 20)}

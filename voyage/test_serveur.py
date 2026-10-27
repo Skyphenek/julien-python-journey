@@ -12,7 +12,7 @@ from db import connecter, publier_page
 def client():
     conn = connecter("valise_test")
     with conn.cursor() as cur:
-        cur.execute("TRUNCATE etat_case, page_valise, voyages, valise_objets, retours")
+        cur.execute("TRUNCATE etat_case, page_valise, voyages, valise_objets, retours, passeports")
     conn.commit()
     conn.close()
     app = creer_app("valise_test", secret="")        # secret vide : routes à la racine
@@ -374,3 +374,18 @@ def test_creation_saisie_invalide(client_creation):
     r = client_creation.post("/api/voyages", json={**CORPS_LISBONNE, "etapes": []})
     assert r.status_code == 400 and "étape" in r.get_json()["erreur"]
     assert client_creation.post("/api/voyages").status_code == 400
+
+
+
+def test_page_republiee_utilise_les_passeports(client_meteo):
+    from db import enregistrer_passeport
+    client, code = client_meteo
+    conn = connecter("valise_test")
+    enregistrer_passeport(conn, "Julien", date(2099, 1, 1))
+    conn.close()
+    client.post("/api/meteo/" + code, json={"previsions": {}})       # republie la page
+    conn = connecter("valise_test")
+    try:
+        assert "Julien jusqu'au 01/01/2099" in lire_page(conn, code)
+    finally:
+        conn.close()

@@ -86,3 +86,11 @@ CREATE TABLE IF NOT EXISTS regles_perso (
 -- aussi leurs coordonnées (latitude/longitude) dans le JSON de l'itinéraire.
 ALTER TABLE voyages ADD COLUMN IF NOT EXISTS conduit BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE voyages ADD COLUMN IF NOT EXISTS lessive INTEGER CHECK (lessive > 0);   -- NULL = pas de lessive
+
+-- Avant de partir : date d'expiration du passeport de chaque voyageur (ni numéro, ni scan).
+-- Sert à vérifier la règle « valide 6 mois après le retour » sans rien demander.
+CREATE TABLE IF NOT EXISTS passeports (
+    personne  TEXT        PRIMARY KEY,
+    expire_le DATE        NOT NULL,
+    maj_le    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
