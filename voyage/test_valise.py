@@ -798,8 +798,10 @@ def test_rendre_page_identique_a_valise_en_html():
     climats = [(e["destination"], e["mois"], e["normales"]) for e in VOYAGE_VIETNAM["itineraire"]]
     aujourd_hui = date(2026, 10, 27)
     taches = avant_de_partir(VOYAGE_VIETNAM["itineraire"], date(2027, 1, 10), aujourd_hui)
+    from valise import devises_du_voyage
     attendu = valise_en_html(c["valise"], c["libelle"], c["total"], c["prises"], climats,
-                             code=c["code"], depart=date(2027, 1, 10), taches=taches)
+                             code=c["code"], depart=date(2027, 1, 10), taches=taches, jour=aujourd_hui,
+                             devises=devises_du_voyage(VOYAGE_VIETNAM["itineraire"]))
     assert rendre_page(VOYAGE_VIETNAM, c, aujourd_hui=aujourd_hui) == attendu
 
 

@@ -27,6 +27,7 @@ from db import (connecter, lire_normales, enregistrer_normales, publier_page,
                 lire_historique, lire_regles, ajouter_regle, lire_passeports, remplacer_voyage)
 from dotenv import load_dotenv
 from formalites import FORMALITES, DIPLOMATIE
+from devises import DEVISE_PAR_PAYS
 
 # Fuseaux horaires : toujours la base du paquet tzdata (version figée dans requirements.txt),
 # jamais celle de la machine : celle de macOS ignorait encore le passage du Maroc à GMT
@@ -99,6 +100,10 @@ div.info ul { list-style: none; padding: 0; margin: 0; }
 div.info li { padding: .35rem 0; }
 div.info .horloge { display: block; font-size: .8rem; color: var(--doux); font-variant-numeric: tabular-nums; }
 div.info p.conseil { font-size: .85rem; color: var(--doux); margin: .5rem 0 0; }
+div.devises .taux { display: block; font-size: .8rem; color: var(--doux); font-variant-numeric: tabular-nums; }
+div.devises .convertisseur { display: flex; align-items: center; gap: .3rem; margin-top: .3rem; font-size: .9rem; }
+div.devises .convertisseur input { width: 7.5rem; min-width: 0; font-size: 1rem; padding: .35rem .5rem;
+    border: 1px solid var(--ligne); border-radius: 8px; background: var(--fond); color: var(--texte); }
 #bandeau-meteo { display: flex; gap: .5rem; align-items: flex-start; background: var(--accent-doux);
                  border-radius: 12px; padding: .6rem .8rem; margin: .4rem 0; font-size: .85rem; }
 #bandeau-meteo[hidden] { display: none; }
@@ -501,6 +506,46 @@ function majHorloges() {
 }
 majHorloges();
 setInterval(majHorloges, 30000);
+
+// Devises : taux du jour (euro -> devise) téléchargés par le téléphone une fois par jour,
+// gardés pour le hors-ligne. Deux adresses de la même source, la seconde en secours.
+const SOURCES_TAUX = ['https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/eur.json',
+                      'https://latest.currency-api.pages.dev/v1/currencies/eur.json'];
+function lireTauxGardes() {
+    try { return JSON.parse(localStorage.getItem('taux-eur') || 'null'); } catch (e) { return null; }
+}
+function telechargerTaux(i) {
+    if (i >= SOURCES_TAUX.length) return Promise.reject(new Error('taux injoignables'));
+    return fetch(SOURCES_TAUX[i]).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+        .catch(function () { return telechargerTaux(i + 1); });
+}
+function afficherTaux(taux) {
+    const date = document.querySelector('div.devises .taux-date');
+    if (!taux) { date.textContent = 'Pas de taux : ouvre la page une fois avec du réseau.'; return; }
+    date.textContent = 'Taux moyens du ' + taux.date.slice(8) + '/' + taux.date.slice(5, 7) + ', indicatifs (hors frais de change).';
+    document.querySelectorAll('div.devises li[data-devise]').forEach(function (li) {
+        const code = li.dataset.devise, t = taux.eur[code.toLowerCase()];
+        if (!t) { li.querySelector('.taux').textContent = 'taux inconnu'; return; }
+        const f = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: t >= 100 ? 0 : 2 });
+        li.querySelector('.taux').textContent = '1 € = ' + f.format(t) + ' ' + code;
+        const local = li.querySelector('.montant-local'), eur = li.querySelector('.montant-eur');
+        local.addEventListener('input', function () { eur.value = local.value === '' ? '' : (local.value / t).toFixed(2); });
+        const decimales = t >= 100 ? 1 : 100;                    // pas de centimes de dong ou de riel
+        eur.addEventListener('input', function () { local.value = eur.value === '' ? '' : Math.round(eur.value * t * decimales) / decimales; });
+    });
+}
+(function () {
+    if (!document.querySelector('div.devises')) return;
+    const d = new Date();
+    const jour = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    const gardes = lireTauxGardes();
+    if (gardes && gardes.recu_le === jour) { afficherTaux(gardes); return; }
+    telechargerTaux(0).then(function (j) {
+        const taux = { recu_le: jour, date: j.date, eur: j.eur };
+        try { localStorage.setItem('taux-eur', JSON.stringify(taux)); } catch (e) {}
+        afficherTaux(taux);
+    }).catch(function () { afficherTaux(gardes); });             // hors ligne : les derniers taux connus
+})();
 
 // Retirer le voyage : deux taps (pas de fenêtre de confirmation), puis retour à l'accueil.
 // Le voyage est archivé, pas supprimé.
@@ -1450,8 +1495,8 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # 1 = avant le marqueur ; 2 = onglet Formalités (27/10/2026) ; 3 = boutons modifier / retirer ;
 # 4 = puce « bagage cabine » ; 5 = onglet Formalités en dernier ; 6 = ouverte sur Partagé sans flash ;
 # 7 = hub en rubriques ; 8 = décalage horaire dans Sur place ; 9 = météo automatique à J-10 ;
-# 10 = horloges calculées depuis la base du serveur (pas celle du téléphone).
-VERSION_PAGE = 10
+# 10 = horloges calculées depuis la base du serveur (pas celle du téléphone) ; 11 = devises.
+VERSION_PAGE = 11
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
 RUBRIQUES = [("valise", "🧳 Valise"), ("avant", "🛂 Avant"), ("sur-place", "📍 Sur place"),
@@ -1554,6 +1599,43 @@ def bloc_decalage(groupes, jour):
             f'data-jusqua="{fin}"><h3>🕐 Décalage horaire</h3><ul>{lignes}</ul>{conseil}</div>')
 
 
+# --- Sur place : devises -----------------------------------------------------------------
+# La devise vient de la table CLDR (devises.py) ; les taux, du téléphone (currency-api, taux
+# du jour, gardés pour le hors-ligne) : la page reste valable sans le serveur.
+DEVISES_D_USAGE = {"KH": ("USD", "très utilisé sur place")}     # monnaie courante en plus de l'officielle
+
+
+def devises_du_voyage(itineraire):
+    """[{"devise", "destinations", "note"}] hors euro, dans l'ordre du voyage."""
+    groupes = {}
+    for etape in itineraire:
+        pays = etape.get("code_pays")
+        devises = [(DEVISE_PAR_PAYS.get(pays), None)]
+        if pays in DEVISES_D_USAGE:
+            devises.append(DEVISES_D_USAGE[pays])
+        for devise, note in devises:
+            if devise is None or devise == "EUR":
+                continue
+            groupe = groupes.setdefault(devise, {"devise": devise, "destinations": [], "note": note})
+            if etape["destination"] not in groupe["destinations"]:
+                groupe["destinations"].append(etape["destination"])
+    return list(groupes.values())
+
+
+def bloc_devises(devises):
+    """Le bloc « Devises » : taux et convertisseur remplis par le script (données du téléphone)."""
+    lignes = ""
+    for d in devises:
+        note = f' <em>({echapper(d["note"], quote=False)})</em>' if d["note"] else ""
+        lignes += (f'<li data-devise="{d["devise"]}"><strong>{d["devise"]}</strong> · '
+                   f'{echapper(", ".join(d["destinations"]), quote=False)}{note}'
+                   f'<span class="taux">taux en cours…</span>'
+                   f'<span class="convertisseur"><input type="number" inputmode="decimal" min="0" '
+                   f'class="montant-local" placeholder="{d["devise"]}"> = <input type="number" '
+                   f'inputmode="decimal" min="0" class="montant-eur" placeholder="€"> €</span></li>')
+    return f'<div class="info devises"><h3>💱 Devises</h3><ul>{lignes}</ul><p class="conseil taux-date"></p></div>'
+
+
 def rayon_avant_de_partir(taches, cle_voyage):
     """Le rayon des tâches datées : cases cochées comme les objets (même API), sans bilan."""
     rayon = ('<details class="rayon avant" open><summary><span class="icone">🛂</span>'
@@ -1571,7 +1653,7 @@ def rayon_avant_de_partir(taches, cle_voyage):
 
 
 def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=None, depart=None,
-                   taches=None, cabine=False, fuseaux=None, meteo_du=None, jour=None):
+                   taches=None, cabine=False, fuseaux=None, meteo_du=None, jour=None, devises=None):
     """Construire la page HTML de la checklist pour l'itinéraire complet.
 
     climats : liste optionnelle de (destination, mois, normales) — une puce par étape.
@@ -1648,9 +1730,10 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
                   if taches else '<p class="vide">Rien à préparer pour ce voyage : la carte d\'identité suffit.</p>'),
         **{r: f'<p class="vide">{texte}</p>' for r, texte in A_VENIR.items()},
     }
-    if fuseaux:
-        contenus["sur-place"] = (bloc_decalage(fuseaux, jour or date.today())
-                                 + '<p class="vide">Bientôt : devises, vocabulaire, visites à faire.</p>')
+    blocs_sur_place = ((bloc_decalage(fuseaux, jour or date.today()) if fuseaux else "")
+                       + (bloc_devises(devises) if devises else ""))
+    if blocs_sur_place:
+        contenus["sur-place"] = blocs_sur_place + '<p class="vide">Bientôt : vocabulaire, visites à faire.</p>'
     nav_rubriques = '<nav class="rubriques">'
     blocs = ""
     for i, (nom, libelle) in enumerate(RUBRIQUES):
@@ -1934,7 +2017,8 @@ def rendre_page(voyage, c, aujourd_hui=None, passeports=None):
                           fuseaux=decalages(voyage["itineraire"], voyage["depart"]),
                           meteo_du=max((e["prevision"].get("prevu_le") for e in voyage["itineraire"]
                                         if e.get("prevision")), default=None),
-                          jour=aujourd_hui or date.today())
+                          jour=aujourd_hui or date.today(),
+                          devises=devises_du_voyage(voyage["itineraire"]))
 
 
 def fenetres_du_voyage(conn, code, aujourd_hui):
