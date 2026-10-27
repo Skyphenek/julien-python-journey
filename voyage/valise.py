@@ -9,6 +9,7 @@ import json
 import os
 import re
 import unicodedata
+from html import escape as echapper
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -157,6 +158,12 @@ form.ajout-manque button {
     padding: .5rem .9rem; border: none; border-radius: 10px; background: var(--accent); color: #fff;
     font-weight: 600; cursor: pointer;
 }
+/* Rayon « Avant de partir » : des tâches datées, pas des objets (pas de bilan) */
+li.tache { flex-wrap: wrap; }
+li.tache .echeance { font-size: .75rem; color: var(--doux); white-space: nowrap; font-variant-numeric: tabular-nums; }
+li.tache a.source { font-size: .75rem; color: var(--accent); padding: 0 .5rem .5rem 2.6rem; }
+li.retard:not(:has(input:checked)) .echeance { color: #dc2626; font-weight: 700; }
+body.mode-bilan details.avant { display: none; }
 """
 
 # Script JS de la page (persistance des coches). Dans une constante à part car le JS
@@ -411,8 +418,18 @@ function initialiserBilan() {
     document.addEventListener('visibilitychange', rafraichirRetours);
 }
 
+// Échéances dépassées en rouge : calculé à l'ouverture, avec la date du téléphone
+function marquerRetards() {
+    const d = new Date();
+    const auj = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    document.querySelectorAll('li.tache[data-quand]').forEach(function (li) {
+        li.classList.toggle('retard', li.dataset.quand < auj);     // dates ISO : l'ordre alphabétique suffit
+    });
+}
+
 // Tout ce qui dépend de `sauvegarde` : à lancer seulement une fois l'état reçu du serveur
 function initialiser() {
+    marquerRetards();
     document.querySelectorAll('input[type=checkbox]').forEach(function (box) {
         if (sauvegarde[box.dataset.key]) box.checked = true;
         box.addEventListener('change', function () {
@@ -1224,12 +1241,29 @@ def avant_de_partir(itineraire, depart, aujourd_hui):
     return sorted(taches, key=lambda t: t["quand"])
 
 
-def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=None, depart=None):
+def rayon_avant_de_partir(taches, cle_voyage):
+    """Le rayon des tâches datées : cases cochées comme les objets (même API), sans bilan."""
+    rayon = ('<details class="rayon avant" open><summary><span class="icone">🛂</span>'
+             '<span class="nom">Avant de partir</span><span class="compte"></span></summary><ul>')
+    for t in taches:
+        cle = f"{cle_voyage}/Partagé/Avant de partir/{t['id']}"
+        lien = (f'<a class="source" href="{echapper(t["lien"])}" target="_blank" rel="noopener">source ↗</a>'
+                if t["lien"] else "")
+        rayon += (f'<li class="tache" data-quand="{t["quand"].isoformat()}">'
+                  f'<label><input type="checkbox" data-key="{echapper(cle)}">'
+                  f'<span class="nom">{echapper(t["texte"])}</span>'
+                  f'<span class="echeance">avant le {t["quand"]:%d/%m}</span></label>{lien}</li>')
+    return rayon + "</ul></details>"
+
+
+def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=None, depart=None,
+                   taches=None):
     """Construire la page HTML de la checklist pour l'itinéraire complet.
 
     climats : liste optionnelle de (destination, mois, normales) — une puce par étape.
     code    : identifiant stable du voyage (date + itinéraire) ; préfixe des cases cochées.
     depart  : date de départ, affichée dans le titre.
+    taches  : tâches « Avant de partir » (avant_de_partir), en tête de l'onglet Partagé.
     """
     cle_voyage = code or libelle_voyage
     quand = f" · départ le {date_en_clair(depart)}" if depart else ""
@@ -1261,6 +1295,8 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
     corps = ""
     for proprietaire, themes in valise.items():
         corps += f'<section data-owner="{proprietaire}">'
+        if proprietaire == "Partagé" and taches:
+            corps += rayon_avant_de_partir(taches, cle_voyage)
         for theme, objets in themes.items():
             if not objets:
                 continue
@@ -1549,11 +1585,15 @@ def construire(voyage):
             "ue_inconnu": inconnu}
 
 
-def rendre_page(voyage, c):
-    """La page HTML d'une construction (après d'éventuels ajustements de c["valise"])."""
+def rendre_page(voyage, c, aujourd_hui=None):
+    """La page HTML d'une construction (après d'éventuels ajustements de c["valise"]).
+
+    aujourd_hui : sert à signaler les fiches pays « à revérifier » (défaut : la date du jour).
+    """
     climats = [(e["destination"], e["mois"], climat_de(e)) for e in voyage["itineraire"]]
+    taches = avant_de_partir(voyage["itineraire"], voyage["depart"], aujourd_hui or date.today())
     return valise_en_html(c["valise"], c["libelle"], c["total"], c["prises"], climats,
-                          code=c["code"], depart=voyage["depart"])
+                          code=c["code"], depart=voyage["depart"], taches=taches)
 
 
 def fenetres_du_voyage(conn, code, aujourd_hui):

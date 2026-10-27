@@ -105,3 +105,63 @@ def test_chaque_pays_de_la_table_a_ses_sources():
     for code, f in FORMALITES.items():
         assert f["entree"].startswith("https://") and f["sante"].startswith("https://"), code
         assert isinstance(f["verifie_le"], date), code
+
+
+# --- Étape 2 : affichage dans la page ----------------------------------------------------
+from valise import valise_en_html, paquet_vide, rendre_page, construire, HTML_SCRIPT, HTML_STYLE
+
+
+def page_vn_kh():
+    taches = avant_de_partir(VIETNAM_CAMBODGE, DEPART, AUJOURD_HUI)
+    paquet = paquet_vide()
+    paquet["Hygiène"]["trousse toilette"] = 1
+    return valise_en_html({"Partagé": paquet, "Julien": paquet_vide()}, "Hanoï › Siem Reap › Phu Quoc",
+                          18, set(), code="2027-01-10 X", depart=DEPART, taches=taches)
+
+
+def test_rayon_avant_de_partir_en_tete_du_partage():
+    html = page_vn_kh()
+    partage = html.split('<section data-owner="Partagé">')[1].split("</section>")[0]
+    assert partage.index("Avant de partir") < partage.index("trousse toilette")
+
+
+def test_tache_cochable_avec_cle_stable_et_echeance():
+    html = page_vn_kh()
+    assert 'data-key="2027-01-10 X/Partagé/Avant de partir/visa-KH"' in html
+    assert 'data-quand="2026-12-11"' in html
+    assert "avant le 11/12" in html
+
+
+def test_tache_avec_lien_vers_la_source():
+    html = page_vn_kh()
+    assert 'href="https://www.evisa.gov.kh/"' in html
+    assert 'target="_blank"' in html
+
+
+def test_tache_sans_boutons_de_bilan():
+    html = page_vn_kh()
+    rayon = html.split("Avant de partir</span>")[1].split("</details>")[0]
+    assert "data-verdict" not in rayon and "data-objet" not in rayon
+
+
+def test_page_sans_taches_inchangee():
+    paquet = paquet_vide()
+    paquet["Hygiène"]["trousse toilette"] = 1
+    args = ({"Partagé": paquet}, "Rome", 5, set())
+    assert valise_en_html(*args, taches=[]) == valise_en_html(*args)
+    assert 'class="rayon avant"' not in valise_en_html(*args)
+
+
+def test_rendre_page_calcule_les_taches():
+    voyage = {"depart": DEPART, "itineraire": [dict(e, mois=1, activites=[]) for e in VIETNAM_CAMBODGE],
+              "personnes": ["Julien", "Laetitia"], "conduit": False, "lessive": None}
+    html = rendre_page(voyage, construire(voyage), aujourd_hui=AUJOURD_HUI)
+    assert "Partagé/Avant de partir/vaccins" in html
+
+
+def test_echeance_depassee_marquee_par_le_script():
+    assert "retard" in HTML_SCRIPT and "retard" in HTML_STYLE
+
+
+def test_mode_bilan_masque_le_rayon_avant_de_partir():
+    assert "body.mode-bilan details.avant" in HTML_STYLE

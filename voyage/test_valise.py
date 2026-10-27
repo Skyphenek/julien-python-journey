@@ -16,7 +16,8 @@ from valise import (total_jours, jours_par_type,
                     statut_ue, adaptateur_pour, normales_avec_cache,
                     THEMES, ICONES_RAYON, puce_climat, HTML_SCRIPT,
                     lire_date, mois_des_etapes, code_voyage,
-                    cle_objet, etiquettes_climat, propositions, appliquer, appliquer_regles, theme_de)
+                    cle_objet, etiquettes_climat, propositions, appliquer, appliquer_regles, theme_de,
+                    avant_de_partir)
 
 def test_total_jours():
     itin = [{"destination": "Hanoï", "jours": 7, "mois": 1},
@@ -795,9 +796,11 @@ def test_construire_ne_modifie_pas_le_voyage():
 def test_rendre_page_identique_a_valise_en_html():
     c = construire(VOYAGE_VIETNAM)
     climats = [(e["destination"], e["mois"], e["normales"]) for e in VOYAGE_VIETNAM["itineraire"]]
+    aujourd_hui = date(2026, 10, 27)
+    taches = avant_de_partir(VOYAGE_VIETNAM["itineraire"], date(2027, 1, 10), aujourd_hui)
     attendu = valise_en_html(c["valise"], c["libelle"], c["total"], c["prises"], climats,
-                             code=c["code"], depart=date(2027, 1, 10))
-    assert rendre_page(VOYAGE_VIETNAM, c) == attendu
+                             code=c["code"], depart=date(2027, 1, 10), taches=taches)
+    assert rendre_page(VOYAGE_VIETNAM, c, aujourd_hui=aujourd_hui) == attendu
 
 
 # --- Coordonnées des étapes (prévisions météo) ---
