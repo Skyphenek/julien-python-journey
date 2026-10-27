@@ -17,6 +17,7 @@ def test_court_sejour_gaia_reste_seule_avec_ses_provisions():
     assert not {"gaia-garde", "gaia-fiche", "gardienne", "eau", "chauffage", "frigo"} & ids(t)
     provisions = next(x for x in t if x["id"] == "gaia-provisions")
     assert "5 jours" in provisions["texte"] and "eau" in provisions["texte"]   # 3 jours + 2 de marge
+    assert "gravier" in provisions["texte"] and "sacs à litière" in provisions["texte"]
 
 
 def test_garde_de_gaia_des_le_quatrieme_jour_avec_les_plantes():

@@ -1651,7 +1651,8 @@ def fermer_la_maison(total, depart):
     avant = lambda jours: depart - timedelta(days=jours)
     retour = depart + timedelta(days=total - 1)
     taches = [
-        _tache("gaia-provisions", avant(3), f"Gaïa : croquettes, eau, litière propre et friandises pour "
+        _tache("gaia-provisions", avant(3), f"Gaïa : croquettes, eau, litière (gravier + sacs à litière) "
+                                            f"et friandises pour "
                                             f"{total + MARGE_CROQUETTES} jours ({total} jours de voyage + "
                                             f"{MARGE_CROQUETTES} de marge)"),
         _tache("appareils", avant(0), "Débrancher box, télé et multiprises (sauf le frigo)"),
