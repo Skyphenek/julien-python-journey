@@ -263,3 +263,20 @@ def lire_regles(conn):
         for personne, objet, theme, quantite in cur.fetchall():
             regles.setdefault(personne, []).append({"objet": objet, "theme": theme, "quantite": quantite})
     return regles
+
+
+def enregistrer_passeport(conn, personne, expire_le):
+    """Date d'expiration du passeport d'une personne (un renouvellement remplace l'ancienne)."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """INSERT INTO passeports (personne, expire_le) VALUES (%s, %s)
+               ON CONFLICT (personne) DO UPDATE SET expire_le = EXCLUDED.expire_le, maj_le = now()""",
+            (personne, expire_le))
+    conn.commit()
+
+
+def lire_passeports(conn):
+    """{personne: date d'expiration}."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT personne, expire_le FROM passeports")
+        return dict(cur.fetchall())

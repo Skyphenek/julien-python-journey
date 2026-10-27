@@ -165,3 +165,43 @@ def test_echeance_depassee_marquee_par_le_script():
 
 def test_mode_bilan_masque_le_rayon_avant_de_partir():
     assert "body.mode-bilan details.avant" in HTML_STYLE
+
+
+
+# --- Étape 3 : dates d'expiration des passeports ---------------------------------------
+DEUX = ["Julien", "Laetitia"]
+
+
+def tache_passeport(passeports, personnes=DEUX):
+    taches = avant_de_partir(VIETNAM_CAMBODGE, DEPART, AUJOURD_HUI, passeports=passeports, personnes=personnes)
+    return par_id(taches)["passeport"]
+
+
+def test_passeports_ok_affiche_les_dates():
+    t = tache_passeport({"Julien": date(2027, 12, 17), "Laetitia": date(2029, 6, 20)})
+    assert t["texte"].startswith("✅")
+    assert "Julien jusqu'au 17/12/2027" in t["texte"] and "Laetitia jusqu'au 20/06/2029" in t["texte"]
+    assert "27/07/2027" in t["texte"]                       # le minimum exigé reste affiché
+
+
+def test_passeport_trop_court_a_renouveler():
+    t = tache_passeport({"Julien": date(2027, 5, 1), "Laetitia": date(2029, 6, 20)})
+    assert t["texte"].startswith("❌")
+    assert "Julien" in t["texte"] and "01/05/2027" in t["texte"] and "renouveler" in t["texte"]
+    assert "Laetitia" not in t["texte"]                     # seule l'alerte compte
+
+
+def test_passeport_inconnu_pour_une_personne():
+    t = tache_passeport({"Julien": date(2027, 12, 17)})
+    assert "Laetitia" in t["texte"] and "date inconnue" in t["texte"]
+    assert not t["texte"].startswith("✅")
+
+
+def test_passeport_d_un_absent_ignore():
+    t = tache_passeport({"Julien": date(2027, 12, 17), "Laetitia": date(2020, 1, 1)}, personnes=["Julien"])
+    assert t["texte"].startswith("✅") and "Laetitia" not in t["texte"]
+
+
+def test_sans_passeports_texte_generique():
+    t = par_id(avant_de_partir(VIETNAM_CAMBODGE, DEPART, AUJOURD_HUI))["passeport"]
+    assert t["texte"].startswith("Passeports valides au moins jusqu'au 27/07/2027")

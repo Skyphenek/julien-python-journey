@@ -21,7 +21,7 @@ from api_climat import (lieux, normales_12_mois, fenetre_prevision, normales_dep
 from db import (connecter, lire_normales, enregistrer_normales, publier_page,
                 enregistrer_voyage, enregistrer_valise_objets, lire_voyage, lire_page,
                 lire_valise_objets,
-                lire_historique, lire_regles, ajouter_regle)
+                lire_historique, lire_regles, ajouter_regle, lire_passeports)
 from dotenv import load_dotenv
 from formalites import FORMALITES, DIPLOMATIE
 
@@ -1182,10 +1182,28 @@ def _tache(id_, quand, texte, lien=None):
     return {"id": id_, "quand": quand, "texte": texte, "lien": lien}
 
 
-def avant_de_partir(itineraire, depart, aujourd_hui):
+def texte_passeports(limite, passeports, personnes):
+    """La tâche passeport : vérifiée si on connaît les dates d'expiration, générique sinon."""
+    exige = f"{limite:%d/%m/%Y}"
+    if not passeports or not personnes:
+        return f"Passeports valides au moins jusqu'au {exige} ({VALIDITE_PASSEPORT_MOIS} mois après le retour)"
+    trop_courts = [f"{p} (expire le {passeports[p]:%d/%m/%Y})"
+                   for p in personnes if p in passeports and passeports[p] < limite]
+    if trop_courts:
+        return f"❌ Passeport à renouveler : {', '.join(trop_courts)} — il faut au moins le {exige}"
+    inconnus = [p for p in personnes if p not in passeports]
+    connus = ", ".join(f"{p} jusqu'au {passeports[p]:%d/%m/%Y}" for p in personnes if p in passeports)
+    if inconnus:
+        return (f"Passeports valides au moins jusqu'au {exige} : {connus} ; "
+                f"{', '.join(inconnus)} : date inconnue, à vérifier")
+    return f"✅ Passeports OK : {connus} (minimum exigé : {exige})"
+
+
+def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=()):
     """Les tâches à faire avant le départ, triées par échéance. Fonction pure.
 
     Une tâche = {"id": stable (clé de la case cochée), "quand": date limite, "texte", "lien"}.
+    passeports : {personne: date d'expiration} (table passeports) ; personnes : les voyageurs.
     """
     hors_ue = []                                     # [(code ou destination, étape)] dans l'ordre, sans doublon
     jours_par_pays = {}
@@ -1206,8 +1224,7 @@ def avant_de_partir(itineraire, depart, aujourd_hui):
 
     limite = ajouter_mois(retour, VALIDITE_PASSEPORT_MOIS)
     taches = [
-        _tache("passeport", avant(DELAIS["passeport"]),
-               f"Passeports valides au moins jusqu'au {limite:%d/%m/%Y} ({VALIDITE_PASSEPORT_MOIS} mois après le retour)"),
+        _tache("passeport", avant(DELAIS["passeport"]), texte_passeports(limite, passeports, personnes)),
         _tache("vaccins", avant(DELAIS["vaccins"]),
                f"Consultation voyage : vaccins, paludisme, dengue ({noms})",
                connus[0]["sante"] if connus else DIPLOMATIE),
@@ -1251,7 +1268,7 @@ def rayon_avant_de_partir(taches, cle_voyage):
                 if t["lien"] else "")
         rayon += (f'<li class="tache" data-quand="{t["quand"].isoformat()}">'
                   f'<label><input type="checkbox" data-key="{echapper(cle)}">'
-                  f'<span class="nom">{echapper(t["texte"])}</span>'
+                  f'<span class="nom">{echapper(t["texte"], quote=False)}</span>'
                   f'<span class="echeance">avant le {t["quand"]:%d/%m}</span></label>{lien}</li>')
     return rayon + "</ul></details>"
 
@@ -1585,13 +1602,15 @@ def construire(voyage):
             "ue_inconnu": inconnu}
 
 
-def rendre_page(voyage, c, aujourd_hui=None):
+def rendre_page(voyage, c, aujourd_hui=None, passeports=None):
     """La page HTML d'une construction (après d'éventuels ajustements de c["valise"]).
 
     aujourd_hui : sert à signaler les fiches pays « à revérifier » (défaut : la date du jour).
+    passeports  : {personne: date d'expiration}, pour vérifier la validité (sinon texte générique).
     """
     climats = [(e["destination"], e["mois"], climat_de(e)) for e in voyage["itineraire"]]
-    taches = avant_de_partir(voyage["itineraire"], voyage["depart"], aujourd_hui or date.today())
+    taches = avant_de_partir(voyage["itineraire"], voyage["depart"], aujourd_hui or date.today(),
+                             passeports=passeports, personnes=voyage["personnes"])
     return valise_en_html(c["valise"], c["libelle"], c["total"], c["prises"], climats,
                           code=c["code"], depart=voyage["depart"], taches=taches)
 
@@ -1625,7 +1644,7 @@ def actualiser_meteo(conn, code, aujourd_hui, recues):
                        voyage["itineraire"], c["jours_types"],
                        conduit=voyage["conduit"], lessive=voyage["lessive"])
     enregistrer_valise_objets(conn, code, c["valise"])
-    publier_page(conn, rendre_page(voyage, c), cle=code)
+    publier_page(conn, rendre_page(voyage, c, passeports=lire_passeports(conn)), cle=code)
     return {"etapes_prevues": sum("prevision" in e for e in voyage["itineraire"]), "erreurs": erreurs}
 
 
@@ -1660,7 +1679,7 @@ def page_du_voyage(conn, code):
         c["valise"] = valise_depuis_photo(photo, voyage["personnes"])
     else:
         appliquer_regles(c["valise"], lire_regles(conn))
-    html = rendre_page(voyage, c)
+    html = rendre_page(voyage, c, passeports=lire_passeports(conn))
     publier_page(conn, html, cle=code)
     return html
 
@@ -1855,7 +1874,7 @@ def creer_voyage(conn, corps):
                        voyage["itineraire"], c["jours_types"],
                        conduit=voyage["conduit"], lessive=voyage["lessive"])
     enregistrer_valise_objets(conn, c["code"], c["valise"])
-    publier_page(conn, rendre_page(voyage, c), cle=c["code"])
+    publier_page(conn, rendre_page(voyage, c, passeports=lire_passeports(conn)), cle=c["code"])
     return {"code": c["code"]}
 
 
