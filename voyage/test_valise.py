@@ -793,18 +793,22 @@ def test_construire_ne_modifie_pas_le_voyage():
     assert VOYAGE_VIETNAM == avant
 
 
-def test_rendre_page_identique_a_valise_en_html():
+def test_rendre_page_transmet_chaque_element_calcule(monkeypatch):
+    """rendre_page calcule et passe à valise_en_html : climats, tâches, maison, étapes, devises, personnes…
+    (vérifié par espionnage plutôt que par recopie de l'appel, qui cassait à chaque nouvelle rubrique)."""
+    import valise
+    recu = {}
+    monkeypatch.setattr(valise, "valise_en_html", lambda *a, **k: recu.update(args=a, kwargs=k) or "html")
     c = construire(VOYAGE_VIETNAM)
-    climats = [(e["destination"], e["mois"], e["normales"]) for e in VOYAGE_VIETNAM["itineraire"]]
-    aujourd_hui = date(2026, 10, 27)
-    taches = avant_de_partir(VOYAGE_VIETNAM["itineraire"], date(2027, 1, 10), aujourd_hui)
-    from valise import devises_du_voyage, fermer_la_maison, etapes_du_voyage
-    attendu = valise_en_html(c["valise"], c["libelle"], c["total"], c["prises"], climats,
-                             code=c["code"], depart=date(2027, 1, 10), taches=taches, jour=aujourd_hui,
-                             devises=devises_du_voyage(VOYAGE_VIETNAM["itineraire"]),
-                             maison=fermer_la_maison(c["total"], date(2027, 1, 10)),
-                             etapes=etapes_du_voyage(VOYAGE_VIETNAM["itineraire"], date(2027, 1, 10)))
-    assert rendre_page(VOYAGE_VIETNAM, c, aujourd_hui=aujourd_hui) == attendu
+    assert rendre_page(VOYAGE_VIETNAM, c, aujourd_hui=date(2026, 10, 27)) == "html"
+    assert recu["args"][:4] == (c["valise"], c["libelle"], c["total"], c["prises"])
+    k = recu["kwargs"]
+    assert k["code"] == c["code"] and k["depart"] == date(2027, 1, 10) and k["jour"] == date(2026, 10, 27)
+    assert k["taches"] == avant_de_partir(VOYAGE_VIETNAM["itineraire"], date(2027, 1, 10), date(2026, 10, 27))
+    assert k["maison"] == valise.fermer_la_maison(c["total"], date(2027, 1, 10))
+    assert k["etapes"] == valise.etapes_du_voyage(VOYAGE_VIETNAM["itineraire"], date(2027, 1, 10))
+    assert k["devises"] == valise.devises_du_voyage(VOYAGE_VIETNAM["itineraire"])
+    assert k["personnes"] == list(VOYAGE_VIETNAM["personnes"])
 
 
 # --- Coordonnées des étapes (prévisions météo) ---

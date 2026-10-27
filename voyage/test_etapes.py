@@ -37,7 +37,7 @@ def test_page_sur_place_liste_les_etapes():
 def conn():
     c = connecter("valise_test")
     with c.cursor() as cur:
-        cur.execute("TRUNCATE voyages, infos_etape CASCADE")
+        cur.execute("TRUNCATE voyages, infos_etape, depenses CASCADE")
     c.commit()
     yield c
     c.close()

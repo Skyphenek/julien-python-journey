@@ -11,6 +11,7 @@ import re
 import unicodedata
 from html import escape as echapper
 from datetime import date, datetime, timedelta
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from urllib.parse import quote
 import zoneinfo
@@ -110,6 +111,17 @@ div.etapes form label { display: block; font-size: .8rem; color: var(--doux); ma
 div.etapes form input, div.etapes form textarea { display: block; width: 100%; box-sizing: border-box; font-size: 1rem;
     padding: .4rem .5rem; border: 1px solid var(--ligne); border-radius: 8px; background: var(--fond); color: var(--texte); }
 div.etapes .actions { display: flex; gap: .4rem; margin-top: .4rem; }
+div.depenses form { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; margin: .4rem 0; font-size: .9rem; }
+div.depenses form input[type=text], div.depenses form input[type=number], div.depenses form select {
+    font-size: 1rem; padding: .35rem .5rem; border: 1px solid var(--ligne); border-radius: 8px;
+    background: var(--fond); color: var(--texte); min-width: 0; }
+div.depenses form input[name=libelle] { flex: 1 1 100%; }
+div.depenses form input[name=montant] { width: 7rem; }
+div.depenses .solde { font-weight: 600; margin: .2rem 0 .4rem; }
+div.depenses .liste-depenses li { display: flex; gap: .5rem; align-items: baseline; border-top: 1px solid var(--ligne);
+    font-size: .88rem; }
+div.depenses .liste-depenses li span { flex: 1; overflow-wrap: anywhere; }
+div.depenses .liste-depenses button { border: none; background: none; color: var(--doux); cursor: pointer; }
 div.devises .taux { display: block; font-size: .8rem; color: var(--doux); font-variant-numeric: tabular-nums; }
 div.devises .convertisseur { display: flex; align-items: center; gap: .3rem; margin-top: .3rem; font-size: .9rem; }
 div.devises .convertisseur input { width: 7.5rem; min-width: 0; font-size: 1rem; padding: .35rem .5rem;
@@ -596,6 +608,79 @@ function chargerInfos() {
 }
 chargerInfos();
 document.addEventListener('visibilitychange', function () { if (!document.hidden) chargerInfos(); });
+
+// Dépenses partagées : saisie convertie en euros au moment même (taux gardés sur le téléphone),
+// liste et solde calculés par le serveur (api/depenses). Texte saisi affiché en textContent.
+const euros = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
+function jourLocal() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function afficherDepenses(res) {
+    const bloc = document.querySelector('div.depenses');
+    const s = res.solde;
+    let texte = 'Total ' + euros.format(Number(s.total));
+    if (bloc.dataset.personnes.indexOf('|') !== -1) {
+        texte += ' · ' + (s.remboursements.length
+            ? s.remboursements.map(function (r) { return r.de + ' doit ' + euros.format(Number(r.montant)) + ' à ' + r.a; }).join(' · ')
+            : 'comptes à l\u2019équilibre');
+    }
+    bloc.querySelector('.solde').textContent = res.depenses.length ? texte : 'Aucune dépense pour l\u2019instant.';
+    const liste = bloc.querySelector('.liste-depenses');
+    liste.replaceChildren();
+    res.depenses.forEach(function (d) {
+        const li = document.createElement('li'), span = document.createElement('span');
+        let t = d.jour.slice(8) + '/' + d.jour.slice(5, 7) + ' · ' + d.libelle + ' — '
+            + new Intl.NumberFormat('fr-FR').format(Number(d.montant)) + ' ' + d.devise;
+        if (d.devise !== 'EUR') t += ' (' + euros.format(Number(d.montant_eur)) + ')';
+        if (bloc.dataset.personnes.indexOf('|') !== -1) {
+            t += ' · payé par ' + d.paye_par;
+            if (d.pour.length < bloc.dataset.personnes.split('|').length) t += ' pour ' + d.pour.join(', ');
+        }
+        span.textContent = t;
+        const suppr = document.createElement('button');
+        suppr.type = 'button'; suppr.textContent = '🗑️'; suppr.title = 'Supprimer';
+        suppr.addEventListener('click', function () {
+            if (!suppr.dataset.confirmer) { suppr.dataset.confirmer = '1'; suppr.textContent = 'Supprimer ?'; return; }
+            fetch('api/depenses/' + encodeURIComponent(VOYAGE) + '/' + d.id, { method: 'DELETE' }).then(chargerDepenses);
+        });
+        li.append(span, suppr);
+        liste.append(li);
+    });
+}
+function chargerDepenses() {
+    if (!document.querySelector('div.depenses')) return;
+    fetch('api/depenses/' + encodeURIComponent(VOYAGE))
+        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+        .then(afficherDepenses)
+        .catch(function () { document.querySelector('div.depenses .solde').textContent = 'Dépenses indisponibles sans réseau.'; });
+}
+(function () {
+    const form = document.querySelector('form.nouvelle-depense');
+    if (!form) return;
+    const message = form.querySelector('.message-depense');
+    form.addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        const devise = form.elements.devise.value, montant = Number(form.elements.montant.value);
+        let enEuros = montant;
+        if (devise !== 'EUR') {
+            const taux = lireTauxGardes(), t = taux && taux.eur[devise.toLowerCase()];
+            if (!t) { message.textContent = '⚠️ Pas de taux pour ' + devise + ' : saisis le montant en euros.'; return; }
+            enEuros = montant / t;
+        }
+        const pour = Array.from(form.querySelectorAll('input[name=pour]:checked')).map(function (c) { return c.value; });
+        if (!pour.length) { message.textContent = '⚠️ Coche au moins une personne.'; return; }
+        const corps = { voyage: VOYAGE, libelle: form.elements.libelle.value.trim(), montant: montant.toFixed(2), devise: devise,
+                        montant_eur: enEuros.toFixed(2), paye_par: form.elements.paye_par.value, pour: pour, jour: jourLocal() };
+        message.textContent = '⏳';
+        fetch('api/depenses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) })
+            .then(function (r) { if (!r.ok) throw new Error(r.status); })
+            .then(function () { message.textContent = ''; form.elements.libelle.value = ''; form.elements.montant.value = ''; chargerDepenses(); })
+            .catch(function () { message.textContent = '⚠️ Échec, réessaie (réseau ?)'; });
+    });
+    chargerDepenses();
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) chargerDepenses(); });
+})();
 
 // Devises : taux du jour (euro -> devise) téléchargés par le téléphone une fois par jour,
 // gardés pour le hors-ligne. Deux adresses de la même source, la seconde en secours.
@@ -1586,8 +1671,9 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # 4 = puce « bagage cabine » ; 5 = onglet Formalités en dernier ; 6 = ouverte sur Partagé sans flash ;
 # 7 = hub en rubriques ; 8 = décalage horaire dans Sur place ; 9 = météo automatique à J-10 ;
 # 10 = horloges calculées depuis la base du serveur (pas celle du téléphone) ; 11 = devises ;
-# 12 = « fermer la maison » dans Avant ; 13 = infos de chaque étape dans Sur place.
-VERSION_PAGE = 13
+# 12 = « fermer la maison » dans Avant ; 13 = infos de chaque étape dans Sur place ;
+# 14 = dépenses partagées.
+VERSION_PAGE = 14
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
 RUBRIQUES = [("valise", "🧳 Valise"), ("avant", "🛂 Avant"), ("sur-place", "📍 Sur place"),
@@ -1617,6 +1703,60 @@ def bloc_etapes(etapes):
                      f'<span class="dates">{e["du"]:%d/%m} → {e["au"]:%d/%m}</span>'
                      f'<div class="fiche"></div></li>' for e in etapes)
     return f'<div class="info etapes"><h3>🏨 Étapes</h3><ul>{lignes}</ul></div>'
+
+
+# --- Sur place : dépenses partagées --------------------------------------------------------
+def _euros(centimes):
+    return (Decimal(centimes) / 100).quantize(Decimal("0.01"))
+
+
+def solde_depenses(depenses, personnes):
+    """Qui a payé quoi, la part de chacun et les remboursements, calculés en centimes.
+
+    depenses : [{"montant_eur", "paye_par", "pour"}]. Une dépense est partagée à parts égales
+    entre les personnes de "pour" ; les centimes restants vont aux dernières de la liste.
+    """
+    paye, part = {p: 0 for p in personnes}, {p: 0 for p in personnes}
+    for d in depenses:
+        centimes = int((Decimal(d["montant_eur"]) * 100).to_integral_value(ROUND_HALF_UP))
+        paye[d["paye_par"]] = paye.get(d["paye_par"], 0) + centimes
+        base, reste = divmod(centimes, len(d["pour"]))
+        for i, p in enumerate(d["pour"]):
+            part[p] = part.get(p, 0) + base + (1 if i >= len(d["pour"]) - reste else 0)
+    noms = list(dict.fromkeys(list(paye) + list(part)))
+    net = {p: paye.get(p, 0) - part.get(p, 0) for p in noms}
+    debiteurs = sorted(([p, -n] for p, n in net.items() if n < 0), key=lambda x: -x[1])
+    crediteurs = sorted(([p, n] for p, n in net.items() if n > 0), key=lambda x: -x[1])
+    remboursements = []
+    while debiteurs and crediteurs:                      # le plus gros débiteur rembourse le plus gros créancier
+        montant = min(debiteurs[0][1], crediteurs[0][1])
+        remboursements.append({"de": debiteurs[0][0], "a": crediteurs[0][0], "montant": _euros(montant)})
+        debiteurs[0][1] -= montant
+        crediteurs[0][1] -= montant
+        debiteurs = [d for d in debiteurs if d[1]]
+        crediteurs = [c for c in crediteurs if c[1]]
+    return {"total": _euros(sum(paye.values())),
+            "par_personne": {p: {"paye": _euros(paye.get(p, 0)), "part": _euros(part.get(p, 0)),
+                                 "net": _euros(net[p])} for p in noms},
+            "remboursements": remboursements}
+
+
+def bloc_depenses(personnes, devises):
+    """Le bloc « Dépenses » : formulaire de saisie ; liste et solde remplis par le script."""
+    options_devise = "".join(f'<option value="{d}">{d}</option>' for d in ["EUR", *devises])
+    seul = len(personnes) == 1
+    payeur = "".join(f'<option value="{echapper(p)}">{echapper(p, quote=False)}</option>' for p in personnes)
+    pour = "".join(f'<label><input type="checkbox" name="pour" value="{echapper(p)}" checked> '
+                   f'{echapper(p, quote=False)}</label>' for p in personnes)
+    return (f'<div class="info depenses" data-personnes="{echapper("|".join(personnes))}"><h3>💸 Dépenses</h3>'
+            f'<p class="solde"></p>'
+            f'<form class="nouvelle-depense">'
+            f'<input type="text" name="libelle" placeholder="ex. dîner, taxi" maxlength="120" required>'
+            f'<span class="montant"><input type="number" name="montant" inputmode="decimal" min="0.01" step="0.01" '
+            f'placeholder="montant" required><select name="devise">{options_devise}</select></span>'
+            f'<span{" hidden" if seul else ""}>payé par <select name="paye_par">{payeur}</select> pour {pour}</span>'
+            f'<button type="submit" class="ctrl-btn">➕ Ajouter</button><span class="message-depense"></span></form>'
+            f'<ul class="liste-depenses"></ul></div>')
 
 
 # --- Sur place : décalage horaire ---------------------------------------------------------
@@ -1810,7 +1950,7 @@ def rayon_avant_de_partir(taches, cle_voyage):
 
 def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=None, depart=None,
                    taches=None, cabine=False, fuseaux=None, meteo_du=None, jour=None, devises=None,
-                   maison=None, etapes=None):
+                   maison=None, etapes=None, personnes=None):
     """Construire la page HTML de la checklist pour l'itinéraire complet.
 
     climats : liste optionnelle de (destination, mois, normales) — une puce par étape.
@@ -1891,6 +2031,7 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
         **{r: f'<p class="vide">{texte}</p>' for r, texte in A_VENIR.items()},
     }
     blocs_sur_place = ((bloc_etapes(etapes) if etapes else "")
+                       + (bloc_depenses(personnes, [d["devise"] for d in devises or []]) if personnes else "")
                        + (bloc_decalage(fuseaux, jour or date.today()) if fuseaux else "")
                        + (bloc_devises(devises) if devises else ""))
     if blocs_sur_place:
@@ -2181,7 +2322,8 @@ def rendre_page(voyage, c, aujourd_hui=None, passeports=None):
                           jour=aujourd_hui or date.today(),
                           devises=devises_du_voyage(voyage["itineraire"]),
                           maison=fermer_la_maison(c["total"], voyage["depart"]),
-                          etapes=etapes_du_voyage(voyage["itineraire"], voyage["depart"]))
+                          etapes=etapes_du_voyage(voyage["itineraire"], voyage["depart"]),
+                          personnes=list(voyage["personnes"]))
 
 
 def fenetres_du_voyage(conn, code, aujourd_hui):

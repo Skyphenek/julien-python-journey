@@ -12,7 +12,7 @@ from db import connecter, publier_page
 def client():
     conn = connecter("valise_test")
     with conn.cursor() as cur:
-        cur.execute("TRUNCATE etat_case, page_valise, voyages, valise_objets, retours, passeports, infos_etape")
+        cur.execute("TRUNCATE etat_case, page_valise, voyages, valise_objets, retours, passeports, infos_etape, depenses")
     conn.commit()
     conn.close()
     app = creer_app("valise_test", secret="")        # secret vide : routes à la racine
@@ -532,3 +532,27 @@ def test_infos_etape_refusees(client_lisbonne):
     assert client.post("/api/infos", json={**base, "notes": "x" * 2001}).status_code == 400
     assert client.post("/api/infos", json={**base, "rang": "un"}).status_code == 400
     assert client.post("/api/infos", json={"voyage": code}).status_code == 400
+
+
+# --- Dépenses partagées -------------------------------------------------------------------
+
+def test_depenses_par_l_api(client_lisbonne):
+    client, code = client_lisbonne                   # Lisbonne : Laetitia seule
+    r = client.post("/api/depenses", json={"voyage": code, "libelle": "Pastéis", "montant": "6.40", "devise": "EUR",
+                                           "montant_eur": "6.40", "paye_par": "Laetitia", "pour": ["Laetitia"],
+                                           "jour": "2027-05-02"})
+    assert r.status_code == 200
+    corps = client.get("/api/depenses/" + code).get_json()
+    assert corps["depenses"][0]["libelle"] == "Pastéis" and corps["solde"]["total"] == "6.40"
+    assert client.delete(f"/api/depenses/{code}/{corps['depenses'][0]['id']}").status_code == 200
+    assert client.get("/api/depenses/" + code).get_json()["depenses"] == []
+
+
+def test_depenses_refusees(client_lisbonne):
+    client, code = client_lisbonne
+    ok = {"voyage": code, "libelle": "X", "montant": "5", "devise": "EUR", "montant_eur": "5", "paye_par": "Laetitia",
+          "pour": ["Laetitia"], "jour": "2027-05-02"}
+    assert client.post("/api/depenses", json={**ok, "voyage": "2027-01-01 Nulle Part"}).status_code == 404
+    for mauvais in ({"montant": "-3"}, {"montant": "abc"}, {"devise": "euro"}, {"paye_par": "Julien"},
+                    {"pour": []}, {"pour": ["Inconnu"]}, {"libelle": "x" * 121}, {"jour": "hier"}):
+        assert client.post("/api/depenses", json={**ok, **mauvais}).status_code == 400, mauvais

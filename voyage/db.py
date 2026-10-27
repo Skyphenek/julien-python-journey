@@ -293,7 +293,7 @@ def lire_passeports(conn):
 
 def remplacer_voyage(conn, ancien, nouveau):
     """Voyage modifié dont le code a changé (date ou étapes) : les cases cochées, le bilan et les
-    infos des étapes suivent le nouveau code, puis l'ancien est archivé (rien n'est supprimé)."""
+    infos des étapes et les dépenses suivent le nouveau code, puis l'ancien est archivé (rien n'est supprimé)."""
     with conn.cursor() as cur:
         cur.execute("""INSERT INTO etat_case (voyage, proprietaire, theme, objet, coche, maj_le)
                        SELECT %s, proprietaire, theme, objet, coche, maj_le FROM etat_case WHERE voyage = %s
@@ -308,6 +308,7 @@ def remplacer_voyage(conn, ancien, nouveau):
                        SELECT %s, destination, rang, hebergement, adresse, reservation, arrivee, notes, maj_le
                        FROM infos_etape WHERE voyage = %s ON CONFLICT DO NOTHING""", (nouveau, ancien))
         cur.execute("DELETE FROM infos_etape WHERE voyage = %s", (ancien,))
+        cur.execute("UPDATE depenses SET voyage = %s WHERE voyage = %s", (nouveau, ancien))
         cur.execute("UPDATE voyages SET archive = true WHERE code = %s", (ancien,))
     conn.commit()
 
@@ -392,3 +393,31 @@ def lire_infos_etapes(conn, voyage):
         cur.execute(f"SELECT destination, rang, {', '.join(CHAMPS_ETAPE)} FROM infos_etape "
                     "WHERE voyage = %s ORDER BY destination, rang", (voyage,))
         return [dict(zip(("destination", "rang", *CHAMPS_ETAPE), ligne)) for ligne in cur.fetchall()]
+
+
+
+# --- Dépenses partagées (rubrique Sur place) -------------------------------------------------
+def ajouter_depense(conn, voyage, libelle, montant, devise, montant_eur, paye_par, pour, jour):
+    """Enregistre une dépense ; renvoie son id."""
+    with conn.cursor() as cur:
+        cur.execute("""INSERT INTO depenses (voyage, libelle, montant, devise, montant_eur, paye_par, pour, jour)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id""",
+                    (voyage, libelle, montant, devise, montant_eur, paye_par, list(pour), jour))
+        identifiant = cur.fetchone()[0]
+    conn.commit()
+    return identifiant
+
+
+def lire_depenses(conn, voyage):
+    """Les dépenses du voyage, la plus récente d'abord."""
+    with conn.cursor() as cur:
+        cur.execute("""SELECT id, libelle, montant, devise, montant_eur, paye_par, pour, jour FROM depenses
+                       WHERE voyage = %s ORDER BY jour DESC, id DESC""", (voyage,))
+        cles = ("id", "libelle", "montant", "devise", "montant_eur", "paye_par", "pour", "jour")
+        return [dict(zip(cles, ligne)) for ligne in cur.fetchall()]
+
+
+def supprimer_depense(conn, voyage, identifiant):
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM depenses WHERE voyage = %s AND id = %s", (voyage, identifiant))
+    conn.commit()

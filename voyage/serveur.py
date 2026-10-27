@@ -6,6 +6,8 @@ Même code en local (Mac) et en ligne (Render) ; seules les variables d'environn
 - PORT          : imposé par l'hébergeur (sinon 8000)
 """
 import os
+import re
+from decimal import Decimal, InvalidOperation
 from datetime import date
 from pathlib import Path
 from urllib.parse import quote
@@ -15,9 +17,9 @@ import psycopg2
 from dotenv import load_dotenv
 from flask import Blueprint, Flask, jsonify, request, Response
 
-from db import (emprunter, enregistrer_infos_etape, lire_infos_etapes, CHAMPS_ETAPE, obtenir_etat, enregistrer_coche, lister_voyages, lire_voyage, archiver_voyage,
+from db import (emprunter, ajouter_depense, lire_depenses, supprimer_depense, enregistrer_infos_etape, lire_infos_etapes, CHAMPS_ETAPE, obtenir_etat, enregistrer_coche, lister_voyages, lire_voyage, archiver_voyage,
                 VERDICTS, enregistrer_retour, supprimer_retour, lire_retours)
-from valise import (actualiser_meteo, fenetres_du_voyage, page_du_voyage, accueil_en_html,
+from valise import (solde_depenses, actualiser_meteo, fenetres_du_voyage, page_du_voyage, accueil_en_html,
                     lieux_depuis_reponse, normales_ou_url, normales_depuis_historique,
                     formulaire_en_html, creer_voyage)
 from api_climat import url_geocodage
@@ -189,6 +191,66 @@ def creer_app(nom_base="valise", secret=None):
             if lire_voyage(conn, corps.get("voyage")) is None:
                 return jsonify({"erreur": "voyage inconnu"}), 404
             enregistrer_infos_etape(conn, corps["voyage"], destination, rang, champs)
+        finally:
+            conn.close()
+        return jsonify({"ok": True})
+
+    def _en_json(valeur):
+        """Decimal -> texte (« 12.13 »), date -> ISO : ce que le navigateur lit sans perte."""
+        if isinstance(valeur, Decimal):
+            return str(valeur)
+        if isinstance(valeur, date):
+            return valeur.isoformat()
+        if isinstance(valeur, dict):
+            return {k: _en_json(v) for k, v in valeur.items()}
+        if isinstance(valeur, list):
+            return [_en_json(v) for v in valeur]
+        return valeur
+
+    @routes.get("/api/depenses/<voyage>")
+    def depenses(voyage):
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            v = lire_voyage(conn, voyage)
+            if v is None:
+                return jsonify({"erreur": "voyage inconnu"}), 404
+            liste = lire_depenses(conn, voyage)
+        finally:
+            conn.close()
+        return jsonify(_en_json({"depenses": liste, "solde": solde_depenses(liste, v["personnes"])}))
+
+    @routes.post("/api/depenses")
+    def nouvelle_depense():
+        """Une dépense saisie sur le téléphone, déjà convertie en euros. Tout est vérifié."""
+        corps = request.get_json(silent=True) or {}
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            v = lire_voyage(conn, corps.get("voyage"))
+            if v is None:
+                return jsonify({"erreur": "voyage inconnu"}), 404
+            try:
+                libelle = corps["libelle"].strip()
+                montant, montant_eur = Decimal(str(corps["montant"])), Decimal(str(corps["montant_eur"]))
+                jour = date.fromisoformat(corps["jour"])
+                pour = list(corps["pour"])
+                valide = (0 < len(libelle) <= 120 and 0 < montant < 10**12 and 0 <= montant_eur < 10**9
+                          and re.fullmatch(r"[A-Z]{3}", str(corps["devise"])) is not None
+                          and corps["paye_par"] in v["personnes"] and pour and set(pour) <= set(v["personnes"]))
+            except (KeyError, TypeError, ValueError, AttributeError, InvalidOperation):
+                valide = False
+            if not valide:
+                return jsonify({"erreur": "dépense invalide"}), 400
+            ajouter_depense(conn, v["code"], libelle, montant, corps["devise"], montant_eur, corps["paye_par"],
+                            pour, jour)
+        finally:
+            conn.close()
+        return jsonify({"ok": True})
+
+    @routes.delete("/api/depenses/<voyage>/<int:identifiant>")
+    def retirer_depense(voyage, identifiant):
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            supprimer_depense(conn, voyage, identifiant)
         finally:
             conn.close()
         return jsonify({"ok": True})
