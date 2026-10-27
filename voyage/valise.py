@@ -10,9 +10,10 @@ import os
 import re
 import unicodedata
 from html import escape as echapper
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from urllib.parse import quote
+from zoneinfo import ZoneInfo
 
 import psycopg2
 import requests
@@ -85,6 +86,13 @@ nav.rubriques button {
 nav.rubriques button.actif { color: var(--texte); border-bottom-color: var(--accent); }
 nav.rubriques .compte-rubrique { font-size: .7rem; opacity: .75; }
 div.rubrique p.vide { color: var(--doux); padding: 1rem .2rem; }
+div.info { background: var(--carte); border-radius: 14px; padding: .8rem 1rem; margin: .6rem 0;
+           box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+div.info h3 { font-size: 1rem; margin: 0 0 .5rem; }
+div.info ul { list-style: none; padding: 0; margin: 0; }
+div.info li { padding: .35rem 0; }
+div.info .horloge { display: block; font-size: .8rem; color: var(--doux); font-variant-numeric: tabular-nums; }
+div.info p.conseil { font-size: .85rem; color: var(--doux); margin: .5rem 0 0; }
 
 /* Rayons repliables (élément <details> natif : replier ne demande aucun JavaScript) */
 details.rayon {
@@ -455,6 +463,18 @@ function majRubriques() {
     boxes.forEach(function (b) { if (b.checked) faites++; });
     span.textContent = faites + '/' + boxes.length;
 }
+
+// Horloges de la rubrique Sur place : heure locale de chaque fuseau, et celle de Paris
+function majHorloges() {
+    const heure = function (fuseau) {
+        return new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: fuseau }).format(new Date());
+    };
+    document.querySelectorAll('li[data-fuseau]').forEach(function (li) {
+        li.querySelector('.horloge').textContent = 'il est ' + heure(li.dataset.fuseau) + ' sur place, ' + heure('Europe/Paris') + ' à Paris';
+    });
+}
+majHorloges();
+setInterval(majHorloges, 30000);
 
 // Retirer le voyage : deux taps (pas de fenêtre de confirmation), puis retour à l'accueil.
 // Le voyage est archivé, pas supprimé.
@@ -1361,8 +1381,8 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # règles) : au prochain affichage, une page d'une autre version est refaite depuis la photo.
 # 1 = avant le marqueur ; 2 = onglet Formalités (27/10/2026) ; 3 = boutons modifier / retirer ;
 # 4 = puce « bagage cabine » ; 5 = onglet Formalités en dernier ; 6 = ouverte sur Partagé sans flash ;
-# 7 = hub en rubriques.
-VERSION_PAGE = 7
+# 7 = hub en rubriques ; 8 = décalage horaire dans Sur place.
+VERSION_PAGE = 8
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
 RUBRIQUES = [("valise", "🧳 Valise"), ("avant", "🛂 Avant"), ("sur-place", "📍 Sur place"),
@@ -1370,6 +1390,77 @@ RUBRIQUES = [("valise", "🧳 Valise"), ("avant", "🛂 Avant"), ("sur-place", "
 A_VENIR = {"sur-place": "Bientôt : devises, décalage horaire, vocabulaire, visites à faire.",
            "souvenirs": "Bientôt : les souvenirs à rapporter, et pour qui."}
 MARQUE_VERSION = f'<meta name="valise-version" content="{VERSION_PAGE}">'
+
+
+# --- Sur place : décalage horaire ---------------------------------------------------------
+# Fuseau trouvé hors ligne depuis les coordonnées (timezonefinder) ; décalage calculé aux dates
+# de l'étape (heure d'été de part et d'autre comprise).
+REFERENCE_HORAIRE = "Europe/Paris"
+SEUIL_CONSEIL_DECALAGE = 3      # heures : en dessous, pas de conseil contre le décalage
+_trouveur_fuseau = None
+
+
+def fuseau_de(etape):
+    """Le fuseau IANA d'une étape (« Asia/Tokyo »), ou None sans coordonnées."""
+    global _trouveur_fuseau
+    if etape.get("latitude") is None or etape.get("longitude") is None:
+        return None
+    if _trouveur_fuseau is None:                      # chargé à la première demande seulement
+        from timezonefinder import TimezoneFinder
+        _trouveur_fuseau = TimezoneFinder()
+    return _trouveur_fuseau.timezone_at(lat=etape["latitude"], lng=etape["longitude"])
+
+
+def _decalage_heures(fuseau, jour):
+    """Heures d'avance du fuseau sur Paris, le jour donné à midi local."""
+    instant = datetime(jour.year, jour.month, jour.day, 12, tzinfo=ZoneInfo(fuseau))
+    ecart = instant.utcoffset() - instant.astimezone(ZoneInfo(REFERENCE_HORAIRE)).utcoffset()
+    return ecart.total_seconds() / 3600
+
+
+def decalages(itineraire, depart):
+    """[{"destinations", "heures", "fuseau"}] : étapes regroupées par décalage, dans l'ordre du voyage."""
+    groupes, debut = {}, depart
+    for etape in itineraire:
+        fuseau = fuseau_de(etape)
+        milieu = debut + timedelta(days=(etape["jours"] - 1) // 2)
+        debut += timedelta(days=etape["jours"])
+        if fuseau is None:
+            continue
+        heures = _decalage_heures(fuseau, milieu)
+        groupe = groupes.setdefault(heures, {"destinations": [], "heures": heures, "fuseau": fuseau})
+        groupe["destinations"].append(etape["destination"])
+    return list(groupes.values())
+
+
+def texte_decalage(heures):
+    """6 -> « +6 h », -6 -> « −6 h », 4.5 -> « +4 h 30 », 0 -> « même heure qu'à Paris »."""
+    if heures == 0:
+        return "même heure qu'à Paris"
+    signe = "+" if heures > 0 else "−"
+    minutes = round(abs(heures) * 60)
+    h, m = divmod(minutes, 60)
+    return f"{signe}{h} h" + (f" {m:02d}" if m else "")
+
+
+def conseil_decalage(heures):
+    """Conseil contre le décalage horaire pour l'arrivée, ou None si le décalage est faible."""
+    if heures >= SEUIL_CONSEIL_DECALAGE:
+        return ("Vers l'est : couchez-vous 1 h plus tôt chaque soir les 2 ou 3 jours avant le départ, "
+                "puis prenez la lumière du matin sur place.")
+    if heures <= -SEUIL_CONSEIL_DECALAGE:
+        return ("Vers l'ouest : couchez-vous 1 h plus tard les 2 ou 3 soirs avant le départ, "
+                "et tenez jusqu'au soir local le jour de l'arrivée.")
+    return None
+
+
+def bloc_decalage(groupes):
+    """Le bloc « Décalage horaire » de la rubrique Sur place (horloges remplies par le script)."""
+    lignes = "".join(f'<li data-fuseau="{echapper(g["fuseau"])}"><strong>{echapper(", ".join(g["destinations"]), quote=False)}</strong>'
+                     f' : {texte_decalage(g["heures"])}<span class="horloge"></span></li>' for g in groupes)
+    conseil = conseil_decalage(groupes[0]["heures"])
+    conseil = f'<p class="conseil">💤 {conseil}</p>' if conseil else ""
+    return f'<div class="info decalage"><h3>🕐 Décalage horaire</h3><ul>{lignes}</ul>{conseil}</div>'
 
 
 def rayon_avant_de_partir(taches, cle_voyage):
@@ -1389,7 +1480,7 @@ def rayon_avant_de_partir(taches, cle_voyage):
 
 
 def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=None, depart=None,
-                   taches=None, cabine=False):
+                   taches=None, cabine=False, fuseaux=None):
     """Construire la page HTML de la checklist pour l'itinéraire complet.
 
     climats : liste optionnelle de (destination, mois, normales) — une puce par étape.
@@ -1466,6 +1557,9 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
                   if taches else '<p class="vide">Rien à préparer pour ce voyage : la carte d\'identité suffit.</p>'),
         **{r: f'<p class="vide">{texte}</p>' for r, texte in A_VENIR.items()},
     }
+    if fuseaux:
+        contenus["sur-place"] = (bloc_decalage(fuseaux)
+                                 + '<p class="vide">Bientôt : devises, vocabulaire, visites à faire.</p>')
     nav_rubriques = '<nav class="rubriques">'
     blocs = ""
     for i, (nom, libelle) in enumerate(RUBRIQUES):
@@ -1744,7 +1838,8 @@ def rendre_page(voyage, c, aujourd_hui=None, passeports=None):
                              passeports=passeports, personnes=voyage["personnes"])
     return valise_en_html(c["valise"], c["libelle"], c["total"], c["prises"], climats,
                           code=c["code"], depart=voyage["depart"], taches=taches,
-                          cabine=voyage.get("cabine", False))
+                          cabine=voyage.get("cabine", False),
+                          fuseaux=decalages(voyage["itineraire"], voyage["depart"]))
 
 
 def fenetres_du_voyage(conn, code, aujourd_hui):

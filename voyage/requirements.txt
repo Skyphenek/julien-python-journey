@@ -4,3 +4,5 @@ psycopg2-binary==2.9.13
 requests==2.34.2
 python-dotenv==1.2.2
 gunicorn==26.2.0
+timezonefinder==6.5.9
+tzdata==2026.5
