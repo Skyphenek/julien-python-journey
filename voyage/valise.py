@@ -1287,6 +1287,13 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
     return sorted(taches, key=lambda t: t["quand"])
 
 
+# Version des pages stockées en base. À INCRÉMENTER à chaque changement de la page (rendu, script,
+# règles) : au prochain affichage, une page d'une autre version est refaite depuis la photo.
+# 1 = avant le marqueur ; 2 = onglet Formalités (27/10/2026).
+VERSION_PAGE = 2
+MARQUE_VERSION = f'<meta name="valise-version" content="{VERSION_PAGE}">'
+
+
 def rayon_avant_de_partir(taches, cle_voyage):
     """Le rayon des tâches datées : cases cochées comme les objets (même API), sans bilan."""
     rayon = ('<details class="rayon avant" open><summary><span class="icone">🛂</span>'
@@ -1377,6 +1384,7 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+{MARQUE_VERSION}
 <title>Valise — {libelle_voyage}</title>
 <style>{HTML_STYLE}</style>
 </head>
@@ -1694,14 +1702,23 @@ def valise_depuis_photo(photo, personnes):
 
 
 def page_du_voyage(conn, code):
-    """La page d'un voyage ; si aucune n'est stockée à son nom, refaite depuis la photo en base.
+    """La page d'un voyage ; refaite depuis la photo si elle manque ou date d'une autre version.
 
-    La photo (ce qui a été réellement proposé) prime sur un recalcul : les règles ont pu
-    changer depuis, et le bilan se fait par rapport à la photo. None si le voyage est inconnu.
+    None si le voyage est inconnu.
     """
     html = lire_page(conn, code)
-    if html is not None:
+    if html is not None and MARQUE_VERSION in html:
         return html
+    return refaire_page(conn, code) or html          # voyage disparu : on sert quand même l'ancienne
+
+
+def refaire_page(conn, code):
+    """Refait et republie la page d'un voyage depuis sa photo en base.
+
+    La photo (ce qui a été réellement proposé) prime sur un recalcul : les règles ont pu
+    changer depuis, et le bilan se fait par rapport à la photo. Les cases cochées ne bougent
+    pas (table etat_case). None si le voyage est inconnu.
+    """
     voyage = lire_voyage(conn, code)
     if voyage is None:
         return None
