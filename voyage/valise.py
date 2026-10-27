@@ -1495,8 +1495,9 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # 1 = avant le marqueur ; 2 = onglet Formalités (27/10/2026) ; 3 = boutons modifier / retirer ;
 # 4 = puce « bagage cabine » ; 5 = onglet Formalités en dernier ; 6 = ouverte sur Partagé sans flash ;
 # 7 = hub en rubriques ; 8 = décalage horaire dans Sur place ; 9 = météo automatique à J-10 ;
-# 10 = horloges calculées depuis la base du serveur (pas celle du téléphone) ; 11 = devises.
-VERSION_PAGE = 11
+# 10 = horloges calculées depuis la base du serveur (pas celle du téléphone) ; 11 = devises ;
+# 12 = « fermer la maison » dans Avant.
+VERSION_PAGE = 12
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
 RUBRIQUES = [("valise", "🧳 Valise"), ("avant", "🛂 Avant"), ("sur-place", "📍 Sur place"),
@@ -1636,12 +1637,51 @@ def bloc_devises(devises):
     return f'<div class="info devises"><h3>💱 Devises</h3><ul>{lignes}</ul><p class="conseil taux-date"></p></div>'
 
 
-def rayon_avant_de_partir(taches, cle_voyage):
-    """Le rayon des tâches datées : cases cochées comme les objets (même API), sans bilan."""
-    rayon = ('<details class="rayon avant" open><summary><span class="icone">🛂</span>'
-             '<span class="nom">Avant de partir</span><span class="compte"></span></summary><ul>')
+# --- Avant : fermer la maison ---------------------------------------------------------------
+# Générée selon la durée et la saison du voyage. Gaïa reste seule jusqu'à 3 jours ; au-delà,
+# elle est gardée (la personne arrose aussi les plantes). Une gardienne dans l'immeuble : pas
+# d'Opération Tranquillité Vacances ni de garde du courrier, on la prévient.
+MARGE_CROQUETTES = 2                 # jours de provisions en plus de la durée du voyage
+GARDE_GAIA_DES = 4                   # jours de voyage à partir desquels Gaïa est gardée
+MOIS_CHAUFFAGE = {10, 11, 12, 1, 2, 3, 4}
+
+
+def fermer_la_maison(total, depart):
+    """Les tâches pour fermer l'appartement, triées par échéance (même format que avant_de_partir)."""
+    avant = lambda jours: depart - timedelta(days=jours)
+    retour = depart + timedelta(days=total - 1)
+    taches = [
+        _tache("gaia-provisions", avant(3), f"Gaïa : croquettes, eau, litière (gravier + sacs à litière) "
+                                            f"et friandises pour "
+                                            f"{total + MARGE_CROQUETTES} jours ({total} jours de voyage + "
+                                            f"{MARGE_CROQUETTES} de marge)"),
+        _tache("appareils", avant(0), "Débrancher box, télé et multiprises (sauf le frigo)"),
+        _tache("poubelles", avant(0), "Sortir les poubelles"),
+        _tache("fenetres", avant(0), "Fermer fenêtres et volets, porte à clé"),
+    ]
+    if total >= GARDE_GAIA_DES:
+        taches += [
+            _tache("gaia-garde", avant(14), "Gaïa : réserver sa garde (proche ou pet-sitter), avec "
+                                            "l'arrosage des plantes ; clés et consignes"),
+            _tache("gaia-fiche", avant(1), "Gaïa : fiche pour la personne qui la garde (repas, vétérinaire, "
+                                            "arthrose : pas de caresses sur le dos ni les hanches, plantes)"),
+            _tache("gardienne", avant(2), f"Prévenir la gardienne : absents du {depart:%d/%m} au {retour:%d/%m}, "
+                                          f"courrier ; lui laisser un double des clés si besoin"),
+            _tache("frigo", avant(1), "Vider le frigo des produits frais"),
+        ]
+    if depart.month in MOIS_CHAUFFAGE:
+        taches.append(_tache("chauffage", avant(0), "Chauffage en mode absence (hors-gel)"))
+    if total >= 7:
+        taches.append(_tache("eau", avant(0), "Couper l'arrivée d'eau"))
+    return sorted(taches, key=lambda t: t["quand"])
+
+
+def rayon_taches(titre, icone, theme, taches, cle_voyage):
+    """Un rayon de tâches datées : cases cochées comme les objets (même API), sans bilan."""
+    rayon = (f'<details class="rayon avant" open><summary><span class="icone">{icone}</span>'
+             f'<span class="nom">{titre}</span><span class="compte"></span></summary><ul>')
     for t in taches:
-        cle = f"{cle_voyage}/Partagé/Avant de partir/{t['id']}"
+        cle = f"{cle_voyage}/Partagé/{theme}/{t['id']}"
         lien = (f'<a class="source" href="{echapper(t["lien"])}" target="_blank" rel="noopener">source ↗</a>'
                 if t["lien"] else "")
         quand = "" if t.get("ok") else f' data-quand="{t["quand"].isoformat()}"'    # vérifiée : pas de retard
@@ -1652,8 +1692,13 @@ def rayon_avant_de_partir(taches, cle_voyage):
     return rayon + "</ul></details>"
 
 
+def rayon_avant_de_partir(taches, cle_voyage):
+    return rayon_taches("Avant de partir", "🛂", "Avant de partir", taches, cle_voyage)
+
+
 def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=None, depart=None,
-                   taches=None, cabine=False, fuseaux=None, meteo_du=None, jour=None, devises=None):
+                   taches=None, cabine=False, fuseaux=None, meteo_du=None, jour=None, devises=None,
+                   maison=None):
     """Construire la page HTML de la checklist pour l'itinéraire complet.
 
     climats : liste optionnelle de (destination, mois, normales) — une puce par étape.
@@ -1726,8 +1771,11 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
     contenus = {
         "valise": (f'<div class="collant">\n<div class="barres">{barres}</div>\n{onglets}\n'
                    f'<p id="bilan-compte"></p>\n</div>\n{corps}'),
-        "avant": (f'<section data-owner="Avant de partir" class="avant">{rayon_avant_de_partir(taches, cle_voyage)}</section>'
-                  if taches else '<p class="vide">Rien à préparer pour ce voyage : la carte d\'identité suffit.</p>'),
+        "avant": (f'<section data-owner="Avant de partir" class="avant">'
+                  f'{rayon_avant_de_partir(taches, cle_voyage) if taches else ""}'
+                  f'{rayon_taches("Fermer la maison", "🏠", "Fermer la maison", maison, cle_voyage) if maison else ""}'
+                  f'</section>' if taches or maison
+                  else '<p class="vide">Rien à préparer pour ce voyage : la carte d\'identité suffit.</p>'),
         **{r: f'<p class="vide">{texte}</p>' for r, texte in A_VENIR.items()},
     }
     blocs_sur_place = ((bloc_decalage(fuseaux, jour or date.today()) if fuseaux else "")
@@ -1737,7 +1785,7 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
     nav_rubriques = '<nav class="rubriques">'
     blocs = ""
     for i, (nom, libelle) in enumerate(RUBRIQUES):
-        compte = ' <span class="compte-rubrique"></span>' if nom == "avant" and taches else ""
+        compte = ' <span class="compte-rubrique"></span>' if nom == "avant" and (taches or maison) else ""
         nav_rubriques += f'<button data-rubrique="{nom}"{" class=\"actif\"" if i == 0 else ""}>{libelle}{compte}</button>'
         blocs += f'<div class="rubrique" data-rubrique="{nom}"{"" if i == 0 else " hidden"}>\n{contenus[nom]}\n</div>\n'
     nav_rubriques += '</nav>'
@@ -2018,7 +2066,8 @@ def rendre_page(voyage, c, aujourd_hui=None, passeports=None):
                           meteo_du=max((e["prevision"].get("prevu_le") for e in voyage["itineraire"]
                                         if e.get("prevision")), default=None),
                           jour=aujourd_hui or date.today(),
-                          devises=devises_du_voyage(voyage["itineraire"]))
+                          devises=devises_du_voyage(voyage["itineraire"]),
+                          maison=fermer_la_maison(c["total"], voyage["depart"]))
 
 
 def fenetres_du_voyage(conn, code, aujourd_hui):
