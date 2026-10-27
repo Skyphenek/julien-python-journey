@@ -22,6 +22,7 @@ from db import (connecter, lire_normales, enregistrer_normales, publier_page,
                 lire_valise_objets,
                 lire_historique, lire_regles, ajouter_regle)
 from dotenv import load_dotenv
+from formalites import FORMALITES, DIPLOMATIE
 
 # Feuille de style de la checklist HTML (mobile-first). Fournie clé en main :
 # c'est de la présentation, pas de la logique. Injectée telle quelle dans le <head>.
@@ -1140,6 +1141,87 @@ def appliquer_regles(valise, regles):
                 valise[personne].setdefault(r["theme"], {})[r["objet"]] = r["quantite"]
                 ajouts.append((personne, r["objet"]))
     return ajouts
+
+
+# 10. AVANT DE PARTIR — tâches datées déduites des pays (visa, passeport, santé, assurance).
+#     Rien pour un voyage en Europe (carte d'identité) ; données par pays dans formalites.py.
+VALIDITE_PASSEPORT_MOIS = 6     # règle prudente : 6 mois après le RETOUR couvre VN (entrée) et KH (fin du visa)
+FRAICHEUR_FORMALITES = 180      # jours : au-delà, la fiche pays est signalée « à revérifier »
+DELAIS = {"passeport": 60, "vaccins": 60, "visa": 30, "assurance": 14}   # jours avant le départ
+
+
+def ajouter_mois(d, n):
+    """d + n mois ; un 31 qui n'existe pas devient le dernier jour du mois (31/08 + 6 -> 28/02)."""
+    mois = d.month - 1 + n
+    annee, mois = d.year + mois // 12, mois % 12 + 1
+    for jour in (d.day, 30, 29, 28):
+        try:
+            return date(annee, mois, jour)
+        except ValueError:
+            continue
+
+
+def _tache(id_, quand, texte, lien=None):
+    return {"id": id_, "quand": quand, "texte": texte, "lien": lien}
+
+
+def avant_de_partir(itineraire, depart, aujourd_hui):
+    """Les tâches à faire avant le départ, triées par échéance. Fonction pure.
+
+    Une tâche = {"id": stable (clé de la case cochée), "quand": date limite, "texte", "lien"}.
+    """
+    hors_ue = []                                     # [(code ou destination, étape)] dans l'ordre, sans doublon
+    jours_par_pays = {}
+    for etape in itineraire:
+        if statut_ue(etape.get("code_pays")) == "ue":
+            continue
+        cle = etape.get("code_pays") or etape["destination"]
+        if cle not in jours_par_pays:
+            hors_ue.append((cle, etape))
+        jours_par_pays[cle] = jours_par_pays.get(cle, 0) + etape["jours"]
+    if not hors_ue:
+        return []
+
+    avant = lambda jours: depart - timedelta(days=jours)
+    retour = depart + timedelta(days=total_jours(itineraire) - 1)
+    connus = [FORMALITES[c] for c, _e in hors_ue if c in FORMALITES]
+    noms = ", ".join(FORMALITES[c]["pays"] if c in FORMALITES else e["destination"] for c, e in hors_ue)
+
+    limite = ajouter_mois(retour, VALIDITE_PASSEPORT_MOIS)
+    taches = [
+        _tache("passeport", avant(DELAIS["passeport"]),
+               f"Passeports valides au moins jusqu'au {limite:%d/%m/%Y} ({VALIDITE_PASSEPORT_MOIS} mois après le retour)"),
+        _tache("vaccins", avant(DELAIS["vaccins"]),
+               f"Consultation voyage : vaccins, paludisme, dengue ({noms})",
+               connus[0]["sante"] if connus else DIPLOMATIE),
+    ]
+    obligatoire = [f["pays"] for f in connus if f["assurance_obligatoire"]]
+    texte = "Assurance voyage : hospitalisation et rapatriement"
+    if obligatoire:
+        texte += " — obligatoire au " + ", ".join(obligatoire)
+    taches.append(_tache("assurance", avant(DELAIS["assurance"]), texte))
+
+    for cle, etape in hors_ue:
+        f = FORMALITES.get(cle)
+        if f is None:
+            taches.append(_tache(f"formalites-{cle}", avant(DELAIS["visa"]),
+                                 f"{etape['destination']} ({cle}) : vérifier visa et santé sur France Diplomatie",
+                                 DIPLOMATIE))
+            continue
+        a_reverifier = (aujourd_hui - f["verifie_le"]).days > FRAICHEUR_FORMALITES
+        suffixe = f" — infos du {f['verifie_le']:%d/%m/%Y}, à revérifier" if a_reverifier else ""
+        jours = jours_par_pays[cle]
+        if f["sans_visa_jusqua"] and jours <= f["sans_visa_jusqua"]:
+            taches.append(_tache(f"visa-{cle}", avant(DELAIS["visa"]),
+                                 f"{f['pays']} : pas de visa ({jours} j sur place, exemption jusqu'à "
+                                 f"{f['sans_visa_jusqua']} j){suffixe}", f["entree"]))
+        else:
+            taches.append(_tache(f"visa-{cle}", avant(DELAIS["visa"]),
+                                 f"{f['pays']} : visa — {f['visa']}{suffixe}", f["visa_lien"]))
+        for jours_avant, id_, texte in f["taches"]:
+            taches.append(_tache(f"{id_}-{cle}", avant(jours_avant), f"{f['pays']} : {texte}{suffixe}",
+                                 f["entree"]))
+    return sorted(taches, key=lambda t: t["quand"])
 
 
 def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=None, depart=None):
