@@ -9,7 +9,7 @@ from db import (connecter, obtenir_etat, enregistrer_coche,
                 enregistrer_voyage, lire_voyage, enregistrer_valise_objets, lire_valise_objets,
                 enregistrer_retour, supprimer_retour, lire_retours,
                 archiver_voyage, lire_historique, ajouter_regle, lire_regles, lister_voyages,
-                enregistrer_passeport, lire_passeports, remplacer_voyage)
+                enregistrer_passeport, lire_passeports, remplacer_voyage, emprunter)
 from valise import normales_avec_cache
 
 
@@ -294,3 +294,46 @@ def test_voyage_cabine_enregistre(conn):
     assert lire_voyage(conn, "2027-03-05 Rome")["cabine"] is True
     enregistrer_voyage(conn, "2027-03-06 Rome", "Rome", date(2027, 3, 6), ["Julien"], [{"jours": 3}], {})
     assert lire_voyage(conn, "2027-03-06 Rome")["cabine"] is False
+
+
+
+# --- Pool de connexions (serveur) -------------------------------------------------------
+
+def test_emprunter_reutilise_la_meme_connexion():
+    a = emprunter("valise_test")
+    brute = a.brute
+    a.close()
+    b = emprunter("valise_test")
+    try:
+        assert b.brute is brute                      # pas de nouvelle poignée de main avec la base
+    finally:
+        b.close()
+
+
+def test_connexion_rendue_sans_transaction_ouverte():
+    import psycopg2.extensions as ext
+    a = emprunter("valise_test")
+    with a.cursor() as cur:
+        cur.execute("SELECT 1")                      # ouvre une transaction (lecture)
+    a.close()                                        # rendue au pool : annulée, aucun verrou gardé
+    assert a.brute.info.transaction_status == ext.TRANSACTION_STATUS_IDLE
+
+
+def test_connexion_coupee_remplacee(monkeypatch):
+    import db
+    a = emprunter("valise_test")
+    brute = a.brute
+    a.close()
+    tueur = connecter("valise_test")                 # la base coupe la connexion (ex. Neon en veille)
+    with tueur.cursor() as cur:
+        cur.execute("SELECT pg_terminate_backend(%s)", (brute.get_backend_pid(),))
+    tueur.close()
+    monkeypatch.setattr(db, "REPOS_AVANT_VERIFICATION", 0)     # toute connexion au repos est vérifiée
+    b = emprunter("valise_test")
+    try:
+        assert b.brute is not brute
+        with b.cursor() as cur:
+            cur.execute("SELECT 1")
+            assert cur.fetchone() == (1,)
+    finally:
+        b.close()

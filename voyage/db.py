@@ -1,8 +1,11 @@
 """Accès Postgres : état de la checklist (coché / pas coché) et cache des normales climatiques."""
 import os
 
+import time
+
 import psycopg2
 from psycopg2.extras import Json
+from psycopg2.pool import ThreadedConnectionPool
 
 
 def connecter(nom_base="valise"):
@@ -298,3 +301,59 @@ def remplacer_voyage(conn, ancien, nouveau):
         cur.execute("DELETE FROM retours WHERE voyage = %s", (ancien,))
         cur.execute("UPDATE voyages SET archive = true WHERE code = %s", (ancien,))
     conn.commit()
+
+
+
+# --- Pool de connexions (serveur) -------------------------------------------------------
+# Ouvrir une connexion à Neon coûte 0,4 à 1,2 s (poignée de main sécurisée) ; une requête,
+# quelques centièmes. Le serveur garde donc ses connexions ouvertes et les réutilise.
+# Neon coupe les connexions quand la base se met en veille (5 min) : une connexion restée
+# au repos est vérifiée avant usage, et remplacée si elle est morte.
+REPOS_AVANT_VERIFICATION = 60      # secondes
+_pools = {}
+_derniere_utilisation = {}         # id(connexion) -> instant où elle a été rendue
+
+
+class ConnexionEmpruntee:
+    """Une connexion du pool : s'utilise comme une connexion psycopg2 ; close() la rend."""
+
+    def __init__(self, pool, brute):
+        self._pool, self.brute = pool, brute
+
+    def __getattr__(self, nom):                    # cursor(), commit(), rollback()…
+        return getattr(self.brute, nom)
+
+    def close(self):
+        _derniere_utilisation[id(self.brute)] = time.monotonic()
+        self._pool.putconn(self.brute)             # le pool annule toute transaction en cours
+
+
+def _pool(nom_base):
+    if nom_base not in _pools:
+        url = os.environ.get("DATABASE_URL")
+        if url and nom_base == "valise":
+            _pools[nom_base] = ThreadedConnectionPool(1, 4, url)
+        else:
+            _pools[nom_base] = ThreadedConnectionPool(1, 4, dbname=nom_base)
+    return _pools[nom_base]
+
+
+def _vivante(conn):
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1")
+        conn.rollback()
+        return True
+    except psycopg2.Error:
+        return False
+
+
+def emprunter(nom_base="valise"):
+    """Comme connecter(), mais réutilise une connexion déjà ouverte (mêmes règles de base)."""
+    pool = _pool(nom_base)
+    conn = pool.getconn()
+    repos = time.monotonic() - _derniere_utilisation.get(id(conn), time.monotonic())
+    if conn.closed or (repos >= REPOS_AVANT_VERIFICATION and not _vivante(conn)):
+        pool.putconn(conn, close=True)             # morte : on la jette, le pool en ouvre une neuve
+        conn = pool.getconn()
+    return ConnexionEmpruntee(pool, conn)
