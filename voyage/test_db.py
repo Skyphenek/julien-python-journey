@@ -260,7 +260,9 @@ def test_lister_voyages_a_venir_et_passes_sans_les_archives(conn):
     v = lister_voyages(conn)
     assert [x["code"] for x in v] == ["2026-11-01 Oslo", "2027-05-01 Lisbonne"]     # par date, sans archive
     assert v[0] == {"code": "2026-11-01 Oslo", "libelle": "Oslo", "depart": date(2026, 11, 1),
-                    "fin": date(2026, 11, 5), "personnes": ["Julien", "Laetitia"]}
+                    "fin": date(2026, 11, 5), "personnes": ["Julien", "Laetitia"],
+                    "etapes": [{"destination": "X", "jours": 5, "code_pays": None,
+                                "latitude": None, "longitude": None}]}      # pour la carte de l'accueil
 
 
 def test_passeports_enregistres_puis_mis_a_jour(conn):

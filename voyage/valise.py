@@ -1840,6 +1840,82 @@ a.nouvelle { display: inline-block; padding: .55rem 1rem; border-radius: 999px; 
 """
 
 
+# --- Carte de nos voyages (accueil) : Leaflet + fond OpenStreetMap, sans clé ---------------
+LEAFLET = "https://unpkg.com/leaflet@1.9.4/dist/leaflet"
+LEAFLET_JS_SRI = "sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="    # empreintes vérifiées le 27/10/2026
+LEAFLET_CSS_SRI = "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+
+CARTE_STYLE = """
+div.compteurs { color: var(--doux); font-size: .85rem; margin: .2rem 0 .6rem; }
+div.compteurs strong { color: var(--texte); }
+#carte { height: 240px; border-radius: 14px; margin-bottom: .4rem; z-index: 0; }
+p.legende { font-size: .75rem; color: var(--doux); margin: 0 0 .6rem; }
+p.legende .avenir { color: var(--accent); } p.legende .passe { color: #9ca3af; }
+@media (prefers-color-scheme: dark) {     /* fond de carte sombre, comme le reste de l'app */
+  #carte .leaflet-tile { filter: invert(1) hue-rotate(180deg) brightness(.95) contrast(.9); }
+}
+"""
+
+SCRIPT_CARTE = """
+(function () {
+    const div = document.getElementById('carte');
+    if (typeof L === 'undefined') { div.hidden = true; document.querySelector('p.legende').hidden = true; return; }  // hors ligne
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#4f46e5';
+    const carte = L.map(div, { scrollWheelZoom: false });
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                { maxZoom: 12, attribution: '© OpenStreetMap' }).addTo(carte);
+    const bornes = [];
+    POINTS.forEach(function (p) {
+        const lien = document.createElement('a');                   // DOM, pas de HTML : noms saisis par nous
+        lien.href = '?v=' + encodeURIComponent(p.code);
+        lien.textContent = p.nom + ' — ' + p.voyage;
+        L.circleMarker([p.lat, p.lon], { radius: 7, weight: 2, fillOpacity: .85,
+                                         color: p.avenir ? accent : '#9ca3af' }).addTo(carte).bindPopup(lien);
+        bornes.push([p.lat, p.lon]);
+    });
+    if (bornes.length === 1) carte.setView(bornes[0], 5);
+    else carte.fitBounds(bornes, { padding: [24, 24], maxZoom: 6 });
+})();
+"""
+
+
+def stats_voyages(voyages):
+    """Compteurs par année de départ, la plus récente d'abord : voyages, jours, pays distincts."""
+    par_annee = {}
+    for v in voyages:
+        a = par_annee.setdefault(v["depart"].year, {"voyages": 0, "jours": 0, "pays": set()})
+        a["voyages"] += 1
+        a["jours"] += sum(e.get("jours", 0) for e in v.get("etapes", []))
+        a["pays"] |= {e["code_pays"] for e in v.get("etapes", []) if e.get("code_pays")}
+    return [{"annee": annee, "voyages": a["voyages"], "jours": a["jours"], "pays": len(a["pays"])}
+            for annee, a in sorted(par_annee.items(), reverse=True)]
+
+
+def points_carte(voyages, aujourd_hui):
+    """Une étape = un point (si elle a des coordonnées) ; à venir ou passé selon la fin du voyage."""
+    return [{"nom": e["destination"], "lat": e["latitude"], "lon": e["longitude"],
+             "voyage": v["libelle"], "code": v["code"], "avenir": v["fin"] >= aujourd_hui}
+            for v in voyages for e in v.get("etapes", [])
+            if e.get("latitude") is not None and e.get("longitude") is not None]
+
+
+def carte_en_html(voyages, aujourd_hui):
+    """Compteurs + carte (rien si aucune étape n'a de coordonnées). Renvoie (tête, corps)."""
+    lignes = "<br>".join(f'<strong>{s["annee"]}</strong> : {s["voyages"]} voyage{"s" if s["voyages"] > 1 else ""}'
+                         f' · {s["jours"]} jours · {s["pays"]} pays' for s in stats_voyages(voyages))
+    compteurs = f'<div class="compteurs">{lignes}</div>' if lignes else ""
+    points = points_carte(voyages, aujourd_hui)
+    if not points:
+        return "", compteurs
+    tete = (f'<link rel="stylesheet" href="{LEAFLET}.css" integrity="{LEAFLET_CSS_SRI}" crossorigin="">'
+            f'<script src="{LEAFLET}.js" integrity="{LEAFLET_JS_SRI}" crossorigin=""></script>')
+    donnees = json.dumps(points, ensure_ascii=False).replace("</", "<\\/")
+    corps = (f'{compteurs}<div id="carte" role="img" aria-label="Carte de nos voyages"></div>'
+             f'<p class="legende"><span class="avenir">●</span> à venir · <span class="passe">●</span> passés</p>'
+             f'<script>const POINTS = {donnees};{SCRIPT_CARTE}</script>')
+    return tete, corps
+
+
 def accueil_en_html(voyages, aujourd_hui):
     """Page d'accueil : les voyages à venir (le plus proche d'abord), puis les passés."""
     a_venir = [v for v in voyages if v["fin"] >= aujourd_hui]
@@ -1856,17 +1932,20 @@ def accueil_en_html(voyages, aujourd_hui):
             corps += f'<section class="liste"><h2>{titre}</h2>{"".join(carte(v) for v in liste)}</section>'
     if not voyages:
         corps = '<p class="vide">Aucune valise pour l\'instant.</p>'
+    tete_carte, carte = carte_en_html(voyages, aujourd_hui)
     return f"""<!doctype html>
 <html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Nos valises</title>
-<style>{HTML_STYLE}{ACCUEIL_STYLE}</style>
+<style>{HTML_STYLE}{ACCUEIL_STYLE}{CARTE_STYLE}</style>
+{tete_carte}
 </head>
 <body>
 <h1>🧳 Nos valises</h1>
 <p><a class="nouvelle" href="?nouvelle">➕ Nouvelle valise</a></p>
+{carte}
 {corps}
 </body>
 </html>"""
