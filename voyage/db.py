@@ -120,8 +120,12 @@ def lister_voyages(conn):
     voyages = []
     for code, libelle, depart, personnes, itineraire in lignes:
         jours = sum(e.get("jours", 0) for e in itineraire)
+        etapes = [{"destination": e.get("destination"), "jours": e.get("jours", 0),
+                   "code_pays": e.get("code_pays"), "latitude": e.get("latitude"),
+                   "longitude": e.get("longitude")} for e in itineraire]     # pour la carte de l'accueil
         voyages.append({"code": code, "libelle": libelle, "depart": depart,
-                        "fin": depart + timedelta(days=max(jours, 1) - 1), "personnes": personnes})
+                        "fin": depart + timedelta(days=max(jours, 1) - 1), "personnes": personnes,
+                        "etapes": etapes})
     return voyages
 
 
