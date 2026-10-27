@@ -30,6 +30,7 @@ from dotenv import load_dotenv
 from formalites import FORMALITES, DIPLOMATIE
 from devises import DEVISE_PAR_PAYS
 from urgences import URGENCES
+from pwa import TETE_PWA, SCRIPT_PRECHARGEMENT
 
 # Fuseaux horaires : toujours la base du paquet tzdata (version figée dans requirements.txt),
 # jamais celle de la machine : celle de macOS ignorait encore le passage du Maroc à GMT
@@ -227,6 +228,9 @@ li.tache a.source { font-size: .75rem; color: var(--accent); padding: 0 .5rem .5
 li.retard:not(:has(input:checked)) .echeance { color: #dc2626; font-weight: 700; }
 body.mode-bilan [data-owner="Avant de partir"] { display: none !important; }
 a.ctrl-btn { display: inline-block; text-decoration: none; }
+#hors-ligne { position: sticky; top: 0; z-index: 5; background: #fef3c7; color: #92400e; border-radius: 10px;
+              padding: .4rem .75rem; margin-bottom: .75rem; font-size: .85rem; }
+#hors-ligne[hidden] { display: none; }
 """
 
 # Script JS de la page (persistance des coches). Dans une constante à part car le JS
@@ -298,15 +302,87 @@ function activer(nom) {
     appliquerMasque();
 }
 
+// Hors ligne : un envoi qui ne passe pas attend sur le téléphone (localStorage) et repart dès
+// que le réseau revient, dans l'ordre. Une même case ou fiche d'étape : seule la dernière
+// version attend (dernier envoyé gagne). Un envoi refusé (4xx) est abandonné ; un serveur en
+// erreur (5xx) bloque la file, abandonnée après 10 essais pour ne pas tout bloquer.
+const CLE_FILE = 'file-attente';
+function lireFile() { try { return JSON.parse(localStorage.getItem(CLE_FILE) || '[]'); } catch (e) { return []; } }
+function ecrireFile(file) { try { localStorage.setItem(CLE_FILE, JSON.stringify(file)); } catch (e) {} majHorsLigne(); }
+function mettreEnFile(envoi) {
+    const file = lireFile().filter(function (e) { return !envoi.cle || e.cle !== envoi.cle; });
+    file.push(envoi);
+    ecrireFile(file);
+}
+function majHorsLigne() {
+    const bandeau = document.getElementById('hors-ligne');
+    if (!bandeau) return;
+    const n = lireFile().length;
+    bandeau.hidden = !n && navigator.onLine;
+    bandeau.textContent = n ? '📴 ' + n + ' modification(s) en attente : envoi au retour du réseau'
+                            : '📴 Hors ligne : dernière version gardée sur le téléphone';
+}
+function expedier(envoi) {
+    const options = { method: envoi.methode };
+    if (envoi.corps !== undefined) {
+        options.headers = { 'Content-Type': 'application/json' };
+        options.body = JSON.stringify(envoi.corps);
+    }
+    return fetch(envoi.url, options);
+}
+function envoyerOuGarder(envoi) {
+    envoi.id = Date.now() + '-' + Math.random().toString(36).slice(2);
+    envoi.essais = 0;
+    if (lireFile().length) { mettreEnFile(envoi); viderFile(); return Promise.resolve('attente'); }   // garder l'ordre
+    return expedier(envoi).then(function (r) {
+        if (r.status >= 500) { mettreEnFile(envoi); return 'attente'; }
+        if (!r.ok) throw new Error(r.status);
+        return 'ok';
+    }, function () { mettreEnFile(envoi); return 'attente'; });
+}
+let videEnCours = null;
+function viderFile() {
+    if (videEnCours) return videEnCours;
+    let envoyes = 0;
+    function suivant() {
+        const file = lireFile();
+        if (!file.length) return Promise.resolve();
+        const envoi = file[0];
+        function retirer() { ecrireFile(lireFile().filter(function (e) { return e.id !== envoi.id; })); }
+        return expedier(envoi).then(function (r) {
+            if (r.status >= 500) {
+                if (++envoi.essais < 10) { ecrireFile(lireFile().map(function (e) { return e.id === envoi.id ? envoi : e; })); return; }
+            } else if (r.ok) { envoyes++; }
+            retirer();
+            return suivant();
+        }, function () {});                                              // toujours pas de réseau
+    }
+    videEnCours = suivant().then(function () {
+        videEnCours = null;
+        if (envoyes) document.dispatchEvent(new Event('file-videe'));   // relire ce que le serveur a reçu
+    });
+    return videEnCours;
+}
+// La file appliquée par-dessus un état lu (serveur ou copie gardée) : ce qui attend gagne
+function enAttente(url, voyage) {
+    return lireFile().filter(function (e) { return e.url === url && (!voyage || (e.corps && e.corps.voyage === voyage)); });
+}
+function avecCochesEnAttente(etat) {
+    enAttente('api/coche').forEach(function (e) {
+        if (e.corps.coche) etat[e.corps.cle] = true; else delete etat[e.corps.cle];
+    });
+    return etat;
+}
+window.addEventListener('online', function () { majHorsLigne(); viderFile(); });
+window.addEventListener('offline', majHorsLigne);
+majHorsLigne();
+viderFile();
+
 // Sauvegarde d'une seule case sur le serveur (jamais tout l'état -> pas d'écrasement croisé)
 const derniereModif = {};                              // clé -> instant du dernier clic sur CET appareil
 function sauverCoche(cle, coche) {
     derniereModif[cle] = Date.now();
-    fetch('api/coche', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cle: cle, coche: coche })
-    });
+    envoyerOuGarder({ url: 'api/coche', methode: 'POST', corps: { cle: cle, coche: coche }, cle: 'coche:' + cle });
 }
 
 // Rafraîchissement automatique : relire l'état du serveur pour voir les cases cochées
@@ -314,9 +390,11 @@ function sauverCoche(cle, coche) {
 // sauvegarde peut ne pas être encore arrivée, on ne veut pas la "décocher" à l'écran.
 function rafraichir() {
     if (document.hidden) return;                       // onglet en arrière-plan : on ne fait rien
+    if (lireFile().length) viderFile();
     fetch('api/etat/' + encodeURIComponent(VOYAGE))
-        .then(function (r) { return r.json(); })
+        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
         .then(function (data) {
+            data = avecCochesEnAttente(data);
             let change = false;
             document.querySelectorAll('input[type=checkbox]').forEach(function (box) {
                 const cle = box.dataset.key;
@@ -584,8 +662,7 @@ function editerFiche(li) {
         const corps = { voyage: VOYAGE, destination: li.dataset.destination, rang: Number(li.dataset.rang) };
         CHAMPS_ETAPE.forEach(function (c) { corps[c[0]] = form.elements[c[0]].value.trim(); });
         ok.disabled = true; ok.textContent = '⏳';
-        fetch('api/infos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) })
-            .then(function (r) { if (!r.ok) throw new Error(r.status); })
+        envoyerOuGarder({ url: 'api/infos', methode: 'POST', corps: corps, cle: 'infos:' + VOYAGE + '/' + cleEtape(li) })
             .then(function () {
                 infosEtapes[cleEtape(li)] = corps; garderInfos(); ficheEnCours = null; afficherFiche(li);
             })
@@ -599,11 +676,12 @@ function afficherEtapes() {
 }
 function chargerInfos() {
     if (!document.querySelector('div.etapes') || ficheEnCours) return;
-    fetch('api/infos/' + encodeURIComponent(VOYAGE))
+    fetch('api/infos/' + encodeURIComponent(VOYAGE), { headers: { 'X-Valise-Vite': '1' } })
         .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
         .then(function (liste) {
             infosEtapes = {};
-            liste.forEach(function (i) { infosEtapes[i.destination + '#' + i.rang] = i; });
+            liste.concat(enAttente('api/infos', VOYAGE).map(function (e) { return e.corps; }))
+                .forEach(function (i) { infosEtapes[i.destination + '#' + i.rang] = i; });
             garderInfos(); afficherEtapes();
         })
         .catch(function () {                                   // hors ligne : la dernière copie connue
@@ -613,6 +691,7 @@ function chargerInfos() {
 }
 chargerInfos();
 document.addEventListener('visibilitychange', function () { if (!document.hidden) chargerInfos(); });
+document.addEventListener('file-videe', chargerInfos);
 
 // Dépenses partagées : saisie convertie en euros au moment même (taux gardés sur le téléphone),
 // liste et solde calculés par le serveur (api/depenses). Texte saisi affiché en textContent.
@@ -630,12 +709,19 @@ function afficherDepenses(res) {
             ? s.remboursements.map(function (r) { return r.de + ' doit ' + euros.format(Number(r.montant)) + ' à ' + r.a; }).join(' · ')
             : 'comptes à l\u2019équilibre');
     }
-    bloc.querySelector('.solde').textContent = res.depenses.length ? texte : 'Aucune dépense pour l\u2019instant.';
+    const prefixe = 'api/depenses/' + encodeURIComponent(VOYAGE) + '/';
+    const retirees = lireFile().filter(function (e) { return e.methode === 'DELETE' && e.url.indexOf(prefixe) === 0; })
+                               .map(function (e) { return e.url.slice(prefixe.length); });
+    const ajoutees = enAttente('api/depenses', VOYAGE);
+    const visibles = res.depenses.filter(function (d) { return retirees.indexOf(String(d.id)) === -1; })
+        .concat(ajoutees.map(function (e) { return Object.assign({ attente: e.id }, e.corps); }));
+    if (ajoutees.length) texte += ' · ' + ajoutees.length + ' en attente de réseau (hors total)';
+    bloc.querySelector('.solde').textContent = visibles.length ? texte : 'Aucune dépense pour l\u2019instant.';
     const liste = bloc.querySelector('.liste-depenses');
     liste.replaceChildren();
-    res.depenses.forEach(function (d) {
+    visibles.forEach(function (d) {
         const li = document.createElement('li'), span = document.createElement('span');
-        let t = d.jour.slice(8) + '/' + d.jour.slice(5, 7) + ' · ' + d.libelle + ' — '
+        let t = (d.attente ? '⏳ ' : '') + d.jour.slice(8) + '/' + d.jour.slice(5, 7) + ' · ' + d.libelle + ' — '
             + new Intl.NumberFormat('fr-FR').format(Number(d.montant)) + ' ' + d.devise;
         if (d.devise !== 'EUR') t += ' (' + euros.format(Number(d.montant_eur)) + ')';
         if (bloc.dataset.personnes.indexOf('|') !== -1) {
@@ -647,7 +733,12 @@ function afficherDepenses(res) {
         suppr.type = 'button'; suppr.textContent = '🗑️'; suppr.title = 'Supprimer';
         suppr.addEventListener('click', function () {
             if (!suppr.dataset.confirmer) { suppr.dataset.confirmer = '1'; suppr.textContent = 'Supprimer ?'; return; }
-            fetch('api/depenses/' + encodeURIComponent(VOYAGE) + '/' + d.id, { method: 'DELETE' }).then(chargerDepenses);
+            if (d.attente) {                                   // jamais partie : on la retire de la file
+                ecrireFile(lireFile().filter(function (e) { return e.id !== d.attente; }));
+                chargerDepenses();
+                return;
+            }
+            envoyerOuGarder({ url: prefixe + d.id, methode: 'DELETE' }).then(chargerDepenses, chargerDepenses);
         });
         li.append(span, suppr);
         liste.append(li);
@@ -655,7 +746,7 @@ function afficherDepenses(res) {
 }
 function chargerDepenses() {
     if (!document.querySelector('div.depenses')) return;
-    fetch('api/depenses/' + encodeURIComponent(VOYAGE))
+    fetch('api/depenses/' + encodeURIComponent(VOYAGE), { headers: { 'X-Valise-Vite': '1' } })
         .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
         .then(afficherDepenses)
         .catch(function () { document.querySelector('div.depenses .solde').textContent = 'Dépenses indisponibles sans réseau.'; });
@@ -678,13 +769,16 @@ function chargerDepenses() {
         const corps = { voyage: VOYAGE, libelle: form.elements.libelle.value.trim(), montant: montant.toFixed(2), devise: devise,
                         montant_eur: enEuros.toFixed(2), paye_par: form.elements.paye_par.value, pour: pour, jour: jourLocal() };
         message.textContent = '⏳';
-        fetch('api/depenses', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) })
-            .then(function (r) { if (!r.ok) throw new Error(r.status); })
-            .then(function () { message.textContent = ''; form.elements.libelle.value = ''; form.elements.montant.value = ''; chargerDepenses(); })
+        envoyerOuGarder({ url: 'api/depenses', methode: 'POST', corps: corps })
+            .then(function (etat) {
+                message.textContent = etat === 'attente' ? '📴 Gardée sur le téléphone : partira au retour du réseau' : '';
+                form.elements.libelle.value = ''; form.elements.montant.value = ''; chargerDepenses();
+            })
             .catch(function () { message.textContent = '⚠️ Échec, réessaie (réseau ?)'; });
     });
     chargerDepenses();
     document.addEventListener('visibilitychange', function () { if (!document.hidden) chargerDepenses(); });
+    document.addEventListener('file-videe', chargerDepenses);
 })();
 
 // Devises : taux du jour (euro -> devise) téléchargés par le téléphone une fois par jour,
@@ -899,10 +993,10 @@ function initialiser() {
 })();
 
 // Démarrage : on va chercher l'état de CE voyage sur le serveur, puis on initialise
-fetch('api/etat/' + encodeURIComponent(VOYAGE))
-    .then(function (r) { return r.json(); })
+fetch('api/etat/' + encodeURIComponent(VOYAGE), { headers: { 'X-Valise-Vite': '1' } })
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
     .then(function (data) {
-        sauvegarde = data;
+        sauvegarde = avecCochesEnAttente(data);
         initialiser();
     })
     .catch(function () {
@@ -1681,7 +1775,7 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # 10 = horloges calculées depuis la base du serveur (pas celle du téléphone) ; 11 = devises ;
 # 12 = « fermer la maison » dans Avant ; 13 = infos de chaque étape dans Sur place ;
 # 14 = dépenses partagées ; 15 = urgences du pays.
-VERSION_PAGE = 15
+VERSION_PAGE = 16
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
 RUBRIQUES = [("valise", "🧳 Valise"), ("avant", "🛂 Avant"), ("sur-place", "📍 Sur place"),
@@ -2115,6 +2209,7 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
 <meta name="viewport" content="width=device-width, initial-scale=1">
 {MARQUE_VERSION}
 <title>Valise — {libelle_voyage}</title>
+{TETE_PWA}
 <style>{HTML_STYLE}</style>
 </head>
 <body>
@@ -2122,6 +2217,7 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
 <h1>{libelle_voyage} <span class="duree">· {total} jours{quand}</span></h1>
 <div class="puces">{puces}</div>
 <div id="bandeau-meteo" hidden></div>
+<div id="hors-ligne" hidden></div>
 {nav_rubriques}
 {blocs}<div class="controls"><button id="meteo" class="ctrl-btn" hidden>🌦️ Actualiser avec la météo</button><a id="modifier" class="ctrl-btn" href="?modifier={quote(cle_voyage)}">✏️ Modifier</a><button id="retirer" class="ctrl-btn">🗑️ Retirer</button><button id="mode-bilan" class="ctrl-btn">📝 Bilan de fin de voyage</button><button id="toggle-masque" class="ctrl-btn">Masquer les rangés</button><button id="reset" class="ctrl-btn">Réinitialiser</button></div>
 <script>const VOYAGE = {json.dumps(cle_voyage, ensure_ascii=False)};{dates_js} const METEO_DU = {json.dumps(meteo_du)};</script>
@@ -2582,7 +2678,9 @@ def accueil_en_html(voyages, aujourd_hui):
     passes = sorted((v for v in voyages if v["fin"] < aujourd_hui), key=lambda v: v["depart"], reverse=True)
 
     def carte(v):
-        return (f'<a class="voyage" href="?v={quote(v["code"])}"><strong>{v["libelle"]}</strong>'
+        a_venir = " data-a-venir" if v["fin"] >= aujourd_hui else ""      # préchargé pour le hors-ligne
+        return (f'<a class="voyage" href="?v={quote(v["code"])}" data-code="{echapper(v["code"])}"{a_venir}>'
+                f'<strong>{v["libelle"]}</strong>'
                 f'<span>{date_en_clair(v["depart"])} → {date_en_clair(v["fin"])} · '
                 f'{" · ".join(v["personnes"])}</span></a>')
 
@@ -2599,6 +2697,7 @@ def accueil_en_html(voyages, aujourd_hui):
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Nos valises</title>
+{TETE_PWA}
 <style>{HTML_STYLE}{ACCUEIL_STYLE}{CARTE_STYLE}</style>
 {tete_carte}
 </head>
@@ -2607,6 +2706,7 @@ def accueil_en_html(voyages, aujourd_hui):
 <p><a class="nouvelle" href="?nouvelle">➕ Nouvelle valise</a></p>
 {carte}
 {corps}
+<script>{SCRIPT_PRECHARGEMENT}</script>
 </body>
 </html>"""
 
@@ -2957,6 +3057,7 @@ def formulaire_en_html(voyage=None):
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{titre[2:]}</title>
+{TETE_PWA}
 <style>{HTML_STYLE}{FORMULAIRE_STYLE}</style>
 </head>
 <body>
