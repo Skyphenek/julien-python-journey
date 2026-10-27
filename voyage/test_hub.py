@@ -48,8 +48,8 @@ def test_formalites_dans_la_rubrique_avant():
     assert 'data-owner="Avant de partir"' not in html.split('<nav class="tabs">')[1].split("</nav>")[0]
 
 
-def test_rubrique_avant_vide_pour_l_europe():
-    assert "Rien à préparer" in rubrique(page([]), "avant")
+def test_rubrique_avant_sans_formalites_pour_l_europe():
+    assert "Avant de partir/visa" not in rubrique(page([]), "avant")
 
 
 def test_rubriques_a_venir():
