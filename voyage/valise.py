@@ -1324,8 +1324,8 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # Version des pages stockées en base. À INCRÉMENTER à chaque changement de la page (rendu, script,
 # règles) : au prochain affichage, une page d'une autre version est refaite depuis la photo.
 # 1 = avant le marqueur ; 2 = onglet Formalités (27/10/2026) ; 3 = boutons modifier / retirer ;
-# 4 = puce « bagage cabine ».
-VERSION_PAGE = 4
+# 4 = puce « bagage cabine » ; 5 = onglet Formalités en dernier.
+VERSION_PAGE = 5
 MARQUE_VERSION = f'<meta name="valise-version" content="{VERSION_PAGE}">'
 
 
@@ -1352,7 +1352,7 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
     climats : liste optionnelle de (destination, mois, normales) — une puce par étape.
     code    : identifiant stable du voyage (date + itinéraire) ; préfixe des cases cochées.
     depart  : date de départ, affichée dans le titre.
-    taches  : tâches « Avant de partir » (avant_de_partir), dans leur propre onglet, en premier.
+    taches  : tâches « Avant de partir » (avant_de_partir), dans leur propre onglet, en dernier.
     """
     cle_voyage = code or libelle_voyage
     quand = f" · départ le {date_en_clair(depart)}" if depart else ""
@@ -1379,10 +1379,10 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
                    f'<div class="progress-track"><div class="progress-fill"></div></div></div>')
 
     onglets = '<nav class="tabs">'          # un bouton par propriétaire (Partagé/Julien/...)
-    if taches:                              # les démarches d'abord, dans leur propre onglet
-        onglets += '<button data-owner="Avant de partir" data-avant>🛂 Formalités <span class="tab-count"></span></button>'
     for proprietaire in valise:
         onglets += f'<button data-owner="{proprietaire}">{proprietaire} <span class="tab-count"></span></button>'
+    if taches:                              # les démarches dans leur propre onglet, en dernier
+        onglets += '<button data-owner="Avant de partir" data-avant>🛂 Formalités <span class="tab-count"></span></button>'
     onglets += '</nav>'
 
     corps = ""

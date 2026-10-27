@@ -130,10 +130,11 @@ def page_vn_kh():
                           18, set(), code="2027-01-10 X", depart=DEPART, taches=taches)
 
 
-def test_onglet_avant_de_partir_separe_et_en_premier():
+def test_onglet_avant_de_partir_separe_et_en_dernier():
     html = page_vn_kh()
     nav = html.split('<nav class="tabs">')[1].split("</nav>")[0]
-    assert nav.index('data-owner="Avant de partir"') < nav.index('data-owner="Partagé"')
+    assert nav.index('data-owner="Partagé"') < nav.index('data-owner="Julien"') < nav.index('data-owner="Avant de partir"')
+    assert nav.find('<button data-owner="Partagé"') == 0          # Partagé en premier : l'onglet ouvert
     assert '<section data-owner="Avant de partir" class="avant">' in html
     partage = html.split('<section data-owner="Partagé">')[1].split("</section>")[0]
     assert "visa-KH" not in partage
