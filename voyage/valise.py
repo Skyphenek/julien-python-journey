@@ -12,6 +12,7 @@ import unicodedata
 from html import escape as echapper
 from datetime import date, timedelta
 from pathlib import Path
+from urllib.parse import quote
 
 import psycopg2
 import requests
@@ -21,7 +22,7 @@ from api_climat import (lieux, normales_12_mois, fenetre_prevision, normales_dep
 from db import (connecter, lire_normales, enregistrer_normales, publier_page,
                 enregistrer_voyage, enregistrer_valise_objets, lire_voyage, lire_page,
                 lire_valise_objets,
-                lire_historique, lire_regles, ajouter_regle, lire_passeports)
+                lire_historique, lire_regles, ajouter_regle, lire_passeports, remplacer_voyage)
 from dotenv import load_dotenv
 from formalites import FORMALITES, DIPLOMATIE
 
@@ -164,6 +165,7 @@ li.tache .echeance { font-size: .75rem; color: var(--doux); white-space: nowrap;
 li.tache a.source { font-size: .75rem; color: var(--accent); padding: 0 .5rem .5rem 2.6rem; }
 li.retard:not(:has(input:checked)) .echeance { color: #dc2626; font-weight: 700; }
 body.mode-bilan [data-owner="Avant de partir"] { display: none !important; }
+a.ctrl-btn { display: inline-block; text-decoration: none; }
 """
 
 # Script JS de la page (persistance des coches). Dans une constante à part car le JS
@@ -417,6 +419,21 @@ function initialiserBilan() {
     setInterval(rafraichirRetours, 4000);
     document.addEventListener('visibilitychange', rafraichirRetours);
 }
+
+// Retirer le voyage : deux taps (pas de fenêtre de confirmation), puis retour à l'accueil.
+// Le voyage est archivé, pas supprimé.
+const btnRetirer = document.getElementById('retirer');
+if (btnRetirer) btnRetirer.addEventListener('click', function () {
+    if (!btnRetirer.dataset.confirmer) {
+        btnRetirer.dataset.confirmer = '1';
+        btnRetirer.textContent = '⚠️ Confirmer le retrait ?';
+        setTimeout(function () { delete btnRetirer.dataset.confirmer; btnRetirer.textContent = '🗑️ Retirer'; }, 4000);
+        return;
+    }
+    fetch('api/voyages/' + encodeURIComponent(VOYAGE) + '/archiver', { method: 'POST' })
+        .then(function (r) { if (r.ok) location.href = './'; else btnRetirer.textContent = '⚠️ Échec, réessaie'; })
+        .catch(function () { btnRetirer.textContent = '⚠️ Échec, réessaie'; });
+});
 
 // Échéances dépassées en rouge : calculé à l'ouverture, avec la date du téléphone
 function marquerRetards() {
@@ -1289,8 +1306,8 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 
 # Version des pages stockées en base. À INCRÉMENTER à chaque changement de la page (rendu, script,
 # règles) : au prochain affichage, une page d'une autre version est refaite depuis la photo.
-# 1 = avant le marqueur ; 2 = onglet Formalités (27/10/2026).
-VERSION_PAGE = 2
+# 1 = avant le marqueur ; 2 = onglet Formalités (27/10/2026) ; 3 = boutons modifier / retirer.
+VERSION_PAGE = 3
 MARQUE_VERSION = f'<meta name="valise-version" content="{VERSION_PAGE}">'
 
 
@@ -1398,7 +1415,7 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
 <p id="bilan-compte"></p>
 </div>
 {corps}
-<div class="controls"><button id="meteo" class="ctrl-btn" hidden>🌦️ Actualiser avec la météo</button><button id="mode-bilan" class="ctrl-btn">📝 Bilan de fin de voyage</button><button id="toggle-masque" class="ctrl-btn">Masquer les rangés</button><button id="reset" class="ctrl-btn">Réinitialiser</button></div>
+<div class="controls"><button id="meteo" class="ctrl-btn" hidden>🌦️ Actualiser avec la météo</button><a id="modifier" class="ctrl-btn" href="?modifier={quote(cle_voyage)}">✏️ Modifier</a><button id="retirer" class="ctrl-btn">🗑️ Retirer</button><button id="mode-bilan" class="ctrl-btn">📝 Bilan de fin de voyage</button><button id="toggle-masque" class="ctrl-btn">Masquer les rangés</button><button id="reset" class="ctrl-btn">Réinitialiser</button></div>
 <script>const VOYAGE = {json.dumps(cle_voyage, ensure_ascii=False)};{dates_js}</script>
 <script>{HTML_SCRIPT}</script>
 </body>
@@ -1749,7 +1766,6 @@ a.nouvelle { display: inline-block; padding: .55rem 1rem; border-radius: 999px; 
 
 def accueil_en_html(voyages, aujourd_hui):
     """Page d'accueil : les voyages à venir (le plus proche d'abord), puis les passés."""
-    from urllib.parse import quote
     a_venir = [v for v in voyages if v["fin"] >= aujourd_hui]
     passes = sorted((v for v in voyages if v["fin"] < aujourd_hui), key=lambda v: v["depart"], reverse=True)
 
@@ -1907,8 +1923,13 @@ def creer_voyage(conn, corps):
 
     Normales lues dans le cache ; s'il en manque (et sans "forcer"), renvoie
     {"manquantes": [...]} : le téléphone les télécharge (normalesDe) puis renvoie le formulaire.
+    corps["remplace"] : code du voyage modifié ; si le code change (date, étapes), ses cases
+    cochées et son bilan passent au nouveau, et l'ancien est archivé.
     """
     voyage = voyage_depuis_formulaire(corps)
+    remplace = corps.get("remplace")
+    if remplace is not None and (not isinstance(remplace, str) or lire_voyage(conn, remplace) is None):
+        raise ValueError("voyage à modifier introuvable")
     manquantes = []
     for i, e in enumerate(voyage["itineraire"]):
         e["normales"] = lire_normales(conn, e["latitude"], e["longitude"], e["mois"])
@@ -1924,7 +1945,20 @@ def creer_voyage(conn, corps):
                        conduit=voyage["conduit"], lessive=voyage["lessive"])
     enregistrer_valise_objets(conn, c["code"], c["valise"])
     publier_page(conn, rendre_page(voyage, c, passeports=lire_passeports(conn)), cle=c["code"])
+    if remplace and remplace != c["code"]:
+        remplacer_voyage(conn, remplace, c["code"])
     return {"code": c["code"]}
+
+
+def formulaire_initial(voyage):
+    """Un voyage en base -> les valeurs du formulaire de modification (lues par remplir() en JS)."""
+    personnes = next(cle for cle, liste in CHOIX_PERSONNE.items() if liste == list(voyage["personnes"]))
+    return {"remplace": voyage["code"], "depart": voyage["depart"].isoformat(), "personnes": personnes,
+            "conduit": voyage["conduit"], "lessive": voyage["lessive"],
+            "etapes": [{"destination": e["destination"], "code_pays": e.get("code_pays"),
+                        "latitude": e.get("latitude"), "longitude": e.get("longitude"),
+                        "jours": e["jours"], "activites": e.get("activites", [])}
+                       for e in voyage["itineraire"]]}
 
 
 FORMULAIRE_STYLE = """
@@ -2011,7 +2045,27 @@ function ajouterEtape() {
     numeroter();
 }
 document.getElementById('ajouter-etape').addEventListener('click', ajouterEtape);
-ajouterEtape();
+
+// Modification : le formulaire reprend le voyage (INITIAL), lieux déjà choisis compris
+function remplir(v) {
+    document.getElementById('depart').value = v.depart;
+    document.querySelector('input[name=personnes][value="' + v.personnes + '"]').checked = true;
+    document.getElementById('conduit').checked = !!v.conduit;
+    if (v.lessive) document.getElementById('lessive').value = v.lessive;
+    v.etapes.forEach(function (e) {
+        ajouterEtape();
+        const etape = etapes.lastElementChild;
+        etape.querySelector('.destination').value = e.destination;
+        etape.querySelector('.jours').value = e.jours;
+        etape.querySelectorAll('.activites input').forEach(function (c) { c.checked = e.activites.indexOf(c.value) !== -1; });
+        if (e.latitude !== null && e.latitude !== undefined) {
+            etape.lieu = { nom: e.destination, code_pays: e.code_pays, latitude: e.latitude, longitude: e.longitude };
+            etape.querySelector('.lieux').textContent = '📍 ' + e.destination + ' (lieu actuel)';
+        }
+    });
+    majLessive();
+}
+if (INITIAL) remplir(INITIAL); else ajouterEtape();
 
 function lireFormulaire() {
     const corps = {
@@ -2021,6 +2075,7 @@ function lireFormulaire() {
         lessive: null,
         etapes: [],
     };
+    if (INITIAL) corps.remplace = INITIAL.remplace;
     const lessive = parseInt(document.getElementById('lessive').value, 10);
     if (totalJours() > 10 && lessive > 0) corps.lessive = lessive;
     etapes.querySelectorAll('.etape').forEach(function (e) {
@@ -2048,7 +2103,7 @@ document.getElementById('creation').addEventListener('submit', function (ev) {
     const bouton = document.getElementById('creer');
     const corps = lireFormulaire();
     bouton.disabled = true;
-    message.textContent = '⏳ Création de la valise…';
+    message.textContent = INITIAL ? '⏳ Enregistrement…' : '⏳ Création de la valise…';
     envoyerVoyage(corps).then(function (res) {
         if (res.statut !== 409) return res;
         message.textContent = '⏳ Climat de saison : téléchargement (' + res.corps.manquantes.length + ' étape(s))…';
@@ -2067,8 +2122,15 @@ document.getElementById('creation').addEventListener('submit', function (ev) {
 """
 
 
-def formulaire_en_html():
-    """Page de création d'une valise : les questions du terminal, en formulaire."""
+def formulaire_en_html(voyage=None):
+    """Page de création d'une valise : les questions du terminal, en formulaire.
+
+    voyage : un voyage en base -> formulaire de modification, prérempli.
+    """
+    initial = formulaire_initial(voyage) if voyage else None
+    titre = "✏️ Modifier la valise" if voyage else "➕ Nouvelle valise"
+    bouton = "Enregistrer les modifications" if voyage else "Créer la valise"
+    donnees = json.dumps(initial, ensure_ascii=False).replace("</", "<\\/")
     cases = "".join(f'<label><input type="checkbox" value="{activite}"{" checked" if activite == "ville" else ""}>'
                     f'{LIBELLES_ACTIVITE[activite]}</label>' for activite in CHOIX_ACTIVITE.values())
     return f"""<!doctype html>
@@ -2076,12 +2138,12 @@ def formulaire_en_html():
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nouvelle valise</title>
+<title>{titre[2:]}</title>
 <style>{HTML_STYLE}{FORMULAIRE_STYLE}</style>
 </head>
 <body>
 <a class="retour" href="./">← Tous les voyages</a>
-<h1>➕ Nouvelle valise</h1>
+<h1>{titre}</h1>
 <form id="creation">
 <div class="bloc">
 <label>Date de départ<br><input type="date" id="depart" required></label>
@@ -2099,7 +2161,7 @@ def formulaire_en_html():
 <input type="number" id="lessive" min="1" inputmode="numeric"> jours (vide = pas de lessive)</label>
 </div>
 <p id="message"></p>
-<button type="submit" id="creer" class="principal">Créer la valise</button>
+<button type="submit" id="creer" class="principal">{bouton}</button>
 </form>
 <template id="modele-etape">
 <div class="etape bloc">
@@ -2111,6 +2173,7 @@ def formulaire_en_html():
 <div class="activites">{cases}</div>
 </div>
 </template>
+<script>const INITIAL = {donnees};</script>
 <script>{SCRIPT_RECHERCHE}</script>
 <script>{SCRIPT_FORMULAIRE}</script>
 </body>

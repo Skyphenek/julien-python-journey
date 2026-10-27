@@ -9,7 +9,7 @@ from db import (connecter, obtenir_etat, enregistrer_coche,
                 enregistrer_voyage, lire_voyage, enregistrer_valise_objets, lire_valise_objets,
                 enregistrer_retour, supprimer_retour, lire_retours,
                 archiver_voyage, lire_historique, ajouter_regle, lire_regles, lister_voyages,
-                enregistrer_passeport, lire_passeports)
+                enregistrer_passeport, lire_passeports, remplacer_voyage)
 from valise import normales_avec_cache
 
 
@@ -270,3 +270,17 @@ def test_passeports_enregistres_puis_mis_a_jour(conn):
     enregistrer_passeport(conn, "Laetitia", date(2029, 6, 20))
     enregistrer_passeport(conn, "Julien", date(2037, 12, 1))          # renouvelé : on remplace
     assert lire_passeports(conn) == {"Julien": date(2037, 12, 1), "Laetitia": date(2029, 6, 20)}
+
+
+
+def test_remplacer_voyage_deplace_cases_et_bilan_puis_archive(conn):
+    from datetime import date
+    for code in ("2027-01-10 Hanoï", "2027-01-12 Hanoï"):
+        enregistrer_voyage(conn, code, "Hanoï", date(2027, 1, 10), ["Julien"], [{"jours": 5}], {})
+    enregistrer_coche(conn, "2027-01-10 Hanoï", "Julien", "Vêtements", "pull", True)
+    enregistrer_retour(conn, "2027-01-10 Hanoï", "Julien", "pull", "utile")
+    remplacer_voyage(conn, "2027-01-10 Hanoï", "2027-01-12 Hanoï")
+    assert obtenir_etat(conn, "2027-01-12 Hanoï") == {"2027-01-12 Hanoï/Julien/Vêtements/pull": True}
+    assert obtenir_etat(conn, "2027-01-10 Hanoï") == {}
+    assert [r["objet"] for r in lire_retours(conn, "2027-01-12 Hanoï")] == ["pull"]
+    assert [v["code"] for v in lister_voyages(conn)] == ["2027-01-12 Hanoï"]      # l'ancien est archivé
