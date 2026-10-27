@@ -46,12 +46,12 @@ def test_ariane_dans_les_formalites_hors_europe():
     assert avant_de_partir([etape("Rome", "IT")], date(2027, 1, 10), date(2026, 10, 27)) == []
 
 
-def test_page_bloc_urgences_en_tete_de_sur_place():
+def test_page_bloc_urgences_dans_sur_place():
     voyage = {"depart": date(2027, 1, 10), "personnes": ["Julien"], "conduit": False, "lessive": None,
               "itineraire": [dict(etape("Hanoï", "VN"), mois=1, activites=[], normales=None)]}
     html = rendre_page(voyage, construire(voyage))
     sur_place = html.split('<div class="rubrique" data-rubrique="sur-place"')[1].split('<div class="rubrique"')[0]
-    assert sur_place.index('class="info urgences"') < sur_place.index('class="info depenses"')
+    assert sur_place.index('class="info depenses"') < sur_place.index('class="info urgences"')
     assert 'href="tel:113"' in sur_place and "57 Tran Hung Dao" in sur_place
     assert "banque" in sur_place                                   # opposition carte : le numéro de ta banque
     assert VERSION_PAGE >= 15

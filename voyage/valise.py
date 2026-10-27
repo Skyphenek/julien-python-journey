@@ -32,6 +32,7 @@ from devises import DEVISE_PAR_PAYS
 from urgences import URGENCES
 from pwa import TETE_PWA, SCRIPT_PRECHARGEMENT
 from programme import etapes_du_voyage, bloc_programme, STYLE_PROGRAMME, SCRIPT_PROGRAMME
+from vocabulaire import langues_du_voyage, bloc_vocabulaire, STYLE_VOCABULAIRE, SCRIPT_VOCABULAIRE
 
 # Fuseaux horaires : toujours la base du paquet tzdata (version figée dans requirements.txt),
 # jamais celle de la machine : celle de macOS ignorait encore le passage du Maroc à GMT
@@ -1685,13 +1686,13 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # 10 = horloges calculées depuis la base du serveur (pas celle du téléphone) ; 11 = devises ;
 # 12 = « fermer la maison » dans Avant ; 13 = infos de chaque étape dans Sur place ;
 # 14 = dépenses partagées ; 15 = urgences du pays ; 16 = PWA (hors ligne) ;
-# 17 = carnet 🗓️ Programme (remplace les infos d'étapes).
-VERSION_PAGE = 17
+# 17 = carnet 🗓️ Programme (remplace les infos d'étapes) ; 18 = vocabulaire + Sur place réordonnée.
+VERSION_PAGE = 18
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
 RUBRIQUES = [("valise", "🧳 Valise"), ("avant", "🛂 Avant"), ("programme", "🗓️ Programme"), ("sur-place", "📍 Sur place"),
              ("souvenirs", "🎁 Souvenirs")]
-A_VENIR = {"sur-place": "Bientôt : devises, décalage horaire, vocabulaire, visites à faire.",
+A_VENIR = {"sur-place": "Bientôt : visites à faire.",
            "souvenirs": "Bientôt : les souvenirs à rapporter, et pour qui."}
 MARQUE_VERSION = f'<meta name="valise-version" content="{VERSION_PAGE}">'
 
@@ -1996,7 +1997,7 @@ def rayon_avant_de_partir(taches, cle_voyage):
 
 def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=None, depart=None,
                    taches=None, cabine=False, fuseaux=None, meteo_du=None, jour=None, devises=None,
-                   maison=None, etapes=None, personnes=None, urgences=None):
+                   maison=None, etapes=None, personnes=None, urgences=None, langues=None):
     """Construire la page HTML de la checklist pour l'itinéraire complet.
 
     climats : liste optionnelle de (destination, mois, normales) — une puce par étape.
@@ -2077,12 +2078,13 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
         "programme": bloc_programme(etapes or []),
         **{r: f'<p class="vide">{texte}</p>' for r, texte in A_VENIR.items()},
     }
-    blocs_sur_place = ((bloc_urgences(urgences) if urgences else "")
+    blocs_sur_place = ((bloc_decalage(fuseaux, jour or date.today()) if fuseaux else "")
+                       + (bloc_devises(devises) if devises else "")
                        + (bloc_depenses(personnes, [d["devise"] for d in devises or []]) if personnes else "")
-                       + (bloc_decalage(fuseaux, jour or date.today()) if fuseaux else "")
-                       + (bloc_devises(devises) if devises else ""))
+                       + (bloc_urgences(urgences) if urgences else "")
+                       + bloc_vocabulaire(langues or []))
     if blocs_sur_place:
-        contenus["sur-place"] = blocs_sur_place + '<p class="vide">Bientôt : vocabulaire, visites à faire.</p>'
+        contenus["sur-place"] = blocs_sur_place + '<p class="vide">Bientôt : visites à faire.</p>'
     nav_rubriques = '<nav class="rubriques">'
     blocs = ""
     for i, (nom, libelle) in enumerate(RUBRIQUES):
@@ -2099,7 +2101,7 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
 {MARQUE_VERSION}
 <title>Valise — {libelle_voyage}</title>
 {TETE_PWA}
-<style>{HTML_STYLE}{STYLE_PROGRAMME}</style>
+<style>{HTML_STYLE}{STYLE_PROGRAMME}{STYLE_VOCABULAIRE}</style>
 </head>
 <body>
 <a class="retour" href="./">← Tous les voyages</a>
@@ -2112,6 +2114,7 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
 <script>const VOYAGE = {json.dumps(cle_voyage, ensure_ascii=False)};{dates_js} const METEO_DU = {json.dumps(meteo_du)};</script>
 <script>{HTML_SCRIPT}</script>
 <script>{SCRIPT_PROGRAMME}</script>
+<script>{SCRIPT_VOCABULAIRE}</script>
 </body>
 </html>"""
     return page
@@ -2374,7 +2377,8 @@ def rendre_page(voyage, c, aujourd_hui=None, passeports=None):
                           maison=fermer_la_maison(c["total"], voyage["depart"]),
                           etapes=etapes_du_voyage(voyage["itineraire"], voyage["depart"]),
                           personnes=list(voyage["personnes"]),
-                          urgences=urgences_du_voyage(voyage["itineraire"]))
+                          urgences=urgences_du_voyage(voyage["itineraire"]),
+                          langues=langues_du_voyage(voyage["itineraire"]))
 
 
 def fenetres_du_voyage(conn, code, aujourd_hui):
