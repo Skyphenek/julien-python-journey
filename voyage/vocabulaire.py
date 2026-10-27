@@ -2,7 +2,9 @@
 langue de chaque pays du voyage, avec une prononciation « à la française » et la voix du
 téléphone (🔊) quand elle existe. Une phrase touchée s'affiche en grand, pour la montrer.
 
-Les transcriptions sont approximatives : la voix du téléphone fait foi quand elle est là.
+Le son : des MP3 préenregistrés par une voix neuronale native (Microsoft, via edge-tts), générés
+une fois par generer_audios.py et rangés dans static/audio/ ; la voix du téléphone ne sert qu'en
+secours. Les transcriptions sont approximatives : le son fait foi.
 Pays francophones (France, Belgique, Sénégal, Maurice…) : pas de bloc.
 """
 from html import escape as echapper
@@ -23,19 +25,19 @@ PHRASES = [
 NOMBRES = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "100", "1 000"]
 
 
-def _langue(nom, voix, lang, phrases, nombres, note=""):
+def _langue(nom, voix, lang, neurale, phrases, nombres, note=""):
     """phrases : "écrit | prononciation" par clé, dans l'ordre de PHRASES ; nombres : idem (12)."""
     cles = [cle for _, liste in PHRASES for cle, _ in liste]
     assert len(phrases) == len(cles) and len(nombres) == len(NOMBRES), nom
     def couple(texte):
         ecrit, prononciation = texte.split(" | ")
         return ecrit.strip(), prononciation.strip()
-    return {"nom": nom, "voix": voix, "lang": lang, "note": note,
+    return {"nom": nom, "voix": voix, "lang": lang, "neurale": neurale, "note": note,
             "phrases": dict(zip(cles, map(couple, phrases))), "nombres": [couple(n) for n in nombres]}
 
 
 LANGUES = {
-    "vi": _langue("Vietnamien", "vi-VN", "vi", [
+    "vi": _langue("Vietnamien", "vi-VN", "vi", "vi-VN-HoaiMyNeural", [
         "Xin chào | sin tchao", "Cảm ơn | kam eun", "Làm ơn | lam eun", "Xin lỗi | sin loï",
         "Vâng | veung", "Không | khom", "Tạm biệt | tam biet",
         "Bao nhiêu tiền? | bao gnieou tienn", "Đắt quá! | dat goua", "Bớt đi được không? | beut di dueuk khom",
@@ -46,7 +48,7 @@ LANGUES = {
     ], ["một | mot", "hai | haï", "ba | ba", "bốn | bonn", "năm | nam", "sáu | saou", "bảy | baï",
         "tám | tam", "chín | tchinn", "mười | mueuï", "một trăm | mot tcham", "một nghìn | mot nguinn"],
         note="Langue à tons : la même syllabe change de sens selon la mélodie. Écoute 🔊 avant de te lancer."),
-    "km": _langue("Khmer", "km-KH", "km", [
+    "km": _langue("Khmer", "km-KH", "km", "km-KH-SreymomNeural", [
         "ជំរាបសួរ | tchom-reap sour", "អរគុណ | or-koun", "សូម | soum", "សុំទោស | som toh",
         "បាទ / ចាស | bat (homme) / tchas (femme)", "ទេ | té", "លាហើយ | lia haeuy",
         "ថ្លៃប៉ុន្មាន? | tlaï ponn-mane", "ថ្លៃពេក | tlaï pék", "ចុះថ្លៃបានទេ? | tchoh tlaï bane té",
@@ -59,17 +61,17 @@ LANGUES = {
         "មួយពាន់ | mouy poann"],
         note="Prix souvent en dollars à Siem Reap et Phnom Penh. Peu de téléphones ont la voix khmère : "
              "montre la phrase en grand."),
-    "th": _langue("Thaï", "th-TH", "th", [
+    "th": _langue("Thaï", "th-TH", "th", "th-TH-PremwadeeNeural", [
         "สวัสดีครับ / ค่ะ | sa-wat-di khrap (homme) / kha (femme)", "ขอบคุณครับ / ค่ะ | khop-khoun khrap / kha",
         "กรุณา | ka-rou-na", "ขอโทษ | kho-thôt", "ใช่ | tchaï", "ไม่ใช่ | maï tchaï", "ลาก่อน | la-kone",
-        "เท่าไหร่? | thao-raï", "แพงไป | phèng paï", "ลดได้ไหม? | lot daï maï", "ดูเฉยๆ | dou tcheuï-tcheuï",
+        "เท่าไหร่? | thao-raï", "แพงไป | phèng paï", "ลดได้ไหม? | lot daï maï", "ดูก่อน | dou kone",
         "เช็คบิล | tchék binn", "ไม่เผ็ด | maï phèt", "น้ำเปล่า | nam plao", "อร่อย | a-roï",
         "ห้องน้ำอยู่ที่ไหน? | hong-nam you thi naï", "จอดที่นี่ | tchot thi-ni",
         "ช่วยด้วย! | tchouaï douaï", "ต้องการหมอ | tong-kann mo", "ไม่เข้าใจ | maï khao-tchaï",
     ], ["หนึ่ง | neung", "สอง | song", "สาม | sam", "สี่ | si", "ห้า | ha", "หก | hok", "เจ็ด | tchèt",
         "แปด | pèt", "เก้า | kao", "สิบ | sip", "หนึ่งร้อย | neung roï", "หนึ่งพัน | neung phann"],
         note="Termine tes phrases par « khrap » (homme) ou « kha » (femme) : c'est la politesse de base."),
-    "ja": _langue("Japonais", "ja-JP", "ja", [
+    "ja": _langue("Japonais", "ja-JP", "ja", "ja-JP-NanamiNeural", [
         "こんにちは | konnichiwa", "ありがとうございます | arigatô gozaïmass", "お願いします | onégaï shimass",
         "すみません | soumimassenn", "はい | haï", "いいえ | iié", "さようなら | sayônara",
         "いくらですか? | ikoura dess ka", "高すぎます | takasoughimass", "安くできますか? | yassoukou dékimass ka",
@@ -81,7 +83,7 @@ LANGUES = {
     ], ["一 | ichi", "二 | ni", "三 | sann", "四 | yonn", "五 | go", "六 | rokou", "七 | nana", "八 | hachi",
         "九 | kyou", "十 | jou", "百 | hyakou", "千 | senn"],
         note="On ne marchande pas au Japon, et on ne laisse pas de pourboire."),
-    "id": _langue("Indonésien", "id-ID", "id", [
+    "id": _langue("Indonésien", "id-ID", "id", "id-ID-GadisNeural", [
         "Halo | halo", "Terima kasih | térima kassi", "Tolong | tolong", "Maaf | ma-af", "Ya | ya",
         "Tidak | tidak", "Sampai jumpa | sampaï djoumpa",
         "Berapa harganya? | bérapa harganya", "Terlalu mahal | terlalou mahal", "Bisa kurang? | bissa kourang",
@@ -92,7 +94,7 @@ LANGUES = {
     ], ["satu | satou", "dua | doua", "tiga | tiga", "empat | empat", "lima | lima", "enam | énam",
         "tujuh | toudjouh", "delapan | délapann", "sembilan | sembilann", "sepuluh | sépolouh",
         "seratus | sératouss", "seribu | séribou"]),
-    "tr": _langue("Turc", "tr-TR", "tr", [
+    "tr": _langue("Turc", "tr-TR", "tr", "tr-TR-EmelNeural", [
         "Merhaba | merhaba", "Teşekkür ederim | téchékkur édérim", "Lütfen | lutfenn",
         "Affedersiniz | affédersiniz", "Evet | évet", "Hayır | haïeur", "Hoşça kalın | hoch-tcha kaleunn",
         "Ne kadar? | né kadar", "Çok pahalı | tchok pahaleu", "İndirim olur mu? | indirim olour mou",
@@ -103,7 +105,7 @@ LANGUES = {
         "İmdat! | imdat", "Doktora ihtiyacım var | doktora ihtiyadjeum var", "Anlamıyorum | anlameuyoroum",
     ], ["bir | bir", "iki | iki", "üç | utch", "dört | deurt", "beş | bech", "altı | alteu", "yedi | yédi",
         "sekiz | sékiz", "dokuz | dokouz", "on | onn", "yüz | yuz", "bin | binn"]),
-    "hi": _langue("Hindi", "hi-IN", "hi", [
+    "hi": _langue("Hindi", "hi-IN", "hi", "hi-IN-SwaraNeural", [
         "नमस्ते | namasté", "धन्यवाद | dhanyavad", "कृपया | kripaya", "माफ़ कीजिए | maf kijié", "हाँ | haan",
         "नहीं | nahin", "फिर मिलेंगे | phir milengué",
         "कितने का है? | kitné ka haï", "बहुत महँगा है | bahout mahenga haï", "कम कीजिए | kam kijié",
@@ -114,7 +116,7 @@ LANGUES = {
     ], ["एक | ék", "दो | do", "तीन | tinn", "चार | tchar", "पाँच | panntch", "छह | tchhé", "सात | sat",
         "आठ | ath", "नौ | naou", "दस | dass", "सौ | saou", "हज़ार | hazar"],
         note="L'anglais passe presque partout en Inde ; ces mots font plaisir et aident au marché."),
-    "ar-MA": _langue("Darija (arabe marocain)", "ar", "ar", [
+    "ar-MA": _langue("Darija (arabe marocain)", "ar", "ar", "ar-MA-MounaNeural", [
         "السلام عليكم | salam alikoum", "شكرا | choukrane", "عافاك | afak", "سمح لي | smeh li", "إيه | iyèh",
         "لا | la", "بسلامة | bslama",
         "بشحال؟ | bchhal", "غالي بزاف | ghali bzaf", "نقص شوية | nqess chwiya", "غير كانشوف | ghir kanchouf",
@@ -125,7 +127,7 @@ LANGUES = {
         "سبعة | sebâa", "تمنية | tmenya", "تسعود | tsâoud", "عشرة | âchra", "مية | mya", "ألف | alf"],
         note="Le français est compris presque partout. La voix 🔊 du téléphone est de l'arabe standard : "
              "fie-toi plutôt à la transcription."),
-    "ar-EG": _langue("Arabe égyptien", "ar", "ar", [
+    "ar-EG": _langue("Arabe égyptien", "ar", "ar", "ar-EG-SalmaNeural", [
         "أهلاً | ahlann", "شكراً | choukrann", "من فضلك | minn fadlak", "لو سمحت | law samaht", "أيوه | aywa",
         "لأ | la'", "مع السلامة | maâ salama",
         "بكام؟ | bikam", "غالي أوي | ghali awi", "ممكن تنزل شوية؟ | momkenn tenazzel chwaya",
@@ -137,7 +139,7 @@ LANGUES = {
     ], ["واحد | wahed", "اتنين | etneinn", "تلاتة | talata", "أربعة | arbâa", "خمسة | khamsa", "ستة | setta",
         "سبعة | sabâa", "تمانية | tamanya", "تسعة | tesâa", "عشرة | âchara", "مية | meyya", "ألف | alf"],
         note="La voix 🔊 du téléphone est de l'arabe standard : fie-toi plutôt à la transcription."),
-    "es": _langue("Espagnol", "es", "es", [
+    "es": _langue("Espagnol", "es", "es", "es-MX-DaliaNeural", [
         "Hola | ola", "Gracias | grassias", "Por favor | por fabor", "Disculpe | diskoulpé", "Sí | si",
         "No | no", "Adiós | adioss",
         "¿Cuánto cuesta? | kouanto kouesta", "Es muy caro | ès moui karo",
@@ -148,7 +150,7 @@ LANGUES = {
         "¡Ayuda! | ayouda", "Necesito un médico | néssessito oun médiko", "No entiendo | no enntienndo",
     ], ["uno | ouno", "dos | doss", "tres | tress", "cuatro | kouatro", "cinco | sinnko", "seis | seïss",
         "siete | siété", "ocho | otcho", "nueve | nouébé", "diez | diess", "cien | sienn", "mil | mil"]),
-    "pt": _langue("Portugais", "pt-PT", "pt", [
+    "pt": _langue("Portugais", "pt-PT", "pt", "pt-PT-RaquelNeural", [
         "Bom dia | bon dia", "Obrigado / Obrigada | obrigadou (homme) / obrigada (femme)",
         "Por favor | pour favor", "Desculpe | dechkoulp", "Sim | sĩ", "Não | nãou", "Adeus | adéouch",
         "Quanto custa? | kouanntou kouchta", "É muito caro | è mouïntou karou",
@@ -160,7 +162,7 @@ LANGUES = {
         "Não percebo | nãou pérssébou",
     ], ["um | oum", "dois | doïch", "três | trèch", "quatro | kouatrou", "cinco | sinnkou", "seis | seïch",
         "sete | sèt", "oito | oïtou", "nove | nov", "dez | dèch", "cem | sãï", "mil | mil"]),
-    "it": _langue("Italien", "it-IT", "it", [
+    "it": _langue("Italien", "it-IT", "it", "it-IT-ElsaNeural", [
         "Buongiorno | bouonn-djorno", "Grazie | gratsié", "Per favore | pèr favoré", "Mi scusi | mi skouzi",
         "Sì | si", "No | no", "Arrivederci | arrivédèrtchi",
         "Quanto costa? | kouannto kosta", "È troppo caro | è troppo karo", "Mi fa uno sconto? | mi fa ouno skonnto",
@@ -171,7 +173,7 @@ LANGUES = {
         "Aiuto! | aïouto", "Ho bisogno di un medico | o bizogno di oun médiko", "Non capisco | nonn kapisko",
     ], ["uno | ouno", "due | doué", "tre | tré", "quattro | kouattro", "cinque | tchinnkoué", "sei | seï",
         "sette | setté", "otto | otto", "nove | nové", "dieci | diétchi", "cento | tchennto", "mille | millé"]),
-    "de": _langue("Allemand", "de-DE", "de", [
+    "de": _langue("Allemand", "de-DE", "de", "de-DE-KatjaNeural", [
         "Guten Tag | gouten tak", "Danke | dankeu", "Bitte | biteu", "Entschuldigung | enntchouldigoung",
         "Ja | ya", "Nein | naïnn", "Tschüss | tchuss",
         "Wie viel kostet das? | vi fil kostet dass", "Das ist zu teuer | dass ist tsou toïeur",
@@ -184,7 +186,7 @@ LANGUES = {
     ], ["eins | aïnns", "zwei | tsvaï", "drei | draï", "vier | fir", "fünf | funf", "sechs | zèks",
         "sieben | zibeunn", "acht | akht", "neun | noïnn", "zehn | tsénn", "hundert | houndeurt",
         "tausend | taouzennt"]),
-    "en": _langue("Anglais", "en", "en", [
+    "en": _langue("Anglais", "en", "en", "en-GB-SoniaNeural", [
         "Hello | hèlo", "Thank you | sank you", "Please | pliz", "Excuse me | ekskiouz mi", "Yes | yèss",
         "No | nô", "Goodbye | goud-baï",
         "How much is it? | haou meutch iz it", "It's too expensive | its tou ekspènsiv",
@@ -200,7 +202,7 @@ LANGUES = {
 }
 
 # Portugais du Brésil : comme le Portugal, sauf ce qui se dit autrement
-LANGUES["pt-BR"] = {**LANGUES["pt"], "nom": "Portugais (Brésil)", "voix": "pt-BR",
+LANGUES["pt-BR"] = {**LANGUES["pt"], "nom": "Portugais (Brésil)", "voix": "pt-BR", "neurale": "pt-BR-FranciscaNeural",
                     "phrases": {**LANGUES["pt"]["phrases"],
                                 "bonjour": ("Oi / Bom dia", "oï / bon djia"),
                                 "au_revoir": ("Tchau", "tchaou"),
@@ -227,11 +229,36 @@ def langues_du_voyage(itineraire):
     return langues
 
 
-def _ligne(francais, ecrit, prononciation, langue):
-    return (f'<li class="phrase" data-voix="{langue["voix"]}"><span class="fr">{echapper(francais)}</span>'
+def fichier_audio(code, cle):
+    """Chemin du MP3 d'une phrase (servi sous la même adresse, relative à la page)."""
+    return f"audio/{code}/{cle}.mp3"
+
+
+def cles_audio(code):
+    """(clé de fichier, texte écrit) de chaque phrase et nombre d'une langue."""
+    langue = LANGUES[code]
+    return ([(cle, langue["phrases"][cle][0]) for _, phrases in PHRASES for cle, _ in phrases]
+            + [(f"nombre-{i:02d}", ecrit) for i, (ecrit, _) in enumerate(langue["nombres"], start=1)])
+
+
+def texte_a_dire(ecrit, code=None):
+    """« Obrigado / Obrigada » se dit « Obrigado, Obrigada » (la voix lirait « barre oblique »).
+
+    Le thaï n'a pas de ponctuation latine : la voix thaïe refuse un texte qui contient « ? » ou « , ».
+    Voix féminine : de « ครับ / ค่ะ » (khrap / kha), elle dit la forme féminine.
+    """
+    if code == "th":
+        texte = ecrit.replace("ครับ / ค่ะ", "ค่ะ").replace(" / ", " ").replace("?", "").replace("!", "")
+        return " ".join(texte.split())
+    return ecrit.replace(" / ", ", ")
+
+
+def _ligne(francais, ecrit, prononciation, langue, audio):
+    return (f'<li class="phrase" data-voix="{langue["voix"]}" data-audio="{audio}">'
+            f'<span class="fr">{echapper(francais)}</span>'
             f'<span class="vo" lang="{langue["lang"]}">{echapper(ecrit)}</span>'
             f'<span class="prono">{echapper(prononciation)}</span>'
-            f'<button type="button" class="ecouter" hidden aria-label="Écouter">🔊</button></li>')
+            f'<button type="button" class="ecouter" aria-label="Écouter">🔊</button></li>')
 
 
 def bloc_vocabulaire(langues):
@@ -244,15 +271,16 @@ def bloc_vocabulaire(langues):
         corps = (f'<p class="conseil">{echapper(langue["note"])}</p>' if langue["note"] else "")
         for theme, phrases in PHRASES:
             corps += f'<h4>{theme}</h4><ul>' + "".join(
-                _ligne(francais, *langue["phrases"][cle], langue) for cle, francais in phrases) + "</ul>"
+                _ligne(francais, *langue["phrases"][cle], langue, fichier_audio(code, cle))
+                for cle, francais in phrases) + "</ul>"
         corps += '<h4>Nombres</h4><ul class="nombres">' + "".join(
-            _ligne(chiffre, ecrit, prononciation, langue)
-            for chiffre, (ecrit, prononciation) in zip(NOMBRES, langue["nombres"])) + "</ul>"
+            _ligne(chiffre, ecrit, prononciation, langue, fichier_audio(code, f"nombre-{i:02d}"))
+            for i, (chiffre, (ecrit, prononciation)) in enumerate(zip(NOMBRES, langue["nombres"]), start=1)) + "</ul>"
         tiroirs += (f'<details class="langue"{" open" if i == 0 else ""}><summary>{echapper(langue["nom"])}</summary>'
                     f'{corps}</details>')
     return (f'<div class="info vocabulaire"><h3>🗣️ Vocabulaire</h3>'
             f'<p class="conseil">Touche une phrase pour l\'afficher en grand · 🔊 pour l\'écouter '
-            f'(si ton téléphone a la voix). Prononciations approximatives.</p>{tiroirs}</div>')
+            f'(voix native, aussi hors ligne). Transcriptions approximatives : écoute le son.</p>{tiroirs}</div>')
 
 
 STYLE_VOCABULAIRE = """
@@ -278,35 +306,50 @@ div.vocabulaire ul.nombres li.phrase:first-child { border-top: 1px solid var(--l
 #grand-texte .fermer-grand { color: var(--doux); font-size: .85rem; }
 """
 
-# La voix du téléphone (speechSynthesis) : la meilleure voix de la langue, cherchée quand la liste
-# arrive (voiceschanged). Sans voix : le bouton 🔊 reste caché, la transcription suffit.
+# Le son : les MP3 de la page, téléchargés en arrière-plan puis gardés en mémoire (blob) : un tap
+# les joue tout de suite, même sur iPhone (pas d'attente réseau entre le geste et la lecture), et le
+# service worker les garde pour le hors-ligne. Fichier introuvable : la voix du téléphone, en secours.
 SCRIPT_VOCABULAIRE = """
 (function () {
     const bloc = document.querySelector('div.vocabulaire');
     if (!bloc) return;
-    const parle = 'speechSynthesis' in window;
+    const sons = {};                                        // adresse du MP3 -> adresse locale (blob)
+    function charger(adresse) {
+        if (sons[adresse]) return Promise.resolve(sons[adresse]);
+        return fetch(adresse)
+            .then(function (r) { if (!r.ok) throw new Error(r.status); return r.blob(); })
+            .then(function (b) { sons[adresse] = URL.createObjectURL(b); return sons[adresse]; });
+    }
+    function prechargerTout() {
+        bloc.querySelectorAll('li.phrase').forEach(function (li) { charger(li.dataset.audio).catch(function () {}); });
+    }
     function voixPour(code) {
+        if (!('speechSynthesis' in window)) return null;
         const voix = speechSynthesis.getVoices().map(function (v) { return { v: v, lang: v.lang.replace('_', '-').toLowerCase() }; });
         const cherche = code.toLowerCase();
         const exacte = voix.filter(function (x) { return x.lang === cherche; });
         const proche = voix.filter(function (x) { return x.lang.split('-')[0] === cherche.split('-')[0]; });
         const liste = exacte.length ? exacte : proche;
-        const locale = liste.filter(function (x) { return x.v.localService; });   // marche hors ligne
-        return (locale[0] || liste[0] || {}).v || null;
+        return ((liste.filter(function (x) { return x.v.localService; })[0] || liste[0]) || {}).v || null;
     }
-    function montrerBoutons() {
-        if (!parle) return;
-        bloc.querySelectorAll('li.phrase').forEach(function (li) {
-            li.querySelector('.ecouter').hidden = !voixPour(li.dataset.voix);
-        });
-    }
-    function dire(li) {
+    function direAvecLeTelephone(li) {                      // secours : voix du téléphone, si elle existe
         const voix = voixPour(li.dataset.voix);
         if (!voix) return;
         speechSynthesis.cancel();
         const phrase = new SpeechSynthesisUtterance(li.querySelector('.vo').textContent);
-        phrase.voice = voix; phrase.lang = voix.lang; phrase.rate = 0.8;          // un peu lent : pour apprendre
+        phrase.voice = voix; phrase.lang = voix.lang; phrase.rate = 0.8;
         speechSynthesis.speak(phrase);
+    }
+    let lecteur = null;
+    function jouer(src) {
+        if (lecteur) lecteur.pause();
+        lecteur = new Audio(src);
+        return lecteur.play();
+    }
+    function dire(li) {
+        const adresse = li.dataset.audio;
+        const pret = sons[adresse] ? jouer(sons[adresse]) : charger(adresse).then(jouer);
+        Promise.resolve(pret).catch(function () { direAvecLeTelephone(li); });
     }
     // En grand, pour montrer l'écran à la personne en face
     const grand = document.createElement('div');
@@ -328,9 +371,7 @@ SCRIPT_VOCABULAIRE = """
         if (!li) return;
         if (ev.target.closest('.ecouter')) dire(li); else montrer(li);
     });
-    if (parle) {
-        montrerBoutons();
-        speechSynthesis.addEventListener('voiceschanged', montrerBoutons);
-    }
+    if (navigator.onLine) setTimeout(prechargerTout, 1500);      // après l'affichage de la page
+    else prechargerTout();                                     // hors ligne : depuis le cache du worker
 })();
 """

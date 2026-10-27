@@ -1,4 +1,5 @@
 """Tests du vocabulaire de destination (rubrique Sur place) et de l'ordre des blocs Sur place."""
+import json
 import shutil
 import subprocess
 import sys
@@ -9,7 +10,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 import pytest
 from valise import construire, rendre_page, VERSION_PAGE
 from vocabulaire import (PHRASES, LANGUES, LANGUE_PAR_PAYS, langues_du_voyage, bloc_vocabulaire,
-                         SCRIPT_VOCABULAIRE)
+                         SCRIPT_VOCABULAIRE, cles_audio, fichier_audio, texte_a_dire)
+from serveur import creer_app
 
 CLES = [cle for _, phrases in PHRASES for cle, _ in phrases]
 
@@ -20,7 +22,7 @@ def test_chaque_langue_est_complete():
         assert len(langue["nombres"]) == 12, code                  # 1 à 10, 100, 1000
         for ecrit, prononciation in [*langue["phrases"].values(), *langue["nombres"]]:
             assert ecrit.strip() and prononciation.strip(), code
-        assert langue["nom"] and langue["voix"], code
+        assert langue["nom"] and langue["voix"] and langue["neurale"].startswith(langue["voix"].split("-")[0]), code
 
 
 def test_chaque_pays_pointe_vers_une_langue_connue():
@@ -47,6 +49,8 @@ def test_bloc_vocabulaire():
     assert html.count('<details class="langue"') == 2
     assert '<details class="langue" open>' in html                 # la 1re langue ouverte
     assert 'data-voix="vi-VN"' in html and 'lang="vi"' in html
+    assert 'data-audio="audio/vi/bonjour.mp3"' in html and 'data-audio="audio/km/nombre-12.mp3"' in html
+    assert ' hidden aria-label' not in html                          # 🔊 toujours là : le son est fourni
     assert "Xin chào" in html and "sin tchao" in html
     assert "ជំរាបសួរ" in html
     assert bloc_vocabulaire([]) == ""
@@ -56,8 +60,36 @@ def test_texte_echappe():
     assert "<script" not in bloc_vocabulaire(list(LANGUES)).replace('<script', '')   # aucune balise injectée
 
 
+def test_chaque_phrase_a_son_mp3_a_jour():
+    """Les MP3 correspondent au texte et à la voix actuels (sinon : relancer generer_audios.py)."""
+    statique = Path(__file__).parent / "static"
+    index = json.loads((statique / "audio" / "textes.json").read_text())
+    for code, langue in LANGUES.items():
+        for cle, ecrit in cles_audio(code):
+            chemin = fichier_audio(code, cle)
+            assert index.get(chemin) == [langue["neurale"], texte_a_dire(ecrit, code)], chemin
+            assert (statique / chemin).stat().st_size > 1000, chemin
+
+
+def test_texte_a_dire_sans_barre_oblique():
+    assert texte_a_dire("Obrigado / Obrigada") == "Obrigado, Obrigada"
+    assert texte_a_dire("สวัสดีครับ / ค่ะ", "th") == "สวัสดีค่ะ"
+    assert texte_a_dire("เท่าไหร่?", "th") == "เท่าไหร่"
+
+
+def test_route_audio():
+    client = creer_app("valise_test", secret="s3cret").test_client()
+    r = client.get("/v/s3cret/audio/vi/bonjour.mp3")
+    assert r.status_code == 200 and r.mimetype == "audio/mpeg"
+    r.close()
+    assert client.get("/v/s3cret/audio/xx/bonjour.mp3").status_code == 404
+    assert client.get("/v/s3cret/audio/vi/inconnu.mp3").status_code == 404
+    assert client.get("/v/s3cret/audio/vi/..%2Fth%2Fbonjour.mp3").status_code == 404
+    assert client.get("/audio/vi/bonjour.mp3").status_code == 404               # sans le code : rien
+
+
 def test_script_vocabulaire():
-    for morceau in ("speechSynthesis", "SpeechSynthesisUtterance", "voiceschanged", "grand-texte", "textContent"):
+    for morceau in ("createObjectURL", "new Audio", "speechSynthesis", "grand-texte", "textContent"):
         assert morceau in SCRIPT_VOCABULAIRE
     assert "innerHTML" not in SCRIPT_VOCABULAIRE
 
