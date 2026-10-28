@@ -36,6 +36,7 @@ from vocabulaire import langues_du_voyage, bloc_vocabulaire, STYLE_VOCABULAIRE, 
 from a_voir import bloc_a_voir, STYLE_A_VOIR, SCRIPT_A_VOIR
 from souvenirs import bloc_souvenirs, idees_du_voyage, STYLE_SOUVENIRS, SCRIPT_SOUVENIRS
 from compte_a_rebours import compte_en_html, STYLE_COMPTE, SCRIPT_COMPTE
+from design import STYLE_D, TETE_POLICE, ICONES_RUBRIQUE
 
 # Fuseaux horaires : toujours la base du paquet tzdata (version figée dans requirements.txt),
 # jamais celle de la machine : celle de macOS ignorait encore le passage du Maroc à GMT
@@ -563,6 +564,7 @@ const boutonsRubrique = document.querySelectorAll('nav.rubriques button');
 function ouvrirRubrique(nom) {
     rubriques.forEach(function (r) { r.hidden = r.dataset.rubrique !== nom; });
     boutonsRubrique.forEach(function (b) { b.classList.toggle('actif', b.dataset.rubrique === nom); });
+    document.body.dataset.rubrique = nom;                  // la couleur de la rubrique (design D)
 }
 boutonsRubrique.forEach(function (b) {
     b.addEventListener('click', function () { ouvrirRubrique(b.dataset.rubrique); history.replaceState(null, '', '#' + b.dataset.rubrique); });
@@ -1690,12 +1692,13 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # 14 = dépenses partagées ; 15 = urgences du pays ; 16 = PWA (hors ligne) ;
 # 17 = carnet 🗓️ Programme (remplace les infos d'étapes) ; 18 = vocabulaire + Sur place réordonnée ;
 # 19 = « 💡 À voir » dans le Programme ; 20 = 🎁 Souvenirs ; 21 = ⏳ compte à rebours ;
-# 22 = Avant de partir : seulement ce qui compte (visa à faire, zone tropicale, Ariane, assurance).
-VERSION_PAGE = 22
+# 22 = Avant de partir : seulement ce qui compte (visa à faire, zone tropicale, Ariane, assurance) ;
+# 23 = design D (une couleur par rubrique, onglets en bas, barre latérale sur ordinateur).
+VERSION_PAGE = 23
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
-RUBRIQUES = [("valise", "🧳 Valise"), ("avant", "🛂 Avant"), ("programme", "🗓️ Programme"), ("sur-place", "📍 Sur place"),
-             ("souvenirs", "🎁 Souvenirs")]
+RUBRIQUES = [("valise", "Valise"), ("avant", "Avant"), ("programme", "Programme"), ("sur-place", "Sur place"),
+             ("souvenirs", "Souvenirs")]
 A_VENIR = {"sur-place": "Rien à afficher pour ce voyage.",
            "souvenirs": "Rien à afficher pour ce voyage."}
 MARQUE_VERSION = f'<meta name="valise-version" content="{VERSION_PAGE}">'
@@ -2099,7 +2102,8 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
     blocs = ""
     for i, (nom, libelle) in enumerate(RUBRIQUES):
         compte = ' <span class="compte-rubrique"></span>' if nom == "avant" and (taches or maison) else ""
-        nav_rubriques += f'<button data-rubrique="{nom}"{" class=\"actif\"" if i == 0 else ""}>{libelle}{compte}</button>'
+        nav_rubriques += (f'<button data-rubrique="{nom}"{" class=\"actif\"" if i == 0 else ""}>'
+                          f'<span class="icone-rubrique">{ICONES_RUBRIQUE[nom]}</span>{libelle}{compte}</button>')
         blocs += f'<div class="rubrique" data-rubrique="{nom}"{"" if i == 0 else " hidden"}>\n{contenus[nom]}\n</div>\n'
     nav_rubriques += '</nav>'
 
@@ -2111,17 +2115,22 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
 {MARQUE_VERSION}
 <title>Valise — {libelle_voyage}</title>
 {TETE_PWA}
-<style>{HTML_STYLE}{STYLE_PROGRAMME}{STYLE_A_VOIR}{STYLE_VOCABULAIRE}{STYLE_SOUVENIRS}{STYLE_COMPTE}</style>
+{TETE_POLICE}
+<style>{HTML_STYLE}{STYLE_PROGRAMME}{STYLE_A_VOIR}{STYLE_VOCABULAIRE}{STYLE_SOUVENIRS}{STYLE_COMPTE}{STYLE_D}</style>
 </head>
-<body>
+<body data-rubrique="{RUBRIQUES[0][0]}">
+<header class="entete">
 <a class="retour" href="./">← Tous les voyages</a>
-<h1>{libelle_voyage} <span class="duree">· {total} jours{quand}</span></h1>
+<h1>{libelle_voyage} <span class="duree">{total} jours{quand}</span></h1>
 {a_rebours}
 <div class="puces">{puces}</div>
+</header>
+{nav_rubriques}
+<main>
 <div id="bandeau-meteo" hidden></div>
 <div id="hors-ligne" hidden></div>
-{nav_rubriques}
 {blocs}<div class="controls"><button id="meteo" class="ctrl-btn" hidden>🌦️ Actualiser avec la météo</button><a id="modifier" class="ctrl-btn" href="?modifier={quote(cle_voyage)}">✏️ Modifier</a><button id="retirer" class="ctrl-btn">🗑️ Retirer</button><button id="mode-bilan" class="ctrl-btn">📝 Bilan de fin de voyage</button><button id="toggle-masque" class="ctrl-btn">Masquer les rangés</button><button id="reset" class="ctrl-btn">Réinitialiser</button></div>
+</main>
 <script>const VOYAGE = {json.dumps(cle_voyage, ensure_ascii=False)};{dates_js} const METEO_DU = {json.dumps(meteo_du)};</script>
 <script>{HTML_SCRIPT}</script>
 <script>{SCRIPT_PROGRAMME}</script>
@@ -2620,11 +2629,12 @@ def accueil_en_html(voyages, aujourd_hui):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Nos valises</title>
 {TETE_PWA}
-<style>{HTML_STYLE}{ACCUEIL_STYLE}{CARTE_STYLE}{STYLE_COMPTE}</style>
+{TETE_POLICE}
+<style>{HTML_STYLE}{ACCUEIL_STYLE}{CARTE_STYLE}{STYLE_COMPTE}{STYLE_D}</style>
 {tete_carte}
 </head>
-<body>
-<h1>🧳 Nos valises</h1>
+<body class="accueil">
+<h1>Nos valises</h1>
 <p><a class="nouvelle" href="?nouvelle">➕ Nouvelle valise</a></p>
 {prochain}
 {carte}
@@ -2982,9 +2992,10 @@ def formulaire_en_html(voyage=None):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{titre[2:]}</title>
 {TETE_PWA}
-<style>{HTML_STYLE}{FORMULAIRE_STYLE}</style>
+{TETE_POLICE}
+<style>{HTML_STYLE}{FORMULAIRE_STYLE}{STYLE_D}</style>
 </head>
-<body>
+<body class="formulaire">
 <a class="retour" href="./">← Tous les voyages</a>
 <h1>{titre}</h1>
 <form id="creation">
