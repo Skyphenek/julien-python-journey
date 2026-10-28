@@ -134,3 +134,69 @@ if ('serviceWorker' in navigator && navigator.onLine) {
     });
 }
 """
+
+
+# La file d'attente hors ligne, commune à toutes les pages (voyage, courses…) : même clé de
+# localStorage, donc un envoi en attente repart depuis n'importe quelle page de l'appli.
+SCRIPT_FILE = """// Hors ligne : un envoi qui ne passe pas attend sur le téléphone (localStorage) et repart dès
+// que le réseau revient, dans l'ordre. Une même case ou fiche d'étape : seule la dernière
+// version attend (dernier envoyé gagne). Un envoi refusé (4xx) est abandonné ; un serveur en
+// erreur (5xx) bloque la file, abandonnée après 10 essais pour ne pas tout bloquer.
+const CLE_FILE = 'file-attente';
+function lireFile() { try { return JSON.parse(localStorage.getItem(CLE_FILE) || '[]'); } catch (e) { return []; } }
+function ecrireFile(file) { try { localStorage.setItem(CLE_FILE, JSON.stringify(file)); } catch (e) {} majHorsLigne(); }
+function mettreEnFile(envoi) {
+    const file = lireFile().filter(function (e) { return !envoi.cle || e.cle !== envoi.cle; });
+    file.push(envoi);
+    ecrireFile(file);
+}
+function majHorsLigne() {
+    const bandeau = document.getElementById('hors-ligne');
+    if (!bandeau) return;
+    const n = lireFile().length;
+    bandeau.hidden = !n && navigator.onLine;
+    bandeau.textContent = n ? '' + n + ' modification(s) en attente : envoi au retour du réseau'
+                            : 'Hors ligne : dernière version gardée sur le téléphone';
+}
+function expedier(envoi) {
+    const options = { method: envoi.methode };
+    if (envoi.corps !== undefined) {
+        options.headers = { 'Content-Type': 'application/json' };
+        options.body = JSON.stringify(envoi.corps);
+    }
+    return fetch(envoi.url, options);
+}
+function envoyerOuGarder(envoi) {
+    envoi.id = Date.now() + '-' + Math.random().toString(36).slice(2);
+    envoi.essais = 0;
+    if (lireFile().length) { mettreEnFile(envoi); viderFile(); return Promise.resolve('attente'); }   // garder l'ordre
+    return expedier(envoi).then(function (r) {
+        if (r.status >= 500) { mettreEnFile(envoi); return 'attente'; }
+        if (!r.ok) throw new Error(r.status);
+        return 'ok';
+    }, function () { mettreEnFile(envoi); return 'attente'; });
+}
+let videEnCours = null;
+function viderFile() {
+    if (videEnCours) return videEnCours;
+    let envoyes = 0;
+    function suivant() {
+        const file = lireFile();
+        if (!file.length) return Promise.resolve();
+        const envoi = file[0];
+        function retirer() { ecrireFile(lireFile().filter(function (e) { return e.id !== envoi.id; })); }
+        return expedier(envoi).then(function (r) {
+            if (r.status >= 500) {
+                if (++envoi.essais < 10) { ecrireFile(lireFile().map(function (e) { return e.id === envoi.id ? envoi : e; })); return; }
+            } else if (r.ok) { envoyes++; }
+            retirer();
+            return suivant();
+        }, function () {});                                              // toujours pas de réseau
+    }
+    videEnCours = suivant().then(function () {
+        videEnCours = null;
+        if (envoyes) document.dispatchEvent(new Event('file-videe'));   // relire ce que le serveur a reçu
+    });
+    return videEnCours;
+}
+"""

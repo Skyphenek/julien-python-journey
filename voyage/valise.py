@@ -30,7 +30,7 @@ from dotenv import load_dotenv
 from formalites import FORMALITES, DIPLOMATIE
 from devises import DEVISE_PAR_PAYS
 from urgences import URGENCES
-from pwa import TETE_PWA, SCRIPT_PRECHARGEMENT
+from pwa import TETE_PWA, SCRIPT_PRECHARGEMENT, SCRIPT_FILE
 from programme import etapes_du_voyage, bloc_programme, STYLE_PROGRAMME, SCRIPT_PROGRAMME
 from vocabulaire import langues_du_voyage, bloc_vocabulaire, STYLE_VOCABULAIRE, SCRIPT_VOCABULAIRE
 from a_voir import bloc_a_voir, STYLE_A_VOIR, SCRIPT_A_VOIR
@@ -297,68 +297,7 @@ function activer(nom) {
     appliquerMasque();
 }
 
-// Hors ligne : un envoi qui ne passe pas attend sur le téléphone (localStorage) et repart dès
-// que le réseau revient, dans l'ordre. Une même case ou fiche d'étape : seule la dernière
-// version attend (dernier envoyé gagne). Un envoi refusé (4xx) est abandonné ; un serveur en
-// erreur (5xx) bloque la file, abandonnée après 10 essais pour ne pas tout bloquer.
-const CLE_FILE = 'file-attente';
-function lireFile() { try { return JSON.parse(localStorage.getItem(CLE_FILE) || '[]'); } catch (e) { return []; } }
-function ecrireFile(file) { try { localStorage.setItem(CLE_FILE, JSON.stringify(file)); } catch (e) {} majHorsLigne(); }
-function mettreEnFile(envoi) {
-    const file = lireFile().filter(function (e) { return !envoi.cle || e.cle !== envoi.cle; });
-    file.push(envoi);
-    ecrireFile(file);
-}
-function majHorsLigne() {
-    const bandeau = document.getElementById('hors-ligne');
-    if (!bandeau) return;
-    const n = lireFile().length;
-    bandeau.hidden = !n && navigator.onLine;
-    bandeau.textContent = n ? '' + n + ' modification(s) en attente : envoi au retour du réseau'
-                            : 'Hors ligne : dernière version gardée sur le téléphone';
-}
-function expedier(envoi) {
-    const options = { method: envoi.methode };
-    if (envoi.corps !== undefined) {
-        options.headers = { 'Content-Type': 'application/json' };
-        options.body = JSON.stringify(envoi.corps);
-    }
-    return fetch(envoi.url, options);
-}
-function envoyerOuGarder(envoi) {
-    envoi.id = Date.now() + '-' + Math.random().toString(36).slice(2);
-    envoi.essais = 0;
-    if (lireFile().length) { mettreEnFile(envoi); viderFile(); return Promise.resolve('attente'); }   // garder l'ordre
-    return expedier(envoi).then(function (r) {
-        if (r.status >= 500) { mettreEnFile(envoi); return 'attente'; }
-        if (!r.ok) throw new Error(r.status);
-        return 'ok';
-    }, function () { mettreEnFile(envoi); return 'attente'; });
-}
-let videEnCours = null;
-function viderFile() {
-    if (videEnCours) return videEnCours;
-    let envoyes = 0;
-    function suivant() {
-        const file = lireFile();
-        if (!file.length) return Promise.resolve();
-        const envoi = file[0];
-        function retirer() { ecrireFile(lireFile().filter(function (e) { return e.id !== envoi.id; })); }
-        return expedier(envoi).then(function (r) {
-            if (r.status >= 500) {
-                if (++envoi.essais < 10) { ecrireFile(lireFile().map(function (e) { return e.id === envoi.id ? envoi : e; })); return; }
-            } else if (r.ok) { envoyes++; }
-            retirer();
-            return suivant();
-        }, function () {});                                              // toujours pas de réseau
-    }
-    videEnCours = suivant().then(function () {
-        videEnCours = null;
-        if (envoyes) document.dispatchEvent(new Event('file-videe'));   // relire ce que le serveur a reçu
-    });
-    return videEnCours;
-}
-// La file appliquée par-dessus un état lu (serveur ou copie gardée) : ce qui attend gagne
+""" + SCRIPT_FILE + """// La file appliquée par-dessus un état lu (serveur ou copie gardée) : ce qui attend gagne
 function enAttente(url, voyage) {
     return lireFile().filter(function (e) { return e.url === url && (!voyage || (e.corps && e.corps.voyage === voyage)); });
 }

@@ -22,7 +22,9 @@ from db import (emprunter, ajouter_depense, lire_depenses, supprimer_depense, ob
                 enregistrer_reservation, lire_reservations, supprimer_reservation,
                 enregistrer_a_voir, lire_a_voir, supprimer_a_voir, enregistrer_proche, enregistrer_souvenir,
                 lire_souvenirs, supprimer_souvenir, enregistrer_coche, lister_voyages, lire_voyage, archiver_voyage,
-                VERDICTS, enregistrer_retour, supprimer_retour, lire_retours)
+                VERDICTS, enregistrer_retour, supprimer_retour, lire_retours,
+                enregistrer_article, lire_courses, supprimer_article, vider_pris, compter_a_prendre,
+                enregistrer_placard)
 from valise import (solde_depenses, actualiser_meteo, fenetres_du_voyage, page_du_voyage, accueil_en_html,
                     lieux_depuis_reponse, normales_ou_url, normales_depuis_historique,
                     formulaire_en_html, creer_voyage, VERSION_PAGE)
@@ -33,6 +35,7 @@ from a_voir import valider_a_voir, suggestions_depuis_wikitext
 from souvenirs import valider_proche, valider_souvenir
 from vocabulaire import LANGUES
 from casa import aujourdhui_en_html
+from courses import valider_article, valider_placard, courses_en_html
 
 load_dotenv(Path(__file__).parent / ".env")   # en local : lit voyage/.env s'il existe
 
@@ -51,11 +54,69 @@ def creer_app(nom_base="valise", secret=None):
         if not request.args:
             conn = emprunter(app.config["NOM_BASE"])
             try:
-                html = aujourdhui_en_html(lister_voyages(conn), date.today())
+                html = aujourdhui_en_html(lister_voyages(conn), date.today(), compter_a_prendre(conn))
             finally:
                 conn.close()
             return Response(html, mimetype="text/html")
         return vadrouille()
+
+    # --- Casa Binomerie : courses et placard ---
+
+    @routes.get("/courses")
+    def page_courses():
+        return Response(courses_en_html(), mimetype="text/html")
+
+    @routes.get("/api/courses")
+    def lire_les_courses():
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            return jsonify(lire_courses(conn))
+        finally:
+            conn.close()
+
+    @routes.post("/api/courses")
+    def enregistrer_un_article():
+        try:
+            article = valider_article(request.get_json(silent=True))
+        except ValueError as e:
+            return jsonify({"erreur": str(e)}), 400
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            enregistrer_article(conn, article)
+        finally:
+            conn.close()
+        return jsonify({"ok": True, "article": article})
+
+    @routes.delete("/api/courses/<identifiant>")
+    def supprimer_un_article(identifiant):
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            supprimer_article(conn, identifiant)
+        finally:
+            conn.close()
+        return jsonify({"ok": True})
+
+    @routes.post("/api/courses/vider")
+    def vider_les_pris():
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            vider_pris(conn)
+        finally:
+            conn.close()
+        return jsonify({"ok": True})
+
+    @routes.post("/api/placard")
+    def enregistrer_un_basique():
+        try:
+            basique = valider_placard(request.get_json(silent=True))
+        except ValueError as e:
+            return jsonify({"erreur": str(e)}), 400
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            enregistrer_placard(conn, basique)
+        finally:
+            conn.close()
+        return jsonify({"ok": True})
 
     @routes.get("/vadrouille")
     def vadrouille():

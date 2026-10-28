@@ -566,3 +566,77 @@ def lire_souvenirs(conn, voyage):
         for proche, idee, libelle in cur.fetchall():
             historique.setdefault(proche, []).append({"idee": idee, "voyage": libelle})
     return {"proches": proches, "souvenirs": souvenirs, "historique": historique}
+
+
+
+# --- Casa Binomerie : courses et placard ------------------------------------------------------
+
+CHAMPS_ARTICLE = ("nom", "rayon", "pris", "recurrent", "actif", "source")
+
+
+def enregistrer_article(conn, a):
+    """Crée ou met à jour (même id) un article validé ; pris : son basique revient en stock."""
+    from courses import normaliser
+    with conn.cursor() as cur:
+        cur.execute(
+            f"""INSERT INTO courses (id, {", ".join(CHAMPS_ARTICLE)})
+                VALUES (%s, {", ".join(["%s"] * len(CHAMPS_ARTICLE))})
+                ON CONFLICT (id) DO UPDATE SET
+                {", ".join(f"{c} = EXCLUDED.{c}" for c in CHAMPS_ARTICLE)}, maj_le = now()""",
+            (a["id"], *(a[c] for c in CHAMPS_ARTICLE)))
+        if a["pris"]:
+            cur.execute("UPDATE placard SET en_stock = true, maj_le = now() WHERE cle = %s AND NOT en_stock",
+                        (normaliser(a["nom"]),))
+    conn.commit()
+
+
+def lire_courses(conn):
+    """{articles: [...], placard: [...]} — tout, la page trie (rayons, habituels, épuisés)."""
+    with conn.cursor() as cur:
+        cur.execute(f"SELECT id, {', '.join(CHAMPS_ARTICLE)} FROM courses ORDER BY maj_le, id")
+        articles = [dict(zip(("id", *CHAMPS_ARTICLE), ligne)) for ligne in cur.fetchall()]
+        cur.execute("SELECT cle, nom, en_stock FROM placard ORDER BY nom")
+        placard = [dict(zip(("cle", "nom", "en_stock"), ligne)) for ligne in cur.fetchall()]
+    return {"articles": articles, "placard": placard}
+
+
+def supprimer_article(conn, identifiant):
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM courses WHERE id = %s", (identifiant,))
+    conn.commit()
+
+
+def vider_pris(conn):
+    """Les pris quittent la liste : supprimés, sauf les récurrents, rangés dans les habituels."""
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM courses WHERE actif AND pris AND NOT recurrent")
+        cur.execute("UPDATE courses SET actif = false, pris = false, maj_le = now() WHERE actif AND pris")
+    conn.commit()
+
+
+def compter_a_prendre(conn):
+    with conn.cursor() as cur:
+        cur.execute("SELECT count(*) FROM courses WHERE actif AND NOT pris")
+        return cur.fetchone()[0]
+
+
+def enregistrer_placard(conn, p):
+    with conn.cursor() as cur:
+        cur.execute("""INSERT INTO placard (cle, nom, en_stock) VALUES (%s, %s, %s)
+                       ON CONFLICT (cle) DO UPDATE SET nom = EXCLUDED.nom, en_stock = EXCLUDED.en_stock,
+                       maj_le = now()""", (p["cle"], p["nom"], p["en_stock"]))
+    conn.commit()
+
+
+def semer_placard(conn, noms):
+    """Remplit le placard de départ (tout en stock) s'il est vide ; renvoie le nombre de basiques ajoutés.
+    Jamais sur un placard déjà utilisé : un basique retiré ne revient pas."""
+    from courses import normaliser
+    with conn.cursor() as cur:
+        cur.execute("SELECT EXISTS (SELECT 1 FROM placard)")
+        if cur.fetchone()[0]:
+            return 0
+        for nom in noms:
+            cur.execute("INSERT INTO placard (cle, nom) VALUES (%s, %s) ON CONFLICT DO NOTHING", (normaliser(nom), nom))
+    conn.commit()
+    return len(noms)

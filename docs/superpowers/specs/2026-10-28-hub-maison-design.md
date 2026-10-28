@@ -90,14 +90,16 @@ CREATE TABLE IF NOT EXISTS soirs (
     maj_le      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- La liste de courses. rayon : une valeur de RAYONS (courses.py). recurrent : revient en un tap
--- depuis « Habituels ». source = 'plat:<id>' quand l'article vient du planning, '' sinon.
+-- La liste de courses. rayon : une valeur de RAYONS (courses.py). actif : dans la liste (sinon :
+-- un habituel rangé). recurrent : revient en un tap depuis « Habituels ». source = 'plat:<id>'
+-- quand l'article vient du planning, '' sinon.
 CREATE TABLE IF NOT EXISTS courses (
     id          TEXT        PRIMARY KEY,
     nom         TEXT        NOT NULL,
     rayon       TEXT        NOT NULL DEFAULT 'autre',
     pris        BOOLEAN     NOT NULL DEFAULT false,
     recurrent   BOOLEAN     NOT NULL DEFAULT false,
+    actif       BOOLEAN     NOT NULL DEFAULT true,
     source      TEXT        NOT NULL DEFAULT '',
     maj_le      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -105,7 +107,8 @@ CREATE TABLE IF NOT EXISTS courses (
 -- Le placard : ce qu'on a toujours (pâtes, œufs, riz…). en_stock passe à false quand on le
 -- signale épuisé (il part alors dans les courses), et à true quand il est coché « pris ».
 CREATE TABLE IF NOT EXISTS placard (
-    nom         TEXT        PRIMARY KEY,
+    cle         TEXT        PRIMARY KEY,           -- nom normalisé (courses.normaliser)
+    nom         TEXT        NOT NULL,
     en_stock    BOOLEAN     NOT NULL DEFAULT true,
     maj_le      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -158,8 +161,10 @@ après accord de Julien. Aucune table existante modifiée.
 
 ### Courses
 
-- Liste partagée groupée par rayon (`RAYONS` : fruits-légumes, frais, épicerie, surgelés,
-  boissons, hygiène-maison, autre). Rayon deviné à l'ajout depuis un petit dictionnaire de mots
+- Liste partagée groupée par rayon, dans l'ordre d'un parcours de magasin (`RAYONS` :
+  fruits-légumes, frais, boucherie, boulangerie, épicerie, surgelés, boissons, hygiène-maison,
+  autre). Ajout de plusieurs articles d'un coup séparés par des virgules ; envois un par un
+  (le serveur n'a que 4 connexions à la base). Hors ligne : file d'attente commune à l'app. Rayon deviné à l'ajout depuis un petit dictionnaire de mots
   (`lait` → frais), modifiable d'un tap.
 - Cocher = pris (barré, en bas du rayon). « Vider les pris » supprime les articles pris non
   récurrents ; les récurrents repassent dans « Habituels ».
@@ -236,4 +241,5 @@ Un seul écran, de haut en bas, chaque bloc masqué s'il est vide :
   données structurées (schema.org `Recipe`) — on pourrait préremplir ingrédients et étapes à
   partir d'une URL collée. Instagram / TikTok ne le font pas : saisie manuelle. À décider une
   fois le carnet utilisé.
-- **Placard de départ** : liste des basiques à fournir avec les plats.
+- ~~Placard de départ~~ : 42 basiques (`courses.PLACARD_DEPART`), semés tous en stock par
+  `appliquer_schema.py --appliquer` si le placard est vide (plein de courses du 31/10/2026).

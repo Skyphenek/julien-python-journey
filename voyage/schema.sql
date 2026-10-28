@@ -196,3 +196,24 @@ CREATE TABLE IF NOT EXISTS souvenirs (
     maj_le      TIMESTAMPTZ   NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS souvenirs_voyage ON souvenirs (voyage);
+
+-- Casa Binomerie — Courses : la liste partagée. actif : dans la liste (sinon : un habituel rangé) ;
+-- pris : dans le panier, jusqu'à « Vider les pris ». id choisi par le téléphone (hors ligne).
+CREATE TABLE IF NOT EXISTS courses (
+    id          TEXT        PRIMARY KEY,
+    nom         TEXT        NOT NULL,
+    rayon       TEXT        NOT NULL DEFAULT 'autre',
+    pris        BOOLEAN     NOT NULL DEFAULT false,
+    recurrent   BOOLEAN     NOT NULL DEFAULT false,
+    actif       BOOLEAN     NOT NULL DEFAULT true,
+    source      TEXT        NOT NULL DEFAULT '',
+    maj_le      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- Le placard : ce qu'on a toujours. cle : le nom normalisé (courses.normaliser), pour retrouver
+-- « Crème fraîche » quand on coche « creme fraiche ».
+CREATE TABLE IF NOT EXISTS placard (
+    cle         TEXT        PRIMARY KEY,
+    nom         TEXT        NOT NULL,
+    en_stock    BOOLEAN     NOT NULL DEFAULT true,
+    maj_le      TIMESTAMPTZ NOT NULL DEFAULT now()
+);

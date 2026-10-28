@@ -17,7 +17,7 @@ def voyage(depart, jours=10, libelle="Hanoï"):
 
 
 def test_le_hub_commence_par_aujourd_hui_et_finit_par_la_vadrouille():
-    assert [cle for cle, _, _ in HUB] == ["aujourdhui", "vadrouille"]    # les modules s'ajoutent à leur livraison
+    assert [cle for cle, _, _ in HUB] == ["aujourdhui", "courses", "vadrouille"]   # les modules s'ajoutent à leur livraison
     assert HUB[0][2] == "./" and HUB[-1][2] == "vadrouille"
 
 
@@ -30,7 +30,7 @@ def test_nav_marque_l_entree_active():
 
 def test_nav_sans_lien_mort():
     nav = nav_hub("aujourdhui")
-    for cle in ("diners", "courses", "colis"):
+    for cle in ("diners", "colis"):
         assert cle not in nav
 
 
@@ -73,3 +73,10 @@ def test_sans_voyage_proche_pas_de_bloc_vadrouille():
     html = aujourdhui_en_html([voyage(AUJOURD_HUI + timedelta(days=90))], AUJOURD_HUI)
     assert '<div class="bloc-vadrouille">' not in html
     assert 'class="attente"' in html
+
+
+def test_bloc_courses():
+    html = aujourdhui_en_html([], AUJOURD_HUI, a_prendre=3)
+    assert '<a class="bloc-courses" href="courses"><strong>Courses</strong><span>3 articles à prendre</span></a>' in html
+    assert "1 article à prendre" in aujourdhui_en_html([], AUJOURD_HUI, a_prendre=1)
+    assert 'class="bloc-courses"' not in aujourdhui_en_html([], AUJOURD_HUI).split("<body")[1]   # liste vide : rien
