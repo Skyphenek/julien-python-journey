@@ -55,7 +55,7 @@ def test_rubrique_avant_sans_formalites_pour_l_europe():
 def test_rubriques_a_venir():
     html = page()
     assert "Rien à afficher" in rubrique(html, "sur-place")          # voyage sans pays connu : rien sur place
-    assert "Bientôt" in rubrique(html, "souvenirs")
+    assert "Rien à afficher" in rubrique(html, "souvenirs")         # sans voyageurs : pas de souvenirs
 
 
 def test_script_des_rubriques():

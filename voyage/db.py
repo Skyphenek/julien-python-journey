@@ -293,7 +293,7 @@ def lire_passeports(conn):
 
 def remplacer_voyage(conn, ancien, nouveau):
     """Voyage modifié dont le code a changé (date ou étapes) : les cases cochées, le bilan et les
-    infos des étapes, les dépenses, les réservations et les envies « à voir » suivent le nouveau code, puis l'ancien est archivé (rien n'est supprimé)."""
+    infos des étapes, les dépenses, les réservations, les envies « à voir » et les souvenirs suivent le nouveau code, puis l'ancien est archivé (rien n'est supprimé)."""
     with conn.cursor() as cur:
         cur.execute("""INSERT INTO etat_case (voyage, proprietaire, theme, objet, coche, maj_le)
                        SELECT %s, proprietaire, theme, objet, coche, maj_le FROM etat_case WHERE voyage = %s
@@ -311,6 +311,7 @@ def remplacer_voyage(conn, ancien, nouveau):
         cur.execute("UPDATE depenses SET voyage = %s WHERE voyage = %s", (nouveau, ancien))
         cur.execute("UPDATE reservations SET voyage = %s WHERE voyage = %s", (nouveau, ancien))
         cur.execute("UPDATE a_voir SET voyage = %s WHERE voyage = %s", (nouveau, ancien))
+        cur.execute("UPDATE souvenirs SET voyage = %s WHERE voyage = %s", (nouveau, ancien))
         cur.execute("UPDATE voyages SET archive = true WHERE code = %s", (ancien,))
     conn.commit()
 
@@ -486,3 +487,82 @@ def supprimer_depense(conn, voyage, identifiant):
     with conn.cursor() as cur:
         cur.execute("DELETE FROM depenses WHERE voyage = %s AND id = %s", (voyage, identifiant))
     conn.commit()
+
+
+# --- 🎁 Souvenirs : carnet de proches (tous voyages) et souvenirs du voyage ---------------------
+CHAMPS_SOUVENIR = ("proche", "idee", "note", "achete", "prix", "devise", "prix_eur", "paye_par", "achete_le")
+
+
+def enregistrer_proche(conn, p):
+    """Crée ou modifie (même id) un proche du carnet."""
+    with conn.cursor() as cur:
+        cur.execute("""INSERT INTO proches (id, nom, budget, archive) VALUES (%s, %s, %s, %s)
+                       ON CONFLICT (id) DO UPDATE SET nom = EXCLUDED.nom, budget = EXCLUDED.budget,
+                                                      archive = EXCLUDED.archive, maj_le = now()""",
+                    (p["id"], p["nom"], p["budget"], p["archive"]))
+    conn.commit()
+
+
+def enregistrer_souvenir(conn, s, personnes):
+    """Crée ou modifie (même id) un souvenir, et tient sa dépense partagée à jour, d'un seul coup :
+    acheté -> dépense créée (ou modifiée) ; plus acheté -> dépense retirée. Une dépense retirée à la
+    main dans 💸 Dépenses n'est pas recréée tant que le souvenir reste acheté.
+    ValueError si l'id appartient à un autre voyage."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT voyage, achete, depense FROM souvenirs WHERE id = %s FOR UPDATE", (s["id"],))
+        avant = cur.fetchone()
+        if avant and avant[0] != s["voyage"]:
+            conn.rollback()
+            raise ValueError("souvenir d'un autre voyage")
+        depense = avant[2] if avant else None
+        if s["achete"]:
+            cur.execute("SELECT nom FROM proches WHERE id = %s", (s["proche"],))
+            proche = cur.fetchone()
+            libelle = (f"🎁 {s['idee']}" + (f" ({proche[0]})" if proche else ""))[:120]
+            valeurs = (libelle, s["prix"], s["devise"], s["prix_eur"], s["paye_par"], list(personnes), s["achete_le"])
+            if depense is not None:
+                cur.execute("""UPDATE depenses SET libelle = %s, montant = %s, devise = %s, montant_eur = %s,
+                                                   paye_par = %s, pour = %s, jour = %s WHERE id = %s""",
+                            (*valeurs, depense))
+            elif not (avant and avant[1]):
+                cur.execute("""INSERT INTO depenses (voyage, libelle, montant, devise, montant_eur, paye_par, pour, jour)
+                               VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id""", (s["voyage"], *valeurs))
+                depense = cur.fetchone()[0]
+        elif depense is not None:
+            cur.execute("DELETE FROM depenses WHERE id = %s", (depense,))
+            depense = None
+        cur.execute(
+            f"""INSERT INTO souvenirs (id, voyage, {", ".join(CHAMPS_SOUVENIR)}, depense)
+                VALUES (%s, %s, {", ".join(["%s"] * len(CHAMPS_SOUVENIR))}, %s)
+                ON CONFLICT (id) DO UPDATE SET
+                {", ".join(f"{c} = EXCLUDED.{c}" for c in CHAMPS_SOUVENIR)}, depense = EXCLUDED.depense, maj_le = now()""",
+            (s["id"], s["voyage"], *(s[c] for c in CHAMPS_SOUVENIR), depense))
+    conn.commit()
+
+
+def supprimer_souvenir(conn, voyage, identifiant):
+    """Retire un souvenir et sa dépense."""
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM souvenirs WHERE voyage = %s AND id = %s RETURNING depense", (voyage, identifiant))
+        ligne = cur.fetchone()
+        if ligne and ligne[0] is not None:
+            cur.execute("DELETE FROM depenses WHERE id = %s", (ligne[0],))
+    conn.commit()
+
+
+def lire_souvenirs(conn, voyage):
+    """{"proches": tout le carnet, "souvenirs": ceux du voyage, "historique": {proche: [{idee, voyage}]}}
+    L'historique : ce qui a été acheté pour chaque proche lors des autres voyages, du plus récent."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT id, nom, budget, archive FROM proches ORDER BY nom, id")
+        proches = [dict(zip(("id", "nom", "budget", "archive"), ligne)) for ligne in cur.fetchall()]
+        cur.execute(f"SELECT id, {', '.join(CHAMPS_SOUVENIR)} FROM souvenirs WHERE voyage = %s ORDER BY maj_le, id",
+                    (voyage,))
+        souvenirs = [dict(zip(("id", *CHAMPS_SOUVENIR), ligne)) for ligne in cur.fetchall()]
+        cur.execute("""SELECT s.proche, s.idee, v.libelle FROM souvenirs s JOIN voyages v ON v.code = s.voyage
+                       WHERE s.achete AND s.proche <> '' AND s.voyage <> %s AND NOT v.archive
+                       ORDER BY v.depart DESC, s.idee""", (voyage,))
+        historique = {}
+        for proche, idee, libelle in cur.fetchall():
+            historique.setdefault(proche, []).append({"idee": idee, "voyage": libelle})
+    return {"proches": proches, "souvenirs": souvenirs, "historique": historique}

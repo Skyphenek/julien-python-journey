@@ -34,6 +34,7 @@ from pwa import TETE_PWA, SCRIPT_PRECHARGEMENT
 from programme import etapes_du_voyage, bloc_programme, STYLE_PROGRAMME, SCRIPT_PROGRAMME
 from vocabulaire import langues_du_voyage, bloc_vocabulaire, STYLE_VOCABULAIRE, SCRIPT_VOCABULAIRE
 from a_voir import bloc_a_voir, STYLE_A_VOIR, SCRIPT_A_VOIR
+from souvenirs import bloc_souvenirs, idees_du_voyage, STYLE_SOUVENIRS, SCRIPT_SOUVENIRS
 
 # Fuseaux horaires : toujours la base du paquet tzdata (version figée dans requirements.txt),
 # jamais celle de la machine : celle de macOS ignorait encore le passage du Maroc à GMT
@@ -1688,14 +1689,14 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # 12 = « fermer la maison » dans Avant ; 13 = infos de chaque étape dans Sur place ;
 # 14 = dépenses partagées ; 15 = urgences du pays ; 16 = PWA (hors ligne) ;
 # 17 = carnet 🗓️ Programme (remplace les infos d'étapes) ; 18 = vocabulaire + Sur place réordonnée ;
-# 19 = « 💡 À voir » dans le Programme.
-VERSION_PAGE = 19
+# 19 = « 💡 À voir » dans le Programme ; 20 = 🎁 Souvenirs.
+VERSION_PAGE = 20
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
 RUBRIQUES = [("valise", "🧳 Valise"), ("avant", "🛂 Avant"), ("programme", "🗓️ Programme"), ("sur-place", "📍 Sur place"),
              ("souvenirs", "🎁 Souvenirs")]
 A_VENIR = {"sur-place": "Rien à afficher pour ce voyage.",
-           "souvenirs": "Bientôt : les souvenirs à rapporter, et pour qui."}
+           "souvenirs": "Rien à afficher pour ce voyage."}
 MARQUE_VERSION = f'<meta name="valise-version" content="{VERSION_PAGE}">'
 
 
@@ -1999,7 +2000,8 @@ def rayon_avant_de_partir(taches, cle_voyage):
 
 def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=None, depart=None,
                    taches=None, cabine=False, fuseaux=None, meteo_du=None, jour=None, devises=None,
-                   maison=None, etapes=None, personnes=None, urgences=None, langues=None, a_voir=None):
+                   maison=None, etapes=None, personnes=None, urgences=None, langues=None, a_voir=None,
+                   souvenirs=None):
     """Construire la page HTML de la checklist pour l'itinéraire complet.
 
     climats : liste optionnelle de (destination, mois, normales) — une puce par étape.
@@ -2087,6 +2089,9 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
                        + bloc_vocabulaire(langues or []))
     if blocs_sur_place:
         contenus["sur-place"] = blocs_sur_place
+    if personnes:
+        contenus["souvenirs"] = bloc_souvenirs(personnes, [d["devise"] for d in devises or []],
+                                               (souvenirs or {}).get("idees", []), (souvenirs or {}).get("douane", False))
     nav_rubriques = '<nav class="rubriques">'
     blocs = ""
     for i, (nom, libelle) in enumerate(RUBRIQUES):
@@ -2103,7 +2108,7 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
 {MARQUE_VERSION}
 <title>Valise — {libelle_voyage}</title>
 {TETE_PWA}
-<style>{HTML_STYLE}{STYLE_PROGRAMME}{STYLE_A_VOIR}{STYLE_VOCABULAIRE}</style>
+<style>{HTML_STYLE}{STYLE_PROGRAMME}{STYLE_A_VOIR}{STYLE_VOCABULAIRE}{STYLE_SOUVENIRS}</style>
 </head>
 <body>
 <a class="retour" href="./">← Tous les voyages</a>
@@ -2118,6 +2123,7 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
 <script>{SCRIPT_PROGRAMME}</script>
 <script>{SCRIPT_VOCABULAIRE}</script>
 <script>{SCRIPT_A_VOIR}</script>
+<script>{SCRIPT_SOUVENIRS}</script>
 </body>
 </html>"""
     return page
@@ -2384,7 +2390,9 @@ def rendre_page(voyage, c, aujourd_hui=None, passeports=None):
                           langues=langues_du_voyage(voyage["itineraire"]),
                           a_voir=[dict(e, latitude=etape.get("latitude"), longitude=etape.get("longitude"))
                                   for e, etape in zip(etapes_du_voyage(voyage["itineraire"], voyage["depart"]),
-                                                      voyage["itineraire"])])
+                                                      voyage["itineraire"])],
+                          souvenirs={"idees": idees_du_voyage([e.get("code_pays") for e in voyage["itineraire"]]),
+                                     "douane": statut_ue_itineraire(voyage["itineraire"])[0]})
 
 
 def fenetres_du_voyage(conn, code, aujourd_hui):

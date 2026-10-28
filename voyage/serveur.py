@@ -20,7 +20,8 @@ from flask import Blueprint, Flask, abort, jsonify, request, Response, send_from
 
 from db import (emprunter, ajouter_depense, lire_depenses, supprimer_depense, obtenir_etat,
                 enregistrer_reservation, lire_reservations, supprimer_reservation,
-                enregistrer_a_voir, lire_a_voir, supprimer_a_voir, enregistrer_coche, lister_voyages, lire_voyage, archiver_voyage,
+                enregistrer_a_voir, lire_a_voir, supprimer_a_voir, enregistrer_proche, enregistrer_souvenir,
+                lire_souvenirs, supprimer_souvenir, enregistrer_coche, lister_voyages, lire_voyage, archiver_voyage,
                 VERDICTS, enregistrer_retour, supprimer_retour, lire_retours)
 from valise import (solde_depenses, actualiser_meteo, fenetres_du_voyage, page_du_voyage, accueil_en_html,
                     lieux_depuis_reponse, normales_ou_url, normales_depuis_historique,
@@ -29,6 +30,7 @@ from api_climat import url_geocodage
 from pwa import manifeste, script_service_worker, TAILLES_ICONE
 from programme import valider_reservation
 from a_voir import valider_a_voir, suggestions_depuis_wikitext
+from souvenirs import valider_proche, valider_souvenir
 from vocabulaire import LANGUES
 
 load_dotenv(Path(__file__).parent / ".env")   # en local : lit voyage/.env s'il existe
@@ -318,6 +320,60 @@ def creer_app(nom_base="valise", secret=None):
                     vus.add(s["nom"].casefold())
                     suggestions.append(s)
         return jsonify({"suggestions": suggestions})
+
+    @routes.get("/api/souvenirs/<voyage>")
+    def souvenirs(voyage):
+        """🎁 Souvenirs : le carnet de proches, les souvenirs du voyage et ce qui a déjà été rapporté."""
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            return jsonify(_en_json(lire_souvenirs(conn, voyage)))
+        finally:
+            conn.close()
+
+    @routes.post("/api/proches")
+    def enregistrer_un_proche():
+        """Crée ou modifie (même id) un proche du carnet (souvenirs.valider_proche)."""
+        try:
+            p = valider_proche(request.get_json(silent=True))
+        except ValueError as erreur:
+            return jsonify({"erreur": str(erreur)}), 400
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            enregistrer_proche(conn, p)
+        finally:
+            conn.close()
+        return jsonify({"ok": True})
+
+    @routes.post("/api/souvenirs")
+    def enregistrer_un_souvenir():
+        """Crée ou modifie (même id) un souvenir ; acheté, il tient sa dépense partagée à jour."""
+        try:
+            s = valider_souvenir(request.get_json(silent=True))
+        except ValueError as erreur:
+            return jsonify({"erreur": str(erreur)}), 400
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            v = lire_voyage(conn, s["voyage"])
+            if v is None:
+                return jsonify({"erreur": "voyage inconnu"}), 404
+            if s["achete"] and s["paye_par"] not in v["personnes"]:
+                return jsonify({"erreur": "payeur inconnu"}), 400
+            try:
+                enregistrer_souvenir(conn, s, v["personnes"])
+            except ValueError as erreur:
+                return jsonify({"erreur": str(erreur)}), 400
+        finally:
+            conn.close()
+        return jsonify({"ok": True})
+
+    @routes.delete("/api/souvenirs/<voyage>/<identifiant>")
+    def retirer_souvenir(voyage, identifiant):
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            supprimer_souvenir(conn, voyage, identifiant)
+        finally:
+            conn.close()
+        return jsonify({"ok": True})
 
     @routes.post("/api/voyages/<code>/archiver")
     def retirer(code):
