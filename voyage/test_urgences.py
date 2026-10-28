@@ -40,9 +40,11 @@ def test_urgences_du_voyage():
     assert "contacts-utiles" in u[1]["lien"]
 
 
-def test_ariane_dans_les_formalites_hors_europe():
-    t = {x["id"]: x for x in avant_de_partir([etape("Hanoï", "VN")], date(2027, 1, 10), date(2026, 10, 27))}
-    assert "Ariane" in t["ariane"]["texte"] and t["ariane"]["lien"].startswith("https://www.diplomatie.gouv.fr")
+def test_ariane_seulement_pour_un_pays_a_zones_deconseillees():
+    t = {x["id"]: x for x in avant_de_partir([etape("Siem Reap", "KH")], date(2027, 1, 10), date(2026, 10, 27))}
+    assert "Ariane" in t["ariane"]["texte"] and "frontière thaïlandaise" in t["ariane"]["texte"]
+    assert t["ariane"]["lien"].startswith("https://www.diplomatie.gouv.fr")
+    assert "ariane" not in {x["id"] for x in avant_de_partir([etape("Hanoï", "VN")], date(2027, 1, 10), date(2026, 10, 27))}
     assert avant_de_partir([etape("Rome", "IT")], date(2027, 1, 10), date(2026, 10, 27)) == []
 
 
