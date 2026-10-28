@@ -19,7 +19,8 @@ from dotenv import load_dotenv
 from flask import Blueprint, Flask, abort, jsonify, request, Response, send_from_directory
 
 from db import (emprunter, ajouter_depense, lire_depenses, supprimer_depense, obtenir_etat,
-                enregistrer_reservation, lire_reservations, supprimer_reservation, enregistrer_coche, lister_voyages, lire_voyage, archiver_voyage,
+                enregistrer_reservation, lire_reservations, supprimer_reservation,
+                enregistrer_a_voir, lire_a_voir, supprimer_a_voir, enregistrer_coche, lister_voyages, lire_voyage, archiver_voyage,
                 VERDICTS, enregistrer_retour, supprimer_retour, lire_retours)
 from valise import (solde_depenses, actualiser_meteo, fenetres_du_voyage, page_du_voyage, accueil_en_html,
                     lieux_depuis_reponse, normales_ou_url, normales_depuis_historique,
@@ -27,6 +28,7 @@ from valise import (solde_depenses, actualiser_meteo, fenetres_du_voyage, page_d
 from api_climat import url_geocodage
 from pwa import manifeste, script_service_worker, TAILLES_ICONE
 from programme import valider_reservation
+from a_voir import valider_a_voir, suggestions_depuis_wikitext
 from vocabulaire import LANGUES
 
 load_dotenv(Path(__file__).parent / ".env")   # en local : lit voyage/.env s'il existe
@@ -265,6 +267,57 @@ def creer_app(nom_base="valise", secret=None):
         finally:
             conn.close()
         return jsonify({"ok": True})
+
+    @routes.get("/api/a-voir/<voyage>")
+    def envies(voyage):
+        """Les envies « 💡 À voir » du voyage (gardées hors ligne par la page)."""
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            return jsonify(_en_json(lire_a_voir(conn, voyage)))
+        finally:
+            conn.close()
+
+    @routes.post("/api/a-voir")
+    def enregistrer_une_envie():
+        """Crée ou modifie (même id) une envie. Tout est vérifié (a_voir.valider_a_voir)."""
+        try:
+            e = valider_a_voir(request.get_json(silent=True))
+        except ValueError as erreur:
+            return jsonify({"erreur": str(erreur)}), 400
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            if lire_voyage(conn, e["voyage"]) is None:
+                return jsonify({"erreur": "voyage inconnu"}), 404
+            enregistrer_a_voir(conn, e)
+        finally:
+            conn.close()
+        return jsonify({"ok": True})
+
+    @routes.delete("/api/a-voir/<voyage>/<identifiant>")
+    def retirer_envie(voyage, identifiant):
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            supprimer_a_voir(conn, voyage, identifiant)
+        finally:
+            conn.close()
+        return jsonify({"ok": True})
+
+    @routes.post("/api/a-voir/suggestions")
+    def suggestions_a_voir():
+        """Pages Wikivoyage téléchargées par le téléphone -> les lieux « Voir » et « Faire »."""
+        pages = (request.get_json(silent=True) or {}).get("pages")
+        if not isinstance(pages, list) or len(pages) > 4 or not all(
+                isinstance(p, dict) and p.get("langue") in ("fr", "en") and isinstance(p.get("titre"), str)
+                and len(p["titre"]) <= 300 and isinstance(p.get("texte"), str) and len(p["texte"]) <= 3_000_000
+                for p in pages):
+            return jsonify({"erreur": "pages invalides"}), 400
+        suggestions, vus = [], set()
+        for p in pages:
+            for s in suggestions_depuis_wikitext(p["texte"], p["titre"], p["langue"]):
+                if s["nom"].casefold() not in vus:
+                    vus.add(s["nom"].casefold())
+                    suggestions.append(s)
+        return jsonify({"suggestions": suggestions})
 
     @routes.post("/api/voyages/<code>/archiver")
     def retirer(code):

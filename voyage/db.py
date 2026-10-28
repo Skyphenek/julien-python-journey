@@ -293,7 +293,7 @@ def lire_passeports(conn):
 
 def remplacer_voyage(conn, ancien, nouveau):
     """Voyage modifié dont le code a changé (date ou étapes) : les cases cochées, le bilan et les
-    infos des étapes, les dépenses et les réservations suivent le nouveau code, puis l'ancien est archivé (rien n'est supprimé)."""
+    infos des étapes, les dépenses, les réservations et les envies « à voir » suivent le nouveau code, puis l'ancien est archivé (rien n'est supprimé)."""
     with conn.cursor() as cur:
         cur.execute("""INSERT INTO etat_case (voyage, proprietaire, theme, objet, coche, maj_le)
                        SELECT %s, proprietaire, theme, objet, coche, maj_le FROM etat_case WHERE voyage = %s
@@ -310,6 +310,7 @@ def remplacer_voyage(conn, ancien, nouveau):
         cur.execute("DELETE FROM infos_etape WHERE voyage = %s", (ancien,))
         cur.execute("UPDATE depenses SET voyage = %s WHERE voyage = %s", (nouveau, ancien))
         cur.execute("UPDATE reservations SET voyage = %s WHERE voyage = %s", (nouveau, ancien))
+        cur.execute("UPDATE a_voir SET voyage = %s WHERE voyage = %s", (nouveau, ancien))
         cur.execute("UPDATE voyages SET archive = true WHERE code = %s", (ancien,))
     conn.commit()
 
@@ -447,6 +448,37 @@ def lire_reservations(conn, voyage):
 def supprimer_reservation(conn, voyage, identifiant):
     with conn.cursor() as cur:
         cur.execute("DELETE FROM reservations WHERE voyage = %s AND id = %s", (voyage, identifiant))
+    conn.commit()
+
+
+# --- « 💡 À voir » : les envies de chaque étape -------------------------------------------------
+CHAMPS_A_VOIR = ("destination", "rang", "nom", "adresse", "note", "lien", "genre", "fait", "prevu")
+
+
+def enregistrer_a_voir(conn, e):
+    """Crée ou met à jour (même id) une envie déjà validée ; jamais celle d'un autre voyage."""
+    with conn.cursor() as cur:
+        cur.execute(
+            f"""INSERT INTO a_voir (id, voyage, {", ".join(CHAMPS_A_VOIR)})
+                VALUES (%s, %s, {", ".join(["%s"] * len(CHAMPS_A_VOIR))})
+                ON CONFLICT (id) DO UPDATE SET
+                {", ".join(f"{c} = EXCLUDED.{c}" for c in CHAMPS_A_VOIR)}, maj_le = now()
+                WHERE a_voir.voyage = EXCLUDED.voyage""",
+            (e["id"], e["voyage"], *(e[c] for c in CHAMPS_A_VOIR)))
+    conn.commit()
+
+
+def lire_a_voir(conn, voyage):
+    """Dans l'ordre de saisie (la page les range par étape, les faites en bas)."""
+    with conn.cursor() as cur:
+        cur.execute(f"""SELECT id, {", ".join(CHAMPS_A_VOIR)} FROM a_voir WHERE voyage = %s
+                        ORDER BY maj_le, id""", (voyage,))
+        return [dict(zip(("id", *CHAMPS_A_VOIR), ligne)) for ligne in cur.fetchall()]
+
+
+def supprimer_a_voir(conn, voyage, identifiant):
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM a_voir WHERE voyage = %s AND id = %s", (voyage, identifiant))
     conn.commit()
 
 
