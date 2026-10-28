@@ -60,7 +60,7 @@ PLACARD_DEPART = [
     "épices tacos", "farine", "sucre", "chocolat noir", "café", "boudoirs", "thon", "maïs", "pois chiches",
     # frigo
     "œufs", "beurre", "pecorino", "parmesan", "guanciale ou pancetta", "jambon", "crème fraîche", "lait",
-    "yaourt grec", "citrons",
+    "yaourt grec", "citrons", "comté", "beaufort", "mozzarella",
     # congélateur
     "demi-baguettes", "pains burger", "steaks hachés", "bacon", "mozzarella râpée", "petits pois surgelés",
     "épinards surgelés", "herbes surgelées",
