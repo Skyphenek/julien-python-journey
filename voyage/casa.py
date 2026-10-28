@@ -43,15 +43,28 @@ div.bloc-vadrouille a { color: #ffffff; text-decoration: none; display: block; }
 div.bloc-vadrouille .titre { display: block; color: #e3e8ff; font-size: 15px; }
 div.bloc-vadrouille .compte { display: block; color: #ffffff; font-size: 30px; font-weight: 800;
                               letter-spacing: -0.02em; }
+a.bloc-courses { display: flex; justify-content: space-between; align-items: center; gap: 12px;
+                background: var(--courses-doux); color: var(--texte); text-decoration: none;
+                border-radius: 24px; padding: 18px 20px; margin: 16px 0; }
+a.bloc-courses strong { font-size: 19px; font-weight: 800; color: var(--courses); }
+a.bloc-courses span { font-weight: 700; }
 p.attente { background: var(--carte); border-radius: 24px; padding: 18px; color: var(--doux); }
 """
 
 
-def aujourdhui_en_html(voyages, aujourd_hui):
-    """L'accueil du hub : ce qui compte aujourd'hui (pour l'instant : le prochain voyage)."""
+def bloc_courses(a_prendre):
+    if not a_prendre:
+        return ""
+    return (f'<a class="bloc-courses" href="courses"><strong>Courses</strong>'
+            f'<span>{a_prendre} article{"s" if a_prendre > 1 else ""} à prendre</span></a>')
+
+
+def aujourdhui_en_html(voyages, aujourd_hui, a_prendre=0):
+    """L'accueil du hub : ce qui compte aujourd'hui — les courses à faire, le prochain voyage."""
     v = prochain_voyage(voyages, aujourd_hui)
-    blocs = (bloc_vadrouille(v, aujourd_hui) if v else
-             '<p class="attente">Rien de prévu pour l\'instant. Dîners, courses et colis arrivent ici bientôt.</p>')
+    blocs = bloc_courses(a_prendre) + (bloc_vadrouille(v, aujourd_hui) if v else "")
+    if not blocs:
+        blocs = '<p class="attente">Rien de prévu pour l\'instant. Les dîners et les colis arrivent ici bientôt.</p>'
     return f"""<!doctype html>
 <html lang="fr">
 <head>
