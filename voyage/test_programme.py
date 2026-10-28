@@ -157,7 +157,7 @@ def test_rubrique_programme_entre_avant_et_sur_place():
     assert [n for n, _ in RUBRIQUES] == ["valise", "avant", "programme", "sur-place", "souvenirs"]
     html = page()
     prog = rubrique(html, "programme")
-    assert '<div class="programme"' in prog and "➕ Ajouter" in prog
+    assert '<div class="programme"' in prog and "+ Ajouter" in prog
     assert '"destination": "Ha Long"' in prog                       # les étapes, pour titrer les jours
     assert '<div class="info etapes">' not in html                   # l'ancien bloc a disparu
     assert SCRIPT_PROGRAMME in html

@@ -18,20 +18,20 @@ def texte_compte(depart, fin, aujourd_hui, etapes=()):
     """Le texte du jour. etapes : [{"destination", "du", "au"}] (dates), pour nommer l'étape du jour."""
     avant = (depart - aujourd_hui).days
     if avant > 1:
-        return f"⏳ Départ dans {avant} jours"
+        return f"Départ dans {avant} jours"
     if avant == 1:
-        return "⏳ Départ demain !"
+        return "Départ demain !"
     if aujourd_hui <= fin:
         jour, total = (aujourd_hui - depart).days + 1, (fin - depart).days + 1
         ou = next((e["destination"] for e in etapes if e["du"] <= aujourd_hui <= e["au"]), None)
         if jour == 1:
-            texte = f"✈️ C’est le départ ! · jour 1 sur {total}"
+            texte = f"C’est le départ ! · jour 1 sur {total}"
         elif jour == total:
-            texte = f"🏁 Dernier jour · jour {jour} sur {total}"
+            texte = f"Dernier jour · jour {jour} sur {total}"
         else:
-            texte = f"📍 Jour {jour} sur {total}"
+            texte = f"Jour {jour} sur {total}"
         return texte + (f" · {ou}" if ou else "")
-    return f"🧳 Rentrés depuis {_pluriel((aujourd_hui - fin).days, 'jour')}"
+    return f"Rentrés depuis {_pluriel((aujourd_hui - fin).days, 'jour')}"
 
 
 def attributs_compte(depart, fin, etapes=()):
@@ -70,18 +70,18 @@ SCRIPT_COMPTE = """
     }
     function texteCompte(depart, fin, aujourdhui, etapes) {
         const avant = ecart(aujourdhui, depart);
-        if (avant > 1) return '⏳ Départ dans ' + avant + ' jours';
-        if (avant === 1) return '⏳ Départ demain !';
+        if (avant > 1) return 'Départ dans ' + avant + ' jours';
+        if (avant === 1) return 'Départ demain !';
         if (aujourdhui <= fin) {
             const n = ecart(depart, aujourdhui) + 1, total = ecart(depart, fin) + 1;
             const etape = (etapes || []).find(function (e) { return e.du <= aujourdhui && aujourdhui <= e.au; });
-            let texte = n === 1 ? '✈️ C\\u2019est le départ ! · jour 1 sur ' + total
-                      : n === total ? '🏁 Dernier jour · jour ' + n + ' sur ' + total
-                      : '📍 Jour ' + n + ' sur ' + total;
+            let texte = n === 1 ? 'C\\u2019est le départ ! · jour 1 sur ' + total
+                      : n === total ? 'Dernier jour · jour ' + n + ' sur ' + total
+                      : 'Jour ' + n + ' sur ' + total;
             return texte + (etape ? ' · ' + etape.destination : '');
         }
         const depuis = ecart(fin, aujourdhui);
-        return '🧳 Rentrés depuis ' + depuis + ' jour' + (depuis > 1 ? 's' : '');
+        return 'Rentrés depuis ' + depuis + ' jour' + (depuis > 1 ? 's' : '');
     }
     window.texteCompte = texteCompte;
     function majComptes() {

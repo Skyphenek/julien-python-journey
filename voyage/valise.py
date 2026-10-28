@@ -36,7 +36,7 @@ from vocabulaire import langues_du_voyage, bloc_vocabulaire, STYLE_VOCABULAIRE, 
 from a_voir import bloc_a_voir, STYLE_A_VOIR, SCRIPT_A_VOIR
 from souvenirs import bloc_souvenirs, idees_du_voyage, STYLE_SOUVENIRS, SCRIPT_SOUVENIRS
 from compte_a_rebours import compte_en_html, STYLE_COMPTE, SCRIPT_COMPTE
-from design import STYLE_D, TETE_POLICE, ICONES_RUBRIQUE
+from design import STYLE_D, STYLE_EPURE, TETE_POLICE, ICONES_RUBRIQUE
 
 # Fuseaux horaires : toujours la base du paquet tzdata (version figée dans requirements.txt),
 # jamais celle de la machine : celle de macOS ignorait encore le passage du Maroc à GMT
@@ -144,7 +144,6 @@ details.rayon > summary {
     padding: .75rem 1rem; min-height: 52px; cursor: pointer; font-weight: 600;
 }
 details.rayon > summary::-webkit-details-marker { display: none; }
-summary .icone { font-size: 1.2rem; }
 summary .nom { flex: 1; }
 summary .compte { font-size: .8rem; color: var(--doux); font-variant-numeric: tabular-nums; }
 summary::after { content: "▾"; color: var(--doux); }
@@ -315,8 +314,8 @@ function majHorsLigne() {
     if (!bandeau) return;
     const n = lireFile().length;
     bandeau.hidden = !n && navigator.onLine;
-    bandeau.textContent = n ? '📴 ' + n + ' modification(s) en attente : envoi au retour du réseau'
-                            : '📴 Hors ligne : dernière version gardée sur le téléphone';
+    bandeau.textContent = n ? '' + n + ' modification(s) en attente : envoi au retour du réseau'
+                            : 'Hors ligne : dernière version gardée sur le téléphone';
 }
 function expedier(envoi) {
     const options = { method: envoi.methode };
@@ -392,7 +391,7 @@ function rafraichir() {
         .then(function (data) {
             data = avecCochesEnAttente(data);
             let change = false;
-            document.querySelectorAll('input[type=checkbox]').forEach(function (box) {
+            document.querySelectorAll('input[type=checkbox][data-key]').forEach(function (box) {
                 const cle = box.dataset.key;
                 if (Date.now() - (derniereModif[cle] || 0) < 5000) return;
                 const coche = !!data[cle];
@@ -492,7 +491,7 @@ function rafraichirRetours() {
 function activerBilan(actif) {
     document.body.classList.toggle('mode-bilan', actif);
     if (actif) ouvrirRubrique('valise');                  // le bilan porte sur la valise
-    btnBilan.textContent = actif ? '✓ Terminer le bilan' : '📝 Bilan de fin de voyage';
+    btnBilan.textContent = actif ? '✓ Terminer le bilan' : 'Bilan de fin de voyage';
     if (actif) {
         masquer = false;                                  // en bilan, on veut voir tous les objets
         btnMasque.textContent = 'Masquer les rangés';
@@ -602,8 +601,8 @@ function majHorloges() {
         return new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: fuseau }).format(new Date());
     };
     document.querySelectorAll('li[data-fuseau]').forEach(function (li) {
-        li.querySelector('.horloge').textContent = 'il est ' + heure(li.dataset.horaire, li.dataset.fuseau)
-            + ' sur place, ' + heure(bloc.dataset.paris, 'Europe/Paris') + ' à Paris';
+        li.querySelector('.horloge').textContent = heure(li.dataset.horaire, li.dataset.fuseau);
+        li.title = heure(bloc.dataset.paris, 'Europe/Paris') + ' à Paris';
     });
 }
 majHorloges();
@@ -618,35 +617,39 @@ function jourLocal() {
 }
 function afficherDepenses(res) {
     const bloc = document.querySelector('div.depenses');
-    const s = res.solde;
-    let texte = 'Total ' + euros.format(Number(s.total));
-    if (bloc.dataset.personnes.indexOf('|') !== -1) {
-        texte += ' · ' + (s.remboursements.length
-            ? s.remboursements.map(function (r) { return r.de + ' doit ' + euros.format(Number(r.montant)) + ' à ' + r.a; }).join(' · ')
-            : 'comptes à l\u2019équilibre');
-    }
+    const s = res.solde, plusieurs = bloc.dataset.personnes.indexOf('|') !== -1;
     const prefixe = 'api/depenses/' + encodeURIComponent(VOYAGE) + '/';
     const retirees = lireFile().filter(function (e) { return e.methode === 'DELETE' && e.url.indexOf(prefixe) === 0; })
                                .map(function (e) { return e.url.slice(prefixe.length); });
     const ajoutees = enAttente('api/depenses', VOYAGE);
     const visibles = res.depenses.filter(function (d) { return retirees.indexOf(String(d.id)) === -1; })
         .concat(ajoutees.map(function (e) { return Object.assign({ attente: e.id }, e.corps); }));
-    if (ajoutees.length) texte += ' · ' + ajoutees.length + ' en attente de réseau (hors total)';
-    bloc.querySelector('.solde').textContent = visibles.length ? texte : 'Aucune dépense pour l\u2019instant.';
+    let texte = '';
+    if (!visibles.length) texte = 'Aucune dépense pour l’instant.';
+    else if (plusieurs) texte = s.remboursements.length
+        ? s.remboursements.map(function (r) { return r.de + ' doit ' + euros.format(Number(r.montant)) + ' à ' + r.a; }).join(' · ')
+        : 'Comptes à l’équilibre';
+    if (ajoutees.length) texte += (texte ? ' · ' : '') + ajoutees.length + ' en attente de réseau (hors total)';
+    bloc.querySelector('.total').textContent = euros.format(Number(s.total));
+    bloc.querySelector('.solde').textContent = texte;
     const liste = bloc.querySelector('.liste-depenses');
     liste.replaceChildren();
     visibles.forEach(function (d) {
-        const li = document.createElement('li'), span = document.createElement('span');
-        let t = (d.attente ? '⏳ ' : '') + d.jour.slice(8) + '/' + d.jour.slice(5, 7) + ' · ' + d.libelle + ' — '
-            + new Intl.NumberFormat('fr-FR').format(Number(d.montant)) + ' ' + d.devise;
-        if (d.devise !== 'EUR') t += ' (' + euros.format(Number(d.montant_eur)) + ')';
-        if (bloc.dataset.personnes.indexOf('|') !== -1) {
-            t += ' · payé par ' + d.paye_par;
+        const li = document.createElement('li'), quoi = document.createElement('span');
+        const nom = document.createElement('strong'), detail = document.createElement('small'), combien = document.createElement('strong');
+        quoi.className = 'quoi'; combien.className = 'combien';
+        nom.textContent = d.libelle;
+        let t = (d.attente ? 'en attente · ' : '') + d.jour.slice(8) + '/' + d.jour.slice(5, 7);
+        if (plusieurs) {
+            t += ' · ' + d.paye_par;
             if (d.pour.length < bloc.dataset.personnes.split('|').length) t += ' pour ' + d.pour.join(', ');
         }
-        span.textContent = t;
+        if (d.devise !== 'EUR') t += ' · ' + new Intl.NumberFormat('fr-FR').format(Number(d.montant)) + ' ' + d.devise;
+        detail.textContent = t;
+        combien.textContent = euros.format(Number(d.montant_eur));
+        quoi.append(nom, detail);
         const suppr = document.createElement('button');
-        suppr.type = 'button'; suppr.textContent = '🗑️'; suppr.title = 'Supprimer';
+        suppr.type = 'button'; suppr.className = 'suppr'; suppr.textContent = '✕'; suppr.title = 'Supprimer';
         suppr.addEventListener('click', function () {
             if (!suppr.dataset.confirmer) { suppr.dataset.confirmer = '1'; suppr.textContent = 'Supprimer ?'; return; }
             if (d.attente) {                                   // jamais partie : on la retire de la file
@@ -656,7 +659,7 @@ function afficherDepenses(res) {
             }
             envoyerOuGarder({ url: prefixe + d.id, methode: 'DELETE' }).then(chargerDepenses, chargerDepenses);
         });
-        li.append(span, suppr);
+        li.append(quoi, combien, suppr);
         liste.append(li);
     });
 }
@@ -670,27 +673,34 @@ function chargerDepenses() {
 (function () {
     const form = document.querySelector('form.nouvelle-depense');
     if (!form) return;
-    const message = form.querySelector('.message-depense');
+    const message = document.querySelector('div.depenses .message-depense');
+    const ouvrir = document.querySelector('div.depenses .ajouter-depense');
+    function montrerFormulaire(oui) {                      // « + Ajouter » déplie la saisie, l'envoi la replie
+        form.hidden = !oui; ouvrir.setAttribute('aria-expanded', String(oui));
+        ouvrir.textContent = oui ? 'Fermer' : '+ Ajouter';
+        if (oui) form.elements.libelle.focus();
+    }
+    ouvrir.addEventListener('click', function () { montrerFormulaire(form.hidden); });
     form.addEventListener('submit', function (ev) {
         ev.preventDefault();
         const devise = form.elements.devise.value, montant = Number(form.elements.montant.value);
         let enEuros = montant;
         if (devise !== 'EUR') {
             const taux = lireTauxGardes(), t = taux && taux.eur[devise.toLowerCase()];
-            if (!t) { message.textContent = '⚠️ Pas de taux pour ' + devise + ' : saisis le montant en euros.'; return; }
+            if (!t) { message.textContent = 'Pas de taux pour ' + devise + ' : saisis le montant en euros.'; return; }
             enEuros = montant / t;
         }
         const pour = Array.from(form.querySelectorAll('input[name=pour]:checked')).map(function (c) { return c.value; });
-        if (!pour.length) { message.textContent = '⚠️ Coche au moins une personne.'; return; }
+        if (!pour.length) { message.textContent = 'Coche au moins une personne.'; return; }
         const corps = { voyage: VOYAGE, libelle: form.elements.libelle.value.trim(), montant: montant.toFixed(2), devise: devise,
                         montant_eur: enEuros.toFixed(2), paye_par: form.elements.paye_par.value, pour: pour, jour: jourLocal() };
-        message.textContent = '⏳';
+        message.textContent = '…';
         envoyerOuGarder({ url: 'api/depenses', methode: 'POST', corps: corps })
             .then(function (etat) {
-                message.textContent = etat === 'attente' ? '📴 Gardée sur le téléphone : partira au retour du réseau' : '';
-                form.elements.libelle.value = ''; form.elements.montant.value = ''; chargerDepenses();
+                message.textContent = etat === 'attente' ? 'Gardée sur le téléphone : partira au retour du réseau' : '';
+                form.elements.libelle.value = ''; form.elements.montant.value = ''; montrerFormulaire(false); chargerDepenses();
             })
-            .catch(function () { message.textContent = '⚠️ Échec, réessaie (réseau ?)'; });
+            .catch(function () { message.textContent = 'Échec, réessaie (réseau ?)'; });
     });
     chargerDepenses();
     document.addEventListener('visibilitychange', function () { if (!document.hidden) chargerDepenses(); });
@@ -715,10 +725,11 @@ function afficherTaux(taux) {
     date.textContent = 'Taux moyens du ' + taux.date.slice(8) + '/' + taux.date.slice(5, 7) + ', indicatifs (hors frais de change).';
     document.querySelectorAll('div.devises li[data-devise]').forEach(function (li) {
         const code = li.dataset.devise, t = taux.eur[code.toLowerCase()];
-        if (!t) { li.querySelector('.taux').textContent = 'taux inconnu'; return; }
+        if (!t) { li.querySelector('.taux').textContent = '?'; return; }
         const f = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: t >= 100 ? 0 : 2 });
-        li.querySelector('.taux').textContent = '1 € = ' + f.format(t) + ' ' + code;
-        const local = li.querySelector('.montant-local'), eur = li.querySelector('.montant-eur');
+        li.querySelector('.taux').textContent = f.format(t);
+        const conv = document.querySelector('div.devises .convertisseur[data-devise="' + code + '"]');
+        const local = conv.querySelector('.montant-local'), eur = conv.querySelector('.montant-eur');
         local.addEventListener('input', function () { eur.value = local.value === '' ? '' : (local.value / t).toFixed(2); });
         const decimales = t >= 100 ? 1 : 100;                    // pas de centimes de dong ou de riel
         eur.addEventListener('input', function () { local.value = eur.value === '' ? '' : Math.round(eur.value * t * decimales) / decimales; });
@@ -743,13 +754,13 @@ const btnRetirer = document.getElementById('retirer');
 if (btnRetirer) btnRetirer.addEventListener('click', function () {
     if (!btnRetirer.dataset.confirmer) {
         btnRetirer.dataset.confirmer = '1';
-        btnRetirer.textContent = '⚠️ Confirmer le retrait ?';
-        setTimeout(function () { delete btnRetirer.dataset.confirmer; btnRetirer.textContent = '🗑️ Retirer'; }, 4000);
+        btnRetirer.textContent = 'Confirmer le retrait ?';
+        setTimeout(function () { delete btnRetirer.dataset.confirmer; btnRetirer.textContent = 'Retirer'; }, 4000);
         return;
     }
     fetch('api/voyages/' + encodeURIComponent(VOYAGE) + '/archiver', { method: 'POST' })
-        .then(function (r) { if (r.ok) location.href = './'; else btnRetirer.textContent = '⚠️ Échec, réessaie'; })
-        .catch(function () { btnRetirer.textContent = '⚠️ Échec, réessaie'; });
+        .then(function (r) { if (r.ok) location.href = './'; else btnRetirer.textContent = 'Échec, réessaie'; })
+        .catch(function () { btnRetirer.textContent = 'Échec, réessaie'; });
 });
 
 // Échéances dépassées en rouge : calculé à l'ouverture, avec la date du téléphone
@@ -764,7 +775,7 @@ function marquerRetards() {
 // Tout ce qui dépend de `sauvegarde` : à lancer seulement une fois l'état reçu du serveur
 function initialiser() {
     marquerRetards();
-    document.querySelectorAll('input[type=checkbox]').forEach(function (box) {
+    document.querySelectorAll('input[type=checkbox][data-key]').forEach(function (box) {
         if (sauvegarde[box.dataset.key]) box.checked = true;
         box.addEventListener('change', function () {
             sauvegarde[box.dataset.key] = box.checked;
@@ -785,7 +796,7 @@ function initialiser() {
         appliquerMasque();
     });
     btnReset.addEventListener('click', function () {
-        document.querySelectorAll('input[type=checkbox]').forEach(function (box) {
+        document.querySelectorAll('input[type=checkbox][data-key]').forEach(function (box) {
             box.checked = false;                 // on décoche visuellement
             delete sauvegarde[box.dataset.key];  // et on efface de la mémoire locale
             sauverCoche(box.dataset.key, false);  // et on sauve le décochage sur le serveur
@@ -841,7 +852,7 @@ function initialiser() {
     btn.hidden = false;
 
     function resume(res) {
-        let texte = '🌦️ Prévisions du ' + jour.slice(8) + '/' + jour.slice(5, 7) + ' appliquées';
+        let texte = 'Prévisions du ' + jour.slice(8) + '/' + jour.slice(5, 7) + ' appliquées';
         const c = res.changements;
         if (c) {
             const parts = [];
@@ -850,12 +861,12 @@ function initialiser() {
             if (c.quantites.length) parts.push('quantités : ' + c.quantites.join(', '));
             texte += parts.length ? ' — ' + parts.join(' ; ') : ' — valise inchangée';
         }
-        return texte + (res.erreurs.length ? ' · ⚠️ ' + res.erreurs.join(' · ') : '');
+        return texte + (res.erreurs.length ? ' · ' + res.erreurs.join(' · ') : '');
     }
 
     function actualiser(auto) {
         btn.disabled = true;
-        btn.textContent = '⏳ Prévisions en cours…';
+        btn.textContent = 'Prévisions en cours…';
         const base = 'api/meteo/' + encodeURIComponent(VOYAGE);
         // 1. le serveur dit quoi demander ; 2. le téléphone appelle Open-Meteo (Render prend des 429) ;
         // 3. le serveur régénère la valise avec ce qu'on lui envoie
@@ -883,19 +894,19 @@ function initialiser() {
             .then(function (res) {
                 if (res.etapes_prevues > 0) {                         // succès : bandeau après rechargement
                     try { sessionStorage.setItem('meteo-bandeau:' + VOYAGE, resume(res)); } catch (e) {}
-                    btn.textContent = '✅ ' + res.etapes_prevues + ' étape(s) actualisée(s)';
+                    btn.textContent = '' + res.etapes_prevues + ' étape(s) actualisée(s)';
                     setTimeout(function () { location.reload(); }, auto ? 0 : 800);
                     return;
                 }
                 btn.disabled = false;
-                btn.textContent = '🌦️ Actualiser avec la météo';
-                if (res.erreurs.length) afficherBandeau('⚠️ Météo non actualisée : ' + res.erreurs.join(' · '));
+                btn.textContent = 'Actualiser la météo';
+                if (res.erreurs.length) afficherBandeau('Météo non actualisée : ' + res.erreurs.join(' · '));
                 else if (!auto) afficherBandeau('ℹ️ Aucune étape à moins de 10 jours : normales de saison gardées');
             })
             .catch(function (e) {
                 btn.disabled = false;
-                btn.textContent = '🌦️ Actualiser avec la météo';
-                afficherBandeau('⚠️ Météo non actualisée (' + e.message + ') : réessaie avec le bouton');
+                btn.textContent = 'Actualiser la météo';
+                afficherBandeau('Météo non actualisée (' + e.message + ') : réessaie avec le bouton');
             });
     }
     btn.addEventListener('click', function () { actualiser(false); });
@@ -1091,11 +1102,6 @@ THEMES = {
 }
 
 # Icône affichée devant chaque rayon dans la checklist (un rayon sans icône -> test rouge).
-ICONES_RAYON = {
-    "Vêtements": "👕", "Sous-vêtements": "🩲", "Chaussures": "👟", "Accessoires": "🕶️",
-    "Hygiène": "🧴", "Tech": "🔌", "Documents": "🪪", "Divers": "🎒",
-}
-
 # 4. GÉO — Les pays sont identifiés par leur CODE ISO ("VN", "GB"…), tel que
 #    renvoyé par le géocodage (api_climat.lieux). Pourquoi pas le nom ? L'API écrit
 #    "Viêt Nam" là où on écrirait "Vietnam" : un code ne varie pas (jointure sur l'ID,
@@ -1179,15 +1185,15 @@ def ligne_climat(destination, mois, n):
     debut = f"{destination} · {MOIS[mois - 1]} : "       # mois 1 -> index 0
     if n is None:
         return debut + "climat indisponible"
-    return (debut + f"{round(n['tmin'])}–{round(n['tmax'])} °C · 🌧️ {n['jours_pluie']} j de pluie/mois, "
+    return (debut + f"{round(n['tmin'])}–{round(n['tmax'])} °C · {n['jours_pluie']} j de pluie/mois, "
             f"dont {round(n['jours_forte_pluie'])} forts")
 
 
 def puce_climat(destination, n):
-    """Version courte pour l'en-tête de la checklist : 'Hanoï 14–21° · 🌧️ 3 j forts'."""
+    """Version courte pour l'en-tête de la checklist : 'Hanoï 14–21° · 3 j de forte pluie'."""
     if n is None:
         return f"{destination} ?"
-    puce = f"{destination} {round(n['tmin'])}–{round(n['tmax'])}° · 🌧️ {round(n['jours_forte_pluie'])} j forts"
+    puce = f"{destination} {round(n['tmin'])}–{round(n['tmax'])}° · {round(n['jours_forte_pluie'])} j de forte pluie"
     if "prevu_le" in n:                          # prévision (J-10) plutôt que normale de saison
         puce += f" · prévu le {n['prevu_le'][8:10]}/{n['prevu_le'][5:7]}"
     return puce
@@ -1587,13 +1593,13 @@ def texte_passeports(limite, regle, passeports, personnes):
     trop_courts = [f"{p} (expire le {passeports[p]:%d/%m/%Y})"
                    for p in personnes if p in passeports and passeports[p] < limite]
     if trop_courts:
-        return f"❌ Passeport à renouveler : {', '.join(trop_courts)} — il faut au moins le {exige}"
+        return f"Passeport à renouveler : {', '.join(trop_courts)} — il faut au moins le {exige}"
     inconnus = [p for p in personnes if p not in passeports]
     connus = ", ".join(f"{p} jusqu'au {passeports[p]:%d/%m/%Y}" for p in personnes if p in passeports)
     if inconnus:
         return (f"Passeports valides au moins jusqu'au {exige} : {connus} ; "
                 f"{', '.join(inconnus)} : date inconnue, à vérifier")
-    return f"✅ Passeports OK : {connus} (minimum exigé : {exige})"
+    return f"Passeports OK : {connus} (minimum exigé : {exige})"
 
 
 def _tache_sante(fiches, avant):
@@ -1648,7 +1654,7 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
                for c, _e in hors_ue)
     regle = f"{mois} mois après le retour" if mois else "valides pendant tout le séjour"
     texte = texte_passeports(ajouter_mois(retour, mois), regle, passeports, personnes)
-    taches = [_tache("passeport", avant(DELAIS["passeport"]), texte, ok=texte.startswith("✅"))]
+    taches = [_tache("passeport", avant(DELAIS["passeport"]), texte, ok=texte.startswith("Passeports OK"))]
 
     sante = _tache_sante(connus, avant)
     if sante:
@@ -1695,7 +1701,8 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # 22 = Avant de partir : seulement ce qui compte (visa à faire, zone tropicale, Ariane, assurance) ;
 # 23 = design D (une couleur par rubrique, onglets en bas, barre latérale sur ordinateur) ;
 # 24 = finitions D : urgences en pastilles, tâches Avant en cartes.
-VERSION_PAGE = 24
+# 25 = sans emojis ; Sur place épuré (tuiles heure/devise, carte Dépenses).
+VERSION_PAGE = 25
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
 RUBRIQUES = [("valise", "Valise"), ("avant", "Avant"), ("programme", "Programme"), ("sur-place", "Sur place"),
@@ -1809,15 +1816,17 @@ def bloc_depenses(personnes, devises):
     payeur = "".join(f'<option value="{echapper(p)}">{echapper(p, quote=False)}</option>' for p in personnes)
     pour = "".join(f'<label><input type="checkbox" name="pour" value="{echapper(p)}" checked> '
                    f'{echapper(p, quote=False)}</label>' for p in personnes)
-    return (f'<div class="info depenses" data-personnes="{echapper("|".join(personnes))}"><h3>💸 Dépenses</h3>'
-            f'<p class="solde"></p>'
-            f'<form class="nouvelle-depense">'
+    return (f'<div class="info depenses" data-personnes="{echapper("|".join(personnes))}">'
+            f'<div class="resume-depenses"><div class="tete"><h3>Dépenses</h3>'
+            f'<button type="button" class="ajouter-depense" aria-expanded="false">+ Ajouter</button></div>'
+            f'<strong class="total"></strong><p class="solde"></p></div>'
+            f'<form class="nouvelle-depense" hidden>'
             f'<input type="text" name="libelle" placeholder="ex. dîner, taxi" maxlength="120" required>'
             f'<span class="montant"><input type="number" name="montant" inputmode="decimal" min="0.01" step="0.01" '
             f'placeholder="montant" required><select name="devise">{options_devise}</select></span>'
             f'<span{" hidden" if seul else ""}>payé par <select name="paye_par">{payeur}</select> pour {pour}</span>'
-            f'<button type="submit" class="ctrl-btn">➕ Ajouter</button><span class="message-depense"></span></form>'
-            f'<ul class="liste-depenses"></ul></div>')
+            f'<button type="submit" class="principal">Ajouter la dépense</button></form>'
+            f'<p class="message-depense"></p><ul class="liste-depenses"></ul></div>')
 
 
 # --- Sur place : décalage horaire ---------------------------------------------------------
@@ -1902,15 +1911,18 @@ def table_horaire(fuseau, depuis, jours=HORIZON_HORLOGES):
 
 def bloc_decalage(groupes, jour):
     """Le bloc « Décalage horaire » de la rubrique Sur place (horloges remplies par le script)."""
-    lignes = "".join(f'<li data-fuseau="{echapper(g["fuseau"])}" data-horaire="{json.dumps(table_horaire(g["fuseau"], jour))}">'
-                     f'<strong>{echapper(", ".join(g["destinations"]), quote=False)}</strong>'
-                     f' : {texte_decalage(g["heures"])}<span class="horloge"></span></li>' for g in groupes)
+    lignes = "".join(f'<li class="tuile" data-fuseau="{echapper(g["fuseau"])}" '
+                     f'data-horaire="{json.dumps(table_horaire(g["fuseau"], jour))}">'
+                     f'<span class="lieu">{echapper(", ".join(g["destinations"]), quote=False)}</span>'
+                     f'<strong class="horloge"></strong>'
+                     f'<span class="ecart">{texte_decalage(g["heures"])}{" / Paris" if g["heures"] else ""}</span></li>'
+                     for g in groupes)
     conseil = conseil_decalage(groupes[0]["heures"])
-    conseil = f'<p class="conseil">💤 {conseil}</p>' if conseil else ""
+    conseil = f'<p class="conseil">{conseil}</p>' if conseil else ""
     fin = int(datetime(jour.year, jour.month, jour.day, tzinfo=ZoneInfo("UTC")).timestamp() * 1000
               + HORIZON_HORLOGES * 86_400_000)
     return (f'<div class="info decalage" data-paris="{json.dumps(table_horaire(REFERENCE_HORAIRE, jour))}" '
-            f'data-jusqua="{fin}"><h3>🕐 Décalage horaire</h3><ul>{lignes}</ul>{conseil}</div>')
+            f'data-jusqua="{fin}"><h3>Décalage horaire</h3><ul>{lignes}</ul>{conseil}</div>')
 
 
 # --- Sur place : devises -----------------------------------------------------------------
@@ -1938,16 +1950,19 @@ def devises_du_voyage(itineraire):
 
 def bloc_devises(devises):
     """Le bloc « Devises » : taux et convertisseur remplis par le script (données du téléphone)."""
-    lignes = ""
+    lignes = convertisseurs = ""
     for d in devises:
         note = f' <em>({echapper(d["note"], quote=False)})</em>' if d["note"] else ""
-        lignes += (f'<li data-devise="{d["devise"]}"><strong>{d["devise"]}</strong> · '
-                   f'{echapper(", ".join(d["destinations"]), quote=False)}{note}'
-                   f'<span class="taux">taux en cours…</span>'
-                   f'<span class="convertisseur"><input type="number" inputmode="decimal" min="0" '
-                   f'class="montant-local" placeholder="{d["devise"]}"> = <input type="number" '
-                   f'inputmode="decimal" min="0" class="montant-eur" placeholder="€"> €</span></li>')
-    return f'<div class="info devises"><h3>💱 Devises</h3><ul>{lignes}</ul><p class="conseil taux-date"></p></div>'
+        lignes += (f'<li class="tuile" data-devise="{d["devise"]}"><span class="lieu">1 € =</span>'
+                   f'<strong class="taux">…</strong>'
+                   f'<span class="ecart">{d["devise"]} · {echapper(", ".join(d["destinations"]), quote=False)}{note}</span></li>')
+        convertisseurs += (f'<div class="convertisseur" data-devise="{d["devise"]}">'
+                           f'<input type="number" inputmode="decimal" min="0" class="montant-local" '
+                           f'aria-label="Montant en {d["devise"]}" placeholder="{d["devise"]}">'
+                           f'<span class="egal">=</span><input type="number" inputmode="decimal" min="0" '
+                           f'class="montant-eur" aria-label="Montant en euros" placeholder="€"></div>')
+    return (f'<div class="info devises"><h3>Devises</h3><ul>{lignes}</ul>{convertisseurs}'
+            f'<p class="conseil taux-date"></p></div>')
 
 
 # --- Avant : fermer la maison ---------------------------------------------------------------
@@ -1991,7 +2006,7 @@ def fermer_la_maison(total, depart):
 
 def rayon_taches(titre, icone, theme, taches, cle_voyage):
     """Un rayon de tâches datées : cases cochées comme les objets (même API), sans bilan."""
-    rayon = (f'<details class="rayon avant" open><summary><span class="icone">{icone}</span>'
+    rayon = (f'<details class="rayon avant" open><summary>'
              f'<span class="nom">{titre}</span><span class="compte"></span></summary><ul>')
     for t in taches:
         cle = f"{cle_voyage}/Partagé/{theme}/{t['id']}"
@@ -2007,7 +2022,7 @@ def rayon_taches(titre, icone, theme, taches, cle_voyage):
 
 
 def rayon_avant_de_partir(taches, cle_voyage):
-    return rayon_taches("Avant de partir", "🛂", "Avant de partir", taches, cle_voyage)
+    return rayon_taches("Avant de partir", "", "Avant de partir", taches, cle_voyage)
 
 
 def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=None, depart=None,
@@ -2030,12 +2045,12 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
         fin = depart + timedelta(days=total - 1)
         dates_js = f' const DEPART = "{depart.isoformat()}"; const FIN = "{fin.isoformat()}";'
     adaptateurs = ", ".join(sorted(prises)) if prises else "aucun"
-    puces = f'<span class="puce">🔌 Adaptateur : {adaptateurs}</span>'
+    puces = f'<span class="puce">Adaptateur : {adaptateurs}</span>'
     if cabine:
-        puces += f'<span class="puce" title="Vêtements plafonnés à {PLAFOND_CABINE}, liquides ≤ 100 ml">🎒 Bagage cabine</span>'
+        puces += f'<span class="puce" title="Vêtements plafonnés à {PLAFOND_CABINE}, liquides ≤ 100 ml">Bagage cabine</span>'
     for destination, mois, n in climats or []:
         # Puce courte à l'écran, phrase complète en info-bulle (title)
-        puces += f'<span class="puce" title="{ligne_climat(destination, mois, n)}">🌡️ {puce_climat(destination, n)}</span>'
+        puces += f'<span class="puce" title="{ligne_climat(destination, mois, n)}">{puce_climat(destination, n)}</span>'
 
     # Barres de progression : une par voyageur + le total s'ils sont plusieurs ; sinon le total seul
     voyageurs = [p for p in valise if p != "Partagé"]
@@ -2061,8 +2076,7 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
         for theme, objets in themes.items():
             if not objets:
                 continue
-            icone = ICONES_RAYON.get(theme, "📦")
-            corps += (f'<details class="rayon" open><summary><span class="icone">{icone}</span>'
+            corps += (f'<details class="rayon" open><summary>'
                       f'<span class="nom">{theme}</span><span class="compte"></span></summary><ul>')
             for objet, quantite in sorted(objets.items()):
                 cle = f"{cle_voyage}/{proprietaire}/{theme}/{objet}"
@@ -2071,9 +2085,9 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
                           f'<label><input type="checkbox" data-key="{cle}">'
                           f'<span class="nom">{objet}</span><span class="qte">×{quantite}</span></label>'
                           f'<div class="bilan">'
-                          f'<button type="button" data-verdict="utile">✅ utile</button>'
-                          f'<button type="button" data-verdict="trop">➖ en trop</button>'
-                          f'<button type="button" data-verdict="pas_servi">❌ pas servi</button>'
+                          f'<button type="button" data-verdict="utile">utile</button>'
+                          f'<button type="button" data-verdict="trop">en trop</button>'
+                          f'<button type="button" data-verdict="pas_servi">pas servi</button>'
                           f'<span class="utilise">utilisé <input type="number" min="0" max="{quantite}" '
                           f'inputmode="numeric"> / {quantite}</span></div></li>')
             corps += "</ul></details>"
@@ -2090,14 +2104,15 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
                    f'<p id="bilan-compte"></p>\n</div>\n{corps}'),
         "avant": (f'<section data-owner="Avant de partir" class="avant">'
                   f'{rayon_avant_de_partir(taches, cle_voyage) if taches else ""}'
-                  f'{rayon_taches("Fermer la maison", "🏠", "Fermer la maison", maison, cle_voyage) if maison else ""}'
+                  f'{rayon_taches("Fermer la maison", "", "Fermer la maison", maison, cle_voyage) if maison else ""}'
                   f'</section>' if taches or maison
                   else '<p class="vide">Rien à préparer pour ce voyage : la carte d\'identité suffit.</p>'),
         "programme": bloc_programme(etapes or []) + bloc_a_voir(a_voir or []),
         **{r: f'<p class="vide">{texte}</p>' for r, texte in A_VENIR.items()},
     }
-    blocs_sur_place = ((bloc_decalage(fuseaux, jour or date.today()) if fuseaux else "")
-                       + (bloc_devises(devises) if devises else "")
+    tuiles = ((bloc_decalage(fuseaux, jour or date.today()) if fuseaux else "")
+              + (bloc_devises(devises) if devises else ""))
+    blocs_sur_place = ((f'<div class="tuiles">{tuiles}</div>' if tuiles else "")
                        + (bloc_depenses(personnes, [d["devise"] for d in devises or []]) if personnes else "")
                        + (bloc_urgences(urgences) if urgences else "")
                        + bloc_vocabulaire(langues or []))
@@ -2124,7 +2139,7 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
 <title>Valise — {libelle_voyage}</title>
 {TETE_PWA}
 {TETE_POLICE}
-<style>{HTML_STYLE}{STYLE_PROGRAMME}{STYLE_A_VOIR}{STYLE_VOCABULAIRE}{STYLE_SOUVENIRS}{STYLE_COMPTE}{STYLE_D}</style>
+<style>{HTML_STYLE}{STYLE_PROGRAMME}{STYLE_A_VOIR}{STYLE_VOCABULAIRE}{STYLE_SOUVENIRS}{STYLE_COMPTE}{STYLE_D}{STYLE_EPURE}</style>
 </head>
 <body data-rubrique="{RUBRIQUES[0][0]}">
 <header class="entete">
@@ -2137,7 +2152,7 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
 <main>
 <div id="bandeau-meteo" hidden></div>
 <div id="hors-ligne" hidden></div>
-{blocs}<div class="controls"><button id="meteo" class="ctrl-btn" hidden>🌦️ Actualiser avec la météo</button><a id="modifier" class="ctrl-btn" href="?modifier={quote(cle_voyage)}">✏️ Modifier</a><button id="retirer" class="ctrl-btn">🗑️ Retirer</button><button id="mode-bilan" class="ctrl-btn">📝 Bilan de fin de voyage</button><button id="toggle-masque" class="ctrl-btn">Masquer les rangés</button><button id="reset" class="ctrl-btn">Réinitialiser</button></div>
+{blocs}<div class="controls"><button id="meteo" class="ctrl-btn" hidden>Actualiser la météo</button><a id="modifier" class="ctrl-btn" href="?modifier={quote(cle_voyage)}">Modifier</a><button id="retirer" class="ctrl-btn">Retirer</button><button id="mode-bilan" class="ctrl-btn">Bilan de fin de voyage</button><button id="toggle-masque" class="ctrl-btn">Masquer les rangés</button><button id="reset" class="ctrl-btn">Réinitialiser</button></div>
 </main>
 <script>const VOYAGE = {json.dumps(cle_voyage, ensure_ascii=False)};{dates_js} const METEO_DU = {json.dumps(meteo_du)};</script>
 <script>{HTML_SCRIPT}</script>
@@ -2284,11 +2299,11 @@ def question_proposition(p):
     """Formule la question d'une proposition d'ajustement (o/n, ou o/n/t pour un ajout)."""
     qui = "vous a manqué (partagé)" if p["personne"] == "Partagé" else f"a manqué à {p['personne']}"
     if p["type"] == "ajout":
-        return f"   ➕ {p['source']} : « {p['objet']} » {qui}. L'ajouter ? (o / n / t = toujours) : "
+        return f"   + {p['source']} : « {p['objet']} » {qui}. L'ajouter ? (o / n / t = toujours) : "
     if p["type"] == "quantite":
-        return (f"   ➖ {p['objet']} ({p['personne']}) : {p['actuelle']} prévus. {p['source']}, même climat : "
+        return (f"   {p['objet']} ({p['personne']}) : {p['actuelle']} prévus. {p['source']}, même climat : "
                 f"{p['utilise']} utilisés. J'en mets {p['proposee']} ? (o/n) : ")
-    return (f"   ➖ {p['objet']} ({p['personne']}) : {p['raison']} à {p['source']} (même climat). "
+    return (f"   {p['objet']} ({p['personne']}) : {p['raison']} à {p['source']} (même climat). "
             f"Le retirer ? (o/n) : ")
 
 
@@ -2643,7 +2658,7 @@ def accueil_en_html(voyages, aujourd_hui):
 </head>
 <body class="accueil">
 <h1>Nos valises</h1>
-<p><a class="nouvelle" href="?nouvelle">➕ Nouvelle valise</a></p>
+<p><a class="nouvelle" href="?nouvelle">+ Nouvelle valise</a></p>
 {prochain}
 {carte}
 {corps}
@@ -2724,9 +2739,9 @@ function normalesDe(lieu, mois) {
 # --- Création en ligne, étape 3 : le formulaire ---
 
 LIBELLES_ACTIVITE = {
-    "ville": "🏙️ Ville", "plage": "🏖️ Plage", "montagne": "⛰️ Montagne / rando",
-    "culte": "🛕 Lieux de culte", "snorkeling": "🤿 Snorkeling", "scooter": "🛵 Scooter / moto",
-    "nature": "🦟 Nature / moustiques", "nuit": "🌙 Transport de nuit", "road trip": "🚗 Road trip",
+    "ville": "Ville", "plage": "Plage", "montagne": "Montagne / rando",
+    "culte": "Lieux de culte", "snorkeling": "Snorkeling", "scooter": "Scooter / moto",
+    "nature": "Nature / moustiques", "nuit": "Transport de nuit", "road trip": "Road trip",
 }
 
 
@@ -2870,10 +2885,10 @@ function chercher(etape) {
     const zone = etape.querySelector('.lieux');
     etape.lieu = null;
     if (!nom) return;
-    zone.textContent = '⏳ Recherche…';
+    zone.textContent = 'Recherche…';
     chercherLieux(nom).then(function (lieux) {
         zone.textContent = '';
-        if (!lieux.length) { zone.textContent = "❌ Introuvable : vérifie l'orthographe"; return; }
+        if (!lieux.length) { zone.textContent = "Introuvable : vérifie l'orthographe"; return; }
         lieux.forEach(function (lieu, i) {
             const label = document.createElement('label');
             label.className = 'lieu';
@@ -2882,10 +2897,10 @@ function chercher(etape) {
             radio.name = 'lieu-' + etape.id;
             radio.addEventListener('change', function () { etape.lieu = lieu; });
             if (i === 0) { radio.checked = true; etape.lieu = lieu; }     // le premier par défaut
-            label.append(radio, ' 📍 ' + lieu.libelle);
+            label.append(radio, ' ' + lieu.libelle);
             zone.append(label);
         });
-    }).catch(function (e) { zone.textContent = '⚠️ Recherche impossible (' + e.message + ')'; });
+    }).catch(function (e) { zone.textContent = 'Recherche impossible (' + e.message + ')'; });
 }
 
 function ajouterEtape() {
@@ -2919,7 +2934,7 @@ function remplir(v) {
         etape.querySelectorAll('.activites input').forEach(function (c) { c.checked = e.activites.indexOf(c.value) !== -1; });
         if (e.latitude !== null && e.latitude !== undefined) {
             etape.lieu = { nom: e.destination, code_pays: e.code_pays, latitude: e.latitude, longitude: e.longitude };
-            etape.querySelector('.lieux').textContent = '📍 ' + e.destination + ' (lieu actuel)';
+            etape.querySelector('.lieux').textContent = '' + e.destination + ' (lieu actuel)';
         }
     });
     majLessive();
@@ -2963,20 +2978,20 @@ document.getElementById('creation').addEventListener('submit', function (ev) {
     const bouton = document.getElementById('creer');
     const corps = lireFormulaire();
     bouton.disabled = true;
-    message.textContent = INITIAL ? '⏳ Enregistrement…' : '⏳ Création de la valise…';
+    message.textContent = INITIAL ? 'Enregistrement…' : 'Création de la valise…';
     envoyerVoyage(corps).then(function (res) {
         if (res.statut !== 409) return res;
-        message.textContent = '⏳ Climat de saison : téléchargement (' + res.corps.manquantes.length + ' étape(s))…';
+        message.textContent = 'Climat de saison : téléchargement (' + res.corps.manquantes.length + ' étape(s))…';
         return Promise.all(res.corps.manquantes.map(function (m) {
             return normalesDe(m, m.mois).catch(function () { return null; });   // échec : climat inconnu
         })).then(function () { corps.forcer = true; return envoyerVoyage(corps); });
     }).then(function (res) {
         if (res.statut === 201) { location.href = res.corps.url; return; }
         bouton.disabled = false;
-        message.textContent = '⚠️ ' + (res.corps.erreur || 'erreur ' + res.statut);
+        message.textContent = '' + (res.corps.erreur || 'erreur ' + res.statut);
     }).catch(function (e) {
         bouton.disabled = false;
-        message.textContent = '⚠️ Échec (' + e.message + '), réessaie';
+        message.textContent = 'Échec (' + e.message + '), réessaie';
     });
 });
 """

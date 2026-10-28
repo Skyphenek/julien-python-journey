@@ -8,8 +8,8 @@ import json
 import re
 from datetime import date, timedelta
 
-TYPES_RESERVATION = {"vol": "✈️ Vol", "hotel": "🏨 Hôtel", "transport": "🚆 Transport",
-                     "activite": "🎟️ Activité", "resto": "🍽️ Resto", "autre": "📌 Autre"}
+TYPES_RESERVATION = {"vol": "Vol", "hotel": "Hôtel", "transport": "Transport",
+                     "activite": "Activité", "resto": "Resto", "autre": "Autre"}
 LONGUEURS = {"titre": 200, "lieu": 300, "reference": 200, "telephone": 50, "lien": 500, "notes": 2000}
 _HEURE = re.compile(r"(?:[01]\d|2[0-3]):[0-5]\d")
 _ID = re.compile(r"[A-Za-z0-9-]{8,64}")         # choisi par le téléphone (crypto.randomUUID)
@@ -109,7 +109,7 @@ def bloc_programme(etapes):
     donnees = json.dumps([{"destination": e["destination"], "du": e["du"].isoformat(), "au": e["au"].isoformat()}
                           for e in etapes], ensure_ascii=False).replace("</", "<\\/")
     return (f'<div class="programme"><script type="application/json" class="etapes-programme">{donnees}</script>'
-            '<button type="button" class="ctrl-btn ajouter-resa">➕ Ajouter</button>'
+            '<button type="button" class="ctrl-btn ajouter-resa">+ Ajouter</button>'
             '<div class="form-zone"></div><div class="jours"></div></div>')
 
 
@@ -150,8 +150,20 @@ SCRIPT_PROGRAMME = """
     const bloc = document.querySelector('div.programme');
     if (!bloc) return;
     const ETAPES = JSON.parse(bloc.querySelector('.etapes-programme').textContent);
-    const TYPES = { vol: ['✈️', 'Vol'], hotel: ['🏨', 'Hôtel'], transport: ['🚆', 'Transport'],
-                    activite: ['🎟️', 'Activité'], resto: ['🍽️', 'Resto'], autre: ['📌', 'Autre'] };
+    // Icône de chaque type (tracés fixes, jamais de texte saisi) et son libellé
+    const TYPES = { vol: ['<path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z" fill="currentColor" stroke="none"/>', 'Vol'],
+                    hotel: ['<path d="M3 18V7M3 14h18v4M21 14v-2a3 3 0 0 0-3-3h-7v5"/>', 'Hôtel'],
+                    transport: ['<rect x="5" y="3" width="14" height="14" rx="3"/><path d="M5 11h14M8 21l2-4M16 21l-2-4"/>', 'Transport'],
+                    activite: ['<path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/>', 'Activité'],
+                    resto: ['<path d="M7 3v8M4 3v5a3 3 0 0 0 6 0V3M7 11v10M17 21V3c-2 1-3 4-3 7h3"/>', 'Resto'],
+                    autre: ['<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>', 'Autre'] };
+    function icone(type) {
+        const s = document.createElement('span'); s.className = 'icone-resa type-' + type;
+        s.append(new DOMParser().parseFromString('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" '
+            + 'fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+            + TYPES[type][0] + '</svg>', 'image/svg+xml').documentElement);
+        return s;
+    }
     // Libellé de chaque champ selon le type ; absent = champ caché
     const COMMUNS = { reference: 'Réservation (référence)', lien: 'Lien (https://…)', notes: 'Notes' };
     const LIBELLES = {
@@ -235,45 +247,48 @@ SCRIPT_PROGRAMME = """
 
     function ligneLieu(r) {
         if (!r.lieu) return null;
-        const p = para('📍 ' + r.lieu);
+        const p = para('' + r.lieu);
         if (ADRESSE[r.type]) p.append(' ', lien('↗ Maps', 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(r.lieu)));
         return p;
     }
 
     function fiche(entree, attente) {
-        const r = entree.r, li = document.createElement('li'), emoji = TYPES[r.type][0];
+        const r = entree.r, li = document.createElement('li');
         li.className = 'resa';
         if (entree.role !== 'debut') {                         // ligne courte : nuit d'hôtel, départ, arrivée
             li.classList.add('compacte');
             let texte;
-            if (r.type === 'hotel' && entree.role === 'nuit') texte = emoji + ' ' + r.titre + ' · nuit ' + entree.n + '/' + entree.total;
-            else if (r.type === 'hotel') texte = emoji + ' Départ' + (r.heure_fin ? ' ' + r.heure_fin : '') + ' · ' + r.titre;
-            else texte = emoji + (r.type === 'autre' ? ' Fin' : ' Arrivée') + (r.heure_fin ? ' ' + r.heure_fin : '') + ' · ' + r.titre;
+            if (r.type === 'hotel' && entree.role === 'nuit') texte = r.titre + ' · nuit ' + entree.n + '/' + entree.total;
+            else if (r.type === 'hotel') texte = 'Départ' + (r.heure_fin ? ' ' + r.heure_fin : '') + ' · ' + r.titre;
+            else texte = (r.type === 'autre' ? 'Fin' : 'Arrivée') + (r.heure_fin ? ' ' + r.heure_fin : '') + ' · ' + r.titre;
             li.append(para(texte));
             if (r.type === 'hotel' && entree.role === 'nuit') { const l = ligneLieu(r); if (l) li.append(l); }
             return li;
         }
-        let titre = (attente ? '⏳ ' : '') + emoji + ' ' + (r.heure ? r.heure + ' · ' : '') + r.titre;
+        let titre = (r.heure ? r.heure + ' · ' : '') + r.titre;
         if (r.type !== 'hotel' && r.heure_fin && !(r.jour_fin && r.jour_fin > r.jour)) titre += ' → ' + r.heure_fin;
-        li.append(para(titre, 'titre-resa'));
+        const tete = document.createElement('div'); tete.className = 'tete-resa';
+        tete.append(icone(r.type), para(titre, 'titre-resa'));
+        if (attente) tete.append(para('en attente de réseau', 'attente'));
+        li.append(tete);
         if (r.type === 'hotel') {
             const nuits = ecart(r.jour, r.jour_fin);
-            li.append(para('🛏️ ' + nuits + (nuits > 1 ? ' nuits' : ' nuit') + ', départ ' + enClair(r.jour_fin)
+            li.append(para('' + nuits + (nuits > 1 ? ' nuits' : ' nuit') + ', départ ' + enClair(r.jour_fin)
                            + (r.heure_fin ? ' à ' + r.heure_fin : '')));
         } else if (r.jour_fin && r.jour_fin > r.jour) {
             li.append(para('↘ Arrivée ' + enClair(r.jour_fin) + (r.heure_fin ? ' à ' + r.heure_fin : '')));
         }
         const l = ligneLieu(r); if (l) li.append(l);
-        if (r.reference) li.append(para('🎫 ' + r.reference));
-        if (r.telephone) { const p = para('📞 '); p.append(lien(r.telephone, 'tel:' + r.telephone.replace(/[^0-9+]/g, ''))); li.append(p); }
-        if (r.lien && /^https?:\\/\\//i.test(r.lien)) { const p = para('🔗 '); p.append(lien('Ouvrir le lien', r.lien)); li.append(p); }
-        if (r.notes) r.notes.split('\\n').forEach(function (t) { if (t.trim()) li.append(para('📝 ' + t)); });
+        if (r.reference) li.append(para('Réf. ' + r.reference));
+        if (r.telephone) { const p = para(''); p.append(lien(r.telephone, 'tel:' + r.telephone.replace(/[^0-9+]/g, ''))); li.append(p); }
+        if (r.lien && /^https?:\\/\\//i.test(r.lien)) { const p = para(''); p.append(lien('Ouvrir le lien', r.lien)); li.append(p); }
+        if (r.notes) r.notes.split('\\n').forEach(function (t) { if (t.trim()) li.append(para('' + t)); });
         const actions = document.createElement('div'); actions.className = 'actions';
         const modifier = document.createElement('button');
-        modifier.type = 'button'; modifier.className = 'ctrl-btn'; modifier.textContent = '✏️ Modifier';
+        modifier.type = 'button'; modifier.className = 'ctrl-btn'; modifier.textContent = 'Modifier';
         modifier.addEventListener('click', function () { editer(r); });
         const suppr = document.createElement('button');
-        suppr.type = 'button'; suppr.className = 'ctrl-btn'; suppr.textContent = '🗑️';
+        suppr.type = 'button'; suppr.className = 'ctrl-btn'; suppr.textContent = '✕'; suppr.title = 'Supprimer';
         suppr.addEventListener('click', function () {
             if (!suppr.dataset.confirmer) { suppr.dataset.confirmer = '1'; suppr.textContent = 'Supprimer ?'; return; }
             supprimer(r);
@@ -330,7 +345,7 @@ SCRIPT_PROGRAMME = """
         const choix = document.createElement('select');
         choix.name = 'type';
         Object.keys(TYPES).forEach(function (t) {
-            const o = document.createElement('option'); o.value = t; o.textContent = TYPES[t].join(' '); choix.append(o);
+            const o = document.createElement('option'); o.value = t; o.textContent = TYPES[t][1]; choix.append(o);
         });
         const etiquette = document.createElement('label'); etiquette.append('Type', choix); form.append(etiquette);
         const auj = iso(new Date());
@@ -371,19 +386,19 @@ SCRIPT_PROGRAMME = """
             const corps = { id: r ? r.id : nouvelId(), voyage: VOYAGE, type: choix.value };
             CHAMPS.forEach(function (c) { corps[c] = labels[c].label.hidden ? '' : form.elements[c].value.trim(); });
             if (!corps.jour_fin) corps.jour_fin = null;
-            if (!corps.titre || !corps.jour) { message.textContent = '⚠️ Il faut au moins un nom et une date.'; return; }
+            if (!corps.titre || !corps.jour) { message.textContent = 'Il faut au moins un nom et une date.'; return; }
             if (corps.type === 'hotel' && (!corps.jour_fin || corps.jour_fin <= corps.jour)) {
-                message.textContent = '⚠️ Hôtel : la date de départ doit être après l\\u2019arrivée.'; return;
+                message.textContent = 'Hôtel : la date de départ doit être après l\\u2019arrivée.'; return;
             }
-            if (corps.jour_fin && corps.jour_fin < corps.jour) { message.textContent = '⚠️ La fin est avant le début.'; return; }
-            if (corps.lien && !/^https?:\\/\\//i.test(corps.lien)) { message.textContent = '⚠️ Le lien doit commencer par https://'; return; }
-            ok.disabled = true; ok.textContent = '⏳';
+            if (corps.jour_fin && corps.jour_fin < corps.jour) { message.textContent = 'La fin est avant le début.'; return; }
+            if (corps.lien && !/^https?:\\/\\//i.test(corps.lien)) { message.textContent = 'Le lien doit commencer par https://'; return; }
+            ok.disabled = true; ok.textContent = '…';
             envoyerOuGarder({ url: 'api/reservations', methode: 'POST', corps: corps, cle: 'resa:' + corps.id })
                 .then(function () {
                     reservations = reservations.filter(function (x) { return x.id !== corps.id; }).concat([corps]);
                     garder(); fermer();
                 })
-                .catch(function () { ok.disabled = false; ok.textContent = 'Enregistrer'; message.textContent = '⚠️ Refusé par le serveur : vérifie les champs.'; });
+                .catch(function () { ok.disabled = false; ok.textContent = 'Enregistrer'; message.textContent = 'Refusé par le serveur : vérifie les champs.'; });
         });
         zone.replaceChildren(form);
         form.scrollIntoView({ block: 'start', behavior: 'smooth' });

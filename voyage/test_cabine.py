@@ -51,8 +51,8 @@ def test_construire_lit_le_reglage_du_voyage():
 
 def test_page_affiche_le_mode_cabine():
     v = {**ROME, "cabine": True}
-    assert "🎒 Bagage cabine" in rendre_page(v, construire(v))
-    assert "🎒 Bagage cabine" not in rendre_page(ROME, construire(ROME))
+    assert "Bagage cabine" in rendre_page(v, construire(v))
+    assert "Bagage cabine" not in rendre_page(ROME, construire(ROME))
     assert VERSION_PAGE >= 4
 
 

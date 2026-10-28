@@ -47,7 +47,7 @@ LANGUES = {
         "Cứu tôi với! | keu toï veuï", "Tôi cần bác sĩ | toï keun bak si", "Tôi không hiểu | toï khom hieu",
     ], ["một | mot", "hai | haï", "ba | ba", "bốn | bonn", "năm | nam", "sáu | saou", "bảy | baï",
         "tám | tam", "chín | tchinn", "mười | mueuï", "một trăm | mot tcham", "một nghìn | mot nguinn"],
-        note="Langue à tons : la même syllabe change de sens selon la mélodie. Écoute 🔊 avant de te lancer."),
+        note="Langue à tons : la même syllabe change de sens selon la mélodie. Écoute la voix avant de te lancer."),
     "km": _langue("Khmer", "km-KH", "km", "km-KH-SreymomNeural", [
         "ជំរាបសួរ | tchom-reap sour", "អរគុណ | or-koun", "សូម | soum", "សុំទោស | som toh",
         "បាទ / ចាស | bat (homme) / tchas (femme)", "ទេ | té", "លាហើយ | lia haeuy",
@@ -125,7 +125,7 @@ LANGUES = {
         "عتقوني! | atqouni", "خصني طبيب | khassni tbib", "ما فهمتش | ma fhamtch",
     ], ["واحد | wahed", "جوج | jouj", "تلاتة | tlata", "ربعة | rbâa", "خمسة | khamsa", "ستة | setta",
         "سبعة | sebâa", "تمنية | tmenya", "تسعود | tsâoud", "عشرة | âchra", "مية | mya", "ألف | alf"],
-        note="Le français est compris presque partout. La voix 🔊 du téléphone est de l'arabe standard : "
+        note="Le français est compris presque partout. La voix du téléphone est de l'arabe standard : "
              "fie-toi plutôt à la transcription."),
     "ar-EG": _langue("Arabe égyptien", "ar", "ar", "ar-EG-SalmaNeural", [
         "أهلاً | ahlann", "شكراً | choukrann", "من فضلك | minn fadlak", "لو سمحت | law samaht", "أيوه | aywa",
@@ -138,7 +138,7 @@ LANGUES = {
         "الحقوني! | elhaouni", "محتاج دكتور | mehtag doktor", "مش فاهم | mech fahem",
     ], ["واحد | wahed", "اتنين | etneinn", "تلاتة | talata", "أربعة | arbâa", "خمسة | khamsa", "ستة | setta",
         "سبعة | sabâa", "تمانية | tamanya", "تسعة | tesâa", "عشرة | âchara", "مية | meyya", "ألف | alf"],
-        note="La voix 🔊 du téléphone est de l'arabe standard : fie-toi plutôt à la transcription."),
+        note="La voix du téléphone est de l'arabe standard : fie-toi plutôt à la transcription."),
     "es": _langue("Espagnol", "es", "es", "es-MX-DaliaNeural", [
         "Hola | ola", "Gracias | grassias", "Por favor | por fabor", "Disculpe | diskoulpé", "Sí | si",
         "No | no", "Adiós | adioss",
@@ -253,12 +253,17 @@ def texte_a_dire(ecrit, code=None):
     return ecrit.replace(" / ", ", ")
 
 
+HAUT_PARLEUR = ('<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+                'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+                '<path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>')
+
+
 def _ligne(francais, ecrit, prononciation, langue, audio):
     return (f'<li class="phrase" data-voix="{langue["voix"]}" data-audio="{audio}">'
             f'<span class="fr">{echapper(francais)}</span>'
             f'<span class="vo" lang="{langue["lang"]}">{echapper(ecrit)}</span>'
             f'<span class="prono">{echapper(prononciation)}</span>'
-            f'<button type="button" class="ecouter" aria-label="Écouter">🔊</button></li>')
+            f'<button type="button" class="ecouter" aria-label="Écouter">{HAUT_PARLEUR}</button></li>')
 
 
 def bloc_vocabulaire(langues):
@@ -278,8 +283,8 @@ def bloc_vocabulaire(langues):
             for i, (chiffre, (ecrit, prononciation)) in enumerate(zip(NOMBRES, langue["nombres"]), start=1)) + "</ul>"
         tiroirs += (f'<details class="langue"{" open" if i == 0 else ""}><summary>{echapper(langue["nom"])}</summary>'
                     f'{corps}</details>')
-    return (f'<div class="info vocabulaire"><h3>🗣️ Vocabulaire</h3>'
-            f'<p class="conseil">Touche une phrase pour l\'afficher en grand · 🔊 pour l\'écouter '
+    return (f'<div class="info vocabulaire"><h3>Vocabulaire</h3>'
+            f'<p class="conseil">Touche une phrase pour l\'afficher en grand · le haut-parleur pour l\'écouter '
             f'(voix native, aussi hors ligne). Transcriptions approximatives : écoute le son.</p>{tiroirs}</div>')
 
 

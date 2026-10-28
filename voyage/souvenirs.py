@@ -22,21 +22,21 @@ IDEES = {
         ("Soie ou vêtement sur mesure", "Tailleurs de Hội An : 24 à 48 h, prévoir un essayage.", ""),
         ("Thé vert de Thái Nguyên", "Le thé de référence du nord, léger à transporter.", ""),
         ("Poivre de Phú Quốc", "Sous vide, sur l'île ou dans les marchés.", ""),
-        ("Vin de serpent", "", "⚠️ Interdit à l'entrée dans l'UE (espèces protégées, CITES)."),
+        ("Vin de serpent", "", "Interdit à l'entrée dans l'UE (espèces protégées, CITES)."),
     ]),
     "KH": ("Cambodge", [
         ("Poivre de Kampot", "Indication géographique protégée ; rouge, noir ou blanc, chez les producteurs ou à Phnom Penh.", ""),
         ("Krama", "L'écharpe à carreaux en coton ou en soie, sur tous les marchés.", ""),
         ("Artisanat d'Artisans d'Angkor", "Soie, sculptures, laque : ateliers de Siem Reap, prix fixes.", ""),
         ("Sucre de palme de Kampong Speu", "Indication géographique protégée.", ""),
-        ("Statues ou objets anciens", "", "⚠️ Antiquités khmères : exportation interdite."),
+        ("Statues ou objets anciens", "", "Antiquités khmères : exportation interdite."),
     ]),
     "TH": ("Thaïlande", [
         ("Soie thaïe", "Coussins, foulards ; boutiques Jim Thompson ou marchés de Chiang Mai.", ""),
         ("Céladon", "Céramique vert pâle, ateliers de Chiang Mai.", ""),
         ("Pâtes de curry et épices", "Sous vide au marché ou en supermarché.", ""),
         ("Coussin triangle", "Encombrant mais souvent vendu démonté.", ""),
-        ("Statue de Bouddha", "", "⚠️ Exportation des images du Bouddha soumise à autorisation."),
+        ("Statue de Bouddha", "", "Exportation des images du Bouddha soumise à autorisation."),
     ]),
     "LA": ("Laos", [
         ("Textiles tissés main", "Marché de nuit de Luang Prabang, coopératives de tisserandes.", ""),
@@ -49,13 +49,13 @@ IDEES = {
         ("Furoshiki", "Tissu d'emballage, léger et plat.", ""),
         ("Papeterie", "Itoya, Loft, Tokyu Hands.", ""),
         ("Kit Kat aux parfums locaux", "Matcha, sakura, saké… en supermarché.", ""),
-        ("Bœuf wagyu, charcuterie", "", "⚠️ Viande : interdite à l'entrée dans l'UE."),
+        ("Bœuf wagyu, charcuterie", "", "Viande : interdite à l'entrée dans l'UE."),
     ]),
     "ID": ("Indonésie", [
         ("Batik", "Yogyakarta et Solo à Java ; vérifier « tulis » (fait main) contre imprimé.", ""),
         ("Vanille", "Gousses sous vide.", ""),
         ("Café de Java ou de Sumatra", "", ""),
-        ("Kopi luwak", "", "⚠️ Souvent issu de civettes en cage : à éviter."),
+        ("Kopi luwak", "", "Souvent issu de civettes en cage : à éviter."),
     ]),
     "MA": ("Maroc", [
         ("Huile d'argan", "En coopérative de femmes plutôt qu'en souk.", ""),
@@ -69,7 +69,7 @@ IDEES = {
         ("Café turc + cezve", "", ""),
         ("Fouta (peştemal)", "Serviette de hammam en coton, légère.", ""),
         ("Céramique d'Iznik (reproduction)", "", ""),
-        ("Antiquités", "", "⚠️ Exportation interdite sans certificat des musées."),
+        ("Antiquités", "", "Exportation interdite sans certificat des musées."),
     ]),
     "MX": ("Mexique", [
         ("Vanille de Papantla", "", ""),
@@ -104,7 +104,7 @@ IDEES = {
     ]),
 }
 
-DOUANE = ("🛃 Retour dans l'UE : franchise de 430 € d'achats par voyageur (avion ou bateau), au-delà il faut "
+DOUANE = ("Retour dans l'UE : franchise de 430 € d'achats par voyageur (avion ou bateau), au-delà il faut "
           "déclarer. Alcool : 1 L d'alcool fort ou 2 L à 22° max, plus 4 L de vin et 16 L de bière. Tabac : "
           "200 cigarettes. Interdits : viande et produits laitiers, ivoire, corail, écailles et autres espèces "
           "protégées, contrefaçons.")
@@ -212,22 +212,22 @@ def bloc_souvenirs(personnes, devises, idees, douane):
             detail = " — ".join(x for x in (note, alerte) if x)
             bouton = ("" if alerte and not note else
                       f'<button type="button" class="ctrl-btn ajouter-idee" data-idee="{echapper(idee)}" '
-                      f'data-note="{echapper(note)}" title="Ajouter pour quelqu\'un">➕</button>')
+                      f'data-note="{echapper(note)}" title="Ajouter pour quelqu\'un">+</button>')
             lignes += (f'<li><span><strong>{echapper(idee, quote=False)}</strong>'
                        f'{" — " + echapper(detail, quote=False) if detail else ""}</span>{bouton}</li>')
         pays += f'<h4>{echapper(p["pays"], quote=False)}</h4><ul class="idees">{lignes}</ul>'
     if pays:
-        pays = f'<details class="idees-pays"><summary>🛍️ Idées par pays</summary>{pays}</details>'
+        pays = f'<details class="idees-pays"><summary>Idées par pays</summary>{pays}</details>'
     regles = f'<p class="conseil">{echapper(DOUANE, quote=False)}</p>' if douane else ""
-    return (f'<div class="info souvenirs" data-personnes="{echapper("|".join(personnes))}"><h3>🎁 Souvenirs</h3>'
+    return (f'<div class="info souvenirs" data-personnes="{echapper("|".join(personnes))}"><h3>Souvenirs</h3>'
             f'<script type="application/json" class="donnees-souvenirs">{donnees}</script>'
             '<p class="resume-souvenirs"></p>'
             '<div class="panneau"></div><div class="proches-zone"></div>'
-            '<div class="actions"><button type="button" class="ctrl-btn ajouter-proche">➕ Un proche</button></div>'
+            '<div class="actions"><button type="button" class="ctrl-btn ajouter-proche">+ Un proche</button></div>'
             f'{pays}'
             f'{regles}'
             '<p class="conseil">Le carnet de proches est gardé pour les prochains voyages. '
-            'Un souvenir acheté s\'ajoute aux 💸 Dépenses.</p></div>')
+            'Un souvenir acheté s\'ajoute aux Dépenses.</p></div>')
 
 
 STYLE_SOUVENIRS = """
@@ -358,10 +358,10 @@ SCRIPT_SOUVENIRS = """
         const li = document.createElement('li'), corps = document.createElement('div');
         li.className = 'souvenir' + (s.achete ? ' achete' : '');
         const achat = s.achete
-            ? deuxTemps('✅', 'Pas acheté ?', function () {
+            ? deuxTemps('✓', 'Pas acheté ?', function () {
                 enregistrer(Object.assign({}, s, { achete: false, prix: null, devise: null, prix_eur: null, paye_par: null, achete_le: null }));
             })
-            : bouton('🛍️', function () { acheter(s); });
+            : bouton('', function () { acheter(s); });
         achat.className = 'achat-btn'; achat.title = s.achete ? 'Annuler l\\u2019achat' : 'Acheté !';
         corps.className = 'corps';
         corps.append(para(s.idee, 'idee'));
@@ -373,8 +373,8 @@ SCRIPT_SOUVENIRS = """
             corps.append(para(t, 'prix'));
         }
         const actions = document.createElement('div'); actions.className = 'actions';
-        actions.append(bouton('✏️', function () { editer(s, s.proche); }),
-                       deuxTemps('🗑️', 'Supprimer ?', function () { supprimer(s); }));
+        actions.append(bouton('Modifier', function () { editer(s, s.proche); }),
+                       deuxTemps('✕', 'Supprimer ?', function () { supprimer(s); }));
         corps.append(actions);
         li.append(achat, corps);
         return li;
@@ -386,7 +386,7 @@ SCRIPT_SOUVENIRS = """
         const siens = souvenirs.filter(function (s) { return (s.proche || '') === p.id; })
             .sort(function (a, b) { return (a.achete - b.achete) || a.idee.localeCompare(b.idee); });
         const depense = siens.reduce(function (t, s) { return t + (s.achete ? Number(s.prix_eur) : 0); }, 0);
-        tete.append(para((p.id ? '🎁 ' : '🏠 ') + (p.id ? p.nom : 'Pour nous'), 'nom-proche'));
+        tete.append(para(p.id ? p.nom : 'Pour nous', 'nom-proche'));
         if (p.budget || depense) {
             const budget = document.createElement('span'); budget.className = 'budget';
             budget.textContent = EUR.format(depense) + (p.budget ? ' / ' + EUR.format(Number(p.budget)) : '');
@@ -405,8 +405,8 @@ SCRIPT_SOUVENIRS = """
             div.append(ul);
         }
         const actions = document.createElement('div'); actions.className = 'actions';
-        actions.append(bouton('➕ Idée', function () { editer(null, p.id); }));
-        if (p.id) actions.append(bouton('✏️', function () { editerProche(p); }));
+        actions.append(bouton('+ Idée', function () { editer(null, p.id); }));
+        if (p.id) actions.append(bouton('Modifier', function () { editerProche(p); }));
         div.append(actions);
         return div;
     }
@@ -462,7 +462,7 @@ SCRIPT_SOUVENIRS = """
     function fermerSansRelire() { enEdition = false; panneau.replaceChildren(); }
 
     function editerProche(p) {
-        const f = ouvrirPanneau(p ? '✏️ ' + p.nom : '➕ Un proche');
+        const f = ouvrirPanneau(p ? p.nom : 'Un proche');
         const form = document.createElement('form');
         const nom = champ(form, 'Nom', p && p.nom, 'text', 80);
         const budget = champ(form, 'Budget en euros (facultatif)', p && p.budget, 'number');
@@ -473,7 +473,7 @@ SCRIPT_SOUVENIRS = """
         }));
         form.addEventListener('submit', function (ev) {
             ev.preventDefault();
-            if (!nom.value.trim()) { message.textContent = '⚠️ Il faut un nom.'; return; }
+            if (!nom.value.trim()) { message.textContent = 'Il faut un nom.'; return; }
             fermerSansRelire();
             enregistrerProche(Object.assign({ id: nouvelId(), archive: false }, p || {},
                                             { nom: nom.value.trim(), budget: budget.value ? Number(budget.value).toFixed(2) : null }));
@@ -483,7 +483,7 @@ SCRIPT_SOUVENIRS = """
     }
 
     function editer(s, proche, propose) {
-        const f = ouvrirPanneau(s ? '✏️ ' + s.idee : '➕ Une idée');
+        const f = ouvrirPanneau(s ? s.idee : 'Une idée');
         const form = document.createElement('form');
         const pourQui = liste(form, 'Pour', proches.filter(function (p) { return !p.archive; })
                               .sort(function (a, b) { return a.nom.localeCompare(b.nom); })
@@ -493,7 +493,7 @@ SCRIPT_SOUVENIRS = """
         const message = pied(form, 'Enregistrer');
         form.addEventListener('submit', function (ev) {
             ev.preventDefault();
-            if (!idee.value.trim()) { message.textContent = '⚠️ Il faut une idée.'; return; }
+            if (!idee.value.trim()) { message.textContent = 'Il faut une idée.'; return; }
             fermerSansRelire();
             enregistrer(Object.assign({ id: nouvelId(), achete: false, prix: null, devise: null, prix_eur: null,
                                         paye_par: null, achete_le: null }, s || {},
@@ -504,22 +504,22 @@ SCRIPT_SOUVENIRS = """
     }
 
     function acheter(s) {
-        const f = ouvrirPanneau('🛍️ ' + s.idee + ' pour ' + nomDe(s.proche));
+        const f = ouvrirPanneau('' + s.idee + ' pour ' + nomDe(s.proche));
         const form = document.createElement('form');
         const prix = champ(form, 'Prix payé', '', 'number');
         prix.min = '0.01'; prix.step = '0.01'; prix.inputMode = 'decimal'; prix.required = true;
         const devise = liste(form, 'Devise', DEVISES.map(function (d) { return [d, d]; }), DEVISES[DEVISES.length > 1 ? 1 : 0]);
         const payeur = liste(form, 'Payé par', PERSONNES.map(function (p) { return [p, p]; }), PERSONNES[0]);
         if (PERSONNES.length < 2) payeur.label.hidden = true;
-        const message = pied(form, 'Acheté ✅');
+        const message = pied(form, 'Acheté');
         form.addEventListener('submit', function (ev) {
             ev.preventDefault();
             const montant = Number(prix.value), code = devise.select.value;
-            if (!(montant > 0)) { message.textContent = '⚠️ Indique le prix.'; return; }
+            if (!(montant > 0)) { message.textContent = 'Indique le prix.'; return; }
             let enEuros = montant;
             if (code !== 'EUR') {
                 const taux = typeof lireTauxGardes === 'function' ? lireTauxGardes() : null, t = taux && taux.eur[code.toLowerCase()];
-                if (!t) { message.textContent = '⚠️ Pas de taux pour ' + code + ' : saisis le prix en euros.'; return; }
+                if (!t) { message.textContent = 'Pas de taux pour ' + code + ' : saisis le prix en euros.'; return; }
                 enEuros = montant / t;
             }
             fermerSansRelire();

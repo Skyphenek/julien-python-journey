@@ -14,7 +14,7 @@ from valise import (total_jours, jours_par_type,
                     fenetres_meteo, valise_depuis_photo, accueil_en_html, lieux_depuis_reponse,
                     SCRIPT_RECHERCHE, voyage_depuis_formulaire, formulaire_en_html, CHOIX_ACTIVITE,
                     statut_ue, adaptateur_pour, normales_avec_cache,
-                    THEMES, ICONES_RAYON, puce_climat, HTML_SCRIPT,
+                    THEMES, puce_climat, HTML_SCRIPT,
                     lire_date, mois_des_etapes, code_voyage,
                     cle_objet, etiquettes_climat, propositions, appliquer, appliquer_regles, theme_de,
                     avant_de_partir)
@@ -181,7 +181,7 @@ def test_valise_en_html_injecte_la_variable_voyage():
     assert 'const VOYAGE = "Hanoï › Siem Reap";' in html
 
 def test_ligne_climat_formate_les_normales():
-    assert ligne_climat("Londres", 1, LONDRES_JANV) == "Londres · janvier : 2–8 °C · 🌧️ 12 j de pluie/mois, dont 4 forts"
+    assert ligne_climat("Londres", 1, LONDRES_JANV) == "Londres · janvier : 2–8 °C · 12 j de pluie/mois, dont 4 forts"
 
 
 def test_ligne_climat_sans_donnees():
@@ -279,17 +279,12 @@ def test_normales_avec_cache_sans_base():
 
 # --- Affichage : rayons repliables ---
 
-def test_chaque_rayon_a_une_icone():
-    # Garde-fou : un rayon ajouté dans THEMES sans icône se verrait tout de suite
-    assert set(THEMES) <= set(ICONES_RAYON)
-
-
 def test_valise_en_html_rayon_repliable_avec_icone_et_compteur():
     paquet = paquet_vide()
     paquet["Vêtements"]["shorts"] = 3
     html = valise_en_html({"Julien": paquet}, "Hanoï", 7, set())
     assert '<details class="rayon" open>' in html            # repliable, ouvert au départ
-    assert "👕" in html
+    assert "👕" not in html
     assert '<span class="compte"></span>' in html             # rempli par le JavaScript
 
 
@@ -307,7 +302,7 @@ def test_valise_en_html_rayon_vide_absent():
 
 
 def test_puce_climat_courte():
-    assert puce_climat("Hanoï", HANOI_JANV) == "Hanoï 14–21° · 🌧️ 3 j forts"
+    assert puce_climat("Hanoï", HANOI_JANV) == "Hanoï 14–21° · 3 j de forte pluie"
     assert puce_climat("Atlantide", None) == "Atlantide ?"
 
 
