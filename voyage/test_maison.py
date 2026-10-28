@@ -57,4 +57,4 @@ def test_rubrique_avant_contient_la_maison_meme_en_europe():
 
 def test_formalites_et_maison_ensemble():
     a = avant([{"destination": "Hanoï", "jours": 7, "code_pays": "VN"}])
-    assert a.index("Avant de partir/visa-VN") < a.index("Fermer la maison/fenetres")
+    assert a.index("Avant de partir/vaccins") < a.index("Fermer la maison/fenetres")

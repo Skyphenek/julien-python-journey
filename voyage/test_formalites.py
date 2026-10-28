@@ -32,8 +32,8 @@ def test_ajouter_mois_fin_de_mois():
 
 def test_vietnam_cambodge_taches_attendues():
     t = par_id(avant_de_partir(VIETNAM_CAMBODGE, DEPART, AUJOURD_HUI))
-    assert {"passeport", "vaccins", "assurance", "visa-VN", "visa-KH",
-            "e-arrival-KH", "usd-KH"} <= set(t)
+    assert {"passeport", "vaccins", "assurance", "ariane", "visa-KH", "e-arrival-KH", "usd-KH"} <= set(t)
+    assert "visa-VN" not in t                    # 14 j au Vietnam : sous l'exemption, rien à faire
 
 
 def test_passeport_valide_six_mois_apres_le_retour():
@@ -51,9 +51,9 @@ def test_vaccins_deux_mois_avant_avec_lien_sante():
 
 
 def test_vietnam_sans_visa_sous_le_seuil_compte_tous_les_jours_sur_place():
-    t = par_id(avant_de_partir(VIETNAM_CAMBODGE, DEPART, AUJOURD_HUI))["visa-VN"]
-    assert "pas de visa" in t["texte"]
-    assert "14 j" in t["texte"]                 # Hanoï 7 + Phu Quoc 7
+    assert "visa-VN" not in par_id(avant_de_partir(VIETNAM_CAMBODGE, DEPART, AUJOURD_HUI))    # 7 + 7 = 14 j
+    itin = [dict(e, jours=23) for e in VIETNAM_CAMBODGE]                                    # 23 + 23 = 46 j > 45
+    assert "visa-VN" in par_id(avant_de_partir(itin, DEPART, AUJOURD_HUI))
 
 
 def test_vietnam_au_dela_du_seuil_e_visa():
@@ -236,7 +236,7 @@ def test_new_york_pas_de_vaccins_mais_esta():
     t = par_id(avant_de_partir(NEW_YORK, ETE, AUJOURD_HUI))
     assert "vaccins" not in t
     assert t["esta-US"]["lien"] == "https://esta.cbp.dhs.gov/"
-    assert "pas de visa" in t["visa-US"]["texte"] and "ESTA" not in t["visa-US"]["texte"]
+    assert "visa-US" not in t                    # sous l'exemption : seul l'ESTA est à faire
 
 
 def test_new_york_passeport_valide_pendant_le_sejour_suffit():
@@ -257,11 +257,17 @@ def test_regle_passeport_la_plus_stricte_de_l_itineraire():
     assert "14/01/2028" in t["texte"]                       # retour 14/07/2027 + 6 mois (Pérou)
 
 
-def test_maroc_vaccins_chez_le_medecin_un_mois_avant():
+def test_maroc_seulement_le_passeport():
+    """Feedback 28/10/2026 : pas de vaccins, pas de « pas de visa », ni Ariane ni assurance au Maroc."""
     itin = [{"destination": "Marrakech", "jours": 5, "code_pays": "MA"}]
-    t = par_id(avant_de_partir(itin, DEPART, AUJOURD_HUI))["vaccins"]
-    assert t["quand"] == DEPART - timedelta(days=30)
-    assert "médecin" in t["texte"] and "Maroc" in t["texte"]
+    assert set(par_id(avant_de_partir(itin, DEPART, AUJOURD_HUI))) == {"passeport"}
+
+
+def test_assurance_seulement_si_elle_compte():
+    japon = par_id(avant_de_partir([{"destination": "Tokyo", "jours": 10, "code_pays": "JP"}], DEPART, AUJOURD_HUI))
+    assert "soins chers" in japon["assurance"]["texte"] and "carte bancaire" in japon["assurance"]["texte"]
+    assert "assurance" not in par_id(avant_de_partir([{"destination": "Bangkok", "jours": 10, "code_pays": "TH"}],
+                                                     DEPART, AUJOURD_HUI))
 
 
 def test_centre_de_vaccination_l_emporte_et_note_affichee():
@@ -270,7 +276,7 @@ def test_centre_de_vaccination_l_emporte_et_note_affichee():
     t = par_id(avant_de_partir(itin, DEPART, AUJOURD_HUI))["vaccins"]
     assert t["quand"] == DEPART - timedelta(days=60)
     assert "centre de vaccinations" in t["texte"] and "fièvre jaune" in t["texte"]
-    assert "Maroc" in t["texte"] and "Sénégal" in t["texte"]
+    assert "Maroc" not in t["texte"] and "Sénégal" in t["texte"]
 
 
 def test_royaume_uni_eta_et_ceam():

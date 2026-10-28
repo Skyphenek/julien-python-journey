@@ -1558,7 +1558,7 @@ def appliquer_regles(valise, regles):
 PASSEPORT_PAR_DEFAUT = 6        # mois après le retour, pour un pays hors table (prudence)
 ARIANE = "https://www.diplomatie.gouv.fr/fr/conseils-aux-voyageurs/"     # inscription au Fil d'Ariane
 FRAICHEUR_FORMALITES = 180      # jours : au-delà, la fiche pays est signalée « à revérifier »
-DELAIS = {"passeport": 60, "centre": 60, "medecin": 30, "visa": 30, "assurance": 14}   # jours avant le départ
+DELAIS = {"passeport": 60, "centre": 60, "visa": 30, "assurance": 14}   # jours avant le départ
 
 
 def ajouter_mois(d, n):
@@ -1595,28 +1595,22 @@ def texte_passeports(limite, regle, passeports, personnes):
 
 
 def _tache_sante(fiches, avant):
-    """Une seule tâche santé : centre de vaccinations si un pays le demande, sinon médecin, sinon rien."""
-    concernees = [f for f in fiches if f["sante"]]
+    """Une seule tâche santé, seulement pour une zone tropicale (centre de vaccinations)."""
+    concernees = [f for f in fiches if f["sante"] == "centre"]
     if not concernees:
         return None
     noms = ", ".join(f["pays"] for f in concernees)
     notes = "".join(f" — {f['pays']} : {f['sante_note']}" for f in concernees if f["sante_note"])
-    centres = [f for f in concernees if f["sante"] == "centre"]
-    if centres:
-        return _tache("vaccins", avant(DELAIS["centre"]),
-                      f"Consultation en centre de vaccinations internationales : vaccins, paludisme, "
-                      f"dengue ({noms}){notes}", centres[0]["page_sante"])
-    return _tache("vaccins", avant(DELAIS["medecin"]),
-                  f"Vaccins : rappels à jour, hépatite A et typhoïde à voir avec ton médecin ({noms}){notes}",
-                  concernees[0]["page_sante"])
+    return _tache("vaccins", avant(DELAIS["centre"]),
+                  f"Consultation en centre de vaccinations internationales : vaccins, paludisme, "
+                  f"dengue ({noms}){notes}", concernees[0]["page_sante"])
 
 
 def _tache_visa(cle, f, jours, avant, suffixe):
+    """Une démarche de visa à faire, ou None quand le séjour est sous l'exemption (rien à faire)."""
     exemption = f["sans_visa_jusqua"]
     if exemption and jours <= exemption:
-        return _tache(f"visa-{cle}", avant(DELAIS["visa"]),
-                      f"{f['pays']} : pas de visa ({jours} j sur place, exemption jusqu'à {exemption} j){suffixe}",
-                      f["entree"])
+        return None
     if f["visa"]:
         return _tache(f"visa-{cle}", avant(DELAIS["visa"]), f"{f['pays']} : visa — {f['visa']}{suffixe}",
                       f["visa_lien"] or f["entree"])
@@ -1657,13 +1651,16 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
     sante = _tache_sante(connus, avant)
     if sante:
         taches.append(sante)
-    taches.append(_tache("ariane", avant(7), "S'inscrire au Fil d'Ariane (gratuit) : alertes sécurité du pays "
-                                             "et contact en cas de crise", ARIANE))
-    texte = "Assurance voyage : hospitalisation et rapatriement"
+    # Fil d'Ariane et assurance : seulement là où ça compte (zones à risque, soins très chers, obligation)
+    zones = [f"{f['pays']} : {f['ariane']}" for f in connus if f["ariane"]]
+    if zones:
+        taches.append(_tache("ariane", avant(7), "Fil d'Ariane (gratuit) si vous passez près de zones "
+                                                 "déconseillées — " + " ; ".join(zones), ARIANE))
     precisions = [f["assurance"] for f in connus if f["assurance"]]
     if precisions:
-        texte += " — " + " ; ".join(precisions)
-    taches.append(_tache("assurance", avant(DELAIS["assurance"]), texte))
+        taches.append(_tache("assurance", avant(DELAIS["assurance"]),
+                             "Assurance voyage : hospitalisation et rapatriement — " + " ; ".join(precisions)
+                             + " (vérifie d'abord ce que couvre ta carte bancaire)"))
 
     for cle, etape in hors_ue:
         f = FORMALITES.get(cle)
@@ -1674,7 +1671,9 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
             continue
         a_reverifier = (aujourd_hui - f["verifie_le"]).days > FRAICHEUR_FORMALITES
         suffixe = f" — infos du {f['verifie_le']:%d/%m/%Y}, à revérifier" if a_reverifier else ""
-        taches.append(_tache_visa(cle, f, jours_par_pays[cle], avant, suffixe))
+        visa = _tache_visa(cle, f, jours_par_pays[cle], avant, suffixe)
+        if visa:
+            taches.append(visa)
         for jours_avant, id_, texte_pays, lien in f["taches"]:
             taches.append(_tache(f"{id_}-{cle}", avant(jours_avant), f"{f['pays']} : {texte_pays}{suffixe}",
                                  lien or f["entree"]))
@@ -1690,8 +1689,9 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # 12 = « fermer la maison » dans Avant ; 13 = infos de chaque étape dans Sur place ;
 # 14 = dépenses partagées ; 15 = urgences du pays ; 16 = PWA (hors ligne) ;
 # 17 = carnet 🗓️ Programme (remplace les infos d'étapes) ; 18 = vocabulaire + Sur place réordonnée ;
-# 19 = « 💡 À voir » dans le Programme ; 20 = 🎁 Souvenirs ; 21 = ⏳ compte à rebours.
-VERSION_PAGE = 21
+# 19 = « 💡 À voir » dans le Programme ; 20 = 🎁 Souvenirs ; 21 = ⏳ compte à rebours ;
+# 22 = Avant de partir : seulement ce qui compte (visa à faire, zone tropicale, Ariane, assurance).
+VERSION_PAGE = 22
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
 RUBRIQUES = [("valise", "🧳 Valise"), ("avant", "🛂 Avant"), ("programme", "🗓️ Programme"), ("sur-place", "📍 Sur place"),

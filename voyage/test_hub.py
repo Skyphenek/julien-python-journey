@@ -6,7 +6,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from valise import valise_en_html, paquet_vide, avant_de_partir, HTML_SCRIPT, VERSION_PAGE, RUBRIQUES
 
-VN = [{"destination": "Hanoï", "jours": 7, "code_pays": "VN"}]
+VN = [{"destination": "Hanoï", "jours": 50, "code_pays": "VN"}]     # au-delà de l'exemption : e-visa
 
 
 def page(taches=None):
