@@ -101,8 +101,48 @@ def test_accueil_liste_les_voyages(client):
     conn = connecter("valise_test")
     ev(conn, "2026-12-30 Rome", "Rome", d(2026, 12, 30), ["Julien"], [{"destination": "Rome", "jours": 3}], {})
     conn.close()
-    html = client.get("/").get_data(as_text=True)
+    html = client.get("/vadrouille").get_data(as_text=True)
     assert "Rome" in html and "?v=2026-12-30%20Rome" in html
+
+
+def test_l_accueil_est_aujourd_hui(client):
+    html = client.get("/").get_data(as_text=True)
+    assert "<h1>Casa Binomerie</h1>" in html and 'data-hub="aujourdhui" class="actif"' in html
+
+
+def test_aujourd_hui_montre_le_voyage_proche(client):
+    from datetime import date as d, timedelta
+    from db import enregistrer_voyage as ev
+    depart = d.today() + timedelta(days=10)
+    conn = connecter("valise_test")
+    ev(conn, f"{depart.isoformat()} Rome", "Rome", depart, ["Julien"], [{"destination": "Rome", "jours": 3}], {})
+    conn.close()
+    html = client.get("/").get_data(as_text=True)
+    assert '<div class="bloc-vadrouille">' in html and "Rome" in html
+
+
+def test_vadrouille_garde_toutes_les_adresses_du_voyage(client):
+    # /?v=, /?nouvelle, /?modifier= (liens déjà enregistrés) et /vadrouille?... servent la même page
+    from datetime import date as d
+    from db import enregistrer_voyage as ev
+    conn = connecter("valise_test")
+    from valise import MARQUE_VERSION
+    ev(conn, "2026-12-30 Rome", "Rome", d(2026, 12, 30), ["Julien"],
+       [{"destination": "Rome", "jours": 3, "mois": 12}], {})
+    publier_page(conn, f"<html>{MARQUE_VERSION}Rome</html>", "2026-12-30 Rome")
+    conn.close()
+    for parametres in ("?v=2026-12-30 Rome", "?nouvelle", "?modifier=2026-12-30 Rome"):
+        racine, vadrouille = client.get("/" + parametres), client.get("/vadrouille" + parametres)
+        assert racine.status_code == vadrouille.status_code == 200
+        assert racine.get_data() == vadrouille.get_data()
+    assert client.get("/vadrouille?v=2027-01-01 Nulle Part").status_code == 404
+
+
+def test_vadrouille_sous_le_secret():
+    client_secret = creer_app("valise_test", secret="s3cr3t").test_client()
+    assert client_secret.get("/vadrouille").status_code == 404
+    assert client_secret.get("/v/s3cr3t/vadrouille").status_code == 200
+    assert "Casa Binomerie" in client_secret.get("/v/s3cr3t/").get_data(as_text=True)
 
 
 def test_voyage_inconnu_404(client):
@@ -358,7 +398,7 @@ def test_creation_avec_normales_en_cache(client_creation):
         assert "Lisbonne" in lire_page(conn, corps["code"])
     finally:
         conn.close()
-    assert "Lisbonne" in client_creation.get("/").get_data(as_text=True)     # visible à l'accueil
+    assert "Lisbonne" in client_creation.get("/vadrouille").get_data(as_text=True)     # visible à l'accueil
 
 
 def test_creation_forcee_sans_normales(client_creation):
@@ -467,7 +507,7 @@ def test_modifier_la_date_deplace_les_cases_et_archive_l_ancien(client_lisbonne)
     assert r.status_code == 201 and nouveau == "2027-06-01 Lisbonne"
     assert client.get("/api/etat/" + nouveau).get_json() == {
         "2027-06-01 Lisbonne/Laetitia/Vêtements/maillot de bain": True}
-    accueil = client.get("/").get_data(as_text=True)
+    accueil = client.get("/vadrouille").get_data(as_text=True)
     assert "2027-06-01" in accueil and "2027-05-01" not in accueil
 
 
@@ -479,7 +519,7 @@ def test_remplacer_un_voyage_inconnu_refuse(client_creation):
 def test_retirer_un_voyage(client_lisbonne):
     client, code = client_lisbonne
     assert client.post("/api/voyages/" + code + "/archiver").status_code == 200
-    assert "Lisbonne" not in client.get("/").get_data(as_text=True)
+    assert "Lisbonne" not in client.get("/vadrouille").get_data(as_text=True)
     assert client.post("/api/voyages/2027-01-01 Nulle Part/archiver").status_code == 404
 
 

@@ -970,7 +970,7 @@ def test_accueil_vide():
 
 def test_page_du_voyage_a_un_lien_vers_l_accueil():
     html = rendre_page(VOYAGE_VIETNAM, construire(VOYAGE_VIETNAM))
-    assert 'href="./"' in html and "Tous les voyages" in html
+    assert '<a class="retour" href="vadrouille">← En Vadrouille</a>' in html     # la liste, pas Aujourd'hui
 
 
 # --- Création en ligne, étape 2 : interpréter ce que le téléphone a téléchargé ---
@@ -1050,7 +1050,7 @@ def test_formulaire_contient_les_champs_et_les_activites():
     assert 'type="date"' in html and "api/voyages" in html and "chercherLieux" in html
     for code, activite in CHOIX_ACTIVITE.items():
         assert f'value="{activite}"' in html                          # une case par activité
-    assert 'href="./"' in html                                       # retour à l'accueil
+    assert 'href="vadrouille"' in html                               # retour à la liste des voyages
 
 
 def test_accueil_propose_une_nouvelle_valise():

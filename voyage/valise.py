@@ -36,7 +36,7 @@ from vocabulaire import langues_du_voyage, bloc_vocabulaire, STYLE_VOCABULAIRE, 
 from a_voir import bloc_a_voir, STYLE_A_VOIR, SCRIPT_A_VOIR
 from souvenirs import bloc_souvenirs, idees_du_voyage, STYLE_SOUVENIRS, SCRIPT_SOUVENIRS
 from compte_a_rebours import compte_en_html, STYLE_COMPTE, SCRIPT_COMPTE
-from design import STYLE_D, STYLE_EPURE, TETE_POLICE, ICONES_RUBRIQUE
+from design import STYLE_D, STYLE_EPURE, TETE_POLICE, ICONES_RUBRIQUE, STYLE_NAV_HUB, nav_hub
 
 # Fuseaux horaires : toujours la base du paquet tzdata (version figée dans requirements.txt),
 # jamais celle de la machine : celle de macOS ignorait encore le passage du Maroc à GMT
@@ -759,7 +759,7 @@ if (btnRetirer) btnRetirer.addEventListener('click', function () {
         return;
     }
     fetch('api/voyages/' + encodeURIComponent(VOYAGE) + '/archiver', { method: 'POST' })
-        .then(function (r) { if (r.ok) location.href = './'; else btnRetirer.textContent = 'Échec, réessaie'; })
+        .then(function (r) { if (r.ok) location.href = 'vadrouille'; else btnRetirer.textContent = 'Échec, réessaie'; })
         .catch(function () { btnRetirer.textContent = 'Échec, réessaie'; });
 });
 
@@ -2146,7 +2146,7 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
 </head>
 <body data-rubrique="{RUBRIQUES[0][0]}">
 <header class="entete">
-<a class="retour" href="./">← Tous les voyages</a>
+<a class="retour" href="vadrouille">← En Vadrouille</a>
 <h1>{libelle_voyage} <span class="duree">{total} jours{quand}</span></h1>
 {a_rebours}
 <div class="puces">{puces}</div>
@@ -2656,15 +2656,16 @@ def accueil_en_html(voyages, aujourd_hui):
 <title>En Vadrouille</title>
 {TETE_PWA}
 {TETE_POLICE}
-<style>{HTML_STYLE}{ACCUEIL_STYLE}{CARTE_STYLE}{STYLE_COMPTE}{STYLE_D}</style>
+<style>{HTML_STYLE}{ACCUEIL_STYLE}{CARTE_STYLE}{STYLE_COMPTE}{STYLE_D}{STYLE_NAV_HUB}</style>
 {tete_carte}
 </head>
-<body class="accueil">
+<body class="accueil hub-page">
 <h1>En Vadrouille</h1>
 <p><a class="nouvelle" href="?nouvelle">+ Nouveau voyage</a></p>
 {prochain}
 {carte}
 {corps}
+{nav_hub("vadrouille")}
 <script>{SCRIPT_PRECHARGEMENT}</script>
 <script>{SCRIPT_COMPTE}</script>
 </body>
@@ -3022,7 +3023,7 @@ def formulaire_en_html(voyage=None):
 <style>{HTML_STYLE}{FORMULAIRE_STYLE}{STYLE_D}</style>
 </head>
 <body class="formulaire">
-<a class="retour" href="./">← Tous les voyages</a>
+<a class="retour" href="vadrouille">← En Vadrouille</a>
 <h1>{titre}</h1>
 <form id="creation">
 <div class="bloc quand">

@@ -32,6 +32,7 @@ from programme import valider_reservation
 from a_voir import valider_a_voir, suggestions_depuis_wikitext
 from souvenirs import valider_proche, valider_souvenir
 from vocabulaire import LANGUES
+from casa import aujourdhui_en_html
 
 load_dotenv(Path(__file__).parent / ".env")   # en local : lit voyage/.env s'il existe
 
@@ -45,6 +46,19 @@ def creer_app(nom_base="valise", secret=None):
 
     @routes.get("/")
     def accueil():
+        """Sans paramètre : Aujourd'hui (accueil du hub). Avec ?v=, ?nouvelle, ?modifier= : En Vadrouille,
+        pour que les adresses déjà enregistrées sur les téléphones marchent toujours."""
+        if not request.args:
+            conn = emprunter(app.config["NOM_BASE"])
+            try:
+                html = aujourdhui_en_html(lister_voyages(conn), date.today())
+            finally:
+                conn.close()
+            return Response(html, mimetype="text/html")
+        return vadrouille()
+
+    @routes.get("/vadrouille")
+    def vadrouille():
         """Sans paramètre : la liste des voyages. ?v=<code> : la valise de ce voyage."""
         if "nouvelle" in request.args:                # formulaire de création (sans base)
             return Response(formulaire_en_html(), mimetype="text/html")

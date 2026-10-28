@@ -12,8 +12,8 @@ VERSION_ICONE = "vadrouille"   # dans l'adresse : iOS et Safari gardent une icô
 def manifeste():
     """Ce que le téléphone lit pour installer l'appli (nom, icône, plein écran)."""
     return {
-        "name": "En Vadrouille",
-        "short_name": "Vadrouille",
+        "name": "Casa Binomerie",
+        "short_name": "Binomerie",
         "start_url": "./",
         "scope": "./",
         "display": "standalone",
@@ -25,12 +25,12 @@ def manifeste():
     }
 
 
-# Injectée dans le <head> des trois pages (voyage, accueil, formulaire)
+# Injectée dans le <head> de chaque page (Aujourd'hui, voyages, voyage, formulaire)
 TETE_PWA = f"""<link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icone-180.png?v={VERSION_ICONE}">
 <link rel="icon" type="image/png" href="icone-192.png?v={VERSION_ICONE}">
 <meta name="theme-color" content="{COULEUR}">
-<meta name="apple-mobile-web-app-title" content="Vadrouille">
+<meta name="apple-mobile-web-app-title" content="Binomerie">
 <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {{}});</script>"""
 
 

@@ -37,7 +37,7 @@ def test_ordinateur_barre_laterale():
 
 def test_accueil_au_design_d():
     html = accueil_en_html([], date(2026, 10, 28))
-    assert '<body class="accueil">' in html and STYLE_D in html and "🧳 Nos valises" not in html
+    assert '<body class="accueil hub-page">' in html and STYLE_D in html and "🧳 Nos valises" not in html
 
 
 # --- Sans emojis, Sur place épuré (maquette D) ---
@@ -77,6 +77,6 @@ def test_synchro_ne_touche_que_les_cases_de_la_valise():
 
 def test_nom_en_vadrouille():
     from pwa import manifeste
-    assert manifeste()["name"] == "En Vadrouille" and manifeste()["short_name"] == "Vadrouille"
+    assert manifeste()["name"] == "Casa Binomerie" and manifeste()["short_name"] == "Binomerie"   # le hub
     assert "<h1>En Vadrouille</h1>" in accueil_en_html([], date(2026, 10, 28))
     assert "· En Vadrouille</title>" in page() and "Nos valises" not in page()
