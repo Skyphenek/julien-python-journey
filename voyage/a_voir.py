@@ -1,5 +1,5 @@
 """« 💡 À voir » (rubrique 🗓️ Programme) : la liste d'envies de chaque étape, remplie à deux,
-avec des suggestions tirées de Wikivoyage, et un bouton 📅 qui place un lieu dans le Programme.
+avec des suggestions tirées de Wikivoyage, et un bouton qui place un lieu dans le Programme.
 
 Suggestions : le téléphone télécharge la page Wikivoyage de l'étape (Render se fait refuser par
 les API publiques), le serveur en extrait les lieux « Voir » et « Faire » (suggestions_depuis_wikitext).
@@ -153,10 +153,10 @@ def bloc_a_voir(etapes):
     donnees = json.dumps([{"destination": e["destination"], "rang": e["rang"], "du": e["du"].isoformat(),
                            "au": e["au"].isoformat(), "lat": e.get("latitude"), "lon": e.get("longitude")}
                           for e in etapes], ensure_ascii=False).replace("</", "<\\/")
-    return (f'<div class="info a-voir"><h3>💡 À voir</h3>'
+    return (f'<div class="info a-voir"><h3>À voir</h3>'
             f'<script type="application/json" class="etapes-a-voir">{donnees}</script>'
-            '<p class="conseil">Vos envies pour chaque étape. 💡 propose les lieux du guide Wikivoyage ; '
-            '📅 les place dans le Programme.</p>'
+            '<p class="conseil">Vos envies pour chaque étape. « Suggestions » propose les lieux du guide Wikivoyage ; '
+            '« Planifier » les place dans le Programme.</p>'
             '<div class="panneau"></div><div class="etapes-zone"></div></div>')
 
 
@@ -269,28 +269,28 @@ SCRIPT_A_VOIR = """
     function fiche(envie, etape) {
         const li = document.createElement('li'), corps = document.createElement('div');
         li.className = 'envie' + (envie.fait ? ' faite' : '');
-        const fait = bouton(envie.fait ? '✅' : '⬜', function () { enregistrer(Object.assign({}, envie, { fait: !envie.fait })); });
+        const fait = bouton(envie.fait ? '✓' : '', function () { enregistrer(Object.assign({}, envie, { fait: !envie.fait })); });
         fait.className = 'fait-btn'; fait.title = envie.fait ? 'Pas encore fait' : 'Fait !';
         corps.className = 'corps';
-        corps.append(para((envie.genre === 'faire' ? '🎯 ' : '') + envie.nom, 'nom-envie'));
+        corps.append(para((envie.genre === 'faire' ? '' : '') + envie.nom, 'nom-envie'));
         if (envie.note) {                                       // longue note du guide : 3 lignes, un tap déplie
             const note = para(envie.note, 'note-envie');
             note.addEventListener('click', function () { note.classList.toggle('ouverte'); });
             corps.append(note);
         }
-        const ou = para('📍 ' + (envie.adresse || 'Sur la carte') + ' ');
+        const ou = para('' + (envie.adresse || 'Sur la carte') + ' ');
         ou.append(lien('↗ Maps', 'https://www.google.com/maps/search/?api=1&query='
                        + encodeURIComponent(envie.adresse ? envie.adresse + ', ' + etape.destination : envie.nom + ', ' + etape.destination)));
         corps.append(ou);
-        if (envie.lien && /^https?:\\/\\//i.test(envie.lien)) { const p = para('🔗 '); p.append(lien('En savoir plus', envie.lien)); corps.append(p); }
-        if (envie.prevu) corps.append(para('📅 Prévu ' + enClair(envie.prevu)));
+        if (envie.lien && /^https?:\\/\\//i.test(envie.lien)) { const p = para(''); p.append(lien('En savoir plus', envie.lien)); corps.append(p); }
+        if (envie.prevu) corps.append(para('Prévu ' + enClair(envie.prevu)));
         const actions = document.createElement('div'); actions.className = 'actions';
-        const suppr = bouton('🗑️', function () {
+        const suppr = bouton('✕', function () {
             if (!suppr.dataset.confirmer) { suppr.dataset.confirmer = '1'; suppr.textContent = 'Supprimer ?'; return; }
             supprimer(envie);
         });
-        actions.append(bouton('📅 Planifier', function () { planifier(envie, etape); }),
-                       bouton('✏️', function () { editer(envie, etape); }), suppr);
+        actions.append(bouton('Planifier', function () { planifier(envie, etape); }),
+                       bouton('Modifier', function () { editer(envie, etape); }), suppr);
         corps.append(actions);
         li.append(fait, corps);
         return li;
@@ -314,8 +314,8 @@ SCRIPT_A_VOIR = """
             siennes.forEach(function (e) { ul.append(fiche(e, etape)); });
             details.append(siennes.length ? ul : para('Rien pour l\\u2019instant.', 'vide-envies'));
             const actions = document.createElement('div'); actions.className = 'actions';
-            actions.append(bouton('➕ Ajouter', function () { editer(null, etape); }),
-                           bouton('💡 Suggestions', function () { suggerer(etape); }));
+            actions.append(bouton('+ Ajouter', function () { editer(null, etape); }),
+                           bouton('Suggestions', function () { suggerer(etape); }));
             details.append(actions);
             zone.append(details);
         });
@@ -339,7 +339,7 @@ SCRIPT_A_VOIR = """
     }
 
     function editer(envie, etape) {
-        const p = ouvrirPanneau((envie ? '✏️ ' + envie.nom : '➕ À voir à ' + etape.destination));
+        const p = ouvrirPanneau((envie ? envie.nom : 'À voir à ' + etape.destination));
         const form = document.createElement('form');
         const nom = champ(form, 'nom', 'Nom du lieu', envie && envie.nom);
         const adresse = champ(form, 'adresse', 'Adresse (facultatif)', envie && envie.adresse);
@@ -352,8 +352,8 @@ SCRIPT_A_VOIR = """
         form.append(message, actions);
         form.addEventListener('submit', function (ev) {
             ev.preventDefault();
-            if (!nom.value.trim()) { message.textContent = '⚠️ Il faut un nom.'; return; }
-            if (lienSaisi.value.trim() && !/^https?:\\/\\//i.test(lienSaisi.value.trim())) { message.textContent = '⚠️ Le lien doit commencer par https://'; return; }
+            if (!nom.value.trim()) { message.textContent = 'Il faut un nom.'; return; }
+            if (lienSaisi.value.trim() && !/^https?:\\/\\//i.test(lienSaisi.value.trim())) { message.textContent = 'Le lien doit commencer par https://'; return; }
             const corps = Object.assign({ id: nouvelId(), voyage: VOYAGE, destination: etape.destination, rang: etape.rang,
                                           genre: 'voir', fait: false, prevu: null }, envie || {},
                                         { nom: nom.value.trim(), adresse: adresse.value.trim(), note: note.value.trim(), lien: lienSaisi.value.trim() });
@@ -366,7 +366,7 @@ SCRIPT_A_VOIR = """
     }
 
     function planifier(envie, etape) {
-        const p = ouvrirPanneau('📅 ' + envie.nom + ' dans le Programme');
+        const p = ouvrirPanneau('' + envie.nom + ' dans le Programme');
         const form = document.createElement('form');
         const label = document.createElement('label'), jour = document.createElement('select');
         const premier = typeof DEPART !== 'undefined' ? DEPART : etape.du, dernier = typeof FIN !== 'undefined' ? FIN : etape.au;
@@ -396,7 +396,7 @@ SCRIPT_A_VOIR = """
                     panneau.replaceChildren();
                     return enregistrer(Object.assign({}, envie, { prevu: jour.value }));
                 })
-                .catch(function () { ok.disabled = false; message.textContent = '⚠️ Refusé par le serveur.'; });
+                .catch(function () { ok.disabled = false; message.textContent = 'Refusé par le serveur.'; });
         });
         p.append(form);
     }
@@ -442,8 +442,8 @@ SCRIPT_A_VOIR = """
         });
     }
     function suggerer(etape) {
-        const p = ouvrirPanneau('💡 Suggestions pour ' + etape.destination);
-        const attente = para('⏳ Recherche dans Wikivoyage…');
+        const p = ouvrirPanneau('Suggestions pour ' + etape.destination);
+        const attente = para('Recherche dans Wikivoyage…');
         p.append(attente, bouton('Fermer', fermerPanneau));
         chercher(etape).then(function (res) {
             attente.remove();
@@ -454,9 +454,9 @@ SCRIPT_A_VOIR = """
             nouvelles.forEach(function (s) {
                 const li = document.createElement('li'), corps = document.createElement('div');
                 li.className = 'suggestion'; corps.className = 'corps';
-                corps.append(para((s.genre === 'faire' ? '🎯 ' : '') + s.nom, 'nom-envie'));
+                corps.append(para((s.genre === 'faire' ? '' : '') + s.nom, 'nom-envie'));
                 if (s.note) corps.append(para(s.note.length > 180 ? s.note.slice(0, 180) + '…' : s.note));
-                const ajouter = bouton('➕', function () {
+                const ajouter = bouton('+', function () {
                     ajouter.disabled = true; ajouter.textContent = '✓';
                     enregistrer(Object.assign({ id: nouvelId(), voyage: VOYAGE, destination: etape.destination, rang: etape.rang,
                                                 fait: false, prevu: null }, s)).catch(function () {});
@@ -475,7 +475,7 @@ SCRIPT_A_VOIR = """
             source.append(' · licence CC BY-SA');
             p.insertBefore(source, p.lastChild);
         }).catch(function () {
-            attente.textContent = '⚠️ Suggestions indisponibles (réseau ?) : réessaie plus tard.';
+            attente.textContent = 'Suggestions indisponibles (réseau ?) : réessaie plus tard.';
         });
     }
 

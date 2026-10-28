@@ -47,7 +47,7 @@ def test_chaque_idee_est_complete():
     for code, (pays, idees) in IDEES.items():
         assert pays and idees, code
         for idee, note, alerte in idees:
-            assert idee and (not alerte or alerte.startswith("⚠️")), (code, idee)
+            assert idee and (not alerte or alerte.endswith(".")), (code, idee)
 
 
 def test_bloc_souvenirs():
@@ -110,7 +110,7 @@ def test_achat_cree_modifie_puis_retire_la_depense(conn):
     assert lire_depenses(conn, CODE) == []
     enregistrer_souvenir(conn, valider_souvenir(achete()), PERSONNES)
     d, = lire_depenses(conn, CODE)
-    assert d["libelle"] == "🎁 Foulard en soie (Maman)" and d["montant_eur"] == Decimal("18.20")
+    assert d["libelle"] == "Souvenir : Foulard en soie (Maman)" and d["montant_eur"] == Decimal("18.20")
     assert d["pour"] == PERSONNES and d["paye_par"] == "Julien" and d["devise"] == "VND"
     enregistrer_souvenir(conn, valider_souvenir(achete(prix_eur="20.00")), PERSONNES)   # rejoué / corrigé
     d2, = lire_depenses(conn, CODE)
@@ -173,7 +173,7 @@ def test_api_souvenirs(client):
     assert lu["proches"][0] == {"id": "proche-maman-1", "nom": "Maman L.", "budget": "30.00", "archive": False}
     s = lu["souvenirs"][0]
     assert s["prix_eur"] == "18.20" and s["achete_le"] == "2027-01-16" and "depense" not in s
-    assert client.get(f"/api/depenses/{CODE}").get_json()["depenses"][0]["libelle"] == "🎁 Foulard en soie (Maman L.)"
+    assert client.get(f"/api/depenses/{CODE}").get_json()["depenses"][0]["libelle"] == "Souvenir : Foulard en soie (Maman L.)"
     assert client.post("/api/souvenirs", json=achete(paye_par="Inconnu")).status_code == 400
     assert client.post("/api/souvenirs", json=souvenir(voyage="inconnu")).status_code == 404
     assert client.post("/api/souvenirs", json=souvenir(idee="")).status_code == 400

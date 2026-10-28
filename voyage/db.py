@@ -506,7 +506,7 @@ def enregistrer_proche(conn, p):
 def enregistrer_souvenir(conn, s, personnes):
     """Crée ou modifie (même id) un souvenir, et tient sa dépense partagée à jour, d'un seul coup :
     acheté -> dépense créée (ou modifiée) ; plus acheté -> dépense retirée. Une dépense retirée à la
-    main dans 💸 Dépenses n'est pas recréée tant que le souvenir reste acheté.
+    main dans Dépenses n'est pas recréée tant que le souvenir reste acheté.
     ValueError si l'id appartient à un autre voyage."""
     with conn.cursor() as cur:
         cur.execute("SELECT voyage, achete, depense FROM souvenirs WHERE id = %s FOR UPDATE", (s["id"],))
@@ -518,7 +518,7 @@ def enregistrer_souvenir(conn, s, personnes):
         if s["achete"]:
             cur.execute("SELECT nom FROM proches WHERE id = %s", (s["proche"],))
             proche = cur.fetchone()
-            libelle = (f"🎁 {s['idee']}" + (f" ({proche[0]})" if proche else ""))[:120]
+            libelle = (f"Souvenir : {s['idee']}" + (f" ({proche[0]})" if proche else ""))[:120]
             valeurs = (libelle, s["prix"], s["devise"], s["prix_eur"], s["paye_par"], list(personnes), s["achete_le"])
             if depense is not None:
                 cur.execute("""UPDATE depenses SET libelle = %s, montant = %s, devise = %s, montant_eur = %s,

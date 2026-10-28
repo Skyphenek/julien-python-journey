@@ -226,3 +226,89 @@ button.ajouter-etape { width: 100%; min-height: 54px; border: 2px dashed #c9c9d6
                        color: var(--texte); font: inherit; font-size: 16px; font-weight: 800; cursor: pointer; }
 body.formulaire button.principal { min-height: 58px; background: var(--valise); font-size: 17px; }
 """
+
+STYLE_EPURE = """
+/* Sur place épuré (maquette D) : tuiles heure / devise, convertisseur sur une ligne, carte Dépenses sombre */
+div.tuiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0 0 14px; break-inside: avoid; }
+div.tuiles > div.info, div.tuiles ul { display: contents; }
+div.tuiles h3 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+div.tuiles li.tuile { display: flex; flex-direction: column; justify-content: center; min-height: 96px; padding: 14px 16px;
+                      border-radius: 22px; background: var(--rubrique-doux); list-style: none; }
+div.tuiles li.tuile .lieu { font-size: 13px; color: var(--doux); overflow-wrap: anywhere; }
+div.tuiles li.tuile strong { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1;
+                             font-variant-numeric: tabular-nums; }
+div.tuiles li.tuile .ecart { font-size: 13px; font-weight: 800; color: var(--rubrique); }
+div.tuiles li.tuile .ecart em { font-style: normal; font-weight: 600; color: var(--doux); }
+div.tuiles .horloge { display: block; color: var(--texte); }
+div.tuiles p.conseil, div.tuiles div.convertisseur { grid-column: 1 / -1; order: 1; margin: 0; }
+div.tuiles p.conseil { font-size: 13px; color: var(--doux); padding: 0 4px; }
+div.tuiles p.taux-date { order: 2; }
+div.devises div.convertisseur { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 22px;
+                                background: var(--carte); font-size: 18px; }
+div.devises div.convertisseur input { flex: 1; width: auto; min-width: 0; height: 52px; border: none; border-radius: 16px;
+                                      padding: 0 14px; font: inherit; font-size: 18px; font-weight: 800;
+                                      background: var(--blanc); color: var(--texte); }
+div.devises div.convertisseur input.montant-eur { background: var(--rubrique); color: #ffffff; text-align: center; }
+div.devises div.convertisseur input.montant-eur::placeholder { color: rgba(255, 255, 255, .8); }
+div.devises div.convertisseur .egal { font-size: 20px; font-weight: 800; }
+
+div.info.depenses { background: transparent; padding: 0; }
+div.resume-depenses { background: #14142b; color: #ffffff; border-radius: 28px; padding: 20px; margin-bottom: 10px; }
+div.resume-depenses .tete { display: flex; justify-content: space-between; align-items: center; }
+div.resume-depenses h3 { font-size: 15px; font-weight: 600; color: #c9c9dc; margin: 0; letter-spacing: 0; }
+div.resume-depenses .ajouter-depense { min-height: 40px; padding: 0 16px; border: none; border-radius: 999px;
+                                       background: #ffffff; color: #14142b; font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; }
+div.resume-depenses .total { display: block; font-size: 40px; font-weight: 800; letter-spacing: -0.02em; margin: 6px 0 2px; }
+div.depenses div.resume-depenses .solde { font-size: 15px; font-weight: 500; margin: 0; color: #ffffff; }
+div.depenses form.nouvelle-depense { background: var(--carte); border-radius: 24px; padding: 14px; margin: 0 0 10px; gap: 8px; }
+div.depenses form.nouvelle-depense[hidden] { display: none; }
+div.depenses form input[type=text], div.depenses form input[type=number], div.depenses form select {
+    min-height: 48px; border: 2px solid var(--ligne); border-radius: 16px; background: var(--blanc); padding: 0 12px;
+    font: inherit; font-size: 16px; }
+div.depenses form label { display: inline-flex; align-items: center; gap: 4px; }
+div.depenses form button.principal { flex-basis: 100%; min-height: 50px; border: none; color: #ffffff; font-size: 16px; }
+div.depenses p.message-depense:empty { display: none; }
+div.depenses .liste-depenses { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+div.depenses .liste-depenses li { display: flex; align-items: center; gap: 10px; min-height: 58px; padding: 6px 6px 6px 16px;
+                                  border: none; border-radius: 18px; background: var(--carte); }
+div.depenses .liste-depenses .quoi { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+div.depenses .liste-depenses .quoi strong { font-size: 16px; font-weight: 800; overflow-wrap: anywhere; }
+div.depenses .liste-depenses .quoi small { font-size: 12px; color: var(--doux); }
+div.depenses .liste-depenses .combien { font-size: 16px; font-weight: 800; white-space: nowrap; }
+div.depenses .liste-depenses button.suppr { min-width: 36px; min-height: 36px; border: none; border-radius: 12px;
+                                            background: transparent; color: var(--doux); font: inherit; cursor: pointer; }
+div.depenses .liste-depenses button.suppr[data-confirmer] { background: #ffe3e3; color: #a3150d; font-size: 13px; font-weight: 700; }
+@media (prefers-color-scheme: dark) {
+    div.resume-depenses { background: #2a2a44; }
+}
+
+/* Cases rondes à la place des emojis (À voir : fait ; Souvenirs : acheté) */
+div.a-voir li.envie .fait-btn, div.souvenirs li.souvenir .achat-btn {
+    flex-shrink: 0; min-width: 28px; height: 28px; padding: 0 6px; border: 2px solid #c9c9d6; border-radius: 999px;
+    background: var(--blanc); color: #ffffff; font: inherit; font-size: 15px; font-weight: 800; cursor: pointer; }
+div.a-voir li.envie.faite .fait-btn, div.souvenirs li.souvenir.achete .achat-btn { background: var(--rubrique); border-color: var(--rubrique); }
+div.souvenirs li.souvenir .achat-btn[data-confirmer] { color: var(--texte); background: var(--blanc); font-size: 12px; }
+
+/* Programme : une pastille colorée par type de réservation */
+div.programme .tete-resa { display: flex; align-items: center; gap: 10px; }
+div.programme .tete-resa p { margin: 0; }
+div.programme .tete-resa p.attente { font-size: 12px; color: var(--doux); }
+span.icone-resa { flex-shrink: 0; width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center;
+                  justify-content: center; color: #ffffff; background: var(--programme); }
+span.icone-resa.type-vol { background: var(--valise); }
+span.icone-resa.type-hotel { background: var(--sur-place); }
+span.icone-resa.type-transport { background: var(--avant); }
+span.icone-resa.type-activite { background: #e8890c; }
+span.icone-resa.type-resto { background: var(--souvenirs); }
+
+/* Vocabulaire : bouton haut-parleur */
+div.vocabulaire button.ecouter { display: flex; align-items: center; justify-content: center; color: var(--rubrique); }
+"""
+STYLE_EPURE += """
+div.tuiles li.tuile strong.taux { color: var(--texte); }
+/* « pour » : pastilles au lieu de cases */
+div.depenses form label:has(input[name=pour]) { position: relative; min-height: 40px; padding: 0 14px; border-radius: 999px;
+    border: 2px solid var(--ligne); background: var(--blanc); font-weight: 700; cursor: pointer; }
+div.depenses form label input[name=pour] { position: absolute; opacity: 0; pointer-events: none; }
+div.depenses form label:has(input[name=pour]:checked) { background: var(--rubrique); border-color: var(--rubrique); color: #ffffff; }
+"""

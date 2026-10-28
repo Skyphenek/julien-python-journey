@@ -18,13 +18,13 @@ ETAPES = etapes_du_voyage(ITINERAIRE, DEPART)
 FIN = date(2027, 1, 21)
 
 CAS = [
-    (date(2026, 10, 28), "⏳ Départ dans 79 jours"),
-    (date(2027, 1, 14), "⏳ Départ demain !"),
-    (DEPART, "✈️ C’est le départ ! · jour 1 sur 7 · Hanoï"),
-    (date(2027, 1, 19), "📍 Jour 5 sur 7 · Siem Reap"),
-    (FIN, "🏁 Dernier jour · jour 7 sur 7 · Siem Reap"),
-    (date(2027, 1, 22), "🧳 Rentrés depuis 1 jour"),
-    (date(2027, 2, 1), "🧳 Rentrés depuis 11 jours"),
+    (date(2026, 10, 28), "Départ dans 79 jours"),
+    (date(2027, 1, 14), "Départ demain !"),
+    (DEPART, "C’est le départ ! · jour 1 sur 7 · Hanoï"),
+    (date(2027, 1, 19), "Jour 5 sur 7 · Siem Reap"),
+    (FIN, "Dernier jour · jour 7 sur 7 · Siem Reap"),
+    (date(2027, 1, 22), "Rentrés depuis 1 jour"),
+    (date(2027, 2, 1), "Rentrés depuis 11 jours"),
 ]
 
 
@@ -34,7 +34,7 @@ def test_texte_compte(aujourd_hui, attendu):
 
 
 def test_voyage_d_un_jour_et_sans_etapes():
-    assert texte_compte(DEPART, DEPART, DEPART) == "✈️ C’est le départ ! · jour 1 sur 1"
+    assert texte_compte(DEPART, DEPART, DEPART) == "C’est le départ ! · jour 1 sur 1"
 
 
 def test_meme_texte_en_javascript(tmp_path):
@@ -63,7 +63,7 @@ def test_tete_de_la_page_voyage():
               "itineraire": [dict(e, mois=1, activites=[], normales=None) for e in ITINERAIRE]}
     html = rendre_page(voyage, construire(voyage), aujourd_hui=date(2027, 1, 19))
     tete = html.split("</h1>")[1].split('<nav class="rubriques">')[0]
-    assert "📍 Jour 5 sur 7 · Siem Reap" in tete and "data-compte" in tete
+    assert "Jour 5 sur 7 · Siem Reap" in tete and "data-compte" in tete
     assert SCRIPT_COMPTE in html and VERSION_PAGE >= 21
 
 

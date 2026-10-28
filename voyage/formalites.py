@@ -18,7 +18,7 @@ Champs d'une fiche :
 - assurance        : None = pas de tâche assurance ; sinon pourquoi elle compte ici (obligatoire,
                      soins très chers pour un touriste).
 - ariane           : None = pas de Fil d'Ariane ; sinon les zones orange ou rouges du pays.
-                     ⚠️ zones notées de mémoire le 28/10/2026, à confirmer sur la carte du pays.
+                     zones notées de mémoire le 28/10/2026, à confirmer sur la carte du pays.
 - taches           : [(jours avant le départ, id, texte, lien ou None)] propres au pays.
 
 Sources : France Diplomatie, Conseils aux voyageurs (pages Entrée / séjour et Santé),
