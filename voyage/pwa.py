@@ -11,8 +11,8 @@ TAILLES_ICONE = (180, 192, 512)
 def manifeste():
     """Ce que le téléphone lit pour installer l'appli (nom, icône, plein écran)."""
     return {
-        "name": "Nos valises",
-        "short_name": "Valises",
+        "name": "En Vadrouille",
+        "short_name": "Vadrouille",
         "start_url": "./",
         "scope": "./",
         "display": "standalone",
@@ -28,7 +28,7 @@ def manifeste():
 TETE_PWA = f"""<link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icone-180.png">
 <meta name="theme-color" content="{COULEUR}">
-<meta name="apple-mobile-web-app-title" content="Valises">
+<meta name="apple-mobile-web-app-title" content="Vadrouille">
 <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {{}});</script>"""
 
 

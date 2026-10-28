@@ -1702,7 +1702,8 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # 23 = design D (une couleur par rubrique, onglets en bas, barre latérale sur ordinateur) ;
 # 24 = finitions D : urgences en pastilles, tâches Avant en cartes.
 # 25 = sans emojis ; Sur place épuré (tuiles heure/devise, carte Dépenses).
-VERSION_PAGE = 25
+# 26 = l'app s'appelle « En Vadrouille » (Valise reste l'onglet bagages).
+VERSION_PAGE = 26
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
 RUBRIQUES = [("valise", "Valise"), ("avant", "Avant"), ("programme", "Programme"), ("sur-place", "Sur place"),
@@ -2136,7 +2137,7 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 {MARQUE_VERSION}
-<title>Valise — {libelle_voyage}</title>
+<title>{libelle_voyage} · En Vadrouille</title>
 {TETE_PWA}
 {TETE_POLICE}
 <style>{HTML_STYLE}{STYLE_PROGRAMME}{STYLE_A_VOIR}{STYLE_VOCABULAIRE}{STYLE_SOUVENIRS}{STYLE_COMPTE}{STYLE_D}{STYLE_EPURE}</style>
@@ -2650,15 +2651,15 @@ def accueil_en_html(voyages, aujourd_hui):
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nos valises</title>
+<title>En Vadrouille</title>
 {TETE_PWA}
 {TETE_POLICE}
 <style>{HTML_STYLE}{ACCUEIL_STYLE}{CARTE_STYLE}{STYLE_COMPTE}{STYLE_D}</style>
 {tete_carte}
 </head>
 <body class="accueil">
-<h1>Nos valises</h1>
-<p><a class="nouvelle" href="?nouvelle">+ Nouvelle valise</a></p>
+<h1>En Vadrouille</h1>
+<p><a class="nouvelle" href="?nouvelle">+ Nouveau voyage</a></p>
 {prochain}
 {carte}
 {corps}
@@ -2978,7 +2979,7 @@ document.getElementById('creation').addEventListener('submit', function (ev) {
     const bouton = document.getElementById('creer');
     const corps = lireFormulaire();
     bouton.disabled = true;
-    message.textContent = INITIAL ? 'Enregistrement…' : 'Création de la valise…';
+    message.textContent = INITIAL ? 'Enregistrement…' : 'Création du voyage…';
     envoyerVoyage(corps).then(function (res) {
         if (res.statut !== 409) return res;
         message.textContent = 'Climat de saison : téléchargement (' + res.corps.manquantes.length + ' étape(s))…';
@@ -3003,7 +3004,7 @@ def formulaire_en_html(voyage=None):
     voyage : un voyage en base -> formulaire de modification, prérempli.
     """
     initial = formulaire_initial(voyage) if voyage else None
-    titre = "Modifier la valise" if voyage else "On part où ?"
+    titre = "Modifier le voyage" if voyage else "On part où ?"
     bouton = "Enregistrer les modifications" if voyage else "Créer la valise"
     donnees = json.dumps(initial, ensure_ascii=False).replace("</", "<\\/")
     cases = "".join(f'<label><input type="checkbox" value="{activite}"{" checked" if activite == "ville" else ""}>'
@@ -3013,7 +3014,7 @@ def formulaire_en_html(voyage=None):
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{"Modifier la valise" if voyage else "Nouvelle valise"}</title>
+<title>{"Modifier le voyage" if voyage else "Nouveau voyage"} · En Vadrouille</title>
 {TETE_PWA}
 {TETE_POLICE}
 <style>{HTML_STYLE}{FORMULAIRE_STYLE}{STYLE_D}</style>

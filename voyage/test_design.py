@@ -73,3 +73,10 @@ def test_synchro_ne_touche_que_les_cases_de_la_valise():
     # Les cases « pour » des dépenses n'ont pas de data-key : la synchro ne doit pas les décocher
     assert "document.querySelectorAll('input[type=checkbox]')" not in HTML_SCRIPT
     assert HTML_SCRIPT.count("querySelectorAll('input[type=checkbox][data-key]')") == 3
+
+
+def test_nom_en_vadrouille():
+    from pwa import manifeste
+    assert manifeste()["name"] == "En Vadrouille" and manifeste()["short_name"] == "Vadrouille"
+    assert "<h1>En Vadrouille</h1>" in accueil_en_html([], date(2026, 10, 28))
+    assert "· En Vadrouille</title>" in page() and "Nos valises" not in page()

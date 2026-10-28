@@ -437,7 +437,7 @@ def client_lisbonne(client_creation):
 def test_formulaire_de_modification_prerempli(client_lisbonne):
     client, code = client_lisbonne
     html = client.get("/?modifier=" + code).get_data(as_text=True)
-    assert "Modifier la valise" in html
+    assert "Modifier le voyage" in html
     assert '"remplace": "2027-05-01 Lisbonne"' in html and '"destination": "Lisbonne"' in html
     assert '"personnes": "l"' in html and '"latitude": 38.72' in html
 
