@@ -57,11 +57,12 @@ def test_page_sur_place_avec_horloges():
     assert "Intl.DateTimeFormat" in HTML_SCRIPT and VERSION_PAGE >= 8
 
 
-def test_page_sans_coordonnees_garde_le_texte_a_venir():
+def test_page_sans_coordonnees_sans_decalage():
     voyage = {"depart": date(2027, 1, 10), "personnes": ["Julien"], "conduit": False, "lessive": None,
               "itineraire": [{"destination": "X", "jours": 3, "mois": 1, "activites": [], "normales": None}]}
     html = rendre_page(voyage, construire(voyage))
-    assert "Bientôt" in html.split('data-rubrique="sur-place"')[2]
+    sur_place = html.split('<div class="rubrique" data-rubrique="sur-place"')[1].split('<div class="rubrique"')[0]
+    assert 'class="info decalage"' not in sur_place and 'class="info depenses"' in sur_place
 
 
 # --- Base de fuseaux : celle du projet (tzdata), jamais celle de la machine ou du téléphone ---

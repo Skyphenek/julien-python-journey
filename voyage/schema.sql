@@ -168,3 +168,31 @@ CREATE TABLE IF NOT EXISTS a_voir (
     maj_le      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS a_voir_voyage ON a_voir (voyage);
+
+-- « 🎁 Souvenirs » : un carnet de proches gardé d'un voyage à l'autre (pas de voyage : partagé),
+-- et les souvenirs de chaque voyage. Un proche n'est jamais supprimé (archive) : l'historique
+-- « déjà rapporté » le retrouve. Un souvenir acheté a sa dépense partagée (depense), créée par le
+-- serveur ; proche = '' : un souvenir pour nous. ids choisis par le téléphone (hors ligne).
+CREATE TABLE IF NOT EXISTS proches (
+    id          TEXT          PRIMARY KEY,
+    nom         TEXT          NOT NULL,
+    budget      NUMERIC(10,2) CHECK (budget >= 0),
+    archive     BOOLEAN       NOT NULL DEFAULT false,
+    maj_le      TIMESTAMPTZ   NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS souvenirs (
+    id          TEXT          PRIMARY KEY,
+    voyage      TEXT          NOT NULL REFERENCES voyages(code) ON DELETE CASCADE,
+    proche      TEXT          NOT NULL DEFAULT '',
+    idee        TEXT          NOT NULL,
+    note        TEXT          NOT NULL DEFAULT '',
+    achete      BOOLEAN       NOT NULL DEFAULT false,
+    prix        NUMERIC(14,2),
+    devise      TEXT,
+    prix_eur    NUMERIC(12,2),
+    paye_par    TEXT,
+    achete_le   DATE,
+    depense     INTEGER       REFERENCES depenses(id) ON DELETE SET NULL,
+    maj_le      TIMESTAMPTZ   NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS souvenirs_voyage ON souvenirs (voyage);
