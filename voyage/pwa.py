@@ -6,6 +6,7 @@ relatives, le secret n'apparaît jamais dans leur contenu.
 
 COULEUR = "#3355ff"            # le bleu de la rubrique Valise (design D)
 TAILLES_ICONE = (180, 192, 512)
+VERSION_ICONE = "vadrouille"   # dans l'adresse : iOS et Safari gardent une icône par adresse, à changer avec le dessin
 
 
 def manifeste():
@@ -19,14 +20,15 @@ def manifeste():
         "background_color": "#f4f4f5",
         "theme_color": COULEUR,
         "lang": "fr",
-        "icons": [{"src": f"icone-{t}.png", "sizes": f"{t}x{t}", "type": "image/png", "purpose": "any"}
+        "icons": [{"src": f"icone-{t}.png?v={VERSION_ICONE}", "sizes": f"{t}x{t}", "type": "image/png", "purpose": "any"}
                   for t in (192, 512)],
     }
 
 
 # Injectée dans le <head> des trois pages (voyage, accueil, formulaire)
 TETE_PWA = f"""<link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icone-180.png">
+<link rel="apple-touch-icon" href="icone-180.png?v={VERSION_ICONE}">
+<link rel="icon" type="image/png" href="icone-192.png?v={VERSION_ICONE}">
 <meta name="theme-color" content="{COULEUR}">
 <meta name="apple-mobile-web-app-title" content="Vadrouille">
 <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {{}});</script>"""

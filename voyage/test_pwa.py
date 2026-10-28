@@ -68,7 +68,7 @@ def test_icone_inconnue(client):
 def test_les_trois_pages_sont_installables():
     for html in (page_voyage(), accueil(), formulaire_en_html()):
         assert '<link rel="manifest" href="manifest.webmanifest">' in html
-        assert '<link rel="apple-touch-icon" href="icone-180.png">' in html
+        assert '<link rel="apple-touch-icon" href="icone-180.png?v=vadrouille">' in html
         assert "serviceWorker.register('sw.js')" in html
 
 

@@ -1704,7 +1704,8 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # 25 = sans emojis ; Sur place épuré (tuiles heure/devise, carte Dépenses).
 # 26 = l'app s'appelle « En Vadrouille » (Valise reste l'onglet bagages).
 # 27 = icône « En Vadrouille » (V blanc, repère orange, fond turquoise).
-VERSION_PAGE = 27
+# 28 = adresse de l'icône versionnée (?v=vadrouille) : sinon iOS et Safari gardent l'ancienne.
+VERSION_PAGE = 28
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
 RUBRIQUES = [("valise", "Valise"), ("avant", "Avant"), ("programme", "Programme"), ("sur-place", "Sur place"),
