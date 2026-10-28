@@ -107,3 +107,12 @@ def test_accueil_precharge_les_voyages_a_venir():
 
 def test_prechargement_syntaxiquement_valide(tmp_path):
     node_check(tmp_path, SCRIPT_PRECHARGEMENT)
+
+
+def test_icone_en_vadrouille():
+    # Source SVG gardée à côté des PNG (refaits avec Chrome sans fenêtre, voir la PR #44)
+    dossier = Path(__file__).parent / "static"
+    assert "#0e9aa7" in (dossier / "icone.svg").read_text()
+    for taille in (180, 192, 512):
+        png = (dossier / f"icone-{taille}.png").read_bytes()
+        assert png[:8] == b"\x89PNG\r\n\x1a\n" and int.from_bytes(png[16:20], "big") == taille
