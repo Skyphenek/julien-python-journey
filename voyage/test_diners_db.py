@@ -8,7 +8,8 @@ import pytest
 from casa import aujourd_hui_paris
 from carnet_depart import CARNET_DEPART, A_TESTER
 from courses import PLACARD_DEPART
-from db import connecter, semer_carnet, semer_placard, lire_plats, enregistrer_soir, lire_soirs
+from db import (connecter, semer_carnet, semer_placard, lire_plats, enregistrer_soir, lire_soirs,
+                completer_recettes, enregistrer_plat)
 from serveur import creer_app
 
 J = aujourd_hui_paris()
@@ -37,6 +38,18 @@ def test_semer_carnet_une_seule_fois(conn):
     carbo = next(p for p in lire_plats(conn) if p["id"] == "plat-carbonara")
     assert carbo["ingredients"] == ["spaghetti", "guanciale ou pancetta", "œufs", "pecorino"]
     assert carbo["lien"].startswith("https://ricette.giallozafferano.it/")
+
+
+def test_completer_recettes_ne_remplit_que_les_vides(conn):
+    # Carnet semé avant les recettes à tester (cas de Neon le 28/10) : deux matchs sans recette
+    for id_, recette in (("tester-shakshuka", ""), ("tester-chili", "La nôtre, corrigée dans l'app.")):
+        p = next(x for x in lire_plats(conn) if x["id"] == id_)
+        enregistrer_plat(conn, {**p, "ingredients": [], "recette": recette})
+    assert completer_recettes(conn, A_TESTER) == 1
+    plats = {p["id"]: p for p in lire_plats(conn)}
+    assert plats["tester-shakshuka"]["recette"].startswith("Pour 2") and "œufs" in plats["tester-shakshuka"]["ingredients"]
+    assert plats["tester-chili"]["recette"] == "La nôtre, corrigée dans l'app."
+    assert completer_recettes(conn, A_TESTER) == 0
 
 
 def test_fait_maison_fait_entrer_au_carnet(conn):

@@ -702,3 +702,17 @@ def semer_carnet(conn, carnet, a_tester):
         for p in liste:
             enregistrer_plat(conn, {**p, "statut": statut, "archive": False})
     return len(carnet) + len(a_tester)
+
+
+def completer_recettes(conn, recettes):
+    """Donne leur recette aux plats qui n'en ont pas encore ; renvoie le nombre de plats complétés.
+    Jamais sur une recette déjà écrite : ce qu'ils ont corrigé dans l'app reste."""
+    n = 0
+    with conn.cursor() as cur:
+        for p in recettes:
+            cur.execute("""UPDATE plats SET minutes = %s, ingredients = %s, recette = %s, lien = %s, note = %s,
+                           maj_le = now() WHERE id = %s AND recette = ''""",
+                        (p["minutes"], Json(p["ingredients"]), p["recette"], p["lien"], p["note"], p["id"]))
+            n += cur.rowcount
+    conn.commit()
+    return n
