@@ -963,7 +963,8 @@ def test_accueil_liste_les_voyages_a_venir_puis_passes():
          "fin": date(2026, 11, 5), "personnes": ["Julien", "Laetitia"]},
     ]
     html = accueil_en_html(voyages, date(2026, 10, 26))
-    assert html.index("À venir") < html.index("Oslo") < html.index("Passés") < html.index("Rome")
+    listes = html.split('<section class="liste">', 1)[1]                # après la carte « prochain voyage »
+    assert listes.index("À venir") < listes.index("Oslo") < listes.index("Passés") < listes.index("Rome")
     assert 'href="?v=2026-11-01%20Oslo"' in html                     # lien vers la page du voyage
     assert "Julien · Laetitia" in html
 

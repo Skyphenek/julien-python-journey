@@ -35,6 +35,7 @@ from programme import etapes_du_voyage, bloc_programme, STYLE_PROGRAMME, SCRIPT_
 from vocabulaire import langues_du_voyage, bloc_vocabulaire, STYLE_VOCABULAIRE, SCRIPT_VOCABULAIRE
 from a_voir import bloc_a_voir, STYLE_A_VOIR, SCRIPT_A_VOIR
 from souvenirs import bloc_souvenirs, idees_du_voyage, STYLE_SOUVENIRS, SCRIPT_SOUVENIRS
+from compte_a_rebours import compte_en_html, STYLE_COMPTE, SCRIPT_COMPTE
 
 # Fuseaux horaires : toujours la base du paquet tzdata (version figée dans requirements.txt),
 # jamais celle de la machine : celle de macOS ignorait encore le passage du Maroc à GMT
@@ -1689,8 +1690,8 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # 12 = « fermer la maison » dans Avant ; 13 = infos de chaque étape dans Sur place ;
 # 14 = dépenses partagées ; 15 = urgences du pays ; 16 = PWA (hors ligne) ;
 # 17 = carnet 🗓️ Programme (remplace les infos d'étapes) ; 18 = vocabulaire + Sur place réordonnée ;
-# 19 = « 💡 À voir » dans le Programme ; 20 = 🎁 Souvenirs.
-VERSION_PAGE = 20
+# 19 = « 💡 À voir » dans le Programme ; 20 = 🎁 Souvenirs ; 21 = ⏳ compte à rebours.
+VERSION_PAGE = 21
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
 RUBRIQUES = [("valise", "🧳 Valise"), ("avant", "🛂 Avant"), ("programme", "🗓️ Programme"), ("sur-place", "📍 Sur place"),
@@ -2011,6 +2012,8 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
     """
     cle_voyage = code or libelle_voyage
     quand = f" · départ le {date_en_clair(depart)}" if depart else ""
+    a_rebours = (compte_en_html(depart, depart + timedelta(days=total - 1), jour or date.today(), etapes or [])
+                 if depart else "")
     dates_js = ""                       # pour le bouton météo (affiché de J-10 à la fin du voyage)
     if depart:
         fin = depart + timedelta(days=total - 1)
@@ -2108,11 +2111,12 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
 {MARQUE_VERSION}
 <title>Valise — {libelle_voyage}</title>
 {TETE_PWA}
-<style>{HTML_STYLE}{STYLE_PROGRAMME}{STYLE_A_VOIR}{STYLE_VOCABULAIRE}{STYLE_SOUVENIRS}</style>
+<style>{HTML_STYLE}{STYLE_PROGRAMME}{STYLE_A_VOIR}{STYLE_VOCABULAIRE}{STYLE_SOUVENIRS}{STYLE_COMPTE}</style>
 </head>
 <body>
 <a class="retour" href="./">← Tous les voyages</a>
 <h1>{libelle_voyage} <span class="duree">· {total} jours{quand}</span></h1>
+{a_rebours}
 <div class="puces">{puces}</div>
 <div id="bandeau-meteo" hidden></div>
 <div id="hors-ligne" hidden></div>
@@ -2124,6 +2128,7 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
 <script>{SCRIPT_VOCABULAIRE}</script>
 <script>{SCRIPT_A_VOIR}</script>
 <script>{SCRIPT_SOUVENIRS}</script>
+<script>{SCRIPT_COMPTE}</script>
 </body>
 </html>"""
     return page
@@ -2585,14 +2590,23 @@ def accueil_en_html(voyages, aujourd_hui):
     a_venir = [v for v in voyages if v["fin"] >= aujourd_hui]
     passes = sorted((v for v in voyages if v["fin"] < aujourd_hui), key=lambda v: v["depart"], reverse=True)
 
+    def etapes(v):
+        return etapes_du_voyage([e for e in v.get("etapes", []) if e.get("jours")], v["depart"])
+
     def carte(v):
         a_venir = " data-a-venir" if v["fin"] >= aujourd_hui else ""      # préchargé pour le hors-ligne
+        compte = (compte_en_html(v["depart"], v["fin"], aujourd_hui, etapes(v), balise="span")
+                  if a_venir else "")
         return (f'<a class="voyage" href="?v={quote(v["code"])}" data-code="{echapper(v["code"])}"{a_venir}>'
-                f'<strong>{v["libelle"]}</strong>'
+                f'<strong>{v["libelle"]}</strong>{compte}'
                 f'<span>{date_en_clair(v["depart"])} → {date_en_clair(v["fin"])} · '
                 f'{" · ".join(v["personnes"])}</span></a>')
 
-    corps = ""
+    corps, prochain = "", ""
+    if a_venir:                                     # le prochain voyage (ou celui en cours), en grand
+        v = a_venir[0]
+        prochain = (f'<div class="prochain"><a href="?v={quote(v["code"])}"><span class="titre">{v["libelle"]}</span>'
+                  f'{compte_en_html(v["depart"], v["fin"], aujourd_hui, etapes(v), balise="span")}</a></div>')
     for titre, liste in [("À venir", a_venir), ("Passés", passes)]:
         if liste:
             corps += f'<section class="liste"><h2>{titre}</h2>{"".join(carte(v) for v in liste)}</section>'
@@ -2606,15 +2620,17 @@ def accueil_en_html(voyages, aujourd_hui):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Nos valises</title>
 {TETE_PWA}
-<style>{HTML_STYLE}{ACCUEIL_STYLE}{CARTE_STYLE}</style>
+<style>{HTML_STYLE}{ACCUEIL_STYLE}{CARTE_STYLE}{STYLE_COMPTE}</style>
 {tete_carte}
 </head>
 <body>
 <h1>🧳 Nos valises</h1>
 <p><a class="nouvelle" href="?nouvelle">➕ Nouvelle valise</a></p>
+{prochain}
 {carte}
 {corps}
 <script>{SCRIPT_PRECHARGEMENT}</script>
+<script>{SCRIPT_COMPTE}</script>
 </body>
 </html>"""
 
