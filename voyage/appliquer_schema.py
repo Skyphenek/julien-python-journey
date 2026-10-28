@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 from carnet_depart import CARNET_DEPART, A_TESTER
 from courses import PLACARD_DEPART
-from db import connecter, semer_placard, semer_carnet
+from db import connecter, semer_placard, semer_carnet, completer_recettes
 
 load_dotenv(Path(__file__).parent / ".env")
 
@@ -35,6 +35,9 @@ def appliquer(conn, pour_de_bon):
         recettes = semer_carnet(conn, CARNET_DEPART, A_TESTER)    # carnet vide seulement
         if recettes:
             print(f"Carnet de départ : {recettes} recettes ({len(CARNET_DEPART)} au carnet, {len(A_TESTER)} à tester).")
+        completes = completer_recettes(conn, A_TESTER)       # recettes encore vides seulement
+        if completes:
+            print(f"Recettes à tester complétées : {completes}.")
     else:
         conn.rollback()
         print(f"À blanc : table(s) à créer : {', '.join(nouvelles) or 'aucune'}. Relance avec --appliquer.")

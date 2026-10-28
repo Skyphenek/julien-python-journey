@@ -4,7 +4,7 @@
   Match des Recettes, 9). Les recettes italiennes viennent de leur base Mamma (recettes_mamma.json,
   extraite de leur base Notion publiée, sources Giallo Zafferano), reprises telles quelles ; les
   autres sont rédigées par Claude, à corriger par eux dans l'app.
-- A_TESTER : leurs 20 matchs au jeu, la liste « à tester ensemble ».
+- A_TESTER : leurs 20 matchs au jeu, la liste « à tester ensemble » (recettes : base Mamma ou recettes_a_tester.py).
 
 Les ingrédients
 reprennent les noms du placard (courses.PLACARD_DEPART) : c'est ce qui permet le secours
@@ -14,6 +14,8 @@ Injecté en base à la livraison 3 (Dîners).
 
 import json
 from pathlib import Path
+
+from recettes_a_tester import RECETTES_A_TESTER
 
 _MAMMA = json.loads((Path(__file__).parent / "recettes_mamma.json").read_text())
 
@@ -476,7 +478,8 @@ _MATCHS = [
 ]
 A_TESTER = [
     {"id": id_, "nom": nom, "genre": genre, "minutes": minutes, "ingredients": ingredients,
-     "recette": _MAMMA[id_]["recette"] if id_ in _MAMMA else "",
-     "lien": _MAMMA[id_]["source"] if id_ in _MAMMA else "", "note": ""}
+     "recette": _MAMMA[id_]["recette"], "lien": _MAMMA[id_]["source"], "note": ""}
+    if ingredients else      # les 3 matchs Mamma ; les autres : recettes_a_tester.py
+    {"id": id_, "nom": nom, "genre": genre, "lien": "", **RECETTES_A_TESTER[id_]}
     for id_, nom, genre, minutes, ingredients in _MATCHS
 ]
