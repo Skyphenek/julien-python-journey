@@ -142,6 +142,9 @@ après accord de Julien. Aucune table existante modifiée.
   ont). Fiche plat lisible en cuisine : ingrédients puis étapes, gros texte, l'écran ne se met
   pas en veille (Wake Lock, si le navigateur le permet). Rempli par Julien et Laetitia (liste de
   ~15 plats à fournir) ; l'app ne propose pas de plats elle-même.
+- **À tester** : les 20 matchs du Match des Recettes (`carnet_depart.A_TESTER`), en liste
+  d'envies dans Dîners. Un plat à tester entre au carnet quand on le planifie : recette de la base
+  Mamma s'il y en a une (`recettes_mamma.json`), sinon rédigée à ce moment-là.
 - **Genres** : plat, accompagnement (purée, pommes sautées), entrée (tzatziki, salade), dessert
   (brownie, tiramisu). Le carnet les range par genre ; le planning et le secours ne proposent
   que les plats.
@@ -235,8 +238,9 @@ Un seul écran, de haut en bas, chaque bloc masqué s'il est vide :
   blanquette de veau, baguezza, œuf cocotte, œuf à la coque, œufs brouillés, salad bar, lasagnes
   bolognaise, rôti de bœuf, purée jambon rapide, taco Monday, bacon cheese burger, pièce du
   boucher ; accompagnements — purée façon Robuchon, pommes de terre sautées ; entrée — tzatziki ;
-  desserts — brownie, tiramisu. Injecté en base à la livraison 3 avec des ingrédients et des
-  temps proposés par Claude, **à valider par Julien et Laetitia** avant injection.
+  desserts — brownie, tiramisu. Validé le 2026-10-28 et complété : 28 recettes
+  (`voyage/carnet_depart.py`), dont les 9 « on sait faire » du jeu ; recettes italiennes reprises
+  de leur base Mamma (sources Giallo Zafferano, champ `lien`). 7 dîners de secours.
 - **Import depuis un lien (v2)** : la plupart des sites de recettes publient la recette en
   données structurées (schema.org `Recipe`) — on pourrait préremplir ingrédients et étapes à
   partir d'une URL collée. Instagram / TikTok ne le font pas : saisie manuelle. À décider une
