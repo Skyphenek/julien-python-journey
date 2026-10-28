@@ -4,7 +4,7 @@ Tout vit sous /v/<secret>/ : le manifeste et le service worker utilisent des adr
 relatives, le secret n'apparaît jamais dans leur contenu.
 """
 
-COULEUR = "#4f46e5"            # l'accent de la page (--accent)
+COULEUR = "#3355ff"            # le bleu de la rubrique Valise (design D)
 TAILLES_ICONE = (180, 192, 512)
 
 
