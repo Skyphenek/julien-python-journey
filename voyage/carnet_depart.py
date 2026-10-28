@@ -1,98 +1,49 @@
-"""Le carnet de départ de Casa Binomerie : les 19 recettes de Julien et Laetitia (liste du 28/10/2026).
+"""Le carnet de départ de Casa Binomerie (28/10/2026).
 
-Recettes pré-rédigées par Claude, à corriger par eux dans l'app. Pâtes : à l'italienne, sans
-compromis (pas de crème dans la carbonara, pas d'oignon dans l'amatriciana). Les ingrédients
+- Les plats de Julien et Laetitia (19) et ceux qu'ils savent déjà faire (« on sait faire » au
+  Match des Recettes, 9). Les recettes italiennes viennent de leur base Mamma (recettes_mamma.json,
+  extraite de leur base Notion publiée, sources Giallo Zafferano), reprises telles quelles ; les
+  autres sont rédigées par Claude, à corriger par eux dans l'app.
+- A_TESTER : leurs 20 matchs au jeu, la liste « à tester ensemble ».
+
+Les ingrédients
 reprennent les noms du placard (courses.PLACARD_DEPART) : c'est ce qui permet le secours
 (plat ≤ 20 min dont tout est au placard) et l'ajout aux courses. Sel, poivre et huile : sous-entendus.
 Injecté en base à la livraison 3 (Dîners).
 """
 
+import json
+from pathlib import Path
+
+_MAMMA = json.loads((Path(__file__).parent / "recettes_mamma.json").read_text())
+
+
+def _mamma(id_, nom, minutes, ingredients, note=""):
+    """Une recette de leur base Mamma, texte d'origine, lien vers la source."""
+    r = _MAMMA[id_]
+    return {"id": id_, "nom": nom, "genre": "plat", "minutes": minutes, "ingredients": ingredients,
+            "recette": r["recette"], "lien": r["source"], "note": note}
+
+
 CARNET_DEPART = [
+    # --- Pâtes et plats italiens : leur base Mamma ------------------------------------------------
+    _mamma("plat-carbonara", "Spaghetti alla carbonara", 20,
+           ["spaghetti", "guanciale ou pancetta", "œufs", "pecorino"],
+           "Temps compté à 20 min (la base Mamma dit 25) : c'est le dîner de secours numéro un."),
+    _mamma("plat-amatriciana", "Spaghetti all'amatriciana", 35,
+           ["spaghetti", "guanciale ou pancetta", "tomates pelées", "pecorino", "vin blanc"]),
+    _mamma("plat-lasagne-bolognese", "Lasagne alla bolognese", 300,
+           ["feuilles de lasagne", "parmesan", "bœuf haché", "porc haché", "guanciale ou pancetta", "carottes",
+            "céleri", "oignons", "passata", "vin blanc", "bouillon", "lait", "beurre", "farine"],
+           "Le ragù se fait la veille ; les lasagnes se congèlent très bien."),
+    _mamma("plat-cacio-e-pepe", "Spaghetti cacio e pepe", 20, ["spaghetti", "pecorino", "poivre en grains"]),
+    _mamma("plat-gricia", "Mezze maniche alla gricia", 25, ["rigatoni", "guanciale ou pancetta", "pecorino"]),
+    _mamma("plat-risotto-milanese", "Risotto alla milanese", 45,
+           ["riz carnaroli", "bouillon", "beurre", "oignons", "vin blanc", "safran", "parmesan"]),
+    _mamma("plat-saltimbocca", "Saltimbocca alla romana", 25,
+           ["escalopes de veau", "jambon cru", "sauge", "farine", "beurre", "vin blanc"]),
+
     # --- Plats ---------------------------------------------------------------------------------
-    {
-        "id": "plat-carbonara", "nom": "Spaghetti alla carbonara", "genre": "plat", "minutes": 15,
-        "ingredients": ["spaghetti", "guanciale ou pancetta", "œufs", "pecorino"],
-        "recette": """Pour 2
-- 200 g de spaghetti (ou rigatoni)
-- 120 g de guanciale (à défaut, pancetta), en bâtonnets épais
-- 3 jaunes d'œufs + 1 œuf entier
-- 50 g de Pecorino Romano DOP râpé fin
-- poivre noir concassé au moulin, généreusement
-
-1. Mettre l'eau à bouillir, salée moins que d'habitude (le guanciale et le pecorino le sont déjà).
-2. Guanciale dans une grande poêle froide, sans matière grasse. Feu moyen, 8 à 10 min : il dore et rend son gras. Couper le feu.
-3. Dans un bol, battre jaunes, œuf entier, pecorino et beaucoup de poivre jusqu'à une crème épaisse.
-4. Cuire les pâtes 1 min de moins que le paquet. Garder une louche d'eau de cuisson avant d'égoutter.
-5. Pâtes dans la poêle du guanciale, hors du feu. Mélanger 30 s pour les enrober de gras, laisser tiédir encore 30 s.
-6. Verser la crème d'œufs et 2 c. à s. d'eau de cuisson, mélanger vivement : la sauce devient crémeuse et nappante. Trop épaisse : un peu d'eau ; trop liquide : 10 s sur feu très doux sans cesser de remuer.
-7. Servir tout de suite, pecorino et poivre par-dessus.
-
-Secret de mamma : la poêle hors du feu. C'est l'eau de cuisson et le mouvement qui font la crème.
-
-Erreurs fréquentes
-- Mettre de la crème (ou de l'ail, de l'oignon) : ce n'est plus une carbonara.
-- Verser les œufs sur le feu : ils brouillent au lieu de napper.""",
-        "note": "",
-    },
-    {
-        "id": "plat-amatriciana", "nom": "Spaghetti all'amatriciana", "genre": "plat", "minutes": 25,
-        "ingredients": ["spaghetti", "guanciale ou pancetta", "tomates pelées", "pecorino"],
-        "recette": """Pour 2
-- 200 g de spaghetti (ou bucatini, la version d'Amatrice)
-- 120 g de guanciale en lardons épais
-- 400 g de tomates pelées (San Marzano si possible), écrasées à la main
-- 40 g de Pecorino Romano DOP râpé
-- 1 trait de vin blanc sec (facultatif), 1 pointe de piment (facultatif)
-
-1. Guanciale dans une sauteuse froide, feu moyen, 8 min jusqu'à ce qu'il soit doré et translucide. Retirer la moitié des morceaux les plus croustillants et réserver.
-2. Déglacer au vin blanc, laisser évaporer. Ajouter le piment.
-3. Ajouter les tomates, saler à peine. Mijoter 12 à 15 min à petit feu : la sauce épaissit et le gras remonte en surface.
-4. Cuire les pâtes 1 min de moins que le paquet, les finir 1 min dans la sauce avec une demi-louche d'eau de cuisson.
-5. Hors du feu, ajouter la moitié du pecorino et mélanger. Servir avec le guanciale réservé et le reste du pecorino.
-
-Secret de mamma : finir les pâtes dans la sauce avec l'eau de cuisson, le pecorino hors du feu seulement.
-
-Erreurs fréquentes
-- Ajouter oignon ou ail : la recette d'Amatrice tient en guanciale, tomate, pecorino.
-- Remplacer le guanciale par des lardons fumés : le goût fumé écrase tout.""",
-        "note": "",
-    },
-    {
-        "id": "plat-lasagne-bolognese", "nom": "Lasagne alla bolognese", "genre": "plat", "minutes": 180,
-        "ingredients": ["farine", "œufs", "bœuf haché", "guanciale ou pancetta", "carottes", "céleri", "oignons",
-                        "passata", "lait", "beurre", "parmesan"],
-        "recette": """Pour 6 (ça se congèle très bien)
-
-Le ragù (à lancer en premier)
-- 400 g de bœuf haché (paleron), 150 g de pancetta hachée au couteau
-- 1 carotte, 1 branche de céleri, 1/2 oignon, hachés très fin
-- 15 cl de vin blanc sec, 200 g de passata, 25 cl de lait entier, un peu d'eau ou de bouillon
-1. Faire suer le hachis de légumes 10 min à feu doux dans 30 g de beurre et un filet d'huile, sans coloration.
-2. Ajouter la pancetta, puis le bœuf : feu vif, émietter, laisser grésiller jusqu'à ce que toute l'eau soit partie et que la viande colore.
-3. Vin blanc, laisser évaporer. Passata, puis le lait.
-4. Mijoter à couvert, à frémissement à peine visible, au moins 2 h. Mouiller d'un peu d'eau si ça attache. Saler en fin.
-
-Les pâtes, à la bolognaise
-- 300 g de farine (type 00 si possible), 3 œufs
-5. Fontaine, œufs au centre, pétrir 10 min jusqu'à une pâte lisse et souple. Filmer, 30 min de repos.
-6. Abaisser très fin (au rouleau ou au laminoir, avant-dernier cran), détailler à la taille du plat. Plonger 20 s dans l'eau bouillante salée, puis dans l'eau froide, égoutter sur un torchon.
-Dépannage : feuilles de lasagne sèches, à blanchir de la même façon.
-
-La béchamel
-- 50 g de beurre, 50 g de farine, 75 cl de lait, muscade
-7. Roux beurre-farine 2 min, lait froid d'un coup, fouetter jusqu'à ébullition, 5 min à feu doux. Sel, muscade.
-
-Montage et cuisson
-8. Plat beurré : une fine couche de béchamel, puis feuilles, ragù, béchamel, Parmigiano Reggiano DOP râpé. 5 à 6 étages ; finir par béchamel, parmesan et quelques noisettes de beurre.
-9. Four à 180 °C, 30 à 35 min, jusqu'à ce que le dessus gratine. Laisser reposer 15 min avant de couper.
-
-Secret de mamma : le lait dans le ragù, il adoucit l'acidité de la tomate et attendrit la viande.
-
-Erreurs fréquentes
-- Écourter le ragù : en dessous de 2 h de mijotage doux, c'est une sauce à la viande, pas un ragù.
-- Noyer de tomate : à Bologne, le ragù est une sauce de viande à peine rosée.""",
-        "note": "Se prépare la veille : encore meilleure réchauffée.",
-    },
     {
         "id": "plat-blanquette-veau", "nom": "Blanquette de veau", "genre": "plat", "minutes": 150,
         "ingredients": ["veau", "carottes", "oignons", "champignons de Paris", "beurre", "farine", "crème fraîche",
@@ -112,6 +63,7 @@ Erreurs fréquentes
 5. Hors du feu : mélanger jaune et crème, les incorporer à la sauce. Rectifier avec le jus de citron, sel, poivre blanc. Ne plus faire bouillir.
 6. Remettre la viande, les carottes et les champignons dans la sauce, réchauffer doucement.
 7. Riz cuit avec une louche du bouillon de cuisson.""",
+        "lien": "",
         "note": "",
     },
     {
@@ -129,6 +81,7 @@ Erreurs fréquentes
 4. 8 à 10 min sur la grille haute : le fromage gratine, le dessous reste croustillant. Baguettes congelées : 3 min de plus, sans décongeler.
 
 Variantes : comté et jambon ; beaufort, bacon et oignon (la savoyarde) ; mozzarella fraîche et basilic à la sortie du four.""",
+        "lien": "",
         "note": "",
     },
     {
@@ -143,6 +96,7 @@ Variantes : comté et jambon ; beaufort, bacon et oignon (la savoyarde) ; mozzar
 2. Beurrer 4 ramequins. Au fond : 1/2 c. à s. de crème (et l'option choisie), casser un œuf, saler le blanc, pas le jaune. Encore 1/2 c. à s. de crème autour du jaune.
 3. Ramequins dans un plat, eau chaude jusqu'à mi-hauteur. Four 10 à 12 min : le blanc est pris, le jaune tremble encore quand on secoue.
 4. Poivre, ciboulette, mouillettes grillées.""",
+        "lien": "",
         "note": "",
     },
     {
@@ -156,6 +110,7 @@ Variantes : comté et jambon ; beaufort, bacon et oignon (la savoyarde) ; mozzar
 2. Descendre les œufs à la cuillère, lancer le minuteur : 3 min pour un jaune coulant et un blanc juste pris (3 min 30 pour de gros œufs).
 3. Pendant ce temps : mouillettes grillées, beurrées, une pincée de fleur de sel.
 4. Sortir, décalotter tout de suite (sinon ça continue à cuire).""",
+        "lien": "",
         "note": "",
     },
     {
@@ -171,6 +126,7 @@ Variantes : comté et jambon ; beaufort, bacon et oignon (la savoyarde) ; mozzar
 3. Casserole à fond épais, feu doux, la moitié du beurre. Verser les œufs, remuer sans arrêt à la spatule en raclant le fond.
 4. Retirer la casserole du feu 10 s dès que ça prend trop vite, puis remettre. Compter 5 à 6 min : de petits grumeaux crémeux.
 5. Encore un peu baveux : hors du feu, le reste du beurre froid et la crème — ça arrête la cuisson. Poivre, ciboulette, bacon émietté dessus.""",
+        "lien": "",
         "note": "",
     },
     {
@@ -189,6 +145,7 @@ Variantes : comté et jambon ; beaufort, bacon et oignon (la savoyarde) ; mozzar
 4. Vinaigrette : moutarde et vinaigre avec le sel, puis l'huile en fouettant.
 
 Bonus : des croûtons de demi-baguette dorés à la poêle, des copeaux de comté.""",
+        "lien": "",
         "note": "",
     },
     {
@@ -206,6 +163,7 @@ Bonus : des croûtons de demi-baguette dorés à la poêle, des copeaux de comt�
 3. Le reste de l'oignon émincé, 2 min. Épices et 5 cl d'eau, laisser réduire jusqu'à ce que ça nappe.
 4. Tortillas chauffées 20 s par face dans une poêle sèche, gardées au chaud dans un torchon.
 5. Tout au milieu de la table, chacun garnit.""",
+        "lien": "",
         "note": "",
     },
     {
@@ -226,6 +184,7 @@ Bonus : des croûtons de demi-baguette dorés à la poêle, des copeaux de comt�
 5. Montage : sauce, salade, steak au cheddar, bacon, tomate, oignon, sauce sur le chapeau.
 
 Variante smash : boule de 120 g écrasée fort à la spatule dans la poêle fumante, 2 min, retourner, fromage.""",
+        "lien": "",
         "note": "",
     },
     {
@@ -243,6 +202,7 @@ Variante smash : boule de 120 g écrasée fort à la spatule dans la poêle fuma
 5. Trancher contre le fil, fleur de sel, poivre, sauce par-dessus.
 
 Avec : purée façon Robuchon ou pommes de terre sautées.""",
+        "lien": "",
         "note": "Passage chez le boucher à prévoir.",
     },
     {
@@ -259,6 +219,7 @@ Avec : purée façon Robuchon ou pommes de terre sautées.""",
 5. Saler à la découpe. Déglacer la cocotte avec 5 cl d'eau pour le jus, écraser l'ail confit dedans.
 
 Avec : pommes de terre sautées ou purée façon Robuchon.""",
+        "lien": "",
         "note": "Passage chez le boucher à prévoir. Un thermomètre de cuisson change la vie.",
     },
     {
@@ -275,6 +236,7 @@ Avec : pommes de terre sautées ou purée façon Robuchon.""",
 3. Égoutter, remettre 1 min sur le feu pour sécher. Écraser au presse-purée ou à la fourchette — jamais au mixeur (la purée devient élastique).
 4. Le beurre d'abord, puis le lait chaud petit à petit jusqu'à la texture voulue. Sel, muscade.
 5. Le jambon (et le comté) mélangé ou posé dessus.""",
+        "lien": "",
         "note": "",
     },
     # --- Accompagnements ------------------------------------------------------------------------
@@ -293,6 +255,7 @@ Avec : pommes de terre sautées ou purée façon Robuchon.""",
 4. Feu doux. Incorporer le beurre froid petit à petit, en remuant vigoureusement : c'est ce mouvement qui la rend lisse et brillante.
 5. Lait bouillant en filet, sans cesser de remuer, jusqu'à la consistance voulue. Sel.
 6. Pour le service façon restaurant : la passer au tamis fin.""",
+        "lien": "",
         "note": "",
     },
     {
@@ -307,6 +270,7 @@ Avec : pommes de terre sautées ou purée façon Robuchon.""",
 2. Grande poêle, huile chaude : une seule couche de pommes de terre. Ne pas toucher pendant 5 min.
 3. Retourner, ajouter le beurre, continuer 10 à 12 min en sautant de temps en temps, jusqu'à ce qu'elles soient dorées partout.
 4. Dans la dernière minute : ail et persil (ail ajouté plus tôt, il brûle). Sel.""",
+        "lien": "",
         "note": "",
     },
     # --- Entrée --------------------------------------------------------------------------------
@@ -324,6 +288,7 @@ Avec : pommes de terre sautées ou purée façon Robuchon.""",
 3. 30 min au frais si possible, filet d'huile d'olive au service.
 
 Avec : pain pita ou demi-baguette grillée, crudités.""",
+        "lien": "",
         "note": "",
     },
     # --- Desserts ------------------------------------------------------------------------------
@@ -342,6 +307,7 @@ Avec : pain pita ou demi-baguette grillée, crudités.""",
 3. Ajouter le sucre, puis les œufs un par un en mélangeant bien entre chaque. Farine et sel, mélanger juste ce qu'il faut. Les noix.
 4. 20 à 22 min : le dessus craquelle, le centre tremble encore et la lame ressort humide. C'est voulu : il finit de prendre en refroidissant.
 5. Laisser refroidir complètement (idéalement 1 h au frais) avant de couper.""",
+        "lien": "",
         "note": "",
     },
     {
@@ -360,6 +326,147 @@ Avec : pain pita ou demi-baguette grillée, crudités.""",
 4. Tremper chaque boudoir 1 seconde dans le café (pas plus, sinon il s'effondre). Une couche de boudoirs, la moitié de la crème, une couche de boudoirs, le reste de la crème.
 5. Filmer, au frigo au moins 6 h, idéalement une nuit.
 6. Cacao tamisé au moment de servir, pas avant (il détrempe).""",
+        "lien": "",
         "note": "",
     },
+    # --- « On sait faire » au Match des Recettes : les classiques bistro ----------------------------
+    {
+        "id": "plat-boeuf-bourguignon", "nom": "Bœuf bourguignon", "genre": "plat", "minutes": 210,
+        "ingredients": ["paleron ou joue de bœuf", "vin rouge", "guanciale ou pancetta", "champignons de Paris",
+                        "oignons", "carottes", "ail", "farine", "beurre", "bouillon"],
+        "recette": """Pour 6 — meilleur réchauffé le lendemain
+- 1,5 kg de paleron ou de joue de bœuf, en cubes de 5 cm
+- 75 cl de vin rouge de Bourgogne (un pinot noir correct, pas un vin de cuisine)
+- 150 g de lardons de poitrine, 250 g de champignons de Paris, 12 petits oignons grelots
+- 2 carottes, 1 oignon, 2 gousses d'ail, 1 bouquet garni
+- 2 c. à s. de farine, 40 g de beurre, 25 cl de bouillon de bœuf
+
+1. La veille (facultatif mais ça change tout) : faire mariner la viande avec le vin, l'oignon et les carottes en rondelles, l'ail et le bouquet garni. Égoutter et sécher la viande au papier avant de la saisir, garder la marinade.
+2. Cocotte en fonte, feu vif, un filet d'huile : saisir la viande en plusieurs fois, sans entasser, jusqu'à une croûte brune sur toutes les faces. Réserver.
+3. Faire revenir les légumes de la marinade 5 min, remettre la viande, saupoudrer de farine, remuer 2 min (la farine doit roussir légèrement).
+4. Verser le vin de la marinade porté à ébullition et le bouillon : la viande doit être juste couverte. Bouquet garni, sel, poivre.
+5. Couvrir, 2 h 30 à 3 h à frémissement (ou au four à 150 °C) : la viande se défait à la fourchette.
+6. Garniture, 20 min avant la fin : lardons dorés à la poêle, puis les oignons grelots glacés dans le gras avec une noix de beurre et une pincée de sucre, puis les champignons sautés. Tout ajouter dans la cocotte.
+7. Si la sauce est trop liquide, réduire à découvert : elle doit napper la cuillère.
+
+Erreurs fréquentes
+- Saisir la viande mouillée ou entassée : elle bout au lieu de colorer, et la sauce n'a pas de fond.
+- Faire bouillir : à gros bouillons, la viande se resserre et reste sèche, même après 3 h.
+
+Avec : pommes de terre vapeur, tagliatelles fraîches ou purée.""",
+        "lien": "", "note": "",
+    },
+    {
+        "id": "plat-croque-monsieur", "nom": "Croque-monsieur", "genre": "plat", "minutes": 20,
+        "ingredients": ["pain de mie", "jambon", "comté", "beurre", "lait", "farine"],
+        "recette": """Pour 2 (4 croques)
+- 8 tranches de pain de mie de bonne qualité (ou de pain de campagne)
+- 4 tranches de jambon blanc
+- 150 g de comté râpé
+- béchamel express : 20 g de beurre, 20 g de farine, 20 cl de lait, muscade, sel, poivre
+- beurre mou
+
+1. Four à 220 °C, grill.
+2. Béchamel : beurre fondu, farine, 1 min en remuant ; lait froid d'un coup, fouetter jusqu'à épaississement, 2 min. Sel, poivre, muscade. Hors du feu, la moitié du comté.
+3. Beurrer les tranches côté extérieur. Côté intérieur : une fine couche de béchamel, jambon plié, une pincée de comté, refermer.
+4. Sur le dessus : le reste de béchamel et de comté.
+5. Plaque, four 8 à 10 min : le dessous dore au contact de la plaque, le dessus gratine en croûte.
+
+Variante madame : un œuf au plat posé dessus à la sortie du four.
+
+Erreurs fréquentes
+- Une béchamel trop liquide : elle détrempe le pain. Elle doit tenir sur la cuillère.
+- Le croque à la poêle avec la béchamel dessus : elle brûle. La béchamel dessus, c'est au four.""",
+        "lien": "", "note": "",
+    },
+    {
+        "id": "acc-gratin-dauphinois", "nom": "Gratin dauphinois", "genre": "accompagnement", "minutes": 90,
+        "ingredients": ["pommes de terre", "crème fraîche", "lait", "ail", "beurre"],
+        "recette": """Pour 4
+- 1 kg de pommes de terre à chair farineuse (Bintje, Agria)
+- 40 cl de lait entier, 30 cl de crème liquide entière
+- 1 gousse d'ail, beurre, muscade, sel, poivre
+
+1. Four à 160 °C. Frotter le plat à l'ail coupé en deux, puis le beurrer.
+2. Éplucher les pommes de terre, les trancher en rondelles de 3 mm (à la mandoline), sans les laver : l'amidon fait la liaison.
+3. Dans une grande casserole, lait, crème, ail écrasé, sel, poivre, muscade. Ajouter les rondelles et cuire 10 min à frémissement en remuant délicatement : la crème épaissit.
+4. Verser dans le plat, égaliser. Four 1 h à 1 h 15 : le dessus est doré, la lame d'un couteau entre sans résistance.
+5. Repos 10 min avant de servir.
+
+Erreurs fréquentes
+- Ajouter du fromage : c'est alors un gratin savoyard. Le dauphinois n'en a pas.
+- Laver les tranches : sans leur amidon, la crème ne lie pas et le gratin rend du liquide.
+
+Avec : rôti de bœuf, pièce du boucher, poulet rôti.""",
+        "lien": "", "note": "",
+    },
+    {
+        "id": "plat-poulet-roti", "nom": "Poulet rôti du dimanche", "genre": "plat", "minutes": 100,
+        "ingredients": ["poulet fermier", "beurre", "citrons", "ail", "pommes de terre"],
+        "recette": """Pour 4
+- 1 poulet fermier de 1,6 à 1,8 kg (label rouge), sorti du frigo 1 h avant
+- 60 g de beurre mou, 1 citron, 1 tête d'ail, thym
+- 800 g de pommes grenaille, fleur de sel
+
+1. Idéalement la veille : saler le poulet dedans et dehors et le laisser au frigo à découvert. La peau sèche, elle sera croustillante.
+2. Four à 220 °C. Glisser une partie du beurre sous la peau des blancs, enduire le reste dessus. Dans le ventre : le citron coupé en deux, 3 gousses d'ail, le thym.
+3. Plat : les grenailles coupées en deux, le reste de l'ail en chemise, un filet d'huile, sel. Le poulet posé sur une cuisse.
+4. 20 min sur une cuisse, 20 min sur l'autre, puis 30 à 40 min sur le dos. Arroser avec le jus toutes les 15 min.
+5. C'est cuit quand le jus qui coule de la cuisse piquée est clair (72-75 °C au cœur de la cuisse).
+6. Repos 15 min, poulet tête en bas sur une planche (le jus redescend dans les blancs). Déglacer le plat avec 10 cl d'eau, gratter les sucs : c'est le jus.
+
+Erreurs fréquentes
+- Le découper à la sortie du four : le jus part sur la planche et les blancs sont secs.
+- Le cuire sur le dos tout du long : les blancs sont cuits bien avant les cuisses.""",
+        "lien": "", "note": "",
+    },
+    {
+        "id": "plat-quiche-lorraine", "nom": "Quiche lorraine", "genre": "plat", "minutes": 75,
+        "ingredients": ["farine", "beurre", "œufs", "crème fraîche", "lait", "guanciale ou pancetta"],
+        "recette": """Moule de 24 cm, pour 4 à 6
+Pâte brisée
+- 200 g de farine, 100 g de beurre froid en dés, 1 jaune d'œuf, 4 c. à s. d'eau froide, 1 pincée de sel
+Appareil
+- 200 g de lardons fumés
+- 3 œufs + 1 jaune, 20 cl de crème fraîche épaisse, 20 cl de lait entier, muscade, poivre
+
+1. Pâte : sabler farine, sel et beurre du bout des doigts, ajouter jaune et eau, rassembler sans pétrir. 30 min au frais.
+2. Four à 200 °C. Étaler, foncer le moule, piquer, 15 min au frais.
+3. Cuire à blanc 15 min (papier cuisson et légumes secs dessus), puis 5 min sans, pour sécher le fond.
+4. Lardons blanchis 1 min à l'eau bouillante, puis dorés à la poêle sans matière grasse.
+5. Fouetter œufs, jaune, crème, lait, muscade, poivre ; peu de sel (les lardons salent).
+6. Lardons sur le fond, appareil par-dessus. Four à 180 °C, 30 à 35 min : le centre tremble encore légèrement.
+7. 10 min de repos avant de couper.
+
+Erreurs fréquentes
+- Ajouter du gruyère : la lorraine d'origine n'a pas de fromage (c'est voulu, la crème suffit).
+- Sauter la cuisson à blanc : le fond reste détrempé.""",
+        "lien": "", "note": "",
+    },
+]
+
+
+# Les 20 matchs du Match des Recettes (28/10/2026) : oui de Julien et de Laetitia. mamma : la recette
+# de leur base Mamma quand elle existe (recettes_mamma.json), sinon à rédiger quand ils la choisissent.
+A_TESTER = [
+    {"id": "tester-pesto", "nom": "Trofie al pesto genovese", "mamma": True},
+    {"id": "tester-polpette", "nom": "Polpette al sugo", "mamma": True},
+    {"id": "tester-osso-buco", "nom": "Osso buco et gremolata", "mamma": True},
+    {"id": "tester-focaccia", "nom": "Focaccia genovese", "mamma": False},
+    {"id": "tester-meurette", "nom": "Œufs en meurette", "mamma": False},
+    {"id": "tester-moules", "nom": "Moules marinières frites", "mamma": False},
+    {"id": "tester-soupe-oignon", "nom": "Soupe à l'oignon gratinée", "mamma": False},
+    {"id": "tester-bo-bun", "nom": "Bò bún", "mamma": False},
+    {"id": "tester-nems", "nom": "Nems maison", "mamma": False},
+    {"id": "tester-banh-mi", "nom": "Bánh mì au porc caramélisé", "mamma": False},
+    {"id": "tester-shakshuka", "nom": "Shakshuka", "mamma": False},
+    {"id": "tester-chana-masala", "nom": "Curry de pois chiches", "mamma": False},
+    {"id": "tester-quesadillas", "nom": "Quesadillas comté-chorizo", "mamma": False},
+    {"id": "tester-chili", "nom": "Chili con carne", "mamma": False},
+    {"id": "tester-okonomiyaki", "nom": "Okonomiyaki", "mamma": False},
+    {"id": "tester-poke", "nom": "Poke bowl au saumon", "mamma": False},
+    {"id": "tester-mousse", "nom": "Mousse au chocolat", "mamma": False},
+    {"id": "tester-cookies", "nom": "Cookies au beurre noisette", "mamma": False},
+    {"id": "tester-fondant", "nom": "Fondant au chocolat", "mamma": False},
+    {"id": "tester-pancakes", "nom": "Pancakes du dimanche", "mamma": False},
 ]
