@@ -446,27 +446,37 @@ Erreurs fréquentes
 ]
 
 
-# Les 20 matchs du Match des Recettes (28/10/2026) : oui de Julien et de Laetitia. mamma : la recette
-# de leur base Mamma quand elle existe (recettes_mamma.json), sinon à rédiger quand ils la choisissent.
+# Les 20 matchs du Match des Recettes (28/10/2026) : oui de Julien et de Laetitia. Recette de leur base
+# Mamma quand elle existe (recettes_mamma.json), sinon à rédiger quand ils la choisissent.
+# (id, nom, genre, minutes, ingrédients — vides tant que la recette n'est pas écrite)
+_MATCHS = [
+    ("tester-pesto", "Trofie al pesto genovese", "plat", 35,
+     ["trofie", "basilic", "pignons", "ail", "parmesan", "pecorino", "huile d'olive", "pommes de terre", "haricots verts"]),
+    ("tester-polpette", "Polpette al sugo", "plat", 80,
+     ["bœuf haché", "salsiccia", "pain", "œufs", "parmesan", "persil", "ail", "passata", "oignons", "basilic"]),
+    ("tester-osso-buco", "Osso buco et gremolata", "plat", 140,
+     ["osso buco de veau", "oignons", "farine", "beurre", "vin blanc", "bouillon", "persil", "ail", "citrons"]),
+    ("tester-focaccia", "Focaccia genovese", "entree", 180, []),
+    ("tester-meurette", "Œufs en meurette", "plat", 40, []),
+    ("tester-moules", "Moules marinières frites", "plat", 30, []),
+    ("tester-soupe-oignon", "Soupe à l'oignon gratinée", "plat", 60, []),
+    ("tester-bo-bun", "Bò bún", "plat", 40, []),
+    ("tester-nems", "Nems maison", "entree", 60, []),
+    ("tester-banh-mi", "Bánh mì au porc caramélisé", "plat", 30, []),
+    ("tester-shakshuka", "Shakshuka", "plat", 25, []),
+    ("tester-chana-masala", "Curry de pois chiches", "plat", 35, []),
+    ("tester-quesadillas", "Quesadillas comté-chorizo", "plat", 15, []),
+    ("tester-chili", "Chili con carne", "plat", 90, []),
+    ("tester-okonomiyaki", "Okonomiyaki", "plat", 30, []),
+    ("tester-poke", "Poke bowl au saumon", "plat", 25, []),
+    ("tester-mousse", "Mousse au chocolat", "dessert", 20, []),
+    ("tester-cookies", "Cookies au beurre noisette", "dessert", 30, []),
+    ("tester-fondant", "Fondant au chocolat", "dessert", 25, []),
+    ("tester-pancakes", "Pancakes du dimanche", "dessert", 25, []),
+]
 A_TESTER = [
-    {"id": "tester-pesto", "nom": "Trofie al pesto genovese", "mamma": True},
-    {"id": "tester-polpette", "nom": "Polpette al sugo", "mamma": True},
-    {"id": "tester-osso-buco", "nom": "Osso buco et gremolata", "mamma": True},
-    {"id": "tester-focaccia", "nom": "Focaccia genovese", "mamma": False},
-    {"id": "tester-meurette", "nom": "Œufs en meurette", "mamma": False},
-    {"id": "tester-moules", "nom": "Moules marinières frites", "mamma": False},
-    {"id": "tester-soupe-oignon", "nom": "Soupe à l'oignon gratinée", "mamma": False},
-    {"id": "tester-bo-bun", "nom": "Bò bún", "mamma": False},
-    {"id": "tester-nems", "nom": "Nems maison", "mamma": False},
-    {"id": "tester-banh-mi", "nom": "Bánh mì au porc caramélisé", "mamma": False},
-    {"id": "tester-shakshuka", "nom": "Shakshuka", "mamma": False},
-    {"id": "tester-chana-masala", "nom": "Curry de pois chiches", "mamma": False},
-    {"id": "tester-quesadillas", "nom": "Quesadillas comté-chorizo", "mamma": False},
-    {"id": "tester-chili", "nom": "Chili con carne", "mamma": False},
-    {"id": "tester-okonomiyaki", "nom": "Okonomiyaki", "mamma": False},
-    {"id": "tester-poke", "nom": "Poke bowl au saumon", "mamma": False},
-    {"id": "tester-mousse", "nom": "Mousse au chocolat", "mamma": False},
-    {"id": "tester-cookies", "nom": "Cookies au beurre noisette", "mamma": False},
-    {"id": "tester-fondant", "nom": "Fondant au chocolat", "mamma": False},
-    {"id": "tester-pancakes", "nom": "Pancakes du dimanche", "mamma": False},
+    {"id": id_, "nom": nom, "genre": genre, "minutes": minutes, "ingredients": ingredients,
+     "recette": _MAMMA[id_]["recette"] if id_ in _MAMMA else "",
+     "lien": _MAMMA[id_]["source"] if id_ in _MAMMA else "", "note": ""}
+    for id_, nom, genre, minutes, ingredients in _MATCHS
 ]

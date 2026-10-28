@@ -640,3 +640,65 @@ def semer_placard(conn, noms):
             cur.execute("INSERT INTO placard (cle, nom) VALUES (%s, %s) ON CONFLICT DO NOTHING", (normaliser(nom), nom))
     conn.commit()
     return len(noms)
+
+
+
+# --- Casa Binomerie : dîners (carnet et soirs) ---------------------------------------------------
+
+CHAMPS_PLAT = ("nom", "genre", "minutes", "ingredients", "recette", "lien", "note", "statut", "archive")
+
+
+def enregistrer_plat(conn, p):
+    """Crée ou met à jour (même id) une recette validée."""
+    valeurs = [Json(p[c]) if c == "ingredients" else p[c] for c in CHAMPS_PLAT]
+    with conn.cursor() as cur:
+        cur.execute(
+            f"""INSERT INTO plats (id, {", ".join(CHAMPS_PLAT)})
+                VALUES (%s, {", ".join(["%s"] * len(CHAMPS_PLAT))})
+                ON CONFLICT (id) DO UPDATE SET
+                {", ".join(f"{c} = EXCLUDED.{c}" for c in CHAMPS_PLAT)}, maj_le = now()""",
+            (p["id"], *valeurs))
+    conn.commit()
+
+
+def lire_plats(conn):
+    with conn.cursor() as cur:
+        cur.execute(f"SELECT id, {', '.join(CHAMPS_PLAT)} FROM plats ORDER BY nom")
+        return [dict(zip(("id", *CHAMPS_PLAT), ligne)) for ligne in cur.fetchall()]
+
+
+def plat_existe(conn, identifiant):
+    with conn.cursor() as cur:
+        cur.execute("SELECT EXISTS (SELECT 1 FROM plats WHERE id = %s)", (identifiant,))
+        return cur.fetchone()[0]
+
+
+def enregistrer_soir(conn, s):
+    """Le soir d'un jour (plat prévu, issue). Fait maison avec un plat à tester : il passe au carnet."""
+    with conn.cursor() as cur:
+        cur.execute("""INSERT INTO soirs (jour, plat, issue) VALUES (%s, %s, %s)
+                       ON CONFLICT (jour) DO UPDATE SET plat = EXCLUDED.plat, issue = EXCLUDED.issue,
+                       maj_le = now()""", (s["jour"], s["plat"], s["issue"]))
+        if s["issue"] == "fait" and s["plat"]:
+            cur.execute("""UPDATE plats SET statut = 'carnet', maj_le = now()
+                           WHERE id = %s AND statut = 'a-tester'""", (s["plat"],))
+    conn.commit()
+
+
+def lire_soirs(conn, debut, fin):
+    with conn.cursor() as cur:
+        cur.execute("SELECT jour, plat, issue FROM soirs WHERE jour BETWEEN %s AND %s ORDER BY jour", (debut, fin))
+        return [dict(zip(("jour", "plat", "issue"), ligne)) for ligne in cur.fetchall()]
+
+
+def semer_carnet(conn, carnet, a_tester):
+    """Remplit le carnet de départ s'il est vide ; renvoie le nombre de recettes ajoutées.
+    Jamais sur un carnet déjà utilisé : une recette retirée ne revient pas."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT EXISTS (SELECT 1 FROM plats)")
+        if cur.fetchone()[0]:
+            return 0
+    for statut, liste in (("carnet", carnet), ("a-tester", a_tester)):
+        for p in liste:
+            enregistrer_plat(conn, {**p, "statut": statut, "archive": False})
+    return len(carnet) + len(a_tester)
