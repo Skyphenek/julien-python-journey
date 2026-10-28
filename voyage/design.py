@@ -28,6 +28,50 @@ ICONES_RUBRIQUE = {
                                '<path d="M3 12h18M12 8v13M12 8c-2-3-6-3-6 0h6zM12 8c2-3 6-3 6 0h-6z"/>'),
 }
 
+# Le hub Casa Binomerie : une entrée par module livré (clé, libellé, adresse relative), dans l'ordre.
+# Dîners, Courses et Colis s'ajoutent ici à leur livraison : jamais de lien vers une page absente.
+HUB = [
+    ("aujourdhui", "Aujourd'hui", "./"),
+    ("vadrouille", "En Vadrouille", "vadrouille"),
+]
+ICONES_HUB = {
+    "aujourdhui": _TRAIT.format('<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/>'),
+    "vadrouille": ICONES_RUBRIQUE["valise"],
+}
+
+
+def nav_hub(actif):
+    """La navigation du hub (en bas sur téléphone, à gauche sur ordinateur), l'entrée actif en surbrillance."""
+    liens = "".join(
+        f'<a href="{adresse}" data-hub="{cle}"'
+        + (' class="actif" aria-current="page">' if cle == actif else ">")
+        + f'<span class="icone-hub">{ICONES_HUB[cle]}</span><span>{libelle}</span></a>'
+        for cle, libelle, adresse in HUB)
+    return f'<nav class="hub">{liens}</nav>'
+
+
+STYLE_NAV_HUB = """
+nav.hub { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; justify-content: center;
+          gap: 4px; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); background: var(--fond);
+          border-top: 1px solid var(--ligne); }
+nav.hub a { flex: 0 1 120px; display: flex; flex-direction: column; align-items: center; gap: 3px;
+            font-size: 12px; font-weight: 600; color: var(--doux); text-decoration: none; }
+nav.hub a .icone-hub { display: flex; padding: 6px 14px; border-radius: 16px; color: var(--c); }
+nav.hub a.actif { color: var(--texte); font-weight: 800; }
+nav.hub a.actif .icone-hub { background: var(--c-doux); }
+nav.hub a[data-hub="aujourdhui"] { --c: var(--texte); --c-doux: var(--carte); }
+nav.hub a[data-hub="vadrouille"] { --c: var(--valise); --c-doux: var(--valise-doux); }
+body.hub-page { display: block; max-width: 720px; margin: 0 auto; padding: 28px 20px 110px; }   /* place pour la barre */
+@media (min-width: 900px) {
+    nav.hub { top: 0; right: auto; width: 232px; flex-direction: column; justify-content: flex-start;
+              padding: 28px 14px; border-top: none; border-right: 1px solid var(--ligne); }
+    nav.hub a { flex: 0 0 auto; flex-direction: row; gap: 10px; font-size: 16px; padding: 6px;
+                border-radius: 18px; min-height: 48px; }
+    nav.hub a.actif { background: var(--c-doux); }
+    body.hub-page { margin-left: max(252px, calc(50% - 360px)); padding-bottom: 40px; }   /* à droite de la barre */
+}
+"""
+
 STYLE_D = """
 :root {
     --fond: #ffffff; --carte: #f4f4f8; --texte: #14142b; --doux: #5c5c74; --ligne: #e6e6ee; --blanc: #ffffff;
