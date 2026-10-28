@@ -12,7 +12,7 @@ from db import connecter, publier_page
 def client():
     conn = connecter("valise_test")
     with conn.cursor() as cur:
-        cur.execute("TRUNCATE etat_case, page_valise, voyages, valise_objets, retours, passeports, infos_etape, depenses, reservations")
+        cur.execute("TRUNCATE etat_case, page_valise, voyages, valise_objets, retours, passeports, infos_etape, depenses, reservations, a_voir")
     conn.commit()
     conn.close()
     app = creer_app("valise_test", secret="")        # secret vide : routes à la racine

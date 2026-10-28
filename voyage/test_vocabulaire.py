@@ -120,6 +120,6 @@ def test_sur_place_dans_l_ordre_decalage_devises_depenses_urgences_vocabulaire()
     positions = [sur_place.index(f'class="info {bloc}"')
                  for bloc in ("decalage", "devises", "depenses", "urgences", "vocabulaire")]
     assert positions == sorted(positions)
-    assert "Bientôt : visites à faire." in sur_place
+    assert "Bientôt" not in sur_place
     assert SCRIPT_VOCABULAIRE in html
     assert VERSION_PAGE >= 18

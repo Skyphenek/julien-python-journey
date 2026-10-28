@@ -413,5 +413,6 @@ SCRIPT_PROGRAMME = """
     charger();
     document.addEventListener('visibilitychange', function () { if (!document.hidden) charger(); });
     document.addEventListener('file-videe', charger);
+    document.addEventListener('programme-a-recharger', charger);           // un lieu « à voir » planifié
 })();
 """

@@ -149,3 +149,22 @@ CREATE TABLE IF NOT EXISTS reservations (
     maj_le      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS reservations_voyage ON reservations (voyage, jour);
+
+-- « 💡 À voir » (rubrique Programme) : les envies de chaque étape (destination + rang, comme les
+-- anciennes fiches d'étapes). id choisi par le téléphone (hors ligne sans doublon) ; prevu : le
+-- jour où le lieu a été placé dans le Programme.
+CREATE TABLE IF NOT EXISTS a_voir (
+    id          TEXT        PRIMARY KEY,
+    voyage      TEXT        NOT NULL REFERENCES voyages(code) ON DELETE CASCADE,
+    destination TEXT        NOT NULL,
+    rang        SMALLINT    NOT NULL DEFAULT 1,
+    nom         TEXT        NOT NULL,
+    adresse     TEXT        NOT NULL DEFAULT '',
+    note        TEXT        NOT NULL DEFAULT '',
+    lien        TEXT        NOT NULL DEFAULT '',
+    genre       TEXT        NOT NULL DEFAULT 'voir',
+    fait        BOOLEAN     NOT NULL DEFAULT false,
+    prevu       DATE,
+    maj_le      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS a_voir_voyage ON a_voir (voyage);
