@@ -17,7 +17,7 @@ def voyage(depart, jours=10, libelle="Hanoï"):
 
 
 def test_le_hub_commence_par_aujourd_hui_et_finit_par_la_vadrouille():
-    assert [cle for cle, _, _ in HUB] == ["aujourdhui", "courses", "vadrouille"]   # les modules s'ajoutent à leur livraison
+    assert [cle for cle, _, _ in HUB] == ["aujourdhui", "diners", "courses", "vadrouille"]   # les modules s'ajoutent à leur livraison
     assert HUB[0][2] == "./" and HUB[-1][2] == "vadrouille"
 
 
@@ -30,7 +30,7 @@ def test_nav_marque_l_entree_active():
 
 def test_nav_sans_lien_mort():
     nav = nav_hub("aujourdhui")
-    for cle in ("diners", "colis"):
+    for cle in ("colis",):
         assert cle not in nav
 
 
@@ -72,7 +72,28 @@ def test_bloc_vadrouille_avec_compte_a_rebours():
 def test_sans_voyage_proche_pas_de_bloc_vadrouille():
     html = aujourdhui_en_html([voyage(AUJOURD_HUI + timedelta(days=90))], AUJOURD_HUI)
     assert '<div class="bloc-vadrouille">' not in html
-    assert 'class="attente"' in html
+
+
+def test_ce_soir():
+    vide = aujourdhui_en_html([], AUJOURD_HUI)
+    assert '<a class="bloc-ce-soir vide" href="diners#ce-soir">' in vide and "Rien de prévu" in vide
+    html = aujourdhui_en_html([], AUJOURD_HUI, plat_du_soir={"nom": "Carbonara", "minutes": 20})
+    assert "<strong>Carbonara</strong><span>20 min" in html
+
+
+def test_hier_soir_tant_que_pas_renseigne():
+    hier = {"jour": AUJOURD_HUI - timedelta(days=1), "plat": "plat-carbonara", "issue": None}
+    html = aujourdhui_en_html([], AUJOURD_HUI, soir_hier=hier)
+    assert "Hier soir ?" in html and 'data-issue="commande"' in html
+    assert "&quot;jour&quot;: &quot;2026-10-27&quot;, &quot;plat&quot;: &quot;plat-carbonara&quot;" in html
+    assert "Hier soir ?" not in aujourdhui_en_html([], AUJOURD_HUI, soir_hier={**hier, "issue": "fait"})
+
+
+def test_compteur_deliveroo():
+    html = aujourdhui_en_html([], AUJOURD_HUI, compte={"semaine": 2, "moyenne": 1.5, "renseignes": 9})
+    assert '<div class="bloc-compteur trop">' in html and "2 commandes ces 7 jours" in html and "Moyenne 1,5" in html
+    assert '<div class="bloc-compteur ok">' in aujourdhui_en_html([], AUJOURD_HUI, compte={"semaine": 1, "moyenne": 1, "renseignes": 3})
+    assert "bloc-compteur" not in aujourdhui_en_html([], AUJOURD_HUI, compte={"semaine": 0, "moyenne": 0, "renseignes": 0}).split("<body")[1]
 
 
 def test_bloc_courses():

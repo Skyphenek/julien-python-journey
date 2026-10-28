@@ -9,8 +9,9 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from carnet_depart import CARNET_DEPART, A_TESTER
 from courses import PLACARD_DEPART
-from db import connecter, semer_placard
+from db import connecter, semer_placard, semer_carnet
 
 load_dotenv(Path(__file__).parent / ".env")
 
@@ -31,6 +32,9 @@ def appliquer(conn, pour_de_bon):
         semes = semer_placard(conn, PLACARD_DEPART)        # placard vide seulement : jamais d'écrasement
         if semes:
             print(f"Placard de départ : {semes} basiques, tous en stock.")
+        recettes = semer_carnet(conn, CARNET_DEPART, A_TESTER)    # carnet vide seulement
+        if recettes:
+            print(f"Carnet de départ : {recettes} recettes ({len(CARNET_DEPART)} au carnet, {len(A_TESTER)} à tester).")
     else:
         conn.rollback()
         print(f"À blanc : table(s) à créer : {', '.join(nouvelles) or 'aucune'}. Relance avec --appliquer.")

@@ -32,11 +32,13 @@ ICONES_RUBRIQUE = {
 # Dîners, Courses et Colis s'ajoutent ici à leur livraison : jamais de lien vers une page absente.
 HUB = [
     ("aujourdhui", "Aujourd'hui", "./"),
+    ("diners", "Dîners", "diners"),
     ("courses", "Courses", "courses"),
     ("vadrouille", "En Vadrouille", "vadrouille"),
 ]
 ICONES_HUB = {
     "aujourdhui": _TRAIT.format('<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/>'),
+    "diners": _TRAIT.format('<path d="M7 3v7a2 2 0 0 0 4 0V3M9 10v11M17 3c-1.7 0-3 2-3 5s1.3 4 3 4v9"/>'),
     "courses": _TRAIT.format('<circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/>'
                              '<path d="M2 3h3l2.7 12.4a1 1 0 0 0 1 .8h9.6a1 1 0 0 0 1-.8L21 7H6"/>'),
     "vadrouille": ICONES_RUBRIQUE["valise"],
@@ -54,8 +56,9 @@ def nav_hub(actif):
 
 
 STYLE_NAV_HUB = """
-:root { --courses: #0b7a87; --courses-doux: #e0f3f5; }
-@media (prefers-color-scheme: dark) { :root { --courses: #4cc3d1; --courses-doux: #10343a; } }
+:root { --courses: #0b7a87; --courses-doux: #e0f3f5; --diners: #c2410c; --diners-doux: #ffede3; }
+@media (prefers-color-scheme: dark) { :root { --courses: #4cc3d1; --courses-doux: #10343a;
+                                              --diners: #ff8f5a; --diners-doux: #3b1d0f; } }
 nav.hub { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; justify-content: center;
           gap: 4px; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); background: var(--fond);
           border-top: 1px solid var(--ligne); }
@@ -65,6 +68,7 @@ nav.hub a .icone-hub { display: flex; padding: 6px 14px; border-radius: 16px; co
 nav.hub a.actif { color: var(--texte); font-weight: 800; }
 nav.hub a.actif .icone-hub { background: var(--c-doux); }
 nav.hub a[data-hub="aujourdhui"] { --c: var(--texte); --c-doux: var(--carte); }
+nav.hub a[data-hub="diners"] { --c: var(--diners); --c-doux: var(--diners-doux); }
 nav.hub a[data-hub="courses"] { --c: var(--courses); --c-doux: var(--courses-doux); }
 nav.hub a[data-hub="vadrouille"] { --c: var(--valise); --c-doux: var(--valise-doux); }
 body.hub-page { display: block; max-width: 720px; margin: 0 auto; padding: 28px 20px 110px; }   /* place pour la barre */

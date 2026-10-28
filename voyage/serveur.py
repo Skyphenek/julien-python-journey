@@ -9,7 +9,7 @@ import json
 import os
 import re
 from decimal import Decimal, InvalidOperation
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from urllib.parse import quote
 
@@ -24,7 +24,7 @@ from db import (emprunter, ajouter_depense, lire_depenses, supprimer_depense, ob
                 lire_souvenirs, supprimer_souvenir, enregistrer_coche, lister_voyages, lire_voyage, archiver_voyage,
                 VERDICTS, enregistrer_retour, supprimer_retour, lire_retours,
                 enregistrer_article, lire_courses, supprimer_article, vider_pris, compter_a_prendre,
-                enregistrer_placard)
+                enregistrer_placard, enregistrer_plat, lire_plats, plat_existe, enregistrer_soir, lire_soirs)
 from valise import (solde_depenses, actualiser_meteo, fenetres_du_voyage, page_du_voyage, accueil_en_html,
                     lieux_depuis_reponse, normales_ou_url, normales_depuis_historique,
                     formulaire_en_html, creer_voyage, VERSION_PAGE)
@@ -34,8 +34,11 @@ from programme import valider_reservation
 from a_voir import valider_a_voir, suggestions_depuis_wikitext
 from souvenirs import valider_proche, valider_souvenir
 from vocabulaire import LANGUES
-from casa import aujourdhui_en_html
+from casa import aujourdhui_en_html, aujourd_hui_paris
 from courses import valider_article, valider_placard, courses_en_html
+from diners import (valider_plat, valider_soir, secours, a_acheter, compteur, semaine, diners_en_html,
+                    FENETRE_PASSE, FENETRE_FUTUR)
+from uuid import uuid4
 
 load_dotenv(Path(__file__).parent / ".env")   # en local : lit voyage/.env s'il existe
 
@@ -52,13 +55,90 @@ def creer_app(nom_base="valise", secret=None):
         """Sans paramètre : Aujourd'hui (accueil du hub). Avec ?v=, ?nouvelle, ?modifier= : En Vadrouille,
         pour que les adresses déjà enregistrées sur les téléphones marchent toujours."""
         if not request.args:
+            jour = aujourd_hui_paris()
             conn = emprunter(app.config["NOM_BASE"])
             try:
-                html = aujourdhui_en_html(lister_voyages(conn), date.today(), compter_a_prendre(conn))
+                soirs = {s["jour"]: s for s in lire_soirs(conn, jour - timedelta(days=FENETRE_PASSE), jour)}
+                plats = {p["id"]: p for p in lire_plats(conn)}
+                ce_soir = soirs.get(jour, {}).get("plat")
+                hier = soirs.get(jour - timedelta(days=1), {"jour": jour - timedelta(days=1), "plat": None, "issue": None})
+                html = aujourdhui_en_html(lister_voyages(conn), jour, compter_a_prendre(conn),
+                                          plats.get(ce_soir), hier, compteur(list(soirs.values()), jour))
             finally:
                 conn.close()
             return Response(html, mimetype="text/html")
         return vadrouille()
+
+    # --- Casa Binomerie : dîners ---
+
+    @routes.get("/diners")
+    def page_diners():
+        return Response(diners_en_html(), mimetype="text/html")
+
+    @routes.get("/api/diners")
+    def lire_les_diners():
+        """Tout ce que la page Dîners affiche ; le secours est calculé ici (logique testée en Python)."""
+        jour = aujourd_hui_paris()
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            plats = lire_plats(conn)
+            soirs = lire_soirs(conn, jour - timedelta(days=FENETRE_PASSE), jour + timedelta(days=FENETRE_FUTUR))
+            placard = lire_courses(conn)["placard"]
+        finally:
+            conn.close()
+        faisables, presque = secours(plats, placard)
+        return jsonify({
+            "aujourd_hui": jour.isoformat(), "semaine": [j.isoformat() for j in semaine(jour)],
+            "plats": plats, "soirs": [{**s, "jour": s["jour"].isoformat()} for s in soirs],
+            "stock": [p["cle"] for p in placard if p["en_stock"]],
+            "secours": {"faisables": [p["id"] for p in faisables],
+                        "presque": [{"plat": x["plat"]["id"], "manquants": x["manquants"]} for x in presque]},
+            "compteur": compteur(soirs, jour)})
+
+    @routes.post("/api/plats")
+    def enregistrer_une_recette():
+        try:
+            plat = valider_plat(request.get_json(silent=True))
+        except ValueError as e:
+            return jsonify({"erreur": str(e)}), 400
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            enregistrer_plat(conn, plat)
+        finally:
+            conn.close()
+        return jsonify({"ok": True})
+
+    @routes.post("/api/soirs")
+    def enregistrer_un_soir():
+        try:
+            soir = valider_soir(request.get_json(silent=True), aujourd_hui_paris())
+        except ValueError as e:
+            return jsonify({"erreur": str(e)}), 400
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            if soir["plat"] and not plat_existe(conn, soir["plat"]):
+                return jsonify({"erreur": "plat inconnu"}), 400
+            enregistrer_soir(conn, soir)
+        finally:
+            conn.close()
+        return jsonify({"ok": True})
+
+    @routes.post("/api/diners/courses")
+    def courses_de_la_semaine():
+        """Les ingrédients des plats prévus cette semaine, ni au placard ni déjà sur la liste."""
+        jour = aujourd_hui_paris()
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            plats = {p["id"]: p for p in lire_plats(conn)}
+            prevus = [plats[s["plat"]] for s in lire_soirs(conn, jour, jour + timedelta(days=6)) if s["plat"] in plats]
+            lu = lire_courses(conn)
+            ajoutes = []
+            for nom, id_plat in a_acheter(prevus, lu["placard"], lu["articles"]):
+                enregistrer_article(conn, valider_article({"id": str(uuid4()), "nom": nom, "source": f"plat:{id_plat}"}))
+                ajoutes.append(nom)
+        finally:
+            conn.close()
+        return jsonify({"ok": True, "ajoutes": ajoutes})
 
     # --- Casa Binomerie : courses et placard ---
 

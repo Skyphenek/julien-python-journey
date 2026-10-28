@@ -1,10 +1,13 @@
 """Casa Binomerie : le hub de la maison, dont En Vadrouille est une section.
 
-Livraison 1 (squelette) : la page Aujourd'hui et la navigation. Dîners, Courses et Colis viendront
-y ajouter chacun leur bloc (spec : docs/superpowers/specs/2026-10-28-hub-maison-design.md).
+La page Aujourd'hui : chaque module y remonte une ligne — ce soir, hier soir, les courses, le prochain
+voyage, le compteur Deliveroo (spec : docs/superpowers/specs/2026-10-28-hub-maison-design.md).
 """
+import json
+from datetime import datetime
 from html import escape as echapper
 from urllib.parse import quote
+from zoneinfo import ZoneInfo
 
 from compte_a_rebours import compte_en_html, STYLE_COMPTE, SCRIPT_COMPTE
 from design import STYLE_D, STYLE_NAV_HUB, TETE_POLICE, nav_hub
@@ -15,6 +18,11 @@ from valise import HTML_STYLE, MOIS
 NOM = "Casa Binomerie"
 HORIZON_VADROUILLE = 60        # jours : au-delà, le prochain voyage ne s'affiche pas sur Aujourd'hui
 JOURS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
+
+
+def aujourd_hui_paris():
+    """La date à Paris : le serveur (Render) est en UTC, « ce soir » ne doit pas basculer à 1 h du matin."""
+    return datetime.now(ZoneInfo("Europe/Paris")).date()
 
 
 def jour_en_clair(d):
@@ -48,6 +56,27 @@ a.bloc-courses { display: flex; justify-content: space-between; align-items: cen
                 border-radius: 24px; padding: 18px 20px; margin: 16px 0; }
 a.bloc-courses strong { font-size: 19px; font-weight: 800; color: var(--courses); }
 a.bloc-courses span { font-weight: 700; }
+a.bloc-ce-soir { display: flex; flex-direction: column; gap: 2px; background: #c2410c; color: #ffffff;
+                text-decoration: none; border-radius: 28px; padding: 20px 22px; margin: 16px 0; }
+a.bloc-ce-soir.vide { background: var(--diners-doux); color: var(--texte); }
+a.bloc-ce-soir .titre { font-size: 14px; font-weight: 700; opacity: .85; }
+a.bloc-ce-soir strong { font-size: 28px; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; }
+a.bloc-ce-soir.vide strong { color: var(--diners); }
+div.bloc-hier { background: var(--carte); border-radius: 24px; padding: 18px 20px; margin: 16px 0; display: flex;
+                flex-direction: column; gap: 10px; }
+div.bloc-hier strong { font-size: 19px; font-weight: 800; }
+div.bloc-hier .choix { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+div.bloc-hier button { min-height: 48px; border-radius: 16px; border: 2px solid var(--ligne); background: var(--blanc);
+                       color: var(--texte); font-family: inherit; font-weight: 700; font-size: 15px; }
+div.bloc-hier button[data-issue="commande"] { border-color: var(--diners); color: var(--diners); }
+div.bloc-hier .message { margin: 0; color: var(--diners); font-weight: 700; font-size: 14px; }
+div.bloc-compteur { display: flex; flex-direction: column; gap: 2px; border-radius: 24px; padding: 16px 20px; margin: 16px 0;
+                    background: var(--carte); }
+div.bloc-compteur .titre { font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--doux); }
+div.bloc-compteur strong { font-size: 20px; font-weight: 800; }
+div.bloc-compteur.ok strong { color: var(--courses); }
+div.bloc-compteur.trop strong { color: var(--diners); }
+div.bloc-compteur span:last-child { color: var(--doux); font-size: 14px; }
 p.attente { background: var(--carte); border-radius: 24px; padding: 18px; color: var(--doux); }
 """
 
@@ -59,12 +88,63 @@ def bloc_courses(a_prendre):
             f'<span>{a_prendre} article{"s" if a_prendre > 1 else ""} à prendre</span></a>')
 
 
-def aujourdhui_en_html(voyages, aujourd_hui, a_prendre=0):
-    """L'accueil du hub : ce qui compte aujourd'hui — les courses à faire, le prochain voyage."""
+def bloc_ce_soir(plat):
+    if plat:
+        return (f'<a class="bloc-ce-soir" href="diners#ce-soir"><span class="titre">Ce soir</span>'
+                f'<strong>{echapper(plat["nom"])}</strong><span>{plat["minutes"]} min · voir la recette</span></a>')
+    return ('<a class="bloc-ce-soir vide" href="diners#ce-soir"><span class="titre">Ce soir</span>'
+            '<strong>Rien de prévu</strong><span>Voir ce que le placard permet en 20 minutes</span></a>')
+
+
+ISSUES_HIER = [("fait", "Fait maison"), ("commande", "Commandé"), ("dehors", "Dehors"), ("autre", "Autre")]
+
+
+def bloc_hier(soir_hier):
+    """« Hier soir ? » tant que le soir d'hier n'est pas renseigné : c'est ce qui compte les Deliveroo."""
+    if soir_hier["issue"]:
+        return ""
+    corps = json.dumps({"jour": soir_hier["jour"].isoformat(), "plat": soir_hier["plat"]})
+    boutons = "".join(f'<button type="button" data-issue="{c}">{t}</button>' for c, t in ISSUES_HIER)
+    return (f'<div class="bloc-hier" data-soir="{echapper(corps)}"><strong>Hier soir ?</strong>'
+            f'<div class="choix">{boutons}</div><p class="message" aria-live="polite"></p></div>')
+
+
+def bloc_compteur(c):
+    if not c or not c["renseignes"]:
+        return ""
+    moyenne = f'{c["moyenne"]:.1f}'.replace(".", ",")
+    etat = "ok" if c["semaine"] <= 1 else "trop"
+    return (f'<div class="bloc-compteur {etat}"><span class="titre">Deliveroo</span>'
+            f'<strong>{c["semaine"]} commande{"s" if c["semaine"] > 1 else ""} ces 7 jours</strong>'
+            f'<span>Moyenne {moyenne} par semaine sur 6 semaines · objectif : 1 au plus · départ : 3</span></div>')
+
+
+SCRIPT_HIER = """
+(function () {
+    const bloc = document.querySelector('div.bloc-hier');
+    if (!bloc) return;
+    const soir = JSON.parse(bloc.dataset.soir);
+    bloc.querySelectorAll('button').forEach(function (b) {
+        b.addEventListener('click', function () {
+            bloc.querySelectorAll('button').forEach(function (x) { x.disabled = true; });
+            fetch('api/soirs', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                 body: JSON.stringify(Object.assign({}, soir, { issue: b.dataset.issue })) })
+                .then(function (r) { if (!r.ok) throw new Error(r.status); location.reload(); })
+                .catch(function () {
+                    bloc.querySelector('.message').textContent = 'Pas envoyé : réessaie une fois connecté.';
+                    bloc.querySelectorAll('button').forEach(function (x) { x.disabled = false; });
+                });
+        });
+    });
+})();
+"""
+
+
+def aujourdhui_en_html(voyages, aujourd_hui, a_prendre=0, plat_du_soir=None, soir_hier=None, compte=None):
+    """L'accueil du hub : ce soir, hier soir, les courses, le prochain voyage, le compteur Deliveroo."""
     v = prochain_voyage(voyages, aujourd_hui)
-    blocs = bloc_courses(a_prendre) + (bloc_vadrouille(v, aujourd_hui) if v else "")
-    if not blocs:
-        blocs = '<p class="attente">Rien de prévu pour l\'instant. Les dîners et les colis arrivent ici bientôt.</p>'
+    blocs = (bloc_ce_soir(plat_du_soir) + (bloc_hier(soir_hier) if soir_hier else "") + bloc_courses(a_prendre)
+             + (bloc_vadrouille(v, aujourd_hui) if v else "") + bloc_compteur(compte))
     return f"""<!doctype html>
 <html lang="fr">
 <head>
@@ -81,5 +161,6 @@ def aujourdhui_en_html(voyages, aujourd_hui, a_prendre=0):
 {blocs}
 {nav_hub("aujourdhui")}
 <script>{SCRIPT_COMPTE}</script>
+<script>{SCRIPT_HIER}</script>
 </body>
 </html>"""

@@ -217,3 +217,28 @@ CREATE TABLE IF NOT EXISTS placard (
     en_stock    BOOLEAN     NOT NULL DEFAULT true,
     maj_le      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Casa Binomerie — Dîners : le carnet (statut 'carnet') et les envies du Match des Recettes
+-- ('a-tester'). ingredients : liste de noms, comparés normalisés au placard et aux courses.
+-- id choisi par le téléphone (hors ligne).
+CREATE TABLE IF NOT EXISTS plats (
+    id          TEXT        PRIMARY KEY,
+    nom         TEXT        NOT NULL,
+    genre       TEXT        NOT NULL DEFAULT 'plat'
+                            CHECK (genre IN ('plat', 'accompagnement', 'entree', 'dessert')),
+    minutes     SMALLINT    NOT NULL CHECK (minutes BETWEEN 1 AND 600),
+    ingredients JSONB       NOT NULL DEFAULT '[]',
+    recette     TEXT        NOT NULL DEFAULT '',
+    lien        TEXT        NOT NULL DEFAULT '',
+    note        TEXT        NOT NULL DEFAULT '',
+    statut      TEXT        NOT NULL DEFAULT 'carnet' CHECK (statut IN ('carnet', 'a-tester')),
+    archive     BOOLEAN     NOT NULL DEFAULT false,
+    maj_le      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- Les soirs : le plat prévu, et ce qui s'est vraiment passé — la mesure du succès (Deliveroo).
+CREATE TABLE IF NOT EXISTS soirs (
+    jour        DATE        PRIMARY KEY,
+    plat        TEXT        REFERENCES plats(id) ON DELETE SET NULL,
+    issue       TEXT        CHECK (issue IN ('fait', 'commande', 'dehors', 'autre')),
+    maj_le      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
