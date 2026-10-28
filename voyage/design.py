@@ -161,4 +161,68 @@ a.voyage span.compte { color: var(--valise); }
 section.liste h2 { font-size: 20px; font-weight: 800; color: var(--texte); }
 #carte { border-radius: 24px; }
 div.bloc { background: var(--carte); border-radius: 22px; box-shadow: none; }
+
+/* Urgences : une pastille par numéro (maquette D) */
+div.urgences h4 { font-size: 16px; font-weight: 800; margin: 14px 0 8px; }
+div.urgences h4 .source { color: var(--doux); font-weight: 600; }
+div.pastilles-urgence { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+a.pastille-urgence { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+                     min-height: 76px; padding: 8px; border-radius: 22px; background: #ffe3e3; color: #a3150d;
+                     text-decoration: none; text-align: center; line-height: 1.15; }
+a.pastille-urgence strong { font-size: 24px; font-weight: 800; letter-spacing: -0.01em; }
+a.pastille-urgence span { font-size: 12px; font-weight: 600; }
+.appel-ambassade { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0 0;
+                   padding: 12px 16px; border-radius: 18px; background: var(--blanc); color: var(--texte);
+                   text-decoration: none; }
+.appel-ambassade span { display: flex; flex-direction: column; font-size: 13px; color: var(--doux); }
+.appel-ambassade strong { font-size: 15px; color: var(--texte); }
+.appel-ambassade em { font-style: normal; font-weight: 800; color: var(--rubrique); white-space: nowrap; font-size: 14px; }
+@media (prefers-color-scheme: dark) {
+    a.pastille-urgence { background: #47191b; color: #ffb4ab; }
+}
+
+/* Avant de partir : une carte par tâche, l'échéance en pastille (maquette D) */
+details.rayon.avant { background: transparent; }
+details.rayon.avant > summary { padding: 4px 2px 10px; min-height: 0; font-size: 21px; }
+details.rayon.avant ul { padding: 0; gap: 8px; }
+li.tache label { background: var(--carte); border-radius: 20px; padding: 14px 16px; align-items: center; min-height: 64px; }
+li.tache .nom { font-size: 16px; font-weight: 600; line-height: 1.3; }
+li.tache .echeance { background: var(--blanc); border-radius: 10px; padding: 4px 8px; font-size: 12px; font-weight: 800; }
+li.tache a.source { padding: 4px 0 4px 18px; font-weight: 700; color: var(--rubrique); }
+li.retard:not(:has(input:checked)) .echeance { background: #ffe3e3; color: #a3150d; }
+li.tache:has(input:checked) label { opacity: .7; }
+li.tache .avant-le { display: none; }                 /* la pastille dit juste « 16/11 » */
+
+/* Formulaire « On part où ? » : pastilles au lieu de cases et boutons radio (maquette D) */
+body.formulaire h1 { font-size: 38px; line-height: 1; margin: 6px 0 18px; }
+body.formulaire a.retour { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border-radius: 999px;
+                           background: var(--carte); color: var(--texte); font-weight: 600; text-decoration: none; }
+div.bloc { padding: 18px; margin-bottom: 12px; }
+form input[type=text], form input[type=date], form input[type=number] { border: 2px solid var(--ligne); border-radius: 16px;
+    background: var(--blanc); min-height: 48px; padding: 0 14px; font-family: inherit; font-size: 17px; }
+form input:focus { outline: none; border-color: var(--valise); }
+legend, form label { font-weight: 700; }
+fieldset { display: flex; flex-wrap: wrap; gap: 8px; }
+fieldset legend { flex-basis: 100%; margin-bottom: 8px; }
+fieldset label, .activites label, div.options > label:not(#bloc-lessive) {
+    position: relative; display: inline-flex; align-items: center; min-height: 44px; margin: 0; padding: 0 16px;
+    border: 2px solid var(--ligne); border-radius: 999px; background: var(--blanc); font-weight: 600; cursor: pointer; }
+fieldset label input, .activites label input, div.options > label:not(#bloc-lessive) input {
+    position: absolute; opacity: 0; pointer-events: none; }          /* la pastille entière fait la case */
+fieldset label:has(input:checked) { background: var(--texte); border-color: var(--texte); color: var(--fond); }
+.activites label:has(input:checked), div.options > label:has(input:checked) {
+    background: var(--valise-doux); border-color: var(--valise); color: var(--texte); }
+label:has(input:focus-visible) { outline: 3px solid var(--valise); outline-offset: 2px; }
+.activites { gap: 8px; margin-top: 10px; }
+div.options { display: flex; flex-wrap: wrap; gap: 8px; }
+div.options #bloc-lessive { flex-basis: 100%; font-weight: 600; }
+div.etape.bloc { border-radius: 24px; }
+div.etape.bloc:nth-child(3n+1) { background: var(--valise-doux); }
+div.etape.bloc:nth-child(3n+2) { background: var(--avant-doux); }
+div.etape.bloc:nth-child(3n) { background: var(--sur-place-doux); }
+div.etape .numero { font-size: 20px; font-weight: 800; }
+div.etape .chercher { min-height: 48px; }
+button.ajouter-etape { width: 100%; min-height: 54px; border: 2px dashed #c9c9d6; border-radius: 22px; background: transparent;
+                       color: var(--texte); font: inherit; font-size: 16px; font-weight: 800; cursor: pointer; }
+body.formulaire button.principal { min-height: 58px; background: var(--valise); font-size: 17px; }
 """

@@ -1693,8 +1693,9 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # 17 = carnet 🗓️ Programme (remplace les infos d'étapes) ; 18 = vocabulaire + Sur place réordonnée ;
 # 19 = « 💡 À voir » dans le Programme ; 20 = 🎁 Souvenirs ; 21 = ⏳ compte à rebours ;
 # 22 = Avant de partir : seulement ce qui compte (visa à faire, zone tropicale, Ariane, assurance) ;
-# 23 = design D (une couleur par rubrique, onglets en bas, barre latérale sur ordinateur).
-VERSION_PAGE = 23
+# 23 = design D (une couleur par rubrique, onglets en bas, barre latérale sur ordinateur) ;
+# 24 = finitions D : urgences en pastilles, tâches Avant en cartes.
+VERSION_PAGE = 24
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
 RUBRIQUES = [("valise", "Valise"), ("avant", "Avant"), ("programme", "Programme"), ("sur-place", "Sur place"),
@@ -1738,24 +1739,30 @@ def urgences_du_voyage(itineraire):
 
 
 def bloc_urgences(urgences):
-    """Le bloc « Urgences » : numéros à un tap, ambassade, rappel de l'opposition bancaire."""
-    def appel(libelle, numero):
-        return (f'<li>{echapper(libelle, quote=False)} : <a href="{lien_tel(numero)}">'
-                f'{echapper(numero, quote=False)}</a></li>')
+    """Le bloc « Urgences » : une pastille par numéro (un tap appelle), l'ambassade en ligne
+    d'appel, et le rappel de l'opposition bancaire."""
+    def pastille(libelle, numero):
+        return (f'<a class="pastille-urgence" href="{lien_tel(numero)}"><strong>{echapper(numero, quote=False)}</strong>'
+                f'<span>{echapper(libelle, quote=False)}</span></a>')
     corps = ""
     for u in urgences:
-        lignes = "".join(appel(l, n) for l, n in u["numeros"])
+        pastilles = "".join(pastille(l, n) for l, n in [*u["numeros"], *u["autres"]])
         a = u["ambassade"]
+        ambassade = ""
         if a:
-            tel = f' · <a href="{lien_tel(a["telephone"])}">{a["telephone"]}</a>' if a["telephone"] else ""
-            lignes += f'<li>🇫🇷 Ambassade ({echapper(a["ville"], quote=False)}) : {echapper(a["adresse"], quote=False)}{tel}</li>'
-        lignes += "".join(appel(l, n) for l, n in u["autres"])
+            adresse = f'<span>{echapper(a["adresse"], quote=False)}</span>'
+            ambassade = (f'<a class="appel-ambassade" href="{lien_tel(a["telephone"])}">'
+                         f'<span><strong>Ambassade de France ({echapper(a["ville"], quote=False)})</strong>{adresse}</span>'
+                         f'<em>{a["telephone"]}</em></a>' if a["telephone"] else
+                         f'<p class="appel-ambassade"><span><strong>Ambassade de France '
+                         f'({echapper(a["ville"], quote=False)})</strong>{adresse}</span></p>')
         lien = f' <a class="source" href="{u["lien"]}" target="_blank" rel="noopener">contacts officiels ↗</a>' if u["lien"] else ""
-        if not lignes:
-            lignes = '<li>Pas de numéros dans notre table : voir les contacts officiels.</li>'
-        corps += f'<h4>{echapper(u["pays"], quote=False)}{lien}</h4><ul>{lignes}</ul>'
-    return (f'<div class="info urgences"><h3>🆘 Urgences</h3>{corps}'
-            f'<p class="conseil">💳 Carte perdue ou volée : appelle le numéro d\'opposition de ta banque '
+        if not pastilles and not ambassade:
+            ambassade = '<p class="conseil">Pas de numéros dans notre table : voir les contacts officiels.</p>'
+        corps += (f'<h4>{echapper(u["pays"], quote=False)}{lien}</h4>'
+                  f'{f"<div class=\"pastilles-urgence\">{pastilles}</div>" if pastilles else ""}{ambassade}')
+    return (f'<div class="info urgences"><h3>Urgences</h3>{corps}'
+            f'<p class="conseil">Carte perdue ou volée : appelle le numéro d\'opposition de ta banque '
             f'(dans son appli ou au dos de la carte), à noter avant de partir.</p></div>')
 
 
@@ -1994,7 +2001,8 @@ def rayon_taches(titre, icone, theme, taches, cle_voyage):
         rayon += (f'<li class="tache{" ok" if t.get("ok") else ""}"{quand}>'
                   f'<label><input type="checkbox" data-key="{echapper(cle)}">'
                   f'<span class="nom">{echapper(t["texte"], quote=False)}</span>'
-                  f'<span class="echeance">avant le {t["quand"]:%d/%m}</span></label>{lien}</li>')
+                  f'<span class="echeance" title="À faire avant le {t["quand"]:%d/%m}">'
+                  f'<span class="avant-le">avant le </span>{t["quand"]:%d/%m}</span></label>{lien}</li>')
     return rayon + "</ul></details>"
 
 
@@ -2980,7 +2988,7 @@ def formulaire_en_html(voyage=None):
     voyage : un voyage en base -> formulaire de modification, prérempli.
     """
     initial = formulaire_initial(voyage) if voyage else None
-    titre = "✏️ Modifier la valise" if voyage else "➕ Nouvelle valise"
+    titre = "Modifier la valise" if voyage else "On part où ?"
     bouton = "Enregistrer les modifications" if voyage else "Créer la valise"
     donnees = json.dumps(initial, ensure_ascii=False).replace("</", "<\\/")
     cases = "".join(f'<label><input type="checkbox" value="{activite}"{" checked" if activite == "ville" else ""}>'
@@ -2990,7 +2998,7 @@ def formulaire_en_html(voyage=None):
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{titre[2:]}</title>
+<title>{"Modifier la valise" if voyage else "Nouvelle valise"}</title>
 {TETE_PWA}
 {TETE_POLICE}
 <style>{HTML_STYLE}{FORMULAIRE_STYLE}{STYLE_D}</style>
@@ -2999,7 +3007,7 @@ def formulaire_en_html(voyage=None):
 <a class="retour" href="./">← Tous les voyages</a>
 <h1>{titre}</h1>
 <form id="creation">
-<div class="bloc">
+<div class="bloc quand">
 <label>Date de départ<br><input type="date" id="depart" required></label>
 <fieldset><legend>Qui part ?</legend>
 <label><input type="radio" name="personnes" value="j">Julien</label>
@@ -3008,10 +3016,10 @@ def formulaire_en_html(voyage=None):
 </fieldset>
 </div>
 <div id="etapes"></div>
-<p><button type="button" id="ajouter-etape" class="ctrl-btn">➕ Ajouter une étape</button></p>
-<div class="bloc">
+<p><button type="button" id="ajouter-etape" class="ajouter-etape">+ Une étape</button></p>
+<div class="bloc options">
 <label><input type="checkbox" id="conduit"> On conduit (voiture ou scooter)</label>
-<label><input type="checkbox" id="cabine"> 🎒 Bagage cabine seulement</label>
+<label><input type="checkbox" id="cabine"> Bagage cabine seulement</label>
 <label id="bloc-lessive" hidden>Lessive en route : tous les
 <input type="number" id="lessive" min="1" inputmode="numeric"> jours (vide = pas de lessive)</label>
 </div>

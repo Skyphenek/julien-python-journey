@@ -148,7 +148,7 @@ def test_tache_cochable_avec_cle_stable_et_echeance():
     html = page_vn_kh()
     assert 'data-key="2027-01-10 X/Partagé/Avant de partir/visa-KH"' in html
     assert 'data-quand="2026-12-11"' in html
-    assert "avant le 11/12" in html
+    assert '<span class="avant-le">avant le </span>11/12' in html
 
 
 def test_tache_avec_lien_vers_la_source():
