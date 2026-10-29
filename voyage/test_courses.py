@@ -4,8 +4,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 import pytest
-from courses import (RAYONS, normaliser, deviner_rayon, valider_article, valider_placard, PLACARD_DEPART,
-                     courses_en_html)
+from courses import (RAYONS, ZONES, normaliser, deviner_rayon, deviner_zone, valider_article, valider_placard,
+                     PLACARD_DEPART, courses_en_html)
 
 ID = "a1b2c3d4-0000"
 
@@ -18,7 +18,7 @@ def test_normaliser_ignore_casse_accents_et_espaces():
 
 def test_rayons_dans_l_ordre_du_magasin():
     assert [cle for cle, _ in RAYONS] == ["fruits-legumes", "frais", "boucherie", "boulangerie", "epicerie",
-                                          "surgeles", "boissons", "hygiene-maison", "autre"]
+                                          "surgeles", "boissons", "specialise", "hygiene-maison", "autre"]
 
 
 @pytest.mark.parametrize("nom, rayon", [
@@ -64,10 +64,41 @@ def test_valider_article_refuse(corps):
 
 
 def test_valider_placard():
-    assert valider_placard({"nom": " Œufs ", "en_stock": False}) == {"cle": "oeufs", "nom": "Œufs", "en_stock": False}
-    for corps in (None, {"nom": "", "en_stock": True}, {"nom": "pâtes", "en_stock": "non"}, {"nom": "x" * 81, "en_stock": True}):
+    assert valider_placard({"nom": " Paprika fumé ", "en_stock": False}) == {
+        "cle": "paprika fume", "nom": "Paprika fumé", "en_stock": False, "bientot": False, "zone": "epices"}
+    assert valider_placard({"nom": "Riz", "en_stock": True, "bientot": True, "zone": "cave"})["zone"] == "cave"
+    for corps in (None, {"nom": "", "en_stock": True}, {"nom": "pâtes", "en_stock": "non"}, {"nom": "x" * 81, "en_stock": True},
+                  {"nom": "riz", "en_stock": True, "zone": "grenier"}, {"nom": "riz", "en_stock": True, "bientot": "oui"}):
         with pytest.raises(ValueError):
             valider_placard(corps)
+
+
+def test_zones_de_la_cuisine():
+    assert [cle for cle, _ in ZONES] == ["frigo", "placard-sec", "epices", "congelateur", "cave"]
+
+
+@pytest.mark.parametrize("nom, zone", [
+    ("Cumin moulu", "epices"), ("Piment de Cayenne", "epices"), ("huile d'olive", "epices"), ("Vinaigre de Xérès", "epices"),
+    ("sauce soja", "epices"), ("moutarde", "epices"), ("poivre en grains", "epices"), ("épices tacos", "epices"),
+    ("Petits pois surgelés", "congelateur"), ("vin blanc", "cave"), ("pecorino", "frigo"), ("guanciale ou pancetta", "frigo"),
+    ("spaghetti", "placard-sec"), ("tomates pelées", "placard-sec"), ("riz carnaroli", "placard-sec"), ("truc inconnu", "placard-sec"),
+])
+def test_deviner_zone(nom, zone):
+    assert deviner_zone(nom) == zone
+
+
+def test_deviner_zone_selon_le_rayon():
+    assert deviner_zone("Gyoza", "surgeles") == "congelateur"
+    assert deviner_zone("Kombucha", "boissons") == "cave"
+
+
+@pytest.mark.parametrize("nom", ["cannelle", "Laurier", "thym", "vanille", "origan", "cassonade", "curcuma"])
+def test_epices_au_rayon_epicerie(nom):
+    assert deviner_rayon(nom) == "epicerie"
+
+
+def test_rayon_epiceries_specialisees():
+    assert "specialise" in dict(RAYONS) and RAYONS[-1][0] == "autre"
 
 
 def test_placard_de_depart_sans_doublon():
@@ -84,6 +115,8 @@ def test_page_courses():
     assert '<form id="ajout-course"' in html and 'id="vider-pris"' in html
     assert "SCRIPT_FILE" not in html and "function envoyerOuGarder" in html     # la file hors ligne commune
     assert '"frais"' in html                                                   # les rayons pour le script
+    assert '"congelateur"' in html and '<form id="ajout-placard"' in html and 'id="ranger"' in html   # placard v2
+    assert "bientot" in html and "api/placard/" in html
 
 
 def test_un_envoi_a_la_fois():

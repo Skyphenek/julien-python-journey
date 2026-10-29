@@ -5,7 +5,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 import pytest
-from diners import (valider_plat, valider_soir, secours, a_acheter, compteur, semaine, diners_en_html,
+from diners import (valider_plat, valider_soir, secours, a_acheter, compteur, semaine, diners_en_html, disponibles,
                     SECOURS_MINUTES)
 from carnet_depart import CARNET_DEPART, A_TESTER
 from courses import PLACARD_DEPART, normaliser
@@ -18,9 +18,14 @@ def plat(id_, nom, minutes=15, ingredients=(), genre="plat", statut="carnet", ar
             "recette": "", "lien": "", "note": "", "statut": statut, "archive": archive}
 
 
-def placard(*en_stock, epuises=()):
-    return ([{"cle": normaliser(n), "nom": n, "en_stock": True} for n in en_stock]
-            + [{"cle": normaliser(n), "nom": n, "en_stock": False} for n in epuises])
+def placard(*en_stock, epuises=(), bientot=()):
+    return ([{"cle": normaliser(n), "nom": n, "en_stock": True, "bientot": False} for n in en_stock]
+            + [{"cle": normaliser(n), "nom": n, "en_stock": True, "bientot": True} for n in bientot]
+            + [{"cle": normaliser(n), "nom": n, "en_stock": False, "bientot": False} for n in epuises])
+
+
+def habituel(nom, actif=False, pris=False):
+    return {"nom": nom, "actif": actif, "pris": pris, "recurrent": True}
 
 
 # --- Validation ---
@@ -75,6 +80,22 @@ def test_secours_faisables_et_presque():
     assert SECOURS_MINUTES == 20
 
 
+def test_disponibles_placard_et_habituels_ranges():
+    p = placard("spaghetti", bientot=("pecorino",), epuises=("guanciale",))
+    courses = [habituel("Œufs"),                                   # rangé : on en a
+               habituel("Lait", actif=True),                       # sur la liste : il en manque
+               habituel("Beurre", actif=True, pris=True),          # dans le panier : on en a
+               {"nom": "Riz", "actif": True, "pris": False, "recurrent": False}]
+    assert disponibles(p, courses) == {"spaghetti", "pecorino", "oeufs", "beurre"}
+
+
+def test_secours_avec_les_frais_en_habituels():
+    carbo = plat("plat-carbonara", "Carbonara", 20, ["spaghetti", "œufs", "pecorino"])
+    p = placard("spaghetti", "pecorino")
+    assert secours([carbo], p, [habituel("œufs")])[0] == [carbo]
+    assert secours([carbo], p, [habituel("œufs", actif=True)])[0] == []
+
+
 def test_secours_sur_le_carnet_de_depart():
     # Le placard plein du 31/10 rend 7 dîners de secours possibles
     faisables, _ = secours([dict(p, statut="carnet", archive=False) for p in CARNET_DEPART],
@@ -85,8 +106,8 @@ def test_secours_sur_le_carnet_de_depart():
 def test_a_acheter_sans_doublon_ni_stock():
     plats = [plat("plat-carbonara", "Carbonara", 20, ["spaghetti", "œufs", "pecorino", "guanciale"]),
              plat("plat-amatricia", "Amatriciana", 35, ["spaghetti", "guanciale", "Tomates pelées"])]
-    courses = [{"nom": "Guanciale", "actif": True, "pris": False},      # déjà sur la liste
-               {"nom": "pecorino", "actif": True, "pris": True}]       # pris : n'empêche pas
+    courses = [{"nom": "Guanciale", "actif": True, "pris": False, "recurrent": False},   # déjà sur la liste
+               {"nom": "pecorino", "actif": True, "pris": True, "recurrent": False}]    # pris : n'empêche pas
     p = placard("spaghetti", epuises=("œufs",))
     assert a_acheter(plats, p, courses) == [("œufs", "plat-carbonara"), ("pecorino", "plat-carbonara"),
                                             ("Tomates pelées", "plat-amatricia")]

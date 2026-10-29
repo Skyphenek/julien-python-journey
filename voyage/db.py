@@ -574,9 +574,15 @@ def lire_souvenirs(conn, voyage):
 CHAMPS_ARTICLE = ("nom", "rayon", "pris", "recurrent", "actif", "source")
 
 
+# Rayons des achats qui durent : acheté pour une recette, l'ingrédient entre au placard
+RAYONS_DURABLES = ("epicerie", "surgeles", "boissons", "specialise")
+CHAMPS_PLACARD = ("cle", "nom", "en_stock", "bientot", "zone")
+
+
 def enregistrer_article(conn, a):
-    """Crée ou met à jour (même id) un article validé ; pris : son basique revient en stock."""
-    from courses import normaliser
+    """Crée ou met à jour (même id) un article validé. Pris : son élément du placard revient en stock ;
+    un durable acheté pour une recette (source plat:) et absent du placard y entre."""
+    from courses import normaliser, deviner_zone
     with conn.cursor() as cur:
         cur.execute(
             f"""INSERT INTO courses (id, {", ".join(CHAMPS_ARTICLE)})
@@ -585,8 +591,11 @@ def enregistrer_article(conn, a):
                 {", ".join(f"{c} = EXCLUDED.{c}" for c in CHAMPS_ARTICLE)}, maj_le = now()""",
             (a["id"], *(a[c] for c in CHAMPS_ARTICLE)))
         if a["pris"]:
-            cur.execute("UPDATE placard SET en_stock = true, maj_le = now() WHERE cle = %s AND NOT en_stock",
-                        (normaliser(a["nom"]),))
+            cur.execute("""UPDATE placard SET en_stock = true, bientot = false, maj_le = now()
+                           WHERE cle = %s AND (NOT en_stock OR bientot)""", (normaliser(a["nom"]),))
+            if a["source"].startswith("plat:") and a["rayon"] in RAYONS_DURABLES:
+                cur.execute("""INSERT INTO placard (cle, nom, zone) VALUES (%s, %s, %s) ON CONFLICT (cle) DO NOTHING""",
+                            (normaliser(a["nom"]), a["nom"], deviner_zone(a["nom"], a["rayon"])))
     conn.commit()
 
 
@@ -595,8 +604,8 @@ def lire_courses(conn):
     with conn.cursor() as cur:
         cur.execute(f"SELECT id, {', '.join(CHAMPS_ARTICLE)} FROM courses ORDER BY maj_le, id")
         articles = [dict(zip(("id", *CHAMPS_ARTICLE), ligne)) for ligne in cur.fetchall()]
-        cur.execute("SELECT cle, nom, en_stock FROM placard ORDER BY nom")
-        placard = [dict(zip(("cle", "nom", "en_stock"), ligne)) for ligne in cur.fetchall()]
+        cur.execute(f"SELECT {', '.join(CHAMPS_PLACARD)} FROM placard ORDER BY nom")
+        placard = [dict(zip(CHAMPS_PLACARD, ligne)) for ligne in cur.fetchall()]
     return {"articles": articles, "placard": placard}
 
 
@@ -622,22 +631,30 @@ def compter_a_prendre(conn):
 
 def enregistrer_placard(conn, p):
     with conn.cursor() as cur:
-        cur.execute("""INSERT INTO placard (cle, nom, en_stock) VALUES (%s, %s, %s)
+        cur.execute("""INSERT INTO placard (cle, nom, en_stock, bientot, zone) VALUES (%s, %s, %s, %s, %s)
                        ON CONFLICT (cle) DO UPDATE SET nom = EXCLUDED.nom, en_stock = EXCLUDED.en_stock,
-                       maj_le = now()""", (p["cle"], p["nom"], p["en_stock"]))
+                       bientot = EXCLUDED.bientot, zone = EXCLUDED.zone, maj_le = now()""",
+                    (p["cle"], p["nom"], p["en_stock"], p["bientot"], p["zone"]))
+    conn.commit()
+
+
+def retirer_du_placard(conn, cle):
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM placard WHERE cle = %s", (cle,))
     conn.commit()
 
 
 def semer_placard(conn, noms):
     """Remplit le placard de départ (tout en stock) s'il est vide ; renvoie le nombre de basiques ajoutés.
     Jamais sur un placard déjà utilisé : un basique retiré ne revient pas."""
-    from courses import normaliser
+    from courses import normaliser, deviner_zone
     with conn.cursor() as cur:
         cur.execute("SELECT EXISTS (SELECT 1 FROM placard)")
         if cur.fetchone()[0]:
             return 0
         for nom in noms:
-            cur.execute("INSERT INTO placard (cle, nom) VALUES (%s, %s) ON CONFLICT DO NOTHING", (normaliser(nom), nom))
+            cur.execute("INSERT INTO placard (cle, nom, zone) VALUES (%s, %s, %s) ON CONFLICT DO NOTHING",
+                        (normaliser(nom), nom, deviner_zone(nom)))
     conn.commit()
     return len(noms)
 
@@ -716,3 +733,53 @@ def completer_recettes(conn, recettes):
             n += cur.rowcount
     conn.commit()
     return n
+
+
+def reorganiser_placard(conn):
+    """La reprise Placard v2 (placard_v2.py), une seule fois : zones, états de la checklist, frais en
+    habituels, et les épuisés à acheter ajoutés aux courses. Sans commit : l'appelant valide ou annule
+    (à blanc). Renvoie le bilan, ou None si la reprise est déjà faite."""
+    from uuid import NAMESPACE_URL, uuid5
+    from courses import normaliser, deviner_rayon, deviner_zone
+    from placard_v2 import NOM_REPRISE, PLACARD, HABITUELS
+    bilan = {"ajoutes": 0, "ranges": 0, "aux_courses": 0, "habituels": 0}
+    with conn.cursor() as cur:
+        cur.execute("SELECT EXISTS (SELECT 1 FROM reprises WHERE nom = %s)", (NOM_REPRISE,))
+        if cur.fetchone()[0]:
+            return None
+        cur.execute("SELECT id, nom, actif, pris FROM courses")
+        articles = {normaliser(nom): (id_, actif, pris) for id_, nom, actif, pris in cur.fetchall()}
+
+        def a_la_liste(nom, rayon, recurrent, actif):
+            cle = normaliser(nom)
+            if cle in articles:          # déjà dans les courses : on le garde, devenu habituel ou remis sur la liste
+                cur.execute("""UPDATE courses SET recurrent = recurrent OR %s, actif = actif OR %s, maj_le = now()
+                               WHERE id = %s""", (recurrent, actif, articles[cle][0]))
+            else:
+                cur.execute("""INSERT INTO courses (id, nom, rayon, recurrent, actif, source)
+                               VALUES (%s, %s, %s, %s, %s, 'placard')""",
+                            (str(uuid5(NAMESPACE_URL, NOM_REPRISE + ":" + cle)), nom, rayon, recurrent, actif))
+            bilan["aux_courses"] += actif
+
+        # Ce qui n'est pas dans la reprise (ajouté dans l'app) : zone devinée
+        cur.execute("SELECT cle, nom FROM placard")
+        for cle, nom in cur.fetchall():
+            cur.execute("UPDATE placard SET zone = %s WHERE cle = %s", (deviner_zone(nom), cle))
+        for nom, zone, etat in PLACARD:
+            cle = normaliser(nom)
+            cur.execute("UPDATE placard SET zone = %s, maj_le = now() WHERE cle = %s", (zone, cle))
+            if cur.rowcount:
+                bilan["ranges"] += 1
+            else:
+                cur.execute("INSERT INTO placard (cle, nom, zone, en_stock) VALUES (%s, %s, %s, %s)",
+                            (cle, nom, zone, etat in ("stock", None)))
+                bilan["ajoutes"] += 1
+            if etat in ("samedi", "epiceries"):
+                cur.execute("UPDATE placard SET en_stock = false, bientot = false WHERE cle = %s", (cle,))
+                a_la_liste(nom, "specialise" if etat == "epiceries" else deviner_rayon(nom), False, True)
+        for nom, a_acheter in HABITUELS:
+            cur.execute("DELETE FROM placard WHERE cle = %s", (normaliser(nom),))
+            a_la_liste(nom, deviner_rayon(nom), True, a_acheter)
+            bilan["habituels"] += 1
+        cur.execute("INSERT INTO reprises (nom) VALUES (%s)", (NOM_REPRISE,))
+    return bilan
