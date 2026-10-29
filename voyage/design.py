@@ -34,7 +34,7 @@ HUB = [
     ("aujourdhui", "Aujourd'hui", "./"),
     ("diners", "Dîners", "diners"),
     ("courses", "Courses", "courses"),
-    ("vadrouille", "En Vadrouille", "vadrouille"),
+    ("vadrouille", "Vadrouille", "vadrouille"),          # court : tient dans la barre du bas sur iPhone
 ]
 ICONES_HUB = {
     "aujourdhui": _TRAIT.format('<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/>'),
