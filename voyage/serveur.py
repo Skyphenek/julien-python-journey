@@ -24,7 +24,7 @@ from db import (emprunter, ajouter_depense, lire_depenses, supprimer_depense, ob
                 lire_souvenirs, supprimer_souvenir, enregistrer_coche, lister_voyages, lire_voyage, archiver_voyage,
                 VERDICTS, enregistrer_retour, supprimer_retour, lire_retours,
                 enregistrer_article, lire_courses, supprimer_article, vider_pris, compter_a_prendre,
-                enregistrer_placard, enregistrer_plat, lire_plats, plat_existe, enregistrer_soir, lire_soirs)
+                enregistrer_placard, retirer_du_placard, enregistrer_plat, lire_plats, plat_existe, enregistrer_soir, lire_soirs)
 from valise import (solde_depenses, actualiser_meteo, fenetres_du_voyage, page_du_voyage, accueil_en_html,
                     lieux_depuis_reponse, normales_ou_url, normales_depuis_historique,
                     formulaire_en_html, creer_voyage, VERSION_PAGE)
@@ -36,7 +36,7 @@ from souvenirs import valider_proche, valider_souvenir
 from vocabulaire import LANGUES
 from casa import aujourdhui_en_html, aujourd_hui_paris
 from courses import valider_article, valider_placard, courses_en_html
-from diners import (valider_plat, valider_soir, secours, a_acheter, compteur, semaine, diners_en_html,
+from diners import (disponibles, valider_plat, valider_soir, secours, a_acheter, compteur, semaine, diners_en_html,
                     FENETRE_PASSE, FENETRE_FUTUR)
 from uuid import uuid4
 
@@ -83,14 +83,14 @@ def creer_app(nom_base="valise", secret=None):
         try:
             plats = lire_plats(conn)
             soirs = lire_soirs(conn, jour - timedelta(days=FENETRE_PASSE), jour + timedelta(days=FENETRE_FUTUR))
-            placard = lire_courses(conn)["placard"]
+            lu = lire_courses(conn)
         finally:
             conn.close()
-        faisables, presque = secours(plats, placard)
+        faisables, presque = secours(plats, lu["placard"], lu["articles"])
         return jsonify({
             "aujourd_hui": jour.isoformat(), "semaine": [j.isoformat() for j in semaine(jour)],
             "plats": plats, "soirs": [{**s, "jour": s["jour"].isoformat()} for s in soirs],
-            "stock": [p["cle"] for p in placard if p["en_stock"]],
+            "stock": sorted(disponibles(lu["placard"], lu["articles"])),
             "secours": {"faisables": [p["id"] for p in faisables],
                         "presque": [{"plat": x["plat"]["id"], "manquants": x["manquants"]} for x in presque]},
             "compteur": compteur(soirs, jour)})
@@ -194,6 +194,15 @@ def creer_app(nom_base="valise", secret=None):
         conn = emprunter(app.config["NOM_BASE"])
         try:
             enregistrer_placard(conn, basique)
+        finally:
+            conn.close()
+        return jsonify({"ok": True})
+
+    @routes.delete("/api/placard/<path:cle>")
+    def retirer_un_basique(cle):
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            retirer_du_placard(conn, cle)
         finally:
             conn.close()
         return jsonify({"ok": True})

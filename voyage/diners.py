@@ -105,13 +105,16 @@ def semaine(aujourd_hui):
     return [aujourd_hui + timedelta(days=i) for i in range(7)]
 
 
-def _en_stock(placard):
-    return {p["cle"] for p in placard if p["en_stock"]}
+def disponibles(placard, courses=()):
+    """Les clés de ce qu'on a : le placard en stock (bientôt fini compris) et le frais habituel rangé
+    ou déjà dans le panier (un habituel sur la liste à prendre, c'est qu'il en manque)."""
+    return ({p["cle"] for p in placard if p["en_stock"]}
+            | {normaliser(a["nom"]) for a in courses if a["recurrent"] and (not a["actif"] or a["pris"])})
 
 
-def secours(plats, placard):
-    """(faisables, presque) : plats du carnet ≤ SECOURS_MINUTES, tout au placard / 1-2 manquants."""
-    stock = _en_stock(placard)
+def secours(plats, placard, courses=()):
+    """(faisables, presque) : plats du carnet ≤ SECOURS_MINUTES, tout disponible / 1-2 manquants."""
+    stock = disponibles(placard, courses)
     faisables, presque = [], []
     candidats = sorted((p for p in plats if p["genre"] == "plat" and p["statut"] == "carnet" and not p["archive"]
                         and p["minutes"] <= SECOURS_MINUTES and p["ingredients"]),
@@ -127,7 +130,7 @@ def secours(plats, placard):
 
 def a_acheter(plats_prevus, placard, courses):
     """[(ingrédient, id du plat)] à ajouter aux courses : ni au placard, ni déjà sur la liste."""
-    deja = _en_stock(placard) | {normaliser(a["nom"]) for a in courses if a["actif"] and not a["pris"]}
+    deja = disponibles(placard, courses) | {normaliser(a["nom"]) for a in courses if a["actif"] and not a["pris"]}
     resultat = []
     for p in plats_prevus:
         for i in p["ingredients"]:

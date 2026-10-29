@@ -3,8 +3,10 @@
 - Un article est « actif » tant qu'il est dans la liste ; coché, il est « pris » (barré) jusqu'à
   « Vider les pris » : supprimé, sauf s'il est récurrent — il passe alors dans les Habituels
   (actif = false), d'où il revient d'un tap.
-- Le placard : ce qu'on a toujours. Épuisé -> part dans les courses ; pris en magasin -> de
-  nouveau en stock (db.enregistrer_article). Les noms se comparent normalisés (casse, accents).
+- Le placard : ce qui dure, rangé par zone de la cuisine (ZONES). En stock -> bientôt fini -> épuisé ;
+  bientôt fini ou épuisé -> part dans les courses ; pris en magasin -> de nouveau en stock
+  (db.enregistrer_article). Le frais à rotation hebdomadaire est un habituel des courses, pas un
+  élément du placard. Les noms se comparent normalisés (casse, accents).
 """
 import json
 import re
@@ -24,6 +26,7 @@ RAYONS = [
     ("epicerie", "Épicerie"),
     ("surgeles", "Surgelés"),
     ("boissons", "Boissons"),
+    ("specialise", "Épiceries spécialisées"),
     ("hygiene-maison", "Hygiène et maison"),
     ("autre", "Autre"),
 ]
@@ -45,12 +48,30 @@ MOTS_RAYON = {
                  "cumin", "paprika", "chocolat", "cafe", "the", "boudoirs", "biscuit", "cereales", "confiture",
                  "miel", "levure", "chapelure", "mayonnaise", "ketchup", "sauce"],
     "surgeles": ["surgel", "glace", "frites"],
-    "boissons": ["eau", "vin", "biere", "jus", "soda", "coca", "sirop", "champagne", "cidre"],
+    "boissons": ["eau", "eau volvic", "eau gazeuse", "eau petillante", "eau minerale", "volvic", "evian", "badoit",
+                 "perrier", "vin", "biere", "jus", "soda", "coca", "sirop", "champagne", "cidre"],
     "hygiene-maison": ["papier", "essuie", "sopalin", "liquide vaisselle", "vaisselle", "lessive", "eponge",
                        "sac poubelle", "sacs poubelle", "dentifrice", "shampoing", "savon", "gel douche",
                        "deodorant", "coton", "mouchoir", "litiere", "croquettes", "pâtée"],
 }
 _MOTS = sorted(((mot, rayon) for rayon, mots in MOTS_RAYON.items() for mot in mots), key=lambda m: -len(m[0]))
+
+# Le placard se range comme la cuisine : on en fait l'inventaire une zone à la fois
+ZONES = [
+    ("frigo", "Frigo"),
+    ("placard-sec", "Placard sec"),
+    ("epices", "Épices et condiments"),
+    ("congelateur", "Congélateur"),
+    ("cave", "Cave"),
+]
+# Début de mot -> zone Épices et condiments (huiles, vinaigres et sauces compris)
+MOTS_EPICES = ["epice", "cumin", "paprika", "piment", "curry", "curcuma", "garam masala", "ras el", "cannelle",
+               "muscade", "girofle", "cinq-epices", "badiane", "anis", "chipotle", "graines", "sumac", "vanille",
+               "laurier", "thym", "origan", "romarin", "herbes de provence", "sel", "gros sel", "fleur de sel",
+               "poivre", "moutarde", "vinaigre", "huile", "sauce", "nuoc", "mirin", "miso", "harissa", "tahini",
+               "ketchup", "mayonnaise", "worcestershire", "capres", "cornichons", "miel", "sirop", "pate de curry",
+               "tabasco", "sriracha", "sambal"]
+_RAYON_ZONE = {"surgeles": "congelateur", "boissons": "cave", "frais": "frigo", "boucherie": "frigo"}
 
 # Le placard de départ (plein de courses du 31/10/2026) : ce qui rend 5 dîners possibles sans courses
 PLACARD_DEPART = [
@@ -82,7 +103,20 @@ def deviner_rayon(nom):
     for mot, rayon in _MOTS:
         if re.search(r"(?<![a-z])" + re.escape(normaliser(mot)), n):
             return rayon
+    if any(re.search(r"(?<![a-z])" + re.escape(mot), n) for mot in MOTS_EPICES + ["cassonade", "fecule"]):
+        return "epicerie"                                  # épices et condiments : au rayon épicerie
     return "autre"
+
+
+def deviner_zone(nom, rayon=None):
+    """La zone d'un élément du placard : surgelé -> congélateur, épices et condiments par mots, puis le rayon."""
+    rayon = rayon or deviner_rayon(nom)
+    if rayon == "surgeles":
+        return "congelateur"
+    n = normaliser(nom)
+    if any(re.search(r"(?<![a-z])" + re.escape(mot), n) for mot in MOTS_EPICES):
+        return "epices"
+    return _RAYON_ZONE.get(rayon, "placard-sec")
 
 
 # --- Validation : tout ce qui vient du téléphone est vérifié ----------------------------------
@@ -123,13 +157,18 @@ def valider_article(corps):
 
 
 def valider_placard(corps):
-    """Un basique du placard : {cle (nom normalisé), nom, en_stock}."""
+    """Un élément du placard : {cle (nom normalisé), nom, en_stock, bientot, zone}. Sans zone : devinée.
+    En stock, bientôt fini (en_stock et bientot) ou épuisé (pas en_stock)."""
     if not isinstance(corps, dict):
         raise ValueError("basique invalide")
     nom = _texte(corps, "nom", 80)
     if not nom:
         raise ValueError("nom manquant")
-    return {"cle": normaliser(nom), "nom": nom, "en_stock": _booleen(corps, "en_stock", None)}
+    zone = corps.get("zone") or deviner_zone(nom)
+    if zone not in dict(ZONES):
+        raise ValueError("zone invalide")
+    return {"cle": normaliser(nom), "nom": nom, "en_stock": _booleen(corps, "en_stock", None),
+            "bientot": _booleen(corps, "bientot", False), "zone": zone}
 
 
 # --- Page ---------------------------------------------------------------------------------------
@@ -167,6 +206,22 @@ div.puces-courses { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; 
 div.puces-courses button { font-family: inherit; font-size: 15px; padding: 8px 14px; border-radius: 999px;
                            border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte); }
 div.puces-courses button.epuise { border-color: var(--courses); background: var(--courses-doux); font-weight: 700; }
+div.puces-courses button.bientot { border-color: var(--courses); border-style: dashed; }
+div.puces-courses button.bientot::after { content: " · bientôt fini"; color: var(--courses); font-size: 13px; font-weight: 700; }
+div.puces-courses button.epuise::after { content: " · épuisé"; color: var(--courses); font-size: 13px; }
+section.zone-placard { border-top: 1px solid var(--ligne); margin-top: 12px; padding-top: 10px; }
+section.zone-placard h3 { font-size: 15px; font-weight: 800; margin: 0; display: flex; justify-content: space-between; gap: 8px; }
+section.zone-placard h3 span { color: var(--courses); font-size: 13px; font-weight: 700; }
+div.edition-placard { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; padding: 10px 12px;
+                      border-radius: 16px; background: var(--courses-doux); }
+div.edition-placard strong { flex-basis: 100%; }
+div.edition-placard select, div.edition-placard button, form#ajout-placard select, form#ajout-placard input,
+form#ajout-placard button, button#ranger { font-family: inherit; font-size: 14px; padding: 8px 12px; border-radius: 999px;
+    border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte); }
+form#ajout-placard { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+form#ajout-placard input { flex: 1 1 160px; min-width: 0; }
+form#ajout-placard[hidden] { display: none; }
+button#ranger { margin-top: 12px; font-weight: 700; }
 p.vide-courses { background: var(--carte); border-radius: 24px; padding: 18px; color: var(--doux); }
 div#hors-ligne { background: #fff4d6; color: #6b4e00; border-radius: 16px; padding: 10px 14px; margin: 0 0 12px;
                  font-weight: 600; font-size: 14px; }
@@ -183,7 +238,9 @@ SCRIPT_COURSES = """
     const resume = document.getElementById('resume');
     const viderPris = document.getElementById('vider-pris');
     let articles = [], placard = [];
+    const ZONES = JSON.parse(document.getElementById('zones').textContent);
     let ouvert = null;                                   // article en cours d'édition : pas de rafraîchissement
+    let ranger = false, placardOuvert = null;            // mode « Ranger le placard » : zone, retrait, ajout
 
     function normaliser(nom) {
         return nom.trim().toLowerCase().replace(/œ/g, 'oe').replace(/æ/g, 'ae')
@@ -209,7 +266,8 @@ SCRIPT_COURSES = """
             if (f.cle && f.cle.indexOf('article:') === 0) {
                 if (f.methode === 'POST') parId[f.corps.id] = f.corps; else delete parId[f.cle.slice(8)];
             } else if (f.cle && f.cle.indexOf('placard:') === 0) {
-                parCle[f.cle.slice(8)] = Object.assign({}, parCle[f.cle.slice(8)], f.corps, { cle: f.cle.slice(8) });
+                if (f.methode === 'DELETE') delete parCle[f.cle.slice(8)];
+                else parCle[f.cle.slice(8)] = Object.assign({}, parCle[f.cle.slice(8)], f.corps, { cle: f.cle.slice(8) });
             }
         });
         return { articles: Object.keys(parId).map(function (k) { return parId[k]; }),
@@ -218,7 +276,7 @@ SCRIPT_COURSES = """
     function garder() { try { localStorage.setItem(CLE_COPIE, JSON.stringify({ articles: articles, placard: placard })); } catch (e) {} }
     function appliquer(lu) { const r = avecAttente(lu); articles = r.articles; placard = r.placard; garder(); afficher(); }
     function charger() {
-        if (ouvert) return;
+        if (ouvert || placardOuvert) return;
         fetch('api/courses', { headers: { 'X-Valise-Vite': '1' } })
             .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
             .then(appliquer)
@@ -240,7 +298,7 @@ SCRIPT_COURSES = """
     function enregistrer(article) {
         articles = articles.filter(function (a) { return a.id !== article.id; }).concat([article]);
         if (article.pris) {                                   // pris en magasin : de nouveau au placard
-            placard.forEach(function (p) { if (p.cle === normaliser(article.nom)) p.en_stock = true; });
+            placard.forEach(function (p) { if (p.cle === normaliser(article.nom)) { p.en_stock = true; p.bientot = false; } });
         }
         garder(); afficher();
         envoyer({ url: 'api/courses', methode: 'POST', corps: article, cle: 'article:' + article.id })
@@ -260,14 +318,26 @@ SCRIPT_COURSES = """
         if (deja) { enregistrer(Object.assign({}, deja, { actif: true, pris: false })); return; }   // un habituel
         enregistrer({ id: nouvelId(), nom: nom.trim(), rayon: '', pris: false, recurrent: false, actif: true, source: '' });
     }
-    function basculerPlacard(p) {
-        const epuise = p.en_stock;
-        p.en_stock = !epuise;
+    function enregistrerPlacard(p) {
+        placard = placard.filter(function (x) { return x.cle !== p.cle; }).concat([p]);
         garder();
-        envoyer({ url: 'api/placard', methode: 'POST', corps: { nom: p.nom, en_stock: !epuise }, cle: 'placard:' + p.cle })
+        envoyer({ url: 'api/placard', methode: 'POST', cle: 'placard:' + p.cle,
+                  corps: { nom: p.nom, en_stock: p.en_stock, bientot: p.bientot, zone: p.zone } })
             .then(function (etat) { if (etat === 'ok') relire(); });
-        if (epuise) ajouter(p.nom); else afficher();                        // épuisé : direction les courses
     }
+    // En stock -> bientôt fini -> épuisé -> en stock. Bientôt fini ou épuisé : direction les courses.
+    function basculerPlacard(p) {
+        const suivant = !p.en_stock ? { en_stock: true, bientot: false }
+                      : p.bientot ? { en_stock: false, bientot: false } : { en_stock: true, bientot: true };
+        enregistrerPlacard(Object.assign({}, p, suivant));
+        if (suivant.bientot || !suivant.en_stock) ajouter(p.nom); else afficher();
+    }
+    function retirerPlacard(p) {
+        placard = placard.filter(function (x) { return x.cle !== p.cle; });
+        placardOuvert = null; garder(); afficher();
+        envoyer({ url: 'api/placard/' + encodeURIComponent(p.cle), methode: 'DELETE', cle: 'placard:' + p.cle });
+    }
+    function etatPlacard(p) { return !p.en_stock ? 'epuise' : p.bientot ? 'bientot' : ''; }
 
     function ligne(a) {
         const li = el('li', a.pris ? 'pris' : '');
@@ -324,19 +394,67 @@ SCRIPT_COURSES = """
         });
         document.getElementById('nb-habituels').textContent = habituels.length;
 
-        const zoneP = document.getElementById('placard');
-        zoneP.replaceChildren();
-        placard.slice().sort(function (x, y) { return (x.en_stock - y.en_stock) || x.nom.localeCompare(y.nom, 'fr'); })
-            .forEach(function (p) {
-                const b = el('button', p.en_stock ? '' : 'epuise', p.nom); b.type = 'button';
-                b.setAttribute('aria-pressed', String(!p.en_stock));
-                b.addEventListener('click', function () { basculerPlacard(p); });
-                zoneP.append(b);
-            });
-        const epuises = placard.filter(function (p) { return !p.en_stock; }).length;
-        document.getElementById('nb-placard').textContent = epuises ? epuises + ' épuisé(s)' : 'tout en stock';
+        afficherPlacard();
     }
 
+    function afficherPlacard() {
+        const zoneP = document.getElementById('placard');
+        zoneP.replaceChildren();
+        const rang = { epuise: 0, bientot: 1, '': 2 };
+        ZONES.forEach(function (z) {
+            const du = placard.filter(function (p) { return (p.zone || 'placard-sec') === z[0]; })
+                .sort(function (x, y) { return (rang[etatPlacard(x)] - rang[etatPlacard(y)]) || x.nom.localeCompare(y.nom, 'fr'); });
+            if (!du.length) return;
+            const section = el('section', 'zone-placard'); section.dataset.zone = z[0];
+            const titre = el('h3', '', z[1]);
+            const manque = du.filter(function (p) { return etatPlacard(p); }).length;
+            if (manque) titre.append(el('span', '', manque + ' à racheter'));
+            const puces = el('div', 'puces-courses');
+            du.forEach(function (p) {
+                const b = el('button', etatPlacard(p), p.nom); b.type = 'button';
+                b.setAttribute('aria-label', p.nom + ({ epuise: ', épuisé', bientot: ', bientôt fini', '': ', en stock' })[etatPlacard(p)]);
+                b.addEventListener('click', function () {
+                    if (ranger) { placardOuvert = placardOuvert === p.cle ? null : p.cle; afficher(); }
+                    else basculerPlacard(p);
+                });
+                puces.append(b);
+            });
+            section.append(titre, puces);
+            const choisi = ranger && du.find(function (p) { return p.cle === placardOuvert; });
+            if (choisi) section.append(editionPlacard(choisi));
+            zoneP.append(section);
+        });
+        const epuises = placard.filter(function (p) { return !p.en_stock; }).length;
+        const bientot = placard.filter(function (p) { return p.en_stock && p.bientot; }).length;
+        document.getElementById('nb-placard').textContent = (epuises || bientot)
+            ? [epuises ? epuises + ' épuisé(s)' : '', bientot ? bientot + ' bientôt fini(s)' : ''].filter(Boolean).join(' · ')
+            : 'tout en stock';
+        document.getElementById('ranger').textContent = ranger ? 'Terminé' : 'Ranger le placard';
+        document.getElementById('ajout-placard').hidden = !ranger;
+    }
+    function editionPlacard(p) {
+        const bloc = el('div', 'edition-placard');
+        bloc.append(el('strong', '', p.nom));
+        const zone = el('select'); zone.setAttribute('aria-label', 'Zone de ' + p.nom);
+        ZONES.forEach(function (z) { const o = el('option', '', z[1]); o.value = z[0]; o.selected = z[0] === p.zone; zone.append(o); });
+        zone.addEventListener('change', function () { placardOuvert = null; enregistrerPlacard(Object.assign({}, p, { zone: zone.value })); afficher(); });
+        const retirer = el('button', '', 'Retirer du placard'); retirer.type = 'button';
+        retirer.addEventListener('click', function () { retirerPlacard(p); });
+        const fermer = el('button', '', 'Fermer'); fermer.type = 'button';
+        fermer.addEventListener('click', function () { placardOuvert = null; afficher(); });
+        bloc.append(zone, retirer, fermer);
+        return bloc;
+    }
+
+    document.getElementById('ranger').addEventListener('click', function () { ranger = !ranger; placardOuvert = null; afficher(); });
+    document.getElementById('ajout-placard').addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        const nom = this.querySelector('input').value.trim();
+        if (!nom) return;
+        enregistrerPlacard({ cle: normaliser(nom), nom: nom, en_stock: true, bientot: false, zone: this.querySelector('select').value });
+        this.querySelector('input').value = '';
+        afficher();
+    });
     document.getElementById('ajout-course').addEventListener('submit', function (ev) {
         ev.preventDefault();
         const champ = this.querySelector('input');
@@ -362,6 +480,9 @@ SCRIPT_COURSES = """
 def courses_en_html():
     """La page Courses : une coquille, remplie par le script depuis api/courses (copie gardée hors ligne)."""
     rayons = json.dumps(RAYONS, ensure_ascii=False)
+    zones = json.dumps(ZONES, ensure_ascii=False)
+    options_zones = "".join(f'<option value="{cle}"{" selected" if cle == "placard-sec" else ""}>{nom}</option>'
+                            for cle, nom in ZONES)
     return f"""<!doctype html>
 <html lang="fr">
 <head>
@@ -389,11 +510,18 @@ def courses_en_html():
 </details>
 <details class="annexe" id="zone-placard">
 <summary>Placard · <span id="nb-placard">…</span></summary>
-<p class="aide">Ce qu'on a toujours. Un tap sur un basique fini : il passe épuisé et part dans les courses. Acheté, il revient en stock tout seul.</p>
-<div class="puces-courses" id="placard"></div>
+<p class="aide">Ce qui dure, rangé comme la cuisine. Un appui : en stock, puis bientôt fini, puis épuisé. Bientôt fini ou épuisé, il part dans les courses ; acheté, il revient en stock tout seul.</p>
+<div id="placard"></div>
+<form id="ajout-placard" autocomplete="off" hidden>
+<input name="nom" placeholder="Ajouter au placard" aria-label="Élément à ajouter au placard">
+<select name="zone" aria-label="Zone">{options_zones}</select>
+<button type="submit">Ajouter</button>
+</form>
+<button type="button" id="ranger">Ranger le placard</button>
 </details>
 {nav_hub("courses")}
 <script type="application/json" id="rayons">{rayons}</script>
+<script type="application/json" id="zones">{zones}</script>
 <script>{SCRIPT_FILE}
 window.addEventListener('online', function () {{ majHorsLigne(); viderFile(); }});
 window.addEventListener('offline', majHorsLigne);

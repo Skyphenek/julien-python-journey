@@ -1645,7 +1645,8 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # 27 = icône « En Vadrouille » (V blanc, repère orange, fond turquoise).
 # 28 = adresse de l'icône versionnée (?v=vadrouille) : sinon iOS et Safari gardent l'ancienne.
 # 29 = Casa Binomerie (Aujourd'hui, Courses, Dîners) : jette les copies d'avant le hub.
-VERSION_PAGE = 29
+# 30 = Placard v2 (zones, bientôt fini, frais en habituels).
+VERSION_PAGE = 30
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
 RUBRIQUES = [("valise", "Valise"), ("avant", "Avant"), ("programme", "Programme"), ("sur-place", "Sur place"),

@@ -217,6 +217,14 @@ CREATE TABLE IF NOT EXISTS placard (
     en_stock    BOOLEAN     NOT NULL DEFAULT true,
     maj_le      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Placard v2 : rangé par zone de la cuisine (courses.ZONES) ; bientot : bientôt fini (encore en stock).
+ALTER TABLE placard ADD COLUMN IF NOT EXISTS zone TEXT NOT NULL DEFAULT 'placard-sec';
+ALTER TABLE placard ADD COLUMN IF NOT EXISTS bientot BOOLEAN NOT NULL DEFAULT false;
+-- Les reprises de données faites une seule fois (ex. 'placard-v2') : relancer le schéma ne les refait pas.
+CREATE TABLE IF NOT EXISTS reprises (
+    nom         TEXT        PRIMARY KEY,
+    faite_le    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
 -- Casa Binomerie — Dîners : le carnet (statut 'carnet') et les envies du Match des Recettes
 -- ('a-tester'). ingredients : liste de noms, comparés normalisés au placard et aux courses.
