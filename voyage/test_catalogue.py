@@ -54,3 +54,11 @@ def test_suggestions_a_la_saisie():
     page = courses_en_html()
     assert '<datalist id="catalogue">' in page and '<option value="lentilles corail">' in page
     assert page.count('list="catalogue"') == 2 and 'id="zones-catalogue"' in page
+
+
+def test_epicerie_italienne():
+    from catalogue import ITALIEN
+    italien = {cle_catalogue(n) for n in ITALIEN}
+    for nom in ("pecorino", "guanciale ou pancetta", "tomates pelées", "anchois", "farine 00"):
+        assert cle_catalogue(nom) in italien, nom
+    assert cle_catalogue("sauce soja") not in italien

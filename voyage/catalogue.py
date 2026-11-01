@@ -8,7 +8,8 @@ Rayon « specialise » : ce qui s'achète à l'épicerie asiatique ou italienne 
 Le catalogue sert aussi de suggestions à la saisie.
 """
 
-# (rayon, zone, articles séparés par des virgules)
+# (rayon, zone, articles séparés par des virgules[, magasin]) : un groupe « specialise » sans magasin est
+# de l'épicerie asiatique
 _GROUPES = [
     # --- Fruits et légumes --------------------------------------------------------------------
     ("fruits-legumes", "placard-sec", """pommes de terre, pommes de terre grenaille, pommes de terre à frites,
@@ -169,8 +170,8 @@ _GROUPES = [
     # --- Épiceries spécialisées : italienne ---------------------------------------------------
     ("specialise", "placard-sec", """tomates San Marzano, anchois, filets d'anchois, colatura di alici,
         pâtes de Gragnano, fregola, farine 00, semoule de blé dur, taralli, grissini, amaretti, savoiardi,
-        artichauts à l'huile, tomates confites, bottarga"""),
-    ("specialise", "frigo", """pecorino romano, parmigiano reggiano, guanciale entier"""),
+        artichauts à l'huile, tomates confites, bottarga""", "italien"),
+    ("specialise", "frigo", """pecorino romano, parmigiano reggiano, guanciale entier""", "italien"),
 
     # --- Hygiène et maison --------------------------------------------------------------------
     ("hygiene-maison", "placard-sec", """papier toilette, essuie-tout, sopalin, mouchoirs, liquide vaisselle,
@@ -185,17 +186,22 @@ _GROUPES = [
 ]
 
 
+# Achetés à l'épicerie italienne d'après la checklist (vague 2), bien qu'ailleurs au catalogue
+_ITALIEN_CHEZ_EUX = ["pecorino", "guanciale ou pancetta", "tomates pelées"]
+
+
 def _articles():
     vus = []
-    for rayon, zone, texte in _GROUPES:
+    for rayon, zone, texte, *magasin in _GROUPES:
         for nom in texte.split(","):
             nom = " ".join(nom.split())
             if nom:
-                vus.append((nom, rayon, zone))
+                vus.append((nom, rayon, zone, magasin[0] if magasin else None))
     return vus
 
 
-CATALOGUE = _articles()            # [(nom, rayon, zone)], dans l'ordre des groupes
+CATALOGUE = [(nom, rayon, zone) for nom, rayon, zone, _ in _articles()]    # [(nom, rayon, zone)]
+ITALIEN = [nom for nom, _, _, magasin in _articles() if magasin == "italien"] + _ITALIEN_CHEZ_EUX
 
 
 def cle_catalogue(nom):
