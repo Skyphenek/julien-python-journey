@@ -35,9 +35,10 @@ from a_voir import valider_a_voir, suggestions_depuis_wikitext
 from souvenirs import valider_proche, valider_souvenir
 from vocabulaire import LANGUES
 from casa import aujourdhui_en_html, aujourd_hui_paris
-from courses import valider_article, valider_placard, courses_en_html
+from courses import valider_article, valider_placard, courses_en_html, normaliser
+from prix_paris import cout_repas
 from diners import (disponibles, valider_plat, valider_soir, secours, a_acheter, compteur, semaine, diners_en_html,
-                    proposer, FENETRE_PASSE, FENETRE_FUTUR)
+                    proposer, cout_semaine, LIVRAISON_DEUX, FENETRE_PASSE, FENETRE_FUTUR)
 from uuid import uuid4
 
 load_dotenv(Path(__file__).parent / ".env")   # en local : lit voyage/.env s'il existe
@@ -87,9 +88,15 @@ def creer_app(nom_base="valise", secret=None):
         finally:
             conn.close()
         faisables, presque = secours(plats, lu["placard"], lu["articles"])
+        par_id = {p["id"]: p for p in plats}
+        jours = semaine(jour)
+        prevus = [par_id[s["plat"]] for s in soirs if s["jour"] in jours and s["plat"] in par_id and not s["issue"]]
         return jsonify({
-            "aujourd_hui": jour.isoformat(), "semaine": [j.isoformat() for j in semaine(jour)],
-            "plats": plats, "soirs": [{**s, "jour": s["jour"].isoformat()} for s in soirs],
+            "aujourd_hui": jour.isoformat(), "semaine": [j.isoformat() for j in jours],
+            "plats": [{**p, "cout": cout_repas(p["ingredients"], p["recette"])} for p in plats],
+            "soirs": [{**s, "jour": s["jour"].isoformat()} for s in soirs],
+            "liste": sorted({normaliser(a["nom"]) for a in lu["articles"] if a["actif"] and not a["pris"]}),
+            "livraison": LIVRAISON_DEUX, "cout_semaine": cout_semaine(prevus, lu["placard"], lu["articles"]),
             "stock": sorted(disponibles(lu["placard"], lu["articles"])),
             "secours": {"faisables": [p["id"] for p in faisables],
                         "presque": [{"plat": x["plat"]["id"], "manquants": x["manquants"]} for x in presque]},

@@ -115,3 +115,11 @@ def test_api_proposer(client):
     soirs = {s["jour"]: s["plat"] for s in client.get("/api/diners").get_json()["soirs"]}
     assert all(soirs[j] == id_ for j, id_ in proposes.items())
     assert client.post("/api/diners/proposer", json={"remplacer": ["pas-une-date"]}).status_code == 400
+
+
+def test_api_diners_couts(client):
+    d = client.get("/api/diners").get_json()
+    carbo = next(p for p in d["plats"] if p["id"] == "plat-carbonara")
+    assert carbo["cout"] > 0 and d["livraison"] > 0
+    assert {"diners", "repas", "courses", "livraison", "a_acheter"} <= set(d["cout_semaine"])
+    assert isinstance(d["liste"], list)

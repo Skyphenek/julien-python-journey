@@ -16,6 +16,7 @@ from db import connecter, semer_placard, semer_carnet, completer_recettes, reorg
 from recettes_air_fryer import NOM_REPRISE as REPRISE_AIR_FRYER, NOM_REPRISE_6L, AIR_FRYER
 from recettes_legumes import NOM_REPRISE as REPRISE_LEGUMES, LEGUMES, RETIRES
 from recettes_mer import NOM_REPRISE as REPRISE_MER, MER, MER_JULIEN, POUR_JULIEN
+from recettes_laetitia import NOM_REPRISE as REPRISE_LAETITIA, LAETITIA
 
 load_dotenv(Path(__file__).parent / ".env")
 
@@ -66,11 +67,14 @@ def appliquer(conn, pour_de_bon):
         if mer is not None:
             pour_julien(conn, POUR_JULIEN)                   # avec la reprise : une seule fois
         julien = separer_pour_julien(conn)                   # « (Julien) » -> champ pour, une seule fois
+        laetitia = ajouter_recettes(conn, REPRISE_LAETITIA, LAETITIA)
         conn.commit()
         if bilan:
             print(f"Placard v2 : {annonce(bilan)}.")
         if julien is not None:
             print(f"Pour qui : {julien} plat(s) passés « pour Julien », suffixe retiré du nom.")
+        if laetitia is not None:
+            print(f"Rien que pour Laetitia : {laetitia} recettes ajoutées à tester.")
         if air_fryer is not None:
             print(f"Recettes air fryer : {air_fryer} ajoutées à tester.")
         if six_litres is not None:
@@ -88,7 +92,10 @@ def appliquer(conn, pour_de_bon):
         if mer is not None:
             pour_julien(conn, POUR_JULIEN)                   # avec la reprise : une seule fois
         julien = separer_pour_julien(conn)
+        laetitia = ajouter_recettes(conn, REPRISE_LAETITIA, LAETITIA)
         conn.rollback()
+        if laetitia is not None:
+            print(f"À blanc, rien que pour Laetitia : {laetitia} recettes à ajouter à tester.")
         if julien is not None:
             print(f"À blanc, pour qui : {julien} plat(s) à passer « pour Julien ».")
         print(f"À blanc : table(s) à créer : {', '.join(nouvelles) or 'aucune'}. Relance avec --appliquer.")

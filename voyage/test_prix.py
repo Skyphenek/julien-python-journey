@@ -23,3 +23,20 @@ def test_page():
     html = courses_en_html()
     assert '<script type="application/json" id="prix">' in html and 'id="budget"' in html
     assert '"filets de poulet": ["barquette de 2 (300 g)", 5.5]' in html
+
+
+# --- Coût d'un repas (Dîners) ---
+from prix_paris import cout_repas, prix_de
+
+
+def test_prix_de_par_la_cle_du_catalogue():
+    assert prix_de("Tomate cerise") == PRIX["tomates cerises"] and prix_de("truc inconnu") is None
+
+
+def test_cout_repas_plausible():
+    carbonara = cout_repas(["spaghetti", "guanciale ou pancetta", "œufs", "pecorino"])
+    assert 4 <= carbonara <= 9                                  # la part utilisée, pas les paquets entiers
+    assert cout_repas(["pavés de saumon", "riz basmati"]) > cout_repas(["spaghetti", "œufs"])
+    assert cout_repas([]) == 0 and cout_repas(["truc inconnu"]) == 0
+    veau = ["veau", "carottes", "crème fraîche"]
+    assert cout_repas(veau, "Pour 4\n- 1,2 kg de veau") == round(cout_repas(veau) / 2, 2)   # ramené à deux

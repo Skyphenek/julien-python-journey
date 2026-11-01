@@ -450,6 +450,7 @@ riz arborio | paquet de 1 kg | 3.90
 riz pour risotto | paquet de 1 kg | 3.90
 riz sauvage | paquet de 500 g | 4.50
 riz à sushi | paquet de 1 kg | 4.20
+crozets | paquet de 400 g | 3.50
 semoule | paquet de 500 g | 1.30
 couscous | paquet de 1 kg | 2.50
 boulgour | paquet de 500 g | 1.90
@@ -523,6 +524,7 @@ graines de chia | sachet de 200 g | 3.50
 graines de lin | sachet de 250 g | 2.50
 raisins secs | sachet de 250 g | 2.20
 abricots secs | sachet de 250 g | 3.50
+châtaignes | bocal de 200 g cuites | 4.50
 dattes | barquette de 250 g | 3.20
 pruneaux | sachet de 250 g | 3.20
 figues sèches | sachet de 250 g | 3.50
@@ -980,3 +982,40 @@ def _lire():
 
 
 PRIX = _lire()            # {nom du catalogue: (unité type, prix en euros)}
+
+
+# --- Le coût d'un repas : la part de chaque produit qu'un dîner pour deux utilise --------------
+# Sans quantités dans les recettes, une part par rayon : la viande ou le poisson achetés pour le plat
+# comptent en entier, un paquet de pâtes ou une sauce d'épicerie pour une petite part.
+PART_UTILISEE = {"boucherie": 1.0, "fruits-legumes": 0.5, "boulangerie": 0.5, "frais": 0.35, "surgeles": 0.3,
+                 "boissons": 0.3, "epicerie": 0.2, "specialise": 0.15, "hygiene-maison": 0.0}
+
+
+def _par_cle():
+    from catalogue import cle_catalogue
+    return {cle_catalogue(nom): valeur for nom, valeur in PRIX.items()}
+
+
+_PAR_CLE = _par_cle()
+
+
+def prix_de(nom):
+    """(unité type, prix) d'un article, au singulier ou au pluriel ; None hors catalogue."""
+    from catalogue import cle_catalogue
+    return _PAR_CLE.get(cle_catalogue(nom))
+
+
+def cout_repas(ingredients, recette=""):
+    """Le coût estimé d'un dîner pour deux, en euros : la part utilisée de chaque ingrédient connu.
+    Une recette « Pour 4 » (ou plus) est ramenée à deux : le reste fait un autre repas."""
+    import re
+    from catalogue import chercher
+    total = 0.0
+    for nom in ingredients:
+        prix, rangement = prix_de(nom), chercher(nom)
+        if prix and rangement:
+            total += prix[1] * PART_UTILISEE.get(rangement[0], 0.2)
+    portions = re.match(r"\s*Pour (\d+)", recette or "")
+    if portions and int(portions.group(1)) > 2:
+        total *= 2 / int(portions.group(1))
+    return round(total, 2)
