@@ -386,6 +386,7 @@ crabe | 1 pièce (800 g) | 12.90
 homard | 1 pièce (500 g) | 24.90
 langoustines | 500 g | 16.90
 bulots | 500 g cuits | 6.50
+morue salée | morceau de 400 g | 9.90
 demi-baguettes | sachet de 4 précuites | 2.50
 pains burger | sachet de 4 | 2.20
 steaks hachés | 2 pièces (250 g) | 4.50
