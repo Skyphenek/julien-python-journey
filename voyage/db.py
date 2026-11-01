@@ -735,9 +735,10 @@ def completer_recettes(conn, recettes):
     return n
 
 
-def ajouter_recettes(conn, nom_reprise, plats):
+def ajouter_recettes(conn, nom_reprise, plats, retirer=()):
     """Ajoute un lot de recettes « à tester », une seule fois (table reprises) : une recette retirée ou
-    corrigée dans l'app ne revient pas. Sans commit : l'appelant valide ou annule (à blanc).
+    corrigée dans l'app ne revient pas. `retirer` : ids archivés au passage (réversible dans l'app).
+    Sans commit : l'appelant valide ou annule (à blanc).
     Renvoie le nombre de recettes ajoutées, ou None si le lot est déjà passé."""
     with conn.cursor() as cur:
         cur.execute("SELECT EXISTS (SELECT 1 FROM reprises WHERE nom = %s)", (nom_reprise,))
@@ -751,6 +752,8 @@ def ajouter_recettes(conn, nom_reprise, plats):
                     VALUES (%s, {", ".join(["%s"] * len(CHAMPS_PLAT))}) ON CONFLICT (id) DO NOTHING""",
                 (p["id"], *[Json(p[c]) if c == "ingredients" else p[c] for c in CHAMPS_PLAT]))
             n += cur.rowcount
+        for id_ in retirer:
+            cur.execute("UPDATE plats SET archive = true, maj_le = now() WHERE id = %s", (id_,))
         cur.execute("INSERT INTO reprises (nom) VALUES (%s)", (nom_reprise,))
     return n
 

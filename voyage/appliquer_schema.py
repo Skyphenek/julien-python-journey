@@ -14,6 +14,7 @@ from courses import PLACARD_DEPART
 from db import connecter, semer_placard, semer_carnet, completer_recettes, reorganiser_placard, ajouter_recettes, \
     actualiser_recettes
 from recettes_air_fryer import NOM_REPRISE as REPRISE_AIR_FRYER, NOM_REPRISE_6L, AIR_FRYER
+from recettes_legumes import NOM_REPRISE as REPRISE_LEGUMES, LEGUMES, RETIRES
 
 load_dotenv(Path(__file__).parent / ".env")
 
@@ -32,6 +33,11 @@ def a_un_placard(conn):
 def annonce(bilan):
     return (f"{bilan['ranges']} éléments rangés par zone, {bilan['ajoutes']} ajoutés, "
             f"{bilan['habituels']} frais passés en habituels, {bilan['aux_courses']} articles à acheter dans les courses")
+
+
+def nouvelles_air_fryer():
+    """Les recettes air fryer venues après le premier lot (les carottes, à la place du brocoli)."""
+    return [p for p in AIR_FRYER if p["id"] == "af-carottes"]
 
 
 def appliquer(conn, pour_de_bon):
@@ -54,6 +60,7 @@ def appliquer(conn, pour_de_bon):
         bilan = reorganiser_placard(conn)                    # une seule fois (table reprises)
         air_fryer = ajouter_recettes(conn, REPRISE_AIR_FRYER, AIR_FRYER)    # une seule fois aussi
         six_litres = actualiser_recettes(conn, NOM_REPRISE_6L, REPRISE_AIR_FRYER, AIR_FRYER)
+        legumes = ajouter_recettes(conn, REPRISE_LEGUMES, LEGUMES + nouvelles_air_fryer(), RETIRES)
         conn.commit()
         if bilan:
             print(f"Placard v2 : {annonce(bilan)}.")
@@ -61,10 +68,13 @@ def appliquer(conn, pour_de_bon):
             print(f"Recettes air fryer : {air_fryer} ajoutées à tester.")
         if six_litres is not None:
             print(f"Recettes air fryer réglées pour le 6,2 L : {six_litres} réécrites.")
+        if legumes is not None:
+            print(f"Légumes Démasqués : {legumes} recettes ajoutées à tester, {', '.join(RETIRES)} archivé.")
     else:
         bilan = reorganiser_placard(conn) if a_un_placard(conn) else None
         air_fryer = ajouter_recettes(conn, REPRISE_AIR_FRYER, AIR_FRYER)
         six_litres = actualiser_recettes(conn, NOM_REPRISE_6L, REPRISE_AIR_FRYER, AIR_FRYER)
+        legumes = ajouter_recettes(conn, REPRISE_LEGUMES, LEGUMES + nouvelles_air_fryer(), RETIRES)
         conn.rollback()
         print(f"À blanc : table(s) à créer : {', '.join(nouvelles) or 'aucune'}. Relance avec --appliquer.")
         if bilan:
@@ -73,6 +83,8 @@ def appliquer(conn, pour_de_bon):
             print(f"À blanc, recettes air fryer : {air_fryer} à ajouter à tester.")
         if six_litres is not None:
             print(f"À blanc, recettes air fryer réglées pour le 6,2 L : {six_litres} à réécrire.")
+        if legumes is not None:
+            print(f"À blanc, Légumes Démasqués : {legumes} recettes à ajouter à tester, {', '.join(RETIRES)} à archiver.")
 
 
 if __name__ == "__main__":

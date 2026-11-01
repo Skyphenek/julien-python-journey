@@ -132,18 +132,18 @@ AIR_FRYER = [
 4. Fleur de sel. Avec la mayo piquante des tenders.""",
         "Un oui de Julien aux Légumes Démasqués."),
 
-    _af("brocoli", "Brocoli croustillant au parmesan", "accompagnement", 12,
-        ["brocoli", "parmesan", "ail", "citrons"],
+    _af("carottes", "Carottes rôties miel-cumin", "accompagnement", 25,
+        ["carottes", "miel", "cumin", "feta", "menthe"],
         """Pour 2
-- 1 brocoli en petits bouquets, la tige pelée et coupée en bâtonnets
-- 1 c. à s. d'huile d'olive, 1 gousse d'ail râpée, sel
-- 2 c. à s. de parmesan râpé, 1/2 citron
+- 500 g de carottes, en bâtonnets de 1 cm (ou des carottes fanes entières, coupées en deux dans la longueur)
+- 1 c. à s. d'huile d'olive, 1 c. à s. de miel, 1/2 c. à c. de cumin, sel
+- 50 g de feta, quelques feuilles de menthe
 
-1. Bouquets bien secs, mélangés à l'huile, l'ail et le sel.
-2. AIR FRY, 190 °C, 7 min, secouer.
-3. Parmesan par-dessus, encore 2 à 3 min : les pointes noircissent légèrement et croustillent, c'est le but.
-4. Un filet de citron à la sortie.""",
-        "À faire goûter à Laetitia : grillé, il n'a plus le goût de brocoli vapeur."),
+1. Mélanger les carottes avec l'huile, le cumin et le sel.
+2. AIR FRY, 190 °C, 15 min, en secouant à mi-cuisson.
+3. Arroser du miel, mélanger, encore 3 à 5 min : les bords caramélisent et noircissent un peu, c'est là qu'est le goût.
+4. Feta émiettée et menthe à la sortie.""",
+        "Un oui de Laetitia aux Légumes Démasqués ; remplace le brocoli, qu'elle ne mange jamais."),
 
     _af("crumble", "Crumble aux pommes express", "dessert", 25,
         ["pommes", "farine", "beurre", "cassonade", "cannelle"],
