@@ -12,10 +12,10 @@ from dotenv import load_dotenv
 from carnet_depart import CARNET_DEPART, A_TESTER
 from courses import PLACARD_DEPART
 from db import connecter, semer_placard, semer_carnet, completer_recettes, reorganiser_placard, ajouter_recettes, \
-    actualiser_recettes
+    actualiser_recettes, pour_julien
 from recettes_air_fryer import NOM_REPRISE as REPRISE_AIR_FRYER, NOM_REPRISE_6L, AIR_FRYER
 from recettes_legumes import NOM_REPRISE as REPRISE_LEGUMES, LEGUMES, RETIRES
-from recettes_mer import NOM_REPRISE as REPRISE_MER, MER, MER_JULIEN
+from recettes_mer import NOM_REPRISE as REPRISE_MER, MER, MER_JULIEN, POUR_JULIEN
 
 load_dotenv(Path(__file__).parent / ".env")
 
@@ -63,6 +63,8 @@ def appliquer(conn, pour_de_bon):
         six_litres = actualiser_recettes(conn, NOM_REPRISE_6L, REPRISE_AIR_FRYER, AIR_FRYER)
         legumes = ajouter_recettes(conn, REPRISE_LEGUMES, LEGUMES + nouvelles_air_fryer(), RETIRES)
         mer = ajouter_recettes(conn, REPRISE_MER, MER + MER_JULIEN)
+        if mer is not None:
+            pour_julien(conn, POUR_JULIEN)                   # avec la reprise : une seule fois
         conn.commit()
         if bilan:
             print(f"Placard v2 : {annonce(bilan)}.")
@@ -73,13 +75,15 @@ def appliquer(conn, pour_de_bon):
         if legumes is not None:
             print(f"Légumes Démasqués : {legumes} recettes ajoutées à tester, {', '.join(RETIRES)} archivé.")
         if mer is not None:
-            print(f"Poissons Démasqués : {mer} recettes ajoutées à tester.")
+            print(f"Poissons Démasqués : {mer} recettes ajoutées à tester, {len(POUR_JULIEN)} plat marqué « (Julien) ».")
     else:
         bilan = reorganiser_placard(conn) if a_un_placard(conn) else None
         air_fryer = ajouter_recettes(conn, REPRISE_AIR_FRYER, AIR_FRYER)
         six_litres = actualiser_recettes(conn, NOM_REPRISE_6L, REPRISE_AIR_FRYER, AIR_FRYER)
         legumes = ajouter_recettes(conn, REPRISE_LEGUMES, LEGUMES + nouvelles_air_fryer(), RETIRES)
         mer = ajouter_recettes(conn, REPRISE_MER, MER + MER_JULIEN)
+        if mer is not None:
+            pour_julien(conn, POUR_JULIEN)                   # avec la reprise : une seule fois
         conn.rollback()
         print(f"À blanc : table(s) à créer : {', '.join(nouvelles) or 'aucune'}. Relance avec --appliquer.")
         if bilan:
@@ -91,7 +95,7 @@ def appliquer(conn, pour_de_bon):
         if legumes is not None:
             print(f"À blanc, Légumes Démasqués : {legumes} recettes à ajouter à tester, {', '.join(RETIRES)} à archiver.")
         if mer is not None:
-            print(f"À blanc, Poissons Démasqués : {mer} recettes à ajouter à tester.")
+            print(f"À blanc, Poissons Démasqués : {mer} recettes à ajouter à tester, {len(POUR_JULIEN)} plat à marquer « (Julien) ».")
 
 
 if __name__ == "__main__":

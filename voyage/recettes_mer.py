@@ -12,6 +12,7 @@ Ajoutées une seule fois (table reprises).
 """
 
 NOM_REPRISE = "poissons-demasques"
+POUR_JULIEN = ["tester-moules"]          # les moules frites du Match des Recettes : non de Laetitia au jeu
 
 # Ses « jamais » : aucun n'entre dans une recette du couple
 JAMAIS_LAETITIA = ("poisson blanc", "cabillaud", "lieu", "colin", "dorade", "bar", "sole", "truite", "sardine",

@@ -7,7 +7,7 @@ import pytest
 from carnet_depart import CARNET_DEPART, A_TESTER
 from catalogue import chercher
 from courses import PLACARD_DEPART, normaliser
-from db import connecter, semer_placard, semer_carnet, lire_plats, ajouter_recettes
+from db import connecter, semer_placard, semer_carnet, lire_plats, ajouter_recettes, pour_julien
 from diners import GENRES
 from recettes_air_fryer import AIR_FRYER
 from recettes_legumes import LEGUMES
@@ -48,3 +48,10 @@ def test_ajout(conn):
     plats = {p["id"]: p for p in lire_plats(conn)}
     assert plats["mer-paella"]["statut"] == "a-tester" and plats["mer-brandade"]["nom"].endswith("(Julien)")
     assert ajouter_recettes(conn, NOM_REPRISE, MER + MER_JULIEN) is None
+
+
+def test_moules_frites_pour_julien(conn):
+    assert pour_julien(conn, ["tester-moules"]) == 1 and pour_julien(conn, ["tester-moules"]) == 0
+    conn.commit()
+    moules = next(p for p in lire_plats(conn) if p["id"] == "tester-moules")
+    assert moules["nom"] == "Moules marinières frites (Julien)" and moules["note"].startswith("Pour Julien")

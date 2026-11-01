@@ -758,6 +758,18 @@ def ajouter_recettes(conn, nom_reprise, plats, retirer=()):
     return n
 
 
+def pour_julien(conn, ids):
+    """Marque des plats « (Julien) » : Laetitia n'en mange pas. Sans commit ; renvoie le nombre marqués."""
+    n = 0
+    with conn.cursor() as cur:
+        for id_ in ids:
+            cur.execute("""UPDATE plats SET nom = nom || ' (Julien)',
+                           note = trim('Pour Julien : Laetitia a dit non au jeu. ' || note), maj_le = now()
+                           WHERE id = %s AND nom NOT LIKE '%%(Julien)'""", (id_,))
+            n += cur.rowcount
+    return n
+
+
 def actualiser_recettes(conn, nom_reprise, depuis, plats):
     """Réécrit un lot de recettes ajouté par la reprise `depuis`, une seule fois (table reprises) : seulement
     celles qu'ils n'ont pas touchées dans l'app depuis cet ajout. Sans commit : l'appelant valide ou annule.
