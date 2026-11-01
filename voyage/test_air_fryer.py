@@ -31,6 +31,7 @@ def test_donnees():
     for p in AIR_FRYER:
         assert p["nom"].endswith("(air fryer)") and p["recette"].startswith("Pour ") and "°C" in p["recette"]
         assert p["ingredients"] and all("(" not in i for i in p["ingredients"])
+        assert '"' not in p["recette"] and "_" not in p["recette"]        # pas de code resté dans le texte
     # Les basiques s'écrivent comme au placard : c'est la clé qui relie recettes, placard et courses
     au_placard = {normaliser(n) for n, _, _ in PLACARD} | {normaliser(n) for n, _ in HABITUELS}
     utilises = {normaliser(i) for p in AIR_FRYER for i in p["ingredients"]}
