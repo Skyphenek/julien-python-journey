@@ -70,7 +70,7 @@ _GROUPES = [
     ("boucherie", "frigo", """saumon, pavés de saumon, filets de saumon, cabillaud, dos de cabillaud, lieu noir,
         colin, merlu, églefin, haddock, bar, dorade, sole, sardines fraîches, maquereau, thon frais, truite,
         lotte, raie, Saint-Jacques, crevettes, crevettes crues, gambas, moules, palourdes, coques, huîtres,
-        calamars, encornets, poulpe, seiche, crabe, homard, langoustines, bulots"""),
+        calamars, encornets, poulpe, seiche, crabe, homard, langoustines, bulots, morue salée"""),
 
     # --- Chez eux, au congélateur (placard v2) ----------------------------------------------
     ("boulangerie", "congelateur", "demi-baguettes, pains burger"),
