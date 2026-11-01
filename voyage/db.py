@@ -660,7 +660,7 @@ def semer_placard(conn, noms):
 
 
 
-# --- Casa Binomerie : dîners (carnet et soirs) ---------------------------------------------------
+# --- Casa Binomerie : dîners (carnet et repas) ---------------------------------------------------
 
 CHAMPS_PLAT = ("nom", "genre", "minutes", "ingredients", "recette", "lien", "note", "statut", "archive", "pour")
 _DEFAUTS_PLAT = {"pour": "nous"}
@@ -695,22 +695,45 @@ def plat_existe(conn, identifiant):
         return cur.fetchone()[0]
 
 
-def enregistrer_soir(conn, s):
-    """Le soir d'un jour (plat prévu, issue). Fait maison avec un plat à tester : il passe au carnet."""
+def enregistrer_repas(conn, r):
+    """Un repas (jour, moment) : ses plats et son issue. Vide (ni plat ni issue) : supprimé.
+    Fait maison : chacun de ses plats à tester passe au carnet."""
     with conn.cursor() as cur:
-        cur.execute("""INSERT INTO soirs (jour, plat, issue) VALUES (%s, %s, %s)
-                       ON CONFLICT (jour) DO UPDATE SET plat = EXCLUDED.plat, issue = EXCLUDED.issue,
-                       maj_le = now()""", (s["jour"], s["plat"], s["issue"]))
-        if s["issue"] == "fait" and s["plat"]:
+        if not r["plats"] and not r["issue"]:
+            cur.execute("DELETE FROM repas WHERE jour = %s AND moment = %s", (r["jour"], r["moment"]))
+        else:
+            cur.execute("""INSERT INTO repas (jour, moment, plats, issue) VALUES (%s, %s, %s, %s)
+                           ON CONFLICT (jour, moment) DO UPDATE SET plats = EXCLUDED.plats, issue = EXCLUDED.issue,
+                           maj_le = now()""", (r["jour"], r["moment"], Json(r["plats"]), r["issue"]))
+        if r["issue"] == "fait" and r["plats"]:
             cur.execute("""UPDATE plats SET statut = 'carnet', maj_le = now()
-                           WHERE id = %s AND statut = 'a-tester'""", (s["plat"],))
+                           WHERE id = ANY(%s) AND statut = 'a-tester'""", (list(r["plats"]),))
     conn.commit()
 
 
-def lire_soirs(conn, debut, fin):
+def lire_repas(conn, debut, fin):
     with conn.cursor() as cur:
-        cur.execute("SELECT jour, plat, issue FROM soirs WHERE jour BETWEEN %s AND %s ORDER BY jour", (debut, fin))
-        return [dict(zip(("jour", "plat", "issue"), ligne)) for ligne in cur.fetchall()]
+        cur.execute("""SELECT jour, moment, plats, issue FROM repas WHERE jour BETWEEN %s AND %s
+                       ORDER BY jour, moment""", (debut, fin))
+        return [dict(zip(("jour", "moment", "plats", "issue"), ligne)) for ligne in cur.fetchall()]
+
+
+def reprendre_soirs(conn):
+    """La reprise repas-v1, une seule fois (table reprises) : chaque soir renseigné devient un dîner
+    (même plat, même issue). Sans commit : l'appelant valide ou annule (à blanc).
+    Renvoie le nombre de dîners repris, ou None si la reprise est déjà faite."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT EXISTS (SELECT 1 FROM reprises WHERE nom = 'repas-v1')")
+        if cur.fetchone()[0]:
+            return None
+        cur.execute("""INSERT INTO repas (jour, moment, plats, issue, maj_le)
+                       SELECT jour, 'diner', CASE WHEN plat IS NULL THEN '[]'::jsonb ELSE jsonb_build_array(plat) END,
+                              issue, maj_le
+                       FROM soirs WHERE plat IS NOT NULL OR issue IS NOT NULL
+                       ON CONFLICT (jour, moment) DO NOTHING""")
+        n = cur.rowcount
+        cur.execute("INSERT INTO reprises (nom) VALUES ('repas-v1')")
+    return n
 
 
 def semer_carnet(conn, carnet, a_tester):

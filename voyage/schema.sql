@@ -254,3 +254,13 @@ CREATE TABLE IF NOT EXISTS soirs (
     issue       TEXT        CHECK (issue IN ('fait', 'commande', 'dehors', 'autre')),
     maj_le      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Un repas = plusieurs plats (01/11/2026) : le dîner de chaque jour, un déjeuner ou un brunch à la demande.
+-- plats : ids de plats, dans l'ordre d'ajout. Remplace `soirs` (gardée en lecture, reprise repas-v1).
+CREATE TABLE IF NOT EXISTS repas (
+    jour        DATE        NOT NULL,
+    moment      TEXT        NOT NULL CHECK (moment IN ('diner', 'dejeuner', 'brunch')),
+    plats       JSONB       NOT NULL DEFAULT '[]',
+    issue       TEXT        CHECK (issue IN ('fait', 'commande', 'dehors', 'autre')),
+    maj_le      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (jour, moment)
+);

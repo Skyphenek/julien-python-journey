@@ -78,16 +78,25 @@ def test_sans_voyage_proche_pas_de_bloc_vadrouille():
 def test_ce_soir():
     vide = aujourdhui_en_html([], AUJOURD_HUI)
     assert '<a class="bloc-ce-soir vide" href="diners#ce-soir">' in vide and "Rien de prévu" in vide
-    html = aujourdhui_en_html([], AUJOURD_HUI, plat_du_soir={"nom": "Carbonara", "minutes": 20})
+    html = aujourdhui_en_html([], AUJOURD_HUI, plats_du_soir=[{"nom": "Carbonara", "minutes": 20, "genre": "plat"}])
     assert "<strong>Carbonara</strong><span>20 min" in html
 
 
+def test_ce_soir_compose():
+    plats = [{"nom": "Salade de chèvre", "minutes": 10, "genre": "entree"},
+             {"nom": "Carbonara", "minutes": 20, "genre": "plat"},
+             {"nom": "Tiramisu", "minutes": 30, "genre": "dessert"}]
+    html = aujourdhui_en_html([], AUJOURD_HUI, plats_du_soir=plats)
+    assert "<strong>Carbonara</strong>" in html and "avec Salade de chèvre, Tiramisu" in html
+
+
 def test_hier_soir_tant_que_pas_renseigne():
-    hier = {"jour": AUJOURD_HUI - timedelta(days=1), "plat": "plat-carbonara", "issue": None}
-    html = aujourdhui_en_html([], AUJOURD_HUI, soir_hier=hier)
-    assert "Hier soir ?" in html and 'data-issue="commande"' in html
-    assert "&quot;jour&quot;: &quot;2026-10-27&quot;, &quot;plat&quot;: &quot;plat-carbonara&quot;" in html
-    assert "Hier soir ?" not in aujourdhui_en_html([], AUJOURD_HUI, soir_hier={**hier, "issue": "fait"})
+    hier = {"jour": AUJOURD_HUI - timedelta(days=1), "moment": "diner", "plats": ["plat-carbonara"], "issue": None}
+    html = aujourdhui_en_html([], AUJOURD_HUI, diner_hier=hier)
+    assert "Hier soir ?" in html and 'data-issue="commande"' in html and "api/repas" in html
+    assert ("&quot;jour&quot;: &quot;2026-10-27&quot;, &quot;moment&quot;: &quot;diner&quot;, "
+            "&quot;plats&quot;: [&quot;plat-carbonara&quot;]") in html
+    assert "Hier soir ?" not in aujourdhui_en_html([], AUJOURD_HUI, diner_hier={**hier, "issue": "fait"})
 
 
 def test_compteur_deliveroo():

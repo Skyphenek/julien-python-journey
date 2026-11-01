@@ -88,10 +88,14 @@ def bloc_courses(a_prendre):
             f'<span>{a_prendre} article{"s" if a_prendre > 1 else ""} à prendre</span></a>')
 
 
-def bloc_ce_soir(plat):
-    if plat:
+def bloc_ce_soir(plats):
+    """Le dîner de ce soir : le plat principal en grand, les autres plats à la suite."""
+    if plats:
+        principal = next((p for p in plats if p.get("genre") == "plat"), plats[0])
+        autres = [p["nom"] for p in plats if p is not principal]
+        avec = f'avec {echapper(", ".join(autres))} · ' if autres else ""
         return (f'<a class="bloc-ce-soir" href="diners#ce-soir"><span class="titre">Ce soir</span>'
-                f'<strong>{echapper(plat["nom"])}</strong><span>{plat["minutes"]} min · voir la recette</span></a>')
+                f'<strong>{echapper(principal["nom"])}</strong><span>{principal["minutes"]} min · {avec}voir la recette</span></a>')
     return ('<a class="bloc-ce-soir vide" href="diners#ce-soir"><span class="titre">Ce soir</span>'
             '<strong>Rien de prévu</strong><span>Voir ce que le placard permet en 20 minutes</span></a>')
 
@@ -99,13 +103,13 @@ def bloc_ce_soir(plat):
 ISSUES_HIER = [("fait", "Fait maison"), ("commande", "Commandé"), ("dehors", "Dehors"), ("autre", "Autre")]
 
 
-def bloc_hier(soir_hier):
-    """« Hier soir ? » tant que le soir d'hier n'est pas renseigné : c'est ce qui compte les Deliveroo."""
-    if soir_hier["issue"]:
+def bloc_hier(diner_hier):
+    """« Hier soir ? » tant que le dîner d'hier n'est pas renseigné : c'est ce qui compte les Deliveroo."""
+    if diner_hier["issue"]:
         return ""
-    corps = json.dumps({"jour": soir_hier["jour"].isoformat(), "plat": soir_hier["plat"]})
+    corps = json.dumps({"jour": diner_hier["jour"].isoformat(), "moment": "diner", "plats": diner_hier["plats"]})
     boutons = "".join(f'<button type="button" data-issue="{c}">{t}</button>' for c, t in ISSUES_HIER)
-    return (f'<div class="bloc-hier" data-soir="{echapper(corps)}"><strong>Hier soir ?</strong>'
+    return (f'<div class="bloc-hier" data-repas="{echapper(corps)}"><strong>Hier soir ?</strong>'
             f'<div class="choix">{boutons}</div><p class="message" aria-live="polite"></p></div>')
 
 
@@ -123,12 +127,12 @@ SCRIPT_HIER = """
 (function () {
     const bloc = document.querySelector('div.bloc-hier');
     if (!bloc) return;
-    const soir = JSON.parse(bloc.dataset.soir);
+    const repas = JSON.parse(bloc.dataset.repas);
     bloc.querySelectorAll('button').forEach(function (b) {
         b.addEventListener('click', function () {
             bloc.querySelectorAll('button').forEach(function (x) { x.disabled = true; });
-            fetch('api/soirs', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                                 body: JSON.stringify(Object.assign({}, soir, { issue: b.dataset.issue })) })
+            fetch('api/repas', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                 body: JSON.stringify(Object.assign({}, repas, { issue: b.dataset.issue })) })
                 .then(function (r) { if (!r.ok) throw new Error(r.status); location.reload(); })
                 .catch(function () {
                     bloc.querySelector('.message').textContent = 'Pas envoyé : réessaie une fois connecté.';
@@ -140,10 +144,10 @@ SCRIPT_HIER = """
 """
 
 
-def aujourdhui_en_html(voyages, aujourd_hui, a_prendre=0, plat_du_soir=None, soir_hier=None, compte=None):
+def aujourdhui_en_html(voyages, aujourd_hui, a_prendre=0, plats_du_soir=(), diner_hier=None, compte=None):
     """L'accueil du hub : ce soir, hier soir, les courses, le prochain voyage, le compteur Deliveroo."""
     v = prochain_voyage(voyages, aujourd_hui)
-    blocs = (bloc_ce_soir(plat_du_soir) + (bloc_hier(soir_hier) if soir_hier else "") + bloc_courses(a_prendre)
+    blocs = (bloc_ce_soir(list(plats_du_soir)) + (bloc_hier(diner_hier) if diner_hier else "") + bloc_courses(a_prendre)
              + (bloc_vadrouille(v, aujourd_hui) if v else "") + bloc_compteur(compte))
     return f"""<!doctype html>
 <html lang="fr">

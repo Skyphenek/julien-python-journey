@@ -24,7 +24,7 @@ from db import (emprunter, ajouter_depense, lire_depenses, supprimer_depense, ob
                 lire_souvenirs, supprimer_souvenir, enregistrer_coche, lister_voyages, lire_voyage, archiver_voyage,
                 VERDICTS, enregistrer_retour, supprimer_retour, lire_retours,
                 enregistrer_article, lire_courses, supprimer_article, vider_pris, compter_a_prendre,
-                enregistrer_placard, retirer_du_placard, enregistrer_plat, lire_plats, plat_existe, enregistrer_soir, lire_soirs)
+                enregistrer_placard, retirer_du_placard, enregistrer_plat, lire_plats, plat_existe, enregistrer_repas, lire_repas)
 from valise import (solde_depenses, actualiser_meteo, fenetres_du_voyage, page_du_voyage, accueil_en_html,
                     lieux_depuis_reponse, normales_ou_url, normales_depuis_historique,
                     formulaire_en_html, creer_voyage, VERSION_PAGE)
@@ -37,8 +37,8 @@ from vocabulaire import LANGUES
 from casa import aujourdhui_en_html, aujourd_hui_paris
 from courses import valider_article, valider_placard, courses_en_html, normaliser
 from prix_paris import cout_repas
-from diners import (disponibles, valider_plat, valider_soir, secours, a_acheter, compteur, semaine, diners_en_html,
-                    proposer, cout_semaine, LIVRAISON_DEUX, FENETRE_PASSE, FENETRE_FUTUR)
+from diners import (disponibles, valider_plat, valider_repas, secours, a_acheter, compteur, semaine, diners_en_html,
+                    proposer, cout_semaine, repas_prevus, ranger, LIVRAISON_DEUX, FENETRE_PASSE, FENETRE_FUTUR)
 from uuid import uuid4
 
 load_dotenv(Path(__file__).parent / ".env")   # en local : lit voyage/.env s'il existe
@@ -59,12 +59,14 @@ def creer_app(nom_base="valise", secret=None):
             jour = aujourd_hui_paris()
             conn = emprunter(app.config["NOM_BASE"])
             try:
-                soirs = {s["jour"]: s for s in lire_soirs(conn, jour - timedelta(days=FENETRE_PASSE), jour)}
+                repas = lire_repas(conn, jour - timedelta(days=FENETRE_PASSE), jour)
                 plats = {p["id"]: p for p in lire_plats(conn)}
-                ce_soir = soirs.get(jour, {}).get("plat")
-                hier = soirs.get(jour - timedelta(days=1), {"jour": jour - timedelta(days=1), "plat": None, "issue": None})
+                diners = {r["jour"]: r for r in repas if r["moment"] == "diner"}
+                ce_soir = ranger([plats[i] for i in diners.get(jour, {"plats": []})["plats"] if i in plats], "diner")
+                veille = jour - timedelta(days=1)
+                hier = diners.get(veille, {"jour": veille, "moment": "diner", "plats": [], "issue": None})
                 html = aujourdhui_en_html(lister_voyages(conn), jour, compter_a_prendre(conn),
-                                          plats.get(ce_soir), hier, compteur(list(soirs.values()), jour))
+                                          ce_soir, hier, compteur(repas, jour))
             finally:
                 conn.close()
             return Response(html, mimetype="text/html")
@@ -83,24 +85,24 @@ def creer_app(nom_base="valise", secret=None):
         conn = emprunter(app.config["NOM_BASE"])
         try:
             plats = lire_plats(conn)
-            soirs = lire_soirs(conn, jour - timedelta(days=FENETRE_PASSE), jour + timedelta(days=FENETRE_FUTUR))
+            repas = lire_repas(conn, jour - timedelta(days=FENETRE_PASSE), jour + timedelta(days=FENETRE_FUTUR))
             lu = lire_courses(conn)
         finally:
             conn.close()
         faisables, presque = secours(plats, lu["placard"], lu["articles"])
         par_id = {p["id"]: p for p in plats}
         jours = semaine(jour)
-        prevus = [par_id[s["plat"]] for s in soirs if s["jour"] in jours and s["plat"] in par_id and not s["issue"]]
+        prevus = repas_prevus(repas, par_id, jours)
         return jsonify({
             "aujourd_hui": jour.isoformat(), "semaine": [j.isoformat() for j in jours],
             "plats": [{**p, "cout": cout_repas(p["ingredients"], p["recette"])} for p in plats],
-            "soirs": [{**s, "jour": s["jour"].isoformat()} for s in soirs],
+            "repas": [{**r, "jour": r["jour"].isoformat()} for r in repas],
             "liste": sorted({normaliser(a["nom"]) for a in lu["articles"] if a["actif"] and not a["pris"]}),
             "livraison": LIVRAISON_DEUX, "cout_semaine": cout_semaine(prevus, lu["placard"], lu["articles"]),
             "stock": sorted(disponibles(lu["placard"], lu["articles"])),
             "secours": {"faisables": [p["id"] for p in faisables],
                         "presque": [{"plat": x["plat"]["id"], "manquants": x["manquants"]} for x in presque]},
-            "compteur": compteur(soirs, jour)})
+            "compteur": compteur(repas, jour)})
 
     @routes.post("/api/plats")
     def enregistrer_une_recette():
@@ -115,29 +117,30 @@ def creer_app(nom_base="valise", secret=None):
             conn.close()
         return jsonify({"ok": True})
 
-    @routes.post("/api/soirs")
-    def enregistrer_un_soir():
+    @routes.post("/api/repas")
+    def enregistrer_un_repas():
         try:
-            soir = valider_soir(request.get_json(silent=True), aujourd_hui_paris())
+            repas = valider_repas(request.get_json(silent=True), aujourd_hui_paris())
         except ValueError as e:
             return jsonify({"erreur": str(e)}), 400
         conn = emprunter(app.config["NOM_BASE"])
         try:
-            if soir["plat"] and not plat_existe(conn, soir["plat"]):
+            if not all(plat_existe(conn, i) for i in repas["plats"]):
                 return jsonify({"erreur": "plat inconnu"}), 400
-            enregistrer_soir(conn, soir)
+            enregistrer_repas(conn, repas)
         finally:
             conn.close()
         return jsonify({"ok": True})
 
     @routes.post("/api/diners/courses")
     def courses_de_la_semaine():
-        """Les ingrédients des plats prévus cette semaine, ni au placard ni déjà sur la liste."""
+        """Les ingrédients des repas prévus cette semaine, ni au placard ni déjà sur la liste."""
         jour = aujourd_hui_paris()
         conn = emprunter(app.config["NOM_BASE"])
         try:
             plats = {p["id"]: p for p in lire_plats(conn)}
-            prevus = [plats[s["plat"]] for s in lire_soirs(conn, jour, jour + timedelta(days=6)) if s["plat"] in plats]
+            prevus = [p for r in repas_prevus(lire_repas(conn, jour, jour + timedelta(days=6)), plats, semaine(jour))
+                      for p in r]
             lu = lire_courses(conn)
             ajoutes = []
             for nom, id_plat in a_acheter(prevus, lu["placard"], lu["articles"]):
@@ -149,7 +152,7 @@ def creer_app(nom_base="valise", secret=None):
 
     @routes.post("/api/diners/proposer")
     def proposer_la_semaine():
-        """Complète la semaine (diners.proposer) et enregistre les soirs proposés ; `remplacer` : jours à retirer."""
+        """Complète la semaine (diners.proposer) et enregistre les dîners proposés ; `remplacer` : jours à retirer."""
         corps = request.get_json(silent=True) or {}
         try:
             remplacer = [date.fromisoformat(j) for j in corps.get("remplacer", [])]
@@ -159,10 +162,10 @@ def creer_app(nom_base="valise", secret=None):
         conn = emprunter(app.config["NOM_BASE"])
         try:
             plats = lire_plats(conn)
-            soirs = lire_soirs(conn, jour - timedelta(days=FENETRE_PASSE), jour + timedelta(days=6))
-            proposes = proposer(plats, soirs, semaine(jour), jour, remplacer=remplacer)
+            repas = lire_repas(conn, jour - timedelta(days=FENETRE_PASSE), jour + timedelta(days=6))
+            proposes = proposer(plats, repas, semaine(jour), jour, remplacer=remplacer)
             for j, id_plat in proposes.items():
-                enregistrer_soir(conn, {"jour": j, "plat": id_plat, "issue": None})
+                enregistrer_repas(conn, {"jour": j, "moment": "diner", "plats": [id_plat], "issue": None})
         finally:
             conn.close()
         return jsonify({"proposes": {j.isoformat(): id_plat for j, id_plat in proposes.items()}})

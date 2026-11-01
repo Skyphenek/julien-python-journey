@@ -1,9 +1,10 @@
 """Casa Binomerie — Dîners : le carnet de recettes, la semaine, le secours et le compteur Deliveroo.
 
 - plats : le carnet (statut 'carnet') et les envies du Match des Recettes ('a-tester'). Un plat à
-  tester passe au carnet quand un soir où on l'a prévu est marqué « fait maison » (db.enregistrer_soir).
-- soirs : un par jour — le plat prévu et ce qui s'est vraiment passé (fait, commandé, dehors, autre).
-  C'est aussi la mesure du succès : ≤ 1 commande par semaine (départ : 3, le 28/10/2026).
+  tester passe au carnet quand un repas où on l'a prévu est marqué « fait maison » (db.enregistrer_repas).
+- repas : un dîner par jour, un déjeuner ou un brunch à la demande — plusieurs plats, et ce qui s'est vraiment
+  passé (fait, commandé, dehors, autre). Le dîner est la mesure du succès : ≤ 1 commande par semaine
+  (départ : 3, le 28/10/2026).
 - Secours : les plats ≤ SECOURS_MINUTES dont tout est au placard ; « presque » : il en manque 1 ou 2.
 Les noms d'ingrédients se comparent normalisés, comme les courses (courses.normaliser).
 """
@@ -20,8 +21,11 @@ GENRES = [("plat", "Plats"), ("accompagnement", "Accompagnements"), ("entree", "
 STATUTS = ("carnet", "a-tester")
 POUR = [("nous", "Nous deux"), ("julien", "Julien"), ("laetitia", "Laetitia")]
 ISSUES = [("fait", "Fait maison"), ("commande", "Commandé"), ("dehors", "Dehors"), ("autre", "Autre")]
+MOMENTS = [("diner", "Dîner"), ("dejeuner", "Déjeuner"), ("brunch", "Brunch")]
+ORDRE_GENRES = ("entree", "plat", "accompagnement", "dessert")
+MAX_PLATS = 8
 SECOURS_MINUTES = 20
-FENETRE_PASSE = 42           # jours de soirs lus : les 6 semaines du compteur
+FENETRE_PASSE = 42           # jours de repas lus : les 6 semaines du compteur
 FENETRE_FUTUR = 30           # jusqu'où on peut planifier
 
 
@@ -83,23 +87,35 @@ def valider_plat(corps):
     return p
 
 
-def valider_soir(corps, aujourd_hui):
-    """Un soir : {jour, plat (id ou None), issue (ou None)} ; de -60 à +30 jours."""
+def valider_repas(corps, aujourd_hui):
+    """Un repas : {jour, moment, plats (0 à 8 ids sans doublon), issue (ou None)} ; de -60 à +30 jours."""
     if not isinstance(corps, dict):
-        raise ValueError("soir invalide")
+        raise ValueError("repas invalide")
     try:
         jour = date.fromisoformat(corps.get("jour"))
     except (TypeError, ValueError):
         raise ValueError("jour invalide") from None
     if not -60 <= (jour - aujourd_hui).days <= FENETRE_FUTUR:
         raise ValueError("jour hors limites")
-    plat = corps.get("plat") or None
-    if plat is not None and (not isinstance(plat, str) or not _ID.fullmatch(plat)):
-        raise ValueError("plat invalide")
+    if not isinstance(corps.get("moment"), str) or corps["moment"] not in dict(MOMENTS):
+        raise ValueError("moment invalide")
+    plats = corps.get("plats") or []
+    if (not isinstance(plats, list) or len(plats) > MAX_PLATS
+            or not all(isinstance(i, str) and _ID.fullmatch(i) for i in plats)):
+        raise ValueError("plats invalides")
+    if len(set(plats)) != len(plats):
+        raise ValueError("plat en double")
     issue = corps.get("issue") or None
-    if issue is not None and issue not in dict(ISSUES):
+    if issue is not None and (not isinstance(issue, str) or issue not in dict(ISSUES)):
         raise ValueError("issue invalide")
-    return {"jour": jour, "plat": plat, "issue": issue}
+    return {"jour": jour, "moment": corps["moment"], "plats": plats, "issue": issue}
+
+
+def ranger(plats, moment):
+    """Les plats d'un repas dans l'ordre du service ; au brunch, dans l'ordre d'ajout."""
+    if moment == "brunch":
+        return list(plats)
+    return sorted(plats, key=lambda p: ORDRE_GENRES.index(p["genre"]))
 
 
 # --- Logique ----------------------------------------------------------------------------------
@@ -144,26 +160,38 @@ def a_acheter(plats_prevus, placard, courses):
     return resultat
 
 
+def repas_prevus(repas, par_id, jours):
+    """Les repas encore à venir des `jours` (sans issue) : pour chacun, ses plats connus ; les vides sont omis."""
+    prevus = []
+    for r in repas:
+        if r["jour"] in jours and not r["issue"]:
+            plats = [par_id[i] for i in r["plats"] if i in par_id]
+            if plats:
+                prevus.append(plats)
+    return prevus
+
+
 CIBLE_SOIRS = 4             # soirs prévus par semaine : les autres restent libres
 MINUTES_SEMAINE = 45        # du lundi au jeudi, on cuisine vite
 RECENT = 14                 # un plat mangé il y a moins de 14 jours ne revient pas
 
 
-def proposer(plats, soirs, jours, aujourd_hui, remplacer=(), cible=CIBLE_SOIRS, hasard=None):
-    """{jour: id du plat} pour compléter la semaine jusqu'à `cible` soirs prévus.
+def proposer(plats, repas, jours, aujourd_hui, remplacer=(), cible=CIBLE_SOIRS, hasard=None):
+    """{jour: id du plat} pour compléter la semaine jusqu'à `cible` dîners prévus.
 
-    Soirs libres seulement (ni plat ni issue), vendredi et samedi en dernier recours (souvent dehors), répartis
-    dans la semaine. Plats pour nous deux, avec recette ; rapides (≤ 45 min) du lundi au jeudi ; ni déjà prévus,
-    ni mangés ces 14 derniers jours ; un plat à tester s'il n'y en a pas déjà un. `remplacer` : des jours à
-    tirer au sort de nouveau, avec un autre plat."""
+    Dîners libres seulement (ni plat ni issue), vendredi et samedi en dernier recours (souvent dehors), répartis
+    dans la semaine. Plats pour nous deux, avec recette ; rapides (≤ 45 min) du lundi au jeudi ; ni déjà prévus
+    (tous moments), ni mangés ces 14 derniers jours ; un plat à tester s'il n'y en a pas déjà un. `remplacer` :
+    des jours à tirer au sort de nouveau, avec un autre plat. Déjeuners et brunchs ne remplissent pas un soir."""
     from random import Random
     hasard = hasard or Random()
-    remplacer = [j for j in remplacer if j in jours]
-    par_jour = {s["jour"]: s for s in soirs}
-    prevus = {j: par_jour[j]["plat"] for j in jours if j in par_jour and par_jour[j]["plat"] and j not in remplacer}
+    diners = {r["jour"]: r for r in repas if r["moment"] == "diner"}
+    remplacer = [j for j in remplacer if j in jours
+                 and not (j in diners and (len(diners[j]["plats"]) > 1 or diners[j]["issue"]))]   # ni composé, ni déjà vécu
+    prevus = {j: diners[j]["plats"] for j in jours if j in diners and diners[j]["plats"] and j not in remplacer}
     besoin = max(0, cible - len(prevus))
     libres = [j for j in jours if j not in prevus and j not in remplacer
-              and not (j in par_jour and par_jour[j]["issue"])]
+              and not (j in diners and diners[j]["issue"])]
     preferes = [j for j in libres if j.weekday() not in (4, 5)]
     autres = [j for j in libres if j.weekday() in (4, 5)]
     a_remplir = remplacer[:besoin]
@@ -176,13 +204,14 @@ def proposer(plats, soirs, jours, aujourd_hui, remplacer=(), cible=CIBLE_SOIRS, 
     if not a_remplir:
         return {}
 
-    manges = {s["plat"] for s in soirs if s["plat"] and s["issue"] == "fait"
-              and 0 <= (aujourd_hui - s["jour"]).days < RECENT}
-    exclus = set(prevus.values()) | manges | {par_jour[j]["plat"] for j in remplacer if j in par_jour}
+    manges = {i for r in repas if r["issue"] == "fait" and 0 <= (aujourd_hui - r["jour"]).days < RECENT
+              for i in r["plats"]}
+    deja = {i for r in repas if r["jour"] in jours and r["jour"] not in remplacer for i in r["plats"]}
+    exclus = deja | manges | {i for j in remplacer if j in diners for i in diners[j]["plats"]}
     candidats = [p for p in plats if p["genre"] == "plat" and not p["archive"] and p.get("pour", "nous") == "nous"
                  and p["recette"] and p["id"] not in exclus]
     hasard.shuffle(candidats)
-    a_tester = any(p["statut"] == "a-tester" for p in plats if p["id"] in prevus.values())
+    a_tester = any(p["statut"] == "a-tester" for p in plats if p["id"] in deja)
     choix = {}
     for j in sorted(a_remplir, key=lambda j: j.weekday() != 6):     # le plat à tester, le dimanche s'il y en a un
         rapide = j.weekday() < 4
@@ -200,21 +229,24 @@ LIVRAISON_DEUX = 35         # un Deliveroo pour deux, frais compris : l'ordre de
 
 
 def cout_semaine(prevus, placard, courses):
-    """Les dîners prévus : leur coût estimé (prix_paris.cout_repas), les courses qui restent à faire pour
-    eux (prix entier des produits ni au placard ni sur la liste) et le même nombre de soirs en livraison."""
+    """Les repas prévus ([[plat, …], …], voir repas_prevus) : leur coût estimé (somme des prix_paris.cout_repas
+    de leurs plats), les courses qui restent à faire pour eux (prix entier des produits ni au placard ni sur la
+    liste) et le même nombre de repas en livraison."""
     from prix_paris import cout_repas, prix_de
-    a_acheter_ = [nom for nom, _ in a_acheter(prevus, placard, courses)]
-    return {"diners": len(prevus), "repas": round(sum(cout_repas(p["ingredients"], p["recette"]) for p in prevus), 2),
+    plats = [p for r in prevus for p in r]
+    a_acheter_ = [nom for nom, _ in a_acheter(plats, placard, courses)]
+    return {"nb_repas": len(prevus), "cout": round(sum(cout_repas(p["ingredients"], p["recette"]) for p in plats), 2),
             "a_acheter": a_acheter_,
             "courses": round(sum(prix_de(n)[1] for n in a_acheter_ if prix_de(n)), 2),
             "livraison": len(prevus) * LIVRAISON_DEUX}
 
 
-def compteur(soirs, aujourd_hui):
-    """Commandes des 7 derniers jours, moyenne hebdomadaire sur 6 semaines, soirs renseignés."""
-    recents = [s for s in soirs if s["issue"] and 0 <= (aujourd_hui - s["jour"]).days < FENETRE_PASSE]
-    commandes = [s for s in recents if s["issue"] == "commande"]
-    return {"semaine": sum(1 for s in commandes if (aujourd_hui - s["jour"]).days < 7),
+def compteur(repas, aujourd_hui):
+    """Commandes des 7 derniers jours, moyenne hebdomadaire sur 6 semaines, dîners renseignés (dîners seuls)."""
+    recents = [r for r in repas if r["moment"] == "diner" and r["issue"]
+               and 0 <= (aujourd_hui - r["jour"]).days < FENETRE_PASSE]
+    commandes = [r for r in recents if r["issue"] == "commande"]
+    return {"semaine": sum(1 for r in commandes if (aujourd_hui - r["jour"]).days < 7),
             "moyenne": len(commandes) / 6 if recents else 0,
             "renseignes": len(recents)}
 
@@ -253,13 +285,6 @@ button.plein { border: none; background: var(--diners); color: #ffffff; border-r
                font-family: inherit; font-weight: 800; font-size: 15px; }
 span.badge { font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--diners);
              background: var(--diners-doux); border-radius: 999px; padding: 2px 8px; margin-left: 6px; }
-div.jour { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 10px; min-height: 52px;
-           border-top: 1px solid var(--ligne); }
-div.jour:first-of-type { border-top: none; }
-div.jour .quand { font-weight: 800; font-size: 15px; }
-div.jour .quand small { display: block; font-weight: 600; color: var(--doux); font-size: 12px; }
-div.jour select { width: 100%; min-width: 0; font-family: inherit; font-size: 16px; padding: 10px 12px; border-radius: 14px;
-                  border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte); }
 input.recherche { width: 100%; font-family: inherit; font-size: 17px; padding: 12px 16px; border-radius: 999px;
                   border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte); }
 div.filtres { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -283,11 +308,26 @@ div.ingredients span.liste { background: var(--courses-doux); color: var(--cours
 div.ingredients span small { opacity: .75; margin-left: 4px; }
 div.filtres.etiquettes button span { font-weight: 600; opacity: .7; margin-left: 4px; }
 span.badge.julien { color: var(--doux); background: var(--carte); border: 1px solid var(--ligne); }
-div.jour button.choisir { width: 100%; min-width: 0; text-align: left; font-family: inherit; font-size: 16px; padding: 10px 12px;
-                          border-radius: 14px; border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte);
-                          min-height: 46px; }
-div.jour button.choisir.vide { color: var(--doux); }
-div.jour button.choisir small { color: var(--doux); font-size: 13px; }
+div.jour-repas { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-top: 1px solid var(--ligne); }
+div.jour-repas:first-of-type { border-top: none; }
+div.jour-repas .quand { font-weight: 800; font-size: 15px; }
+div.jour-repas .quand small { font-weight: 600; color: var(--doux); font-size: 12px; margin-left: 6px; }
+div.repas { background: var(--blanc); border: 2px solid var(--ligne); border-radius: 18px; padding: 10px 12px;
+            display: flex; flex-direction: column; gap: 6px; }
+div.repas .titre-repas { font-size: 13px; font-weight: 800; color: var(--doux); text-transform: uppercase; letter-spacing: .05em; }
+ul.plats-repas { list-style: none; margin: 0; padding: 0; }
+ul.plats-repas li { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+ul.plats-repas li > button.ouvrir { flex: 1; min-width: 0; text-align: left; background: none; border: none; padding: 4px 0;
+                                   font-family: inherit; color: var(--texte); display: flex; flex-direction: column; }
+ul.plats-repas .nom { font-size: 16px; font-weight: 700; }
+ul.plats-repas .meta, ul.plats-repas li.meta { font-size: 13px; color: var(--doux); }
+button.retirer { border: none; background: var(--carte); color: var(--doux); border-radius: 999px; width: 44px; height: 44px;
+                 font-size: 18px; font-weight: 800; flex: none; }
+div.ajouts { display: flex; gap: 6px; flex-wrap: wrap; }
+div.ajouts button.petit { padding: 6px 10px; }
+ul.plats-soir { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+ul.plats-soir li { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; }
+ul.plats-soir button { padding: 6px 12px !important; font-size: 13px !important; }
 div.proposer { display: flex; gap: 8px; flex-wrap: wrap; }
 div.proposer button.plein { flex: 1 1 220px; }
 p.message { color: var(--diners); font-weight: 700; font-size: 14px; margin: 0; min-height: 1.2em; }
@@ -319,6 +359,9 @@ SCRIPT_DINERS = """
     const GENRES = JSON.parse(document.getElementById('genres').textContent);
     const NOMS_GENRE = { plat: 'Plat', accompagnement: 'Accompagnement', entree: 'Entrée', dessert: 'Dessert' };
     const JOURS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
+    const MOMENTS = { diner: 'Dîner', dejeuner: 'Déjeuner', brunch: 'Brunch' };
+    const ORDRE_GENRES = ['entree', 'plat', 'accompagnement', 'dessert'];
+    const AJOUTS = [['plat', '+ plat'], ['entree', '+ entrée'], ['accompagnement', '+ accompagnement'], ['dessert', '+ dessert']];
     const CLE_COPIE = 'diners:copie';
     let d = null;                                         // ce que renvoie api/diners
     let vue = 'ce-soir', filtre = 'tout', recherche = '';
@@ -350,7 +393,20 @@ SCRIPT_DINERS = """
     function duree(m) { if (m < 60) return m + ' min'; const h = Math.floor(m / 60), r = m % 60; return h + ' h' + (r ? ' ' + String(r).padStart(2, '0') : ''); }
     function enClair(iso) { const j = new Date(iso + 'T12:00:00'); return JOURS[j.getDay()] + ' ' + j.getDate(); }
     function plat(id) { return d.plats.find(function (p) { return p.id === id; }); }
-    function soir(iso) { return d.soirs.find(function (s) { return s.jour === iso; }) || { jour: iso, plat: null, issue: null }; }
+    function repas(iso, moment) {
+        return d.repas.find(function (r) { return r.jour === iso && r.moment === moment; })
+            || { jour: iso, moment: moment, plats: [], issue: null };
+    }
+    // Les plats d\\'un repas, dans l'ordre du service (au brunch : l'ordre d'ajout)
+    function ranges(r) {
+        const ps = r.plats.map(plat).filter(Boolean);
+        if (r.moment === 'brunch') return ps;
+        return ps.sort(function (a, b) { return ORDRE_GENRES.indexOf(a.genre) - ORDRE_GENRES.indexOf(b.genre); });
+    }
+    function platsDeLaSemaine() {
+        return d.repas.filter(function (r) { return d.semaine.indexOf(r.jour) >= 0; })
+                      .reduce(function (t, r) { return t.concat(r.plats); }, []);
+    }
     function enStock(nom) { return d.stock.indexOf(normaliser(nom)) >= 0; }
     function surLaListe(nom) { return (d.liste || []).indexOf(normaliser(nom)) >= 0; }
     // Prix d'un panier parisien (prix_paris.py), par la même clé que le catalogue
@@ -400,13 +456,22 @@ SCRIPT_DINERS = """
         fetch('api/diners', { headers: { 'X-Valise-Vite': '1' } })
             .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
             .then(function (lu) { d = lu; garder(); afficher(); })
-            .catch(function () { try { d = d || JSON.parse(localStorage.getItem(CLE_COPIE)); } catch (e) {} if (d) afficher(); });
+            .catch(function () { try { d = d || JSON.parse(localStorage.getItem(CLE_COPIE)); } catch (e) {} if (d && !d.repas) d = null; if (d) afficher(); });
     }
-    function planifier(iso, idPlat) {
-        const s = Object.assign({}, soir(iso), { plat: idPlat || null });
-        d.soirs = d.soirs.filter(function (x) { return x.jour !== iso; }).concat([s]);
+    function enregistrerRepas(r) {
+        const vide = !r.plats.length && !r.issue;
+        d.repas = d.repas.filter(function (x) { return !(x.jour === r.jour && x.moment === r.moment); }).concat(vide ? [] : [r]);
         garder(); afficher();
-        envoyer({ url: 'api/soirs', methode: 'POST', corps: s, cle: 'soir:' + iso }).then(relire, relire);
+        envoyer({ url: 'api/repas', methode: 'POST', corps: r, cle: 'repas:' + r.jour + ':' + r.moment }).then(relire, relire);
+    }
+    function ajouterPlat(iso, moment, id) {
+        const r = repas(iso, moment);
+        if (r.plats.indexOf(id) >= 0 || r.plats.length >= 8) return;
+        enregistrerRepas(Object.assign({}, r, { plats: r.plats.concat([id]) }));
+    }
+    function retirerPlat(iso, moment, id) {
+        const r = repas(iso, moment);
+        enregistrerRepas(Object.assign({}, r, { plats: r.plats.filter(function (x) { return x !== id; }) }));
     }
     function enregistrerPlat(p) {
         d.plats = d.plats.filter(function (x) { return x.id !== p.id; }).concat([p]);
@@ -444,14 +509,23 @@ SCRIPT_DINERS = """
     }
     function vueCeSoir(zone) {
         if (d.compteur && d.compteur.renseignes) zone.append(compteurDiners());
-        const s = soir(d.aujourd_hui), p = s.plat && plat(s.plat);
-        if (p) {
+        const ps = ranges(repas(d.aujourd_hui, 'diner'));
+        const principal = ps.filter(function (x) { return x.genre === 'plat'; })[0] || ps[0];
+        if (principal) {
             const bloc = el('div', 'plat-soir');
-            bloc.append(el('span', 'titre', 'Ce soir'), el('span', 'nom', p.nom), el('span', 'titre', duree(p.minutes)));
-            if (p.cout) bloc.append(el('span', 'cout', '≈ ' + euros(p.cout) + ' le repas · en livraison ≈ ' + euros(d.livraison)));
+            bloc.append(el('span', 'titre', 'Ce soir'), el('span', 'nom', principal.nom));
+            const ul = el('ul', 'plats-soir');
+            ps.forEach(function (x) {
+                const li = el('li');
+                li.append(el('span', '', NOMS_GENRE[x.genre] + ' · ' + x.nom + ' · ' + duree(x.minutes)),
+                          bouton('Voir la recette', '', function () { ouvrirFiche(x.id); }));
+                ul.append(li);
+            });
+            bloc.append(ul);
+            const cout = ps.reduce(function (t, x) { return t + (x.cout || 0); }, 0);
+            if (cout) bloc.append(el('span', 'cout', '≈ ' + euros(cout) + ' le repas · en livraison ≈ ' + euros(d.livraison)));
             const b = el('div', 'boutons');
-            b.append(bouton('Voir la recette', '', function () { ouvrirFiche(p.id); }),
-                     bouton('Changer', 'discret', function () { vue = 'semaine'; afficher(); }));
+            b.append(bouton('Changer', 'discret', function () { vue = 'semaine'; afficher(); }));
             bloc.append(b);
             zone.append(bloc);
         } else {
@@ -465,7 +539,7 @@ SCRIPT_DINERS = """
         const ul = el('ul', 'plats');
         d.secours.faisables.map(plat).filter(Boolean).forEach(function (x) {
             const li = lignePlat(x);
-            if (!p) li.append(bouton('Ce soir', 'petit', function () { planifier(d.aujourd_hui, x.id); }));
+            if (!principal) li.append(bouton('Ce soir', 'petit', function () { ajouterPlat(d.aujourd_hui, 'diner', x.id); }));
             ul.append(li);
         });
         if (!ul.children.length) ul.append(el('li', 'meta', 'Rien de faisable avec le placard actuel.'));
@@ -498,34 +572,68 @@ SCRIPT_DINERS = """
           .then(function (r) {
               const jours = Object.keys(r.proposes);
               jours.forEach(function (iso) {
-                  d.soirs = d.soirs.filter(function (x) { return x.jour !== iso; }).concat([{ jour: iso, plat: r.proposes[iso], issue: null }]);
+                  d.repas = d.repas.filter(function (x) { return !(x.jour === iso && x.moment === 'diner'); })
+                                   .concat([{ jour: iso, moment: 'diner', plats: [r.proposes[iso]], issue: null }]);
               });
               derniereProposition = remplacer && remplacer.length ? Object.assign({}, derniereProposition, r.proposes) : r.proposes;
               garder(); afficher();
-              messageSemaine = jours.length ? jours.length + ' soir(s) proposé(s). Touche un soir pour le changer, puis envoie aux courses.'
-                                            : 'Rien à proposer : la semaine a déjà quatre soirs, ou aucun plat ne convient.';
+              messageSemaine = jours.length ? jours.length + ' dîner(s) proposé(s). Ajoute un accompagnement ou un dessert, puis envoie aux courses.'
+                                            : 'Rien à proposer : la semaine a déjà quatre dîners, ou aucun plat ne convient.';
               afficher(); relire();
           }, function () { msg.textContent = 'Pas de réseau : réessaie une fois connecté.'; });
     }
+    // Une carte de repas : ses plats (× pour retirer), puis + plat / + entrée / + accompagnement / + dessert
+    function carteRepas(iso, moment) {
+        const r = repas(iso, moment);
+        const c = el('div', 'repas');
+        const t = el('div', 'titre-repas');
+        t.append(el('span', '', MOMENTS[moment]));
+        if (r.issue) t.append(el('span', 'badge', r.issue === 'fait' ? 'fait maison' : r.issue === 'commande' ? 'commandé' : r.issue));
+        c.append(t);
+        const ul = el('ul', 'plats-repas');
+        ranges(r).forEach(function (p) {
+            const li = el('li');
+            const o = bouton('', 'ouvrir', function () { ouvrirFiche(p.id); });
+            o.append(el('span', 'nom', p.nom), el('span', 'meta', NOMS_GENRE[p.genre] + ' · ' + duree(p.minutes)));
+            const x = bouton('×', 'retirer', function () { retirerPlat(iso, moment, p.id); });
+            x.setAttribute('aria-label', 'Retirer ' + p.nom);
+            li.append(o, x);
+            ul.append(li);
+        });
+        if (!ul.children.length) ul.append(el('li', 'meta', 'Libre'));
+        c.append(ul);
+        const a = el('div', 'ajouts');
+        AJOUTS.forEach(function (g) { a.append(bouton(g[1], 'petit', function () { ouvrirChoix(iso, moment, g[0]); })); });
+        c.append(a);
+        return c;
+    }
     function vueSemaine(zone) {
         const e = el('div', 'encart');
-        e.append(el('h2', '', 'La semaine'), el('p', 'aide', 'Trois ou quatre soirs suffisent. Les autres restent libres.'));
+        e.append(el('h2', '', 'La semaine'), el('p', 'aide', 'Trois ou quatre dîners suffisent. Les autres restent libres.'));
         d.semaine.forEach(function (iso, i) {
-            const ligne = el('div', 'jour');
+            const jour = el('div', 'jour-repas');
             const q = el('span', 'quand', i === 0 ? 'Ce soir' : enClair(iso));
             if (i === 0) q.append(el('small', '', enClair(iso)));
-            const p = soir(iso).plat && plat(soir(iso).plat);
-            const b = bouton(p ? p.nom : 'Libre', 'choisir' + (p ? '' : ' vide'), function () { ouvrirChoix(iso); });
-            if (p) { b.append(' '); b.append(el('small', '', '· ' + duree(p.minutes))); }
-            b.setAttribute('aria-label', 'Dîner du ' + enClair(iso) + ' : ' + (p ? p.nom : 'libre'));
-            ligne.append(q, b);
-            e.append(ligne);
+            jour.append(q, carteRepas(iso, 'diner'));
+            const midi = ['dejeuner', 'brunch'].filter(function (m) { return repas(iso, m).plats.length || repas(iso, m).issue; });
+            midi.forEach(function (m) { jour.append(carteRepas(iso, m)); });
+            if (!midi.length) {
+                const plus = el('div', 'ajouts');
+                const lien = bouton('+ déjeuner ou brunch', 'petit', function () {
+                    plus.replaceChildren(
+                        bouton('Déjeuner', 'petit', function () { ouvrirChoix(iso, 'dejeuner', 'plat'); }),
+                        bouton('Brunch', 'petit', function () { ouvrirChoix(iso, 'brunch', 'plat'); }));
+                });
+                plus.append(lien);
+                jour.append(plus);
+            }
+            e.append(jour);
         });
         const msgP = el('p', 'message', messageSemaine); msgP.id = 'message-semaine';
         const cs = d.cout_semaine;
-        if (cs && cs.diners) {
+        if (cs && cs.nb_repas) {
             const bilan = el('div', 'bilan-semaine');
-            [['', euros(cs.repas), cs.diners + ' dîner' + (cs.diners > 1 ? 's' : '') + ' maison'],
+            [['', euros(cs.cout), cs.nb_repas + ' repas maison'],
              ['livraison', euros(cs.livraison), 'les mêmes en livraison'],
              ['', euros(cs.courses), 'courses à faire pour eux']].forEach(function (x) {
                 const c = el('div', x[0]); c.append(el('strong', '', x[1]), el('span', '', x[2])); bilan.append(c);
@@ -534,7 +642,8 @@ SCRIPT_DINERS = """
         }
         const prop = el('div', 'proposer');
         prop.append(bouton('Proposer ma semaine', 'plein', function () { proposerSemaine(msgP, []); }));
-        const aRefaire = Object.keys(derniereProposition).filter(function (iso) { return soir(iso).plat === derniereProposition[iso]; });
+        const aRefaire = Object.keys(derniereProposition).filter(function (iso) {
+            const r = repas(iso, 'diner'); return r.plats.length === 1 && r.plats[0] === derniereProposition[iso]; });
         if (aRefaire.length) prop.append(bouton('Reproposer', 'petit', function () { proposerSemaine(msgP, aRefaire); }));
         zone.append(prop, msgP, e);
         const msg = el('p', 'message');
@@ -603,26 +712,29 @@ SCRIPT_DINERS = """
         zone.append(r, f, zoneEtiquettes, e);
     }
 
-    // Choisir le dîner d'un soir : la même recherche et les mêmes étiquettes, carnet d'abord
-    function ouvrirChoix(iso) {
+    // Ajouter un plat d'un genre à un repas : la même recherche et les mêmes étiquettes, carnet d'abord
+    function ouvrirChoix(iso, moment, genre) {
         ouverte = { id: null, edition: false };
         const c = document.querySelector('#panneau .contenu'); c.replaceChildren();
         const haut = el('div', 'haut');
-        haut.append(el('h2', '', 'Dîner ' + (iso === d.aujourd_hui ? 'de ce soir' : 'du ' + enClair(iso))), bouton('Fermer', 'petit', fermer));
+        const quand = iso === d.aujourd_hui ? (moment === 'diner' ? 'ce soir' : 'aujourd\\'hui') : enClair(iso);
+        haut.append(el('h2', '', MOMENTS[moment] + ' · ' + quand + ' · ' + NOMS_GENRE[genre].toLowerCase()), bouton('Fermer', 'petit', fermer));
         let q = '';
         const r = el('input', 'recherche'); r.type = 'search'; r.placeholder = 'Chercher un plat ou un ingrédient';
         r.setAttribute('aria-label', 'Chercher');
         const zoneEtiquettes = el('div'), listes = el('div', 'vue');
-        const tous = d.plats.filter(function (p) { return p.genre === 'plat' && !p.archive; });
+        const tous = d.plats.filter(function (p) { return p.genre === genre && !p.archive; });
         let affiches = [];
+        const dansRepas = repas(iso, moment).plats, plein = dansRepas.length >= 8;
         // Au hasard : parmi les plats affichés (recherche et filtre compris), hors ceux déjà prévus cette semaine
         const hasard = bouton('Au hasard', 'plein', function () {
-            const deja = d.semaine.map(function (j) { return soir(j).plat; });
+            const deja = platsDeLaSemaine().concat(dansRepas);
             const pool = affiches.filter(function (p) { return deja.indexOf(p.id) < 0; });
             if (!pool.length) { hasard.textContent = 'Rien à tirer avec ces filtres'; return; }
             const p = pool[Math.floor(Math.random() * pool.length)];
-            planifier(iso, p.id); fermer();
+            ajouterPlat(iso, moment, p.id); fermer();
         });
+        hasard.disabled = plein;
         function remplir() {
             const trouves = tous.filter(function (p) { return correspond(p, normaliser(q)); });
             affiches = trouves.filter(function (p) { return aEtiquette(p, etiquette.choix); });
@@ -636,7 +748,12 @@ SCRIPT_DINERS = """
                     .forEach(function (p) {
                         const li = lignePlat(p);
                         li.querySelector('button.ouvrir').replaceWith(li.querySelector('button.ouvrir').cloneNode(true));
-                        li.querySelector('button.ouvrir').addEventListener('click', function () { planifier(iso, p.id); fermer(); });
+                        if (plein || dansRepas.indexOf(p.id) >= 0) {
+                            li.querySelector('button.ouvrir').disabled = true;
+                            if (dansRepas.indexOf(p.id) >= 0) li.querySelector('.nom').append(el('span', 'badge', 'au menu'));
+                        } else {
+                            li.querySelector('button.ouvrir').addEventListener('click', function () { ajouterPlat(iso, moment, p.id); fermer(); });
+                        }
                         ul.append(li);
                     });
                 if (!ul.children.length) return;
@@ -646,8 +763,9 @@ SCRIPT_DINERS = """
         }
         r.addEventListener('input', function () { q = r.value; remplir(); });
         remplir();
-        c.append(haut, hasard, r, zoneEtiquettes);
-        if (soir(iso).plat) c.append(bouton('Rien de prévu ce soir-là', 'petit', function () { planifier(iso, ''); fermer(); }));
+        c.append(haut);
+        if (plein) c.append(el('p', 'aide', 'Ce repas a déjà 8 plats : retires-en un avant d\\'en ajouter.'));
+        c.append(hasard, r, zoneEtiquettes);
         c.append(listes);
         document.getElementById('panneau').hidden = false;
         document.getElementById('panneau').scrollTop = 0;
@@ -690,7 +808,7 @@ SCRIPT_DINERS = """
         c.append(el('pre', 'recette', p.recette || 'Recette à écrire : demande à Claude, ou écris la tienne avec « Modifier ».'));
         if (p.note) c.append(el('p', 'meta', p.note));
         const act = el('div', 'actions');
-        act.append(bouton('Ce soir', 'plein', function () { planifier(d.aujourd_hui, p.id); fermer(); vue = 'ce-soir'; afficher(); }),
+        act.append(bouton('Ce soir', 'plein', function () { ajouterPlat(d.aujourd_hui, 'diner', p.id); fermer(); vue = 'ce-soir'; afficher(); }),
                    bouton('Modifier', 'petit', function () { ouvrirEdition(p.id); }));
         const manquants = p.ingredients.filter(function (i) { return !enStock(i) && !surLaListe(i); });
         const total = manquants.reduce(function (t, i) { const pr = prixDe(i); return t + (pr ? pr[1] : 0); }, 0);
