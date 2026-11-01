@@ -8,7 +8,7 @@ import pytest
 from casa import aujourd_hui_paris
 from carnet_depart import CARNET_DEPART, A_TESTER
 from courses import PLACARD_DEPART
-from db import (connecter, semer_carnet, semer_placard, lire_plats, enregistrer_soir, lire_soirs,
+from db import (connecter, semer_carnet, semer_placard, lire_plats, enregistrer_repas, lire_repas,
                 completer_recettes, enregistrer_plat)
 from serveur import creer_app
 
@@ -52,14 +52,6 @@ def test_completer_recettes_ne_remplit_que_les_vides(conn):
     assert completer_recettes(conn, A_TESTER) == 0
 
 
-def test_fait_maison_fait_entrer_au_carnet(conn):
-    enregistrer_soir(conn, {"jour": J, "plat": "tester-pesto", "issue": None})
-    assert next(p for p in lire_plats(conn) if p["id"] == "tester-pesto")["statut"] == "a-tester"
-    enregistrer_soir(conn, {"jour": J, "plat": "tester-pesto", "issue": "fait"})
-    assert next(p for p in lire_plats(conn) if p["id"] == "tester-pesto")["statut"] == "carnet"
-    assert lire_soirs(conn, J, J) == [{"jour": J, "plat": "tester-pesto", "issue": "fait"}]
-
-
 def test_api_diners(client):
     d = client.get("/api/diners").get_json()
     assert d["aujourd_hui"] == J.isoformat() and len(d["semaine"]) == 7
@@ -68,20 +60,40 @@ def test_api_diners(client):
 
 
 def test_planifier_et_courses_de_la_semaine(client):
-    assert client.post("/api/soirs", json={"jour": J.isoformat(), "plat": "plat-amatriciana"}).status_code == 200
-    assert client.post("/api/soirs", json={"jour": J.isoformat(), "plat": "plat-inconnu-01"}).status_code == 400
+    corps = {"jour": J.isoformat(), "moment": "diner", "plats": ["plat-amatriciana"]}
+    assert client.post("/api/repas", json=corps).status_code == 200
+    assert client.post("/api/repas", json={**corps, "plats": ["plat-inconnu-01"]}).status_code == 400
+    assert client.post("/api/repas", json={**corps, "moment": "gouter"}).status_code == 400
     r = client.post("/api/diners/courses").get_json()
     assert r["ajoutes"] == ["vin blanc"]                              # le reste est au placard
     assert client.post("/api/diners/courses").get_json()["ajoutes"] == []     # deux fois : pas de doublon
     assert [a["nom"] for a in client.get("/api/courses").get_json()["articles"]] == ["vin blanc"]
 
 
+def test_api_repas_compose_et_brunch(client):
+    jour = J.isoformat()
+    client.post("/api/repas", json={"jour": jour, "moment": "diner", "plats": ["plat-carbonara", "tester-pesto"]})
+    client.post("/api/repas", json={"jour": jour, "moment": "brunch", "plats": ["tester-shakshuka"]})
+    d = client.get("/api/diners").get_json()
+    assert {(r["moment"], tuple(r["plats"])) for r in d["repas"] if r["jour"] == jour} == {
+        ("diner", ("plat-carbonara", "tester-pesto")), ("brunch", ("tester-shakshuka",))}
+    assert d["cout_semaine"]["nb_repas"] == 2
+    client.post("/api/repas", json={"jour": jour, "moment": "brunch", "plats": []})          # retirer le brunch
+    assert [r["moment"] for r in client.get("/api/diners").get_json()["repas"]] == ["diner"]
+
+
 def test_hier_soir_et_compteur_sur_aujourd_hui(client):
     hier = (J - timedelta(days=1)).isoformat()
     assert "Hier soir ?" in client.get("/").get_data(as_text=True)
-    assert client.post("/api/soirs", json={"jour": hier, "issue": "commande"}).status_code == 200
+    assert client.post("/api/repas", json={"jour": hier, "moment": "diner", "issue": "commande"}).status_code == 200
     html = client.get("/").get_data(as_text=True)
     assert "Hier soir ?" not in html and "1 commande ces 7 jours" in html
+
+
+def test_ce_soir_compose_sur_aujourd_hui(client):
+    client.post("/api/repas", json={"jour": J.isoformat(), "moment": "diner", "plats": ["plat-carbonara"]})
+    html = client.get("/").get_data(as_text=True)
+    assert "<strong>Spaghetti alla carbonara</strong>" in html
 
 
 def test_api_plats(client):
@@ -112,8 +124,8 @@ def test_api_proposer(client):
     assert r.status_code == 200
     proposes = r.get_json()["proposes"]
     assert 1 <= len(proposes) <= 4
-    soirs = {s["jour"]: s["plat"] for s in client.get("/api/diners").get_json()["soirs"]}
-    assert all(soirs[j] == id_ for j, id_ in proposes.items())
+    diners = {r["jour"]: r["plats"] for r in client.get("/api/diners").get_json()["repas"] if r["moment"] == "diner"}
+    assert all(diners[j] == [id_] for j, id_ in proposes.items())
     assert client.post("/api/diners/proposer", json={"remplacer": ["pas-une-date"]}).status_code == 400
 
 
@@ -121,5 +133,5 @@ def test_api_diners_couts(client):
     d = client.get("/api/diners").get_json()
     carbo = next(p for p in d["plats"] if p["id"] == "plat-carbonara")
     assert carbo["cout"] > 0 and d["livraison"] > 0
-    assert {"diners", "repas", "courses", "livraison", "a_acheter"} <= set(d["cout_semaine"])
+    assert {"nb_repas", "cout", "courses", "livraison", "a_acheter"} <= set(d["cout_semaine"])
     assert isinstance(d["liste"], list)

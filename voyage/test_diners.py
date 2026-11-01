@@ -5,7 +5,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 import pytest
-from diners import (valider_plat, valider_soir, secours, a_acheter, compteur, semaine, diners_en_html, disponibles,
+from diners import (valider_plat, repas_prevus, secours, a_acheter, compteur, semaine, diners_en_html, disponibles,
                     SECOURS_MINUTES)
 from carnet_depart import CARNET_DEPART, A_TESTER
 from courses import PLACARD_DEPART, normaliser
@@ -28,6 +28,10 @@ def habituel(nom, actif=False, pris=False):
     return {"nom": nom, "actif": actif, "pris": pris, "recurrent": True}
 
 
+def diner(jour, *plats, issue=None, moment="diner"):
+    return {"jour": jour, "moment": moment, "plats": list(plats), "issue": issue}
+
+
 # --- Validation ---
 
 def test_valider_plat_complet():
@@ -48,16 +52,6 @@ def test_valider_plat_refuse(modif):
              "recette": "", "lien": "", "note": "", "statut": "carnet", **modif}
     with pytest.raises(ValueError):
         valider_plat(corps)
-
-
-def test_valider_soir():
-    assert valider_soir({"jour": "2026-10-27", "issue": "commande"}, AUJ) == {
-        "jour": date(2026, 10, 27), "plat": None, "issue": "commande"}
-    assert valider_soir({"jour": "2026-10-30", "plat": "plat-carbonara"}, AUJ)["plat"] == "plat-carbonara"
-    for corps in ({"jour": "hier"}, {"jour": "2026-10-28", "issue": "deliveroo"}, {"jour": "2025-01-01"},
-                  {"jour": "2027-01-01"}, {"jour": "2026-10-28", "plat": "x"}, None):
-        with pytest.raises(ValueError):
-            valider_soir(corps, AUJ)
 
 
 # --- Semaine, secours, courses ---
@@ -116,9 +110,10 @@ def test_a_acheter_sans_doublon_ni_stock():
 # --- Compteur Deliveroo ---
 
 def test_compteur():
-    soirs = [{"jour": AUJ - timedelta(days=d), "plat": None, "issue": "commande"} for d in (1, 3, 10, 20, 41, 42)]
-    soirs += [{"jour": AUJ - timedelta(days=2), "plat": None, "issue": "fait"}]
-    c = compteur(soirs, AUJ)
+    repas = [diner(AUJ - timedelta(days=d), issue="commande") for d in (1, 3, 10, 20, 41, 42)]
+    repas += [diner(AUJ - timedelta(days=2), issue="fait"),
+              diner(AUJ - timedelta(days=1), issue="commande", moment="dejeuner")]     # le déjeuner ne compte pas
+    c = compteur(repas, AUJ)
     assert c["semaine"] == 2                     # J-1 et J-3 (7 derniers jours, aujourd'hui compris)
     assert c["moyenne"] == pytest.approx(5 / 6)  # J-42 hors des 6 semaines
     assert c["renseignes"] == 6                 # sur les 6 semaines
@@ -186,7 +181,7 @@ def test_proposer_quatre_soirs_varies():
     p = proposer(plats, [], SEMAINE, LUN, hasard=Random(1))
     assert len(p) == 4 and len(set(p.values())) == 4
     assert not {j.weekday() for j in p} & {4, 5}                      # ni vendredi ni samedi : souvent dehors
-    trois = proposer(plats, [{"jour": LUN + timedelta(days=6), "plat": "plat-carnet-00", "issue": None}], SEMAINE, LUN,
+    trois = proposer(plats, [diner(LUN + timedelta(days=6), "plat-carnet-00")], SEMAINE, LUN,
                      hasard=Random(1))
     assert [j.weekday() for j in trois] == [0, 2, 3]                     # répartis : lundi, mercredi, jeudi
     assert not set(p.values()) & {"plat-julien-01", "plat-archive-1", "plat-sans-rec", "plat-dessert-1"}
@@ -195,8 +190,7 @@ def test_proposer_quatre_soirs_varies():
 
 def test_proposer_complete_ce_qui_est_prevu():
     plats = carte()
-    soirs = [{"jour": LUN + timedelta(days=1), "plat": "plat-carnet-00", "issue": None},
-             {"jour": LUN, "plat": None, "issue": "dehors"}]
+    soirs = [diner(LUN + timedelta(days=1), "plat-carnet-00"), diner(LUN, issue="dehors")]
     p = proposer(plats, soirs, SEMAINE, LUN, hasard=Random(2))
     assert len(p) == 3 and LUN not in p and LUN + timedelta(days=1) not in p
     assert "plat-carnet-00" not in p.values()
@@ -213,7 +207,7 @@ def test_proposer_rapide_en_semaine():
 
 def test_proposer_sans_ce_qu_on_a_mange_recemment():
     plats = carte(n=5, a_tester=0)
-    soirs = [{"jour": LUN - timedelta(days=3), "plat": "plat-carnet-00", "issue": "fait"}]
+    soirs = [diner(LUN - timedelta(days=3), "plat-carnet-00", issue="fait")]
     for graine in range(10):
         assert "plat-carnet-00" not in proposer(plats, soirs, SEMAINE, LUN, hasard=Random(graine)).values()
 
@@ -222,25 +216,49 @@ def test_proposer_remplacer_un_soir():
     plats = carte()
     p = proposer(plats, [], SEMAINE, LUN, hasard=Random(3))
     jour, avant = sorted(p.items())[0]
-    soirs = [{"jour": j, "plat": v, "issue": None} for j, v in p.items()]
+    soirs = [diner(j, v) for j, v in p.items()]
     q = proposer(plats, soirs, SEMAINE, LUN, remplacer=[jour], hasard=Random(4))
     assert list(q) == [jour] and q[jour] != avant and q[jour] not in p.values()
 
 
 def test_proposer_rien_si_deja_quatre():
-    soirs = [{"jour": LUN + timedelta(days=i), "plat": f"plat-carnet-{i:02d}", "issue": None} for i in range(4)]
+    soirs = [diner(LUN + timedelta(days=i), f"plat-carnet-{i:02d}") for i in range(4)]
     assert proposer(carte(), soirs, SEMAINE, LUN, hasard=Random(5)) == {}
+
+
+def test_proposer_ignore_dejeuner_et_brunch():
+    repas = [diner(LUN + timedelta(days=i), f"plat-carnet-{i:02d}", moment="brunch") for i in range(4)]
+    p = proposer(carte(), repas, SEMAINE, LUN, hasard=Random(6))
+    assert len(p) == 4                                              # un brunch ne remplit pas le soir
+
+
+def test_proposer_un_diner_compose_compte_comme_prevu():
+    repas = [diner(LUN + timedelta(days=i), f"plat-carnet-{i:02d}", f"plat-carnet-{i + 6:02d}") for i in range(4)]
+    assert proposer(carte(), repas, SEMAINE, LUN, hasard=Random(7)) == {}
 
 
 # --- Coût de la semaine ---
 from diners import cout_semaine, LIVRAISON_DEUX
+from prix_paris import prix_de
 
 
 def test_cout_semaine():
-    prevus = [plat("plat-carbonara", "Carbonara", ingredients=["spaghetti", "œufs", "pecorino"]),
-              plat("plat-saumon-01", "Saumon", ingredients=["pavés de saumon", "riz basmati"])]
-    c = cout_semaine(prevus, placard("spaghetti", "riz basmati"), [habituel("œufs", actif=True)])
-    assert c["diners"] == 2 and c["livraison"] == 2 * LIVRAISON_DEUX
-    assert 0 < c["repas"] < c["livraison"]
-    assert c["a_acheter"] == ["pecorino", "pavés de saumon"]    # les œufs sont déjà sur la liste
-    assert c["courses"] == round(5.5 + 7.9, 2)
+    carbo = plat("plat-carbonara", "Carbonara", ingredients=["spaghetti", "œufs", "pecorino"])
+    saumon = plat("plat-saumon-01", "Saumon", ingredients=["pavés de saumon", "riz basmati"])
+    tiramisu = plat("dessert-tira-01", "Tiramisu", genre="dessert", ingredients=["mascarpone", "œufs"])
+    c = cout_semaine([[carbo, tiramisu], [saumon]], placard("spaghetti", "riz basmati"), [habituel("œufs", actif=True)])
+    assert c["nb_repas"] == 2 and c["livraison"] == 2 * LIVRAISON_DEUX
+    assert 0 < c["cout"] < c["livraison"]
+    assert c["a_acheter"] == ["pecorino", "mascarpone", "pavés de saumon"]     # les œufs sont déjà sur la liste
+    assert c["courses"] == round(sum(prix_de(n)[1] for n in c["a_acheter"] if prix_de(n)), 2)
+
+
+def test_repas_prevus():
+    par_id = {i: plat(i, i) for i in ("plat-aaaa-01", "plat-bbbb-01", "plat-cccc-01")}
+    repas = [diner(LUN, "plat-aaaa-01", "plat-bbbb-01"),
+             diner(LUN + timedelta(days=1), "plat-cccc-01", moment="dejeuner"),
+             diner(LUN + timedelta(days=2), "plat-aaaa-01", issue="commande"),     # déjà passé : pas aux courses
+             diner(LUN + timedelta(days=3), "plat-inconnu-01"),                     # plat disparu : repas ignoré
+             diner(LUN + timedelta(days=9), "plat-aaaa-01")]                        # hors semaine
+    assert [[p["id"] for p in r] for r in repas_prevus(repas, par_id, SEMAINE)] == [
+        ["plat-aaaa-01", "plat-bbbb-01"], ["plat-cccc-01"]]

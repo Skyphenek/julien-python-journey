@@ -695,24 +695,6 @@ def plat_existe(conn, identifiant):
         return cur.fetchone()[0]
 
 
-def enregistrer_soir(conn, s):
-    """Le soir d'un jour (plat prévu, issue). Fait maison avec un plat à tester : il passe au carnet."""
-    with conn.cursor() as cur:
-        cur.execute("""INSERT INTO soirs (jour, plat, issue) VALUES (%s, %s, %s)
-                       ON CONFLICT (jour) DO UPDATE SET plat = EXCLUDED.plat, issue = EXCLUDED.issue,
-                       maj_le = now()""", (s["jour"], s["plat"], s["issue"]))
-        if s["issue"] == "fait" and s["plat"]:
-            cur.execute("""UPDATE plats SET statut = 'carnet', maj_le = now()
-                           WHERE id = %s AND statut = 'a-tester'""", (s["plat"],))
-    conn.commit()
-
-
-def lire_soirs(conn, debut, fin):
-    with conn.cursor() as cur:
-        cur.execute("SELECT jour, plat, issue FROM soirs WHERE jour BETWEEN %s AND %s ORDER BY jour", (debut, fin))
-        return [dict(zip(("jour", "plat", "issue"), ligne)) for ligne in cur.fetchall()]
-
-
 def enregistrer_repas(conn, r):
     """Un repas (jour, moment) : ses plats et son issue. Vide (ni plat ni issue) : supprimé.
     Fait maison : chacun de ses plats à tester passe au carnet."""

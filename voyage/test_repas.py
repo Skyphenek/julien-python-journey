@@ -9,6 +9,9 @@ from casa import aujourd_hui_paris
 from carnet_depart import CARNET_DEPART, A_TESTER
 from courses import PLACARD_DEPART
 from db import connecter, semer_carnet, semer_placard, lire_plats, enregistrer_repas, lire_repas, reprendre_soirs
+from diners import valider_repas, ranger
+
+AUJ = date(2026, 10, 28)
 
 J = aujourd_hui_paris()
 
@@ -69,3 +72,28 @@ def test_reprise_des_soirs_une_seule_fois(conn):
         {"jour": avant, "moment": "diner", "plats": ["plat-carbonara"], "issue": "fait"},
         {"jour": hier, "moment": "diner", "plats": [], "issue": "commande"}]
     assert reprendre_soirs(conn) is None                     # une seule fois (table reprises)
+
+
+def test_valider_repas():
+    assert valider_repas({"jour": "2026-10-30", "moment": "brunch", "plats": ["plat-carbonara", "tester-pesto"]}, AUJ) == {
+        "jour": date(2026, 10, 30), "moment": "brunch", "plats": ["plat-carbonara", "tester-pesto"], "issue": None}
+    assert valider_repas({"jour": "2026-10-27", "moment": "diner", "issue": "commande"}, AUJ)["plats"] == []
+
+
+@pytest.mark.parametrize("corps", [
+    None, {"moment": "diner"}, {"jour": "2026-12-31", "moment": "diner"}, {"jour": "2026-10-28", "moment": "gouter"},
+    {"jour": "2026-10-28", "moment": "diner", "plats": "plat-carbonara"},
+    {"jour": "2026-10-28", "moment": "diner", "plats": ["plat-carbonara", "plat-carbonara"]},
+    {"jour": "2026-10-28", "moment": "diner", "plats": [f"plat-numero-{i}" for i in range(9)]},
+    {"jour": "2026-10-28", "moment": "diner", "plats": ["x"]},
+    {"jour": "2026-10-28", "moment": "diner", "issue": "livre"}])
+def test_valider_repas_refuse(corps):
+    with pytest.raises(ValueError):
+        valider_repas(corps, AUJ)
+
+
+def test_ranger_dans_l_ordre_du_service():
+    dessert, plat, entree, accomp = ({"id": g, "genre": g} for g in ("dessert", "plat", "entree", "accompagnement"))
+    assert [p["genre"] for p in ranger([dessert, plat, entree, accomp], "diner")] == [
+        "entree", "plat", "accompagnement", "dessert"]
+    assert [p["genre"] for p in ranger([dessert, plat, entree], "brunch")] == ["dessert", "plat", "entree"]

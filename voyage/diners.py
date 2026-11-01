@@ -1,9 +1,10 @@
 """Casa Binomerie — Dîners : le carnet de recettes, la semaine, le secours et le compteur Deliveroo.
 
 - plats : le carnet (statut 'carnet') et les envies du Match des Recettes ('a-tester'). Un plat à
-  tester passe au carnet quand un soir où on l'a prévu est marqué « fait maison » (db.enregistrer_soir).
-- soirs : un par jour — le plat prévu et ce qui s'est vraiment passé (fait, commandé, dehors, autre).
-  C'est aussi la mesure du succès : ≤ 1 commande par semaine (départ : 3, le 28/10/2026).
+  tester passe au carnet quand un repas où on l'a prévu est marqué « fait maison » (db.enregistrer_repas).
+- repas : un dîner par jour, un déjeuner ou un brunch à la demande — plusieurs plats, et ce qui s'est vraiment
+  passé (fait, commandé, dehors, autre). Le dîner est la mesure du succès : ≤ 1 commande par semaine
+  (départ : 3, le 28/10/2026).
 - Secours : les plats ≤ SECOURS_MINUTES dont tout est au placard ; « presque » : il en manque 1 ou 2.
 Les noms d'ingrédients se comparent normalisés, comme les courses (courses.normaliser).
 """
@@ -20,8 +21,11 @@ GENRES = [("plat", "Plats"), ("accompagnement", "Accompagnements"), ("entree", "
 STATUTS = ("carnet", "a-tester")
 POUR = [("nous", "Nous deux"), ("julien", "Julien"), ("laetitia", "Laetitia")]
 ISSUES = [("fait", "Fait maison"), ("commande", "Commandé"), ("dehors", "Dehors"), ("autre", "Autre")]
+MOMENTS = [("diner", "Dîner"), ("dejeuner", "Déjeuner"), ("brunch", "Brunch")]
+ORDRE_GENRES = ("entree", "plat", "accompagnement", "dessert")
+MAX_PLATS = 8
 SECOURS_MINUTES = 20
-FENETRE_PASSE = 42           # jours de soirs lus : les 6 semaines du compteur
+FENETRE_PASSE = 42           # jours de repas lus : les 6 semaines du compteur
 FENETRE_FUTUR = 30           # jusqu'où on peut planifier
 
 
@@ -83,23 +87,35 @@ def valider_plat(corps):
     return p
 
 
-def valider_soir(corps, aujourd_hui):
-    """Un soir : {jour, plat (id ou None), issue (ou None)} ; de -60 à +30 jours."""
+def valider_repas(corps, aujourd_hui):
+    """Un repas : {jour, moment, plats (0 à 8 ids sans doublon), issue (ou None)} ; de -60 à +30 jours."""
     if not isinstance(corps, dict):
-        raise ValueError("soir invalide")
+        raise ValueError("repas invalide")
     try:
         jour = date.fromisoformat(corps.get("jour"))
     except (TypeError, ValueError):
         raise ValueError("jour invalide") from None
     if not -60 <= (jour - aujourd_hui).days <= FENETRE_FUTUR:
         raise ValueError("jour hors limites")
-    plat = corps.get("plat") or None
-    if plat is not None and (not isinstance(plat, str) or not _ID.fullmatch(plat)):
-        raise ValueError("plat invalide")
+    if corps.get("moment") not in dict(MOMENTS):
+        raise ValueError("moment invalide")
+    plats = corps.get("plats") or []
+    if (not isinstance(plats, list) or len(plats) > MAX_PLATS
+            or not all(isinstance(i, str) and _ID.fullmatch(i) for i in plats)):
+        raise ValueError("plats invalides")
+    if len(set(plats)) != len(plats):
+        raise ValueError("plat en double")
     issue = corps.get("issue") or None
     if issue is not None and issue not in dict(ISSUES):
         raise ValueError("issue invalide")
-    return {"jour": jour, "plat": plat, "issue": issue}
+    return {"jour": jour, "moment": corps["moment"], "plats": plats, "issue": issue}
+
+
+def ranger(plats, moment):
+    """Les plats d'un repas dans l'ordre du service ; au brunch, dans l'ordre d'ajout."""
+    if moment == "brunch":
+        return list(plats)
+    return sorted(plats, key=lambda p: ORDRE_GENRES.index(p["genre"]))
 
 
 # --- Logique ----------------------------------------------------------------------------------
@@ -144,26 +160,37 @@ def a_acheter(plats_prevus, placard, courses):
     return resultat
 
 
+def repas_prevus(repas, par_id, jours):
+    """Les repas encore à venir des `jours` (sans issue) : pour chacun, ses plats connus ; les vides sont omis."""
+    prevus = []
+    for r in repas:
+        if r["jour"] in jours and not r["issue"]:
+            plats = [par_id[i] for i in r["plats"] if i in par_id]
+            if plats:
+                prevus.append(plats)
+    return prevus
+
+
 CIBLE_SOIRS = 4             # soirs prévus par semaine : les autres restent libres
 MINUTES_SEMAINE = 45        # du lundi au jeudi, on cuisine vite
 RECENT = 14                 # un plat mangé il y a moins de 14 jours ne revient pas
 
 
-def proposer(plats, soirs, jours, aujourd_hui, remplacer=(), cible=CIBLE_SOIRS, hasard=None):
-    """{jour: id du plat} pour compléter la semaine jusqu'à `cible` soirs prévus.
+def proposer(plats, repas, jours, aujourd_hui, remplacer=(), cible=CIBLE_SOIRS, hasard=None):
+    """{jour: id du plat} pour compléter la semaine jusqu'à `cible` dîners prévus.
 
-    Soirs libres seulement (ni plat ni issue), vendredi et samedi en dernier recours (souvent dehors), répartis
-    dans la semaine. Plats pour nous deux, avec recette ; rapides (≤ 45 min) du lundi au jeudi ; ni déjà prévus,
-    ni mangés ces 14 derniers jours ; un plat à tester s'il n'y en a pas déjà un. `remplacer` : des jours à
-    tirer au sort de nouveau, avec un autre plat."""
+    Dîners libres seulement (ni plat ni issue), vendredi et samedi en dernier recours (souvent dehors), répartis
+    dans la semaine. Plats pour nous deux, avec recette ; rapides (≤ 45 min) du lundi au jeudi ; ni déjà prévus
+    (tous moments), ni mangés ces 14 derniers jours ; un plat à tester s'il n'y en a pas déjà un. `remplacer` :
+    des jours à tirer au sort de nouveau, avec un autre plat. Déjeuners et brunchs ne remplissent pas un soir."""
     from random import Random
     hasard = hasard or Random()
     remplacer = [j for j in remplacer if j in jours]
-    par_jour = {s["jour"]: s for s in soirs}
-    prevus = {j: par_jour[j]["plat"] for j in jours if j in par_jour and par_jour[j]["plat"] and j not in remplacer}
+    diners = {r["jour"]: r for r in repas if r["moment"] == "diner"}
+    prevus = {j: diners[j]["plats"] for j in jours if j in diners and diners[j]["plats"] and j not in remplacer}
     besoin = max(0, cible - len(prevus))
     libres = [j for j in jours if j not in prevus and j not in remplacer
-              and not (j in par_jour and par_jour[j]["issue"])]
+              and not (j in diners and diners[j]["issue"])]
     preferes = [j for j in libres if j.weekday() not in (4, 5)]
     autres = [j for j in libres if j.weekday() in (4, 5)]
     a_remplir = remplacer[:besoin]
@@ -176,13 +203,14 @@ def proposer(plats, soirs, jours, aujourd_hui, remplacer=(), cible=CIBLE_SOIRS, 
     if not a_remplir:
         return {}
 
-    manges = {s["plat"] for s in soirs if s["plat"] and s["issue"] == "fait"
-              and 0 <= (aujourd_hui - s["jour"]).days < RECENT}
-    exclus = set(prevus.values()) | manges | {par_jour[j]["plat"] for j in remplacer if j in par_jour}
+    manges = {i for r in repas if r["issue"] == "fait" and 0 <= (aujourd_hui - r["jour"]).days < RECENT
+              for i in r["plats"]}
+    deja = {i for r in repas if r["jour"] in jours and r["jour"] not in remplacer for i in r["plats"]}
+    exclus = deja | manges | {i for j in remplacer if j in diners for i in diners[j]["plats"]}
     candidats = [p for p in plats if p["genre"] == "plat" and not p["archive"] and p.get("pour", "nous") == "nous"
                  and p["recette"] and p["id"] not in exclus]
     hasard.shuffle(candidats)
-    a_tester = any(p["statut"] == "a-tester" for p in plats if p["id"] in prevus.values())
+    a_tester = any(p["statut"] == "a-tester" for p in plats if p["id"] in deja)
     choix = {}
     for j in sorted(a_remplir, key=lambda j: j.weekday() != 6):     # le plat à tester, le dimanche s'il y en a un
         rapide = j.weekday() < 4
@@ -200,21 +228,24 @@ LIVRAISON_DEUX = 35         # un Deliveroo pour deux, frais compris : l'ordre de
 
 
 def cout_semaine(prevus, placard, courses):
-    """Les dîners prévus : leur coût estimé (prix_paris.cout_repas), les courses qui restent à faire pour
-    eux (prix entier des produits ni au placard ni sur la liste) et le même nombre de soirs en livraison."""
+    """Les repas prévus ([[plat, …], …], voir repas_prevus) : leur coût estimé (somme des prix_paris.cout_repas
+    de leurs plats), les courses qui restent à faire pour eux (prix entier des produits ni au placard ni sur la
+    liste) et le même nombre de repas en livraison."""
     from prix_paris import cout_repas, prix_de
-    a_acheter_ = [nom for nom, _ in a_acheter(prevus, placard, courses)]
-    return {"diners": len(prevus), "repas": round(sum(cout_repas(p["ingredients"], p["recette"]) for p in prevus), 2),
+    plats = [p for r in prevus for p in r]
+    a_acheter_ = [nom for nom, _ in a_acheter(plats, placard, courses)]
+    return {"nb_repas": len(prevus), "cout": round(sum(cout_repas(p["ingredients"], p["recette"]) for p in plats), 2),
             "a_acheter": a_acheter_,
             "courses": round(sum(prix_de(n)[1] for n in a_acheter_ if prix_de(n)), 2),
             "livraison": len(prevus) * LIVRAISON_DEUX}
 
 
-def compteur(soirs, aujourd_hui):
-    """Commandes des 7 derniers jours, moyenne hebdomadaire sur 6 semaines, soirs renseignés."""
-    recents = [s for s in soirs if s["issue"] and 0 <= (aujourd_hui - s["jour"]).days < FENETRE_PASSE]
-    commandes = [s for s in recents if s["issue"] == "commande"]
-    return {"semaine": sum(1 for s in commandes if (aujourd_hui - s["jour"]).days < 7),
+def compteur(repas, aujourd_hui):
+    """Commandes des 7 derniers jours, moyenne hebdomadaire sur 6 semaines, dîners renseignés (dîners seuls)."""
+    recents = [r for r in repas if r["moment"] == "diner" and r["issue"]
+               and 0 <= (aujourd_hui - r["jour"]).days < FENETRE_PASSE]
+    commandes = [r for r in recents if r["issue"] == "commande"]
+    return {"semaine": sum(1 for r in commandes if (aujourd_hui - r["jour"]).days < 7),
             "moyenne": len(commandes) / 6 if recents else 0,
             "renseignes": len(recents)}
 
