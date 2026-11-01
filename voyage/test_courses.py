@@ -119,6 +119,14 @@ def test_page_courses():
     assert "bientot" in html and "api/placard/" in html
 
 
+def test_page_courses_v2():
+    html = courses_en_html()
+    assert '<nav id="magasins"' in html and 'class="progression"' in html          # onglets par magasin, progression
+    assert '<script type="application/json" id="italien">' in html and '"pecorino"' in html
+    assert "Réassort placard" in html and "Dans le panier" in html and "Cette semaine" in html
+    assert "Courses finies" in html and "<svg" in html                             # habituel : une icône
+
+
 def test_un_envoi_a_la_fois():
     # « lait, œufs, pain » d'un coup : des envois en parallèle épuisaient les 4 connexions du serveur
     from courses import SCRIPT_COURSES
