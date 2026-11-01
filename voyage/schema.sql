@@ -243,6 +243,8 @@ CREATE TABLE IF NOT EXISTS plats (
     archive     BOOLEAN     NOT NULL DEFAULT false,
     maj_le      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Pour qui : nous deux, ou Julien seul (Laetitia n'en mange pas)
+ALTER TABLE plats ADD COLUMN IF NOT EXISTS pour TEXT NOT NULL DEFAULT 'nous' CHECK (pour IN ('nous', 'julien'));
 -- Les soirs : le plat prévu, et ce qui s'est vraiment passé — la mesure du succès (Deliveroo).
 CREATE TABLE IF NOT EXISTS soirs (
     jour        DATE        PRIMARY KEY,

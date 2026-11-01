@@ -37,7 +37,7 @@ from vocabulaire import LANGUES
 from casa import aujourdhui_en_html, aujourd_hui_paris
 from courses import valider_article, valider_placard, courses_en_html
 from diners import (disponibles, valider_plat, valider_soir, secours, a_acheter, compteur, semaine, diners_en_html,
-                    FENETRE_PASSE, FENETRE_FUTUR)
+                    proposer, FENETRE_PASSE, FENETRE_FUTUR)
 from uuid import uuid4
 
 load_dotenv(Path(__file__).parent / ".env")   # en local : lit voyage/.env s'il existe
@@ -139,6 +139,26 @@ def creer_app(nom_base="valise", secret=None):
         finally:
             conn.close()
         return jsonify({"ok": True, "ajoutes": ajoutes})
+
+    @routes.post("/api/diners/proposer")
+    def proposer_la_semaine():
+        """Complète la semaine (diners.proposer) et enregistre les soirs proposés ; `remplacer` : jours à retirer."""
+        corps = request.get_json(silent=True) or {}
+        try:
+            remplacer = [date.fromisoformat(j) for j in corps.get("remplacer", [])]
+        except (TypeError, ValueError):
+            return jsonify({"erreur": "remplacer invalide"}), 400
+        jour = aujourd_hui_paris()
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            plats = lire_plats(conn)
+            soirs = lire_soirs(conn, jour - timedelta(days=FENETRE_PASSE), jour + timedelta(days=6))
+            proposes = proposer(plats, soirs, semaine(jour), jour, remplacer=remplacer)
+            for j, id_plat in proposes.items():
+                enregistrer_soir(conn, {"jour": j, "plat": id_plat, "issue": None})
+        finally:
+            conn.close()
+        return jsonify({"proposes": {j.isoformat(): id_plat for j, id_plat in proposes.items()}})
 
     # --- Casa Binomerie : courses et placard ---
 

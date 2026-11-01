@@ -18,6 +18,7 @@ _ID = re.compile(r"[A-Za-z0-9-]{8,64}")
 
 GENRES = [("plat", "Plats"), ("accompagnement", "Accompagnements"), ("entree", "Entrées"), ("dessert", "Desserts")]
 STATUTS = ("carnet", "a-tester")
+POUR = [("nous", "Nous deux"), ("julien", "Julien")]
 ISSUES = [("fait", "Fait maison"), ("commande", "Commandé"), ("dehors", "Dehors"), ("autre", "Autre")]
 SECOURS_MINUTES = 20
 FENETRE_PASSE = 42           # jours de soirs lus : les 6 semaines du compteur
@@ -72,6 +73,9 @@ def valider_plat(corps):
     if corps.get("statut", "carnet") not in STATUTS:
         raise ValueError("statut invalide")
     p["statut"] = corps.get("statut", "carnet")
+    if corps.get("pour", "nous") not in dict(POUR):
+        raise ValueError("pour invalide")
+    p["pour"] = corps.get("pour", "nous")
     archive = corps.get("archive", False)
     if not isinstance(archive, bool):
         raise ValueError("archive invalide")
@@ -140,6 +144,58 @@ def a_acheter(plats_prevus, placard, courses):
     return resultat
 
 
+CIBLE_SOIRS = 4             # soirs prévus par semaine : les autres restent libres
+MINUTES_SEMAINE = 45        # du lundi au jeudi, on cuisine vite
+RECENT = 14                 # un plat mangé il y a moins de 14 jours ne revient pas
+
+
+def proposer(plats, soirs, jours, aujourd_hui, remplacer=(), cible=CIBLE_SOIRS, hasard=None):
+    """{jour: id du plat} pour compléter la semaine jusqu'à `cible` soirs prévus.
+
+    Soirs libres seulement (ni plat ni issue), vendredi et samedi en dernier recours (souvent dehors), répartis
+    dans la semaine. Plats pour nous deux, avec recette ; rapides (≤ 45 min) du lundi au jeudi ; ni déjà prévus,
+    ni mangés ces 14 derniers jours ; un plat à tester s'il n'y en a pas déjà un. `remplacer` : des jours à
+    tirer au sort de nouveau, avec un autre plat."""
+    from random import Random
+    hasard = hasard or Random()
+    remplacer = [j for j in remplacer if j in jours]
+    par_jour = {s["jour"]: s for s in soirs}
+    prevus = {j: par_jour[j]["plat"] for j in jours if j in par_jour and par_jour[j]["plat"] and j not in remplacer}
+    besoin = max(0, cible - len(prevus))
+    libres = [j for j in jours if j not in prevus and j not in remplacer
+              and not (j in par_jour and par_jour[j]["issue"])]
+    preferes = [j for j in libres if j.weekday() not in (4, 5)]
+    autres = [j for j in libres if j.weekday() in (4, 5)]
+    a_remplir = remplacer[:besoin]
+    reste = besoin - len(a_remplir)
+    if reste > 0:
+        if len(preferes) > reste:                       # répartis : au milieu de chaque tranche, pas d'affilée
+            a_remplir += [preferes[(2 * i + 1) * len(preferes) // (2 * reste)] for i in range(reste)]
+        else:
+            a_remplir += preferes + autres[:reste - len(preferes)]
+    if not a_remplir:
+        return {}
+
+    manges = {s["plat"] for s in soirs if s["plat"] and s["issue"] == "fait"
+              and 0 <= (aujourd_hui - s["jour"]).days < RECENT}
+    exclus = set(prevus.values()) | manges | {par_jour[j]["plat"] for j in remplacer if j in par_jour}
+    candidats = [p for p in plats if p["genre"] == "plat" and not p["archive"] and p.get("pour", "nous") == "nous"
+                 and p["recette"] and p["id"] not in exclus]
+    hasard.shuffle(candidats)
+    a_tester = any(p["statut"] == "a-tester" for p in plats if p["id"] in prevus.values())
+    choix = {}
+    for j in sorted(a_remplir, key=lambda j: j.weekday() != 6):     # le plat à tester, le dimanche s'il y en a un
+        rapide = j.weekday() < 4
+        ordre = sorted(candidats, key=lambda p: (p["statut"] == "a-tester") == a_tester)
+        for p in ordre:
+            if p["id"] in choix.values() or (rapide and p["minutes"] > MINUTES_SEMAINE):
+                continue
+            choix[j] = p["id"]
+            a_tester = a_tester or p["statut"] == "a-tester"
+            break
+    return dict(sorted(choix.items()))
+
+
 def compteur(soirs, aujourd_hui):
     """Commandes des 7 derniers jours, moyenne hebdomadaire sur 6 semaines, soirs renseignés."""
     recents = [s for s in soirs if s["issue"] and 0 <= (aujourd_hui - s["jour"]).days < FENETRE_PASSE]
@@ -196,6 +252,15 @@ div.filtres { display: flex; gap: 6px; flex-wrap: wrap; }
 div.filtres button { border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte); border-radius: 999px;
                      padding: 6px 12px; font-family: inherit; font-weight: 700; font-size: 14px; }
 div.filtres button.actif { background: var(--diners); border-color: var(--diners); color: #ffffff; }
+div.filtres.etiquettes button span { font-weight: 600; opacity: .7; margin-left: 4px; }
+span.badge.julien { color: var(--doux); background: var(--carte); border: 1px solid var(--ligne); }
+div.jour button.choisir { width: 100%; min-width: 0; text-align: left; font-family: inherit; font-size: 16px; padding: 10px 12px;
+                          border-radius: 14px; border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte);
+                          min-height: 46px; }
+div.jour button.choisir.vide { color: var(--doux); }
+div.jour button.choisir small { color: var(--doux); font-size: 13px; }
+div.proposer { display: flex; gap: 8px; flex-wrap: wrap; }
+div.proposer button.plein { flex: 1 1 220px; }
 p.message { color: var(--diners); font-weight: 700; font-size: 14px; margin: 0; min-height: 1.2em; }
 /* Fiche recette et formulaire : un panneau plein écran */
 div.panneau { position: fixed; inset: 0; z-index: 30; background: var(--fond); overflow-y: auto;
@@ -228,6 +293,13 @@ SCRIPT_DINERS = """
     const CLE_COPIE = 'diners:copie';
     let d = null;                                         // ce que renvoie api/diners
     let vue = 'ce-soir', filtre = 'tout', recherche = '';
+    const etiquette = { carnet: 'tout', 'a-tester': 'tout', choix: 'tout' };   // un filtre par liste
+    let derniereProposition = {};                         // {jour: plat} : ce que « Reproposer » peut changer
+    let messageSemaine = '';
+    const ETIQUETTES = [['tout', 'Tout'], ['rapide', 'Rapide'], ['nous', 'Nous deux'], ['julien', 'Julien'],
+                        ['air-fryer', 'Air fryer'], ['poisson', 'Poisson'], ['legumes', 'Légumes']];
+    const MER = ['saumon', 'thon', 'crevette', 'gambas', 'cabillaud', 'dorade', 'sole', 'sardine', 'moule', 'calamar',
+                 'poulpe', 'saint-jacques', 'langoustine', 'morue', 'crabe', 'maquereau', 'lieu', 'colin'];
     let ouverte = null, verrou = null;                    // fiche ouverte, wake lock
 
     function el(balise, classe, texte) {
@@ -251,6 +323,32 @@ SCRIPT_DINERS = """
     function plat(id) { return d.plats.find(function (p) { return p.id === id; }); }
     function soir(iso) { return d.soirs.find(function (s) { return s.jour === iso; }) || { jour: iso, plat: null, issue: null }; }
     function enStock(nom) { return d.stock.indexOf(normaliser(nom)) >= 0; }
+    function aEtiquette(p, e) {
+        if (e === 'tout') return true;
+        if (e === 'rapide') return p.minutes <= 20;
+        if (e === 'nous' || e === 'julien') return (p.pour || 'nous') === e;
+        if (e === 'air-fryer') return /air fryer/i.test(p.nom);
+        if (e === 'poisson') return p.ingredients.some(function (i) {
+            const n = normaliser(i); return n.indexOf('sauce') !== 0 && MER.some(function (m) { return n.indexOf(m) >= 0; }); });
+        if (e === 'legumes') return p.id.indexOf('lg-') === 0 || (p.id.indexOf('af-') === 0 && p.genre === 'accompagnement');
+        return true;
+    }
+    function correspond(p, q) {
+        return !q || normaliser(p.nom).indexOf(q) >= 0 || p.ingredients.some(function (i) { return normaliser(i).indexOf(q) >= 0; });
+    }
+    // Les étiquettes d'une liste, avec leur nombre ; celles qui ne trouvent rien sont masquées
+    function barreEtiquettes(contexte, liste, rafraichir) {
+        const f = el('div', 'filtres etiquettes');
+        ETIQUETTES.forEach(function (e) {
+            const n = liste.filter(function (p) { return aEtiquette(p, e[0]); }).length;
+            if (!n && e[0] !== 'tout' && etiquette[contexte] !== e[0]) return;
+            const b = bouton(e[1], etiquette[contexte] === e[0] ? 'actif' : '', function () { etiquette[contexte] = e[0]; rafraichir(); });
+            b.setAttribute('aria-pressed', String(etiquette[contexte] === e[0]));
+            b.append(el('span', '', String(n)));
+            f.append(b);
+        });
+        return f;
+    }
 
     // --- Données : lecture, copie hors ligne, envois ---
     let chaine = Promise.resolve(), minuteur = null;
@@ -289,6 +387,7 @@ SCRIPT_DINERS = """
         const o = bouton('', 'ouvrir', function () { ouvrirFiche(p.id); });
         const nom = el('span', 'nom', p.nom);
         if (d.secours.faisables.indexOf(p.id) >= 0) nom.append(el('span', 'badge', 'secours'));
+        if (p.pour === 'julien') nom.append(el('span', 'badge julien', 'Julien'));
         const meta = el('span', 'meta', NOMS_GENRE[p.genre] + ' · ' + duree(p.minutes));
         if (extra) { meta.append(' · '); meta.append(extra); }
         o.append(nom, meta);
@@ -338,28 +437,46 @@ SCRIPT_DINERS = """
             zone.append(q);
         }
     }
+    // « Proposer ma semaine » : le serveur complète jusqu'à 4 soirs (diners.proposer) ; « Reproposer » ne
+    // change que les soirs qu'il a proposés et qu'on n'a pas modifiés depuis
+    function proposerSemaine(msg, remplacer) {
+        msg.textContent = 'Je cherche…';
+        chaine.then(function () {
+            return fetch('api/diners/proposer', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                                  body: JSON.stringify({ remplacer: remplacer || [] }) });
+        }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+          .then(function (r) {
+              const jours = Object.keys(r.proposes);
+              jours.forEach(function (iso) {
+                  d.soirs = d.soirs.filter(function (x) { return x.jour !== iso; }).concat([{ jour: iso, plat: r.proposes[iso], issue: null }]);
+              });
+              derniereProposition = remplacer && remplacer.length ? Object.assign({}, derniereProposition, r.proposes) : r.proposes;
+              garder(); afficher();
+              messageSemaine = jours.length ? jours.length + ' soir(s) proposé(s). Touche un soir pour le changer, puis envoie aux courses.'
+                                            : 'Rien à proposer : la semaine a déjà quatre soirs, ou aucun plat ne convient.';
+              afficher(); relire();
+          }, function () { msg.textContent = 'Pas de réseau : réessaie une fois connecté.'; });
+    }
     function vueSemaine(zone) {
         const e = el('div', 'encart');
         e.append(el('h2', '', 'La semaine'), el('p', 'aide', 'Trois ou quatre soirs suffisent. Les autres restent libres.'));
-        const choix = d.plats.filter(function (p) { return p.genre === 'plat' && !p.archive; })
-                             .sort(function (a, b) { return a.nom.localeCompare(b.nom, 'fr'); });
         d.semaine.forEach(function (iso, i) {
             const ligne = el('div', 'jour');
             const q = el('span', 'quand', i === 0 ? 'Ce soir' : enClair(iso));
             if (i === 0) q.append(el('small', '', enClair(iso)));
-            const sel = el('select'); sel.setAttribute('aria-label', 'Dîner du ' + enClair(iso));
-            sel.append(new Option('—', ''));
-            [['carnet', 'Carnet'], ['a-tester', 'À tester']].forEach(function (g) {
-                const og = document.createElement('optgroup'); og.label = g[1];
-                choix.filter(function (p) { return p.statut === g[0]; }).forEach(function (p) { og.append(new Option(p.nom + ' · ' + duree(p.minutes), p.id)); });
-                sel.append(og);
-            });
-            sel.value = soir(iso).plat || '';
-            sel.addEventListener('change', function () { planifier(iso, sel.value); });
-            ligne.append(q, sel);
+            const p = soir(iso).plat && plat(soir(iso).plat);
+            const b = bouton(p ? p.nom : 'Libre', 'choisir' + (p ? '' : ' vide'), function () { ouvrirChoix(iso); });
+            if (p) { b.append(' '); b.append(el('small', '', '· ' + duree(p.minutes))); }
+            b.setAttribute('aria-label', 'Dîner du ' + enClair(iso) + ' : ' + (p ? p.nom : 'libre'));
+            ligne.append(q, b);
             e.append(ligne);
         });
-        zone.append(e);
+        const msgP = el('p', 'message', messageSemaine); msgP.id = 'message-semaine';
+        const prop = el('div', 'proposer');
+        prop.append(bouton('Proposer ma semaine', 'plein', function () { proposerSemaine(msgP, []); }));
+        const aRefaire = Object.keys(derniereProposition).filter(function (iso) { return soir(iso).plat === derniereProposition[iso]; });
+        if (aRefaire.length) prop.append(bouton('Reproposer', 'petit', function () { proposerSemaine(msgP, aRefaire); }));
+        zone.append(prop, msgP, e);
         const msg = el('p', 'message');
         zone.append(bouton('Ajouter les ingrédients de la semaine aux courses', 'plein', function () {
             msg.textContent = 'Envoi…';
@@ -380,31 +497,89 @@ SCRIPT_DINERS = """
             f.append(b);
         });
         const ul = el('ul', 'plats');
+        const carnet = d.plats.filter(function (p) { return p.statut === 'carnet' && !p.archive; });
+        const zoneEtiquettes = el('div');
         function remplir() {
             ul.replaceChildren();
             const q = normaliser(recherche);
-            d.plats.filter(function (p) {
-                return p.statut === 'carnet' && !p.archive && (filtre === 'tout' || p.genre === filtre)
-                    && (!q || normaliser(p.nom).indexOf(q) >= 0 || p.ingredients.some(function (i) { return normaliser(i).indexOf(q) >= 0; }));
-            }).sort(function (a, b) { return a.nom.localeCompare(b.nom, 'fr'); })
+            const parGenre = carnet.filter(function (p) { return (filtre === 'tout' || p.genre === filtre) && correspond(p, q); });
+            zoneEtiquettes.replaceChildren(barreEtiquettes('carnet', parGenre, remplir));
+            parGenre.filter(function (p) { return aEtiquette(p, etiquette.carnet); })
+              .sort(function (a, b) { return a.nom.localeCompare(b.nom, 'fr'); })
               .forEach(function (p) { ul.append(lignePlat(p)); });
             if (!ul.children.length) ul.append(el('li', 'meta', 'Aucune recette ne correspond.'));
         }
         r.addEventListener('input', function () { recherche = r.value; remplir(); });
         remplir();
         const e = el('div', 'encart'); e.append(ul);
-        zone.append(r, f, bouton('+ Nouvelle recette', 'plein', function () { ouvrirEdition(null); }), e);
+        zone.append(r, f, zoneEtiquettes, bouton('+ Nouvelle recette', 'plein', function () { ouvrirEdition(null); }), e);
     }
     function vueATester(zone) {
+        const tous = d.plats.filter(function (p) { return p.statut === 'a-tester' && !p.archive; });
+        const r = el('input', 'recherche'); r.type = 'search'; r.placeholder = 'Chercher un plat ou un ingrédient';
+        r.value = recherche; r.setAttribute('aria-label', 'Chercher');
+        const f = el('div', 'filtres');
+        [['tout', 'Tout']].concat(GENRES).forEach(function (g) {
+            f.append(bouton(g[1], filtre === g[0] ? 'actif' : '', function () { filtre = g[0]; afficher(); }));
+        });
         const e = el('div', 'encart');
-        e.append(el('h2', '', 'À tester ensemble'),
-                 el('p', 'aide', 'Vos matchs au Match des Recettes. Prévoyez-en un dans la semaine : une fois fait maison, il rejoint le carnet.'));
+        e.append(el('h2', '', 'À tester'),
+                 el('p', 'aide', 'Prévoyez-en un dans la semaine : une fois fait maison, il rejoint le carnet.'));
+        const zoneEtiquettes = el('div');
         const ul = el('ul', 'plats');
-        d.plats.filter(function (p) { return p.statut === 'a-tester' && !p.archive; })
-            .sort(function (a, b) { return (b.recette ? 1 : 0) - (a.recette ? 1 : 0) || a.nom.localeCompare(b.nom, 'fr'); })
-            .forEach(function (p) { ul.append(lignePlat(p, p.recette ? 'recette prête' : 'recette à écrire')); });
+        function remplir() {
+            ul.replaceChildren();
+            const q = normaliser(recherche);
+            const parGenre = tous.filter(function (p) { return (filtre === 'tout' || p.genre === filtre) && correspond(p, q); });
+            zoneEtiquettes.replaceChildren(barreEtiquettes('a-tester', parGenre, remplir));
+            parGenre.filter(function (p) { return aEtiquette(p, etiquette['a-tester']); })
+                .sort(function (a, b) { return (b.recette ? 1 : 0) - (a.recette ? 1 : 0) || a.nom.localeCompare(b.nom, 'fr'); })
+                .forEach(function (p) { ul.append(lignePlat(p, p.recette ? undefined : 'recette à écrire')); });
+            if (!ul.children.length) ul.append(el('li', 'meta', 'Aucune recette ne correspond.'));
+        }
+        r.addEventListener('input', function () { recherche = r.value; remplir(); });
+        remplir();
         e.append(ul);
-        zone.append(e);
+        zone.append(r, f, zoneEtiquettes, e);
+    }
+
+    // Choisir le dîner d'un soir : la même recherche et les mêmes étiquettes, carnet d'abord
+    function ouvrirChoix(iso) {
+        ouverte = { id: null, edition: false };
+        const c = document.querySelector('#panneau .contenu'); c.replaceChildren();
+        const haut = el('div', 'haut');
+        haut.append(el('h2', '', 'Dîner ' + (iso === d.aujourd_hui ? 'de ce soir' : 'du ' + enClair(iso))), bouton('Fermer', 'petit', fermer));
+        let q = '';
+        const r = el('input', 'recherche'); r.type = 'search'; r.placeholder = 'Chercher un plat ou un ingrédient';
+        r.setAttribute('aria-label', 'Chercher');
+        const zoneEtiquettes = el('div'), listes = el('div', 'vue');
+        const tous = d.plats.filter(function (p) { return p.genre === 'plat' && !p.archive; });
+        function remplir() {
+            const trouves = tous.filter(function (p) { return correspond(p, normaliser(q)); });
+            zoneEtiquettes.replaceChildren(barreEtiquettes('choix', trouves, remplir));
+            listes.replaceChildren();
+            [['carnet', 'Carnet'], ['a-tester', 'À tester']].forEach(function (g) {
+                const ul = el('ul', 'plats');
+                trouves.filter(function (p) { return p.statut === g[0] && aEtiquette(p, etiquette.choix); })
+                    .sort(function (a, b) { return a.nom.localeCompare(b.nom, 'fr'); })
+                    .forEach(function (p) {
+                        const li = lignePlat(p);
+                        li.querySelector('button.ouvrir').replaceWith(li.querySelector('button.ouvrir').cloneNode(true));
+                        li.querySelector('button.ouvrir').addEventListener('click', function () { planifier(iso, p.id); fermer(); });
+                        ul.append(li);
+                    });
+                if (!ul.children.length) return;
+                const e = el('div', 'encart'); e.append(el('h2', '', g[1]), ul); listes.append(e);
+            });
+            if (!listes.children.length) listes.append(el('p', 'aide', 'Aucune recette ne correspond.'));
+        }
+        r.addEventListener('input', function () { q = r.value; remplir(); });
+        remplir();
+        c.append(haut, r, zoneEtiquettes);
+        if (soir(iso).plat) c.append(bouton('Rien de prévu ce soir-là', 'petit', function () { planifier(iso, ''); fermer(); }));
+        c.append(listes);
+        document.getElementById('panneau').hidden = false;
+        document.getElementById('panneau').scrollTop = 0;
     }
 
     // --- Fiche et édition ---
@@ -448,7 +623,7 @@ SCRIPT_DINERS = """
     }
     function ouvrirEdition(id) {
         const p = id ? plat(id) : { id: nouvelId('plat'), nom: '', genre: 'plat', minutes: 30, ingredients: [], recette: '',
-                                    lien: '', note: '', statut: 'carnet', archive: false };
+                                    lien: '', note: '', statut: 'carnet', archive: false, pour: 'nous' };
         ouverte = { id: p.id, edition: true };
         const c = document.querySelector('#panneau .contenu'); c.replaceChildren();
         const haut = el('div', 'haut');
@@ -463,9 +638,11 @@ SCRIPT_DINERS = """
         const rec = el('textarea'); rec.value = p.recette;
         const lien = el('input'); lien.type = 'url'; lien.value = p.lien; lien.placeholder = 'https://…';
         const note = el('input'); note.value = p.note; note.maxLength = 500;
+        const pour = el('select'); [['nous', 'Nous deux'], ['julien', 'Julien seul']].forEach(function (x) { pour.append(new Option(x[1], x[0])); });
+        pour.value = p.pour || 'nous';
         const deux = el('div', 'deux'); deux.append(champ('Genre', 'genre', genre), champ('Temps (min)', 'minutes', minutes));
         const msg = el('p', 'message');
-        f.append(champ('Nom', 'nom', nom), deux, champ('Ingrédients, séparés par des virgules', 'ingredients', ing),
+        f.append(champ('Nom', 'nom', nom), deux, champ('Pour qui', 'pour', pour), champ('Ingrédients, séparés par des virgules', 'ingredients', ing),
                  champ('Recette', 'recette', rec), champ('Lien', 'lien', lien), champ('Note', 'note', note), msg);
         const act = el('div', 'actions');
         const ok = el('button', 'plein', 'Enregistrer'); ok.type = 'submit';
@@ -477,7 +654,7 @@ SCRIPT_DINERS = """
             ev.preventDefault();
             const n = Object.assign({}, p, { nom: nom.value.trim(), genre: genre.value, minutes: parseInt(minutes.value, 10) || 0,
                 ingredients: ing.value.split(',').map(function (x) { return x.trim(); }).filter(Boolean),
-                recette: rec.value, lien: lien.value.trim(), note: note.value.trim() });
+                recette: rec.value, lien: lien.value.trim(), note: note.value.trim(), pour: pour.value });
             enregistrerPlat(n).then(function () { ouvrirFiche(n.id); },
                                     function (e) { msg.textContent = 'Refusé par le serveur (' + e.message + ') : vérifie le temps (1 à 600) et le lien.'; });
         });

@@ -19,7 +19,7 @@ J = aujourd_hui_paris()
 def conn():
     c = connecter("valise_test")
     with c.cursor() as cur:
-        cur.execute("TRUNCATE soirs, plats, courses, placard")
+        cur.execute("TRUNCATE soirs, plats, courses, placard, reprises")
     c.commit()
     semer_placard(c, PLACARD_DEPART)
     semer_carnet(c, CARNET_DEPART, A_TESTER)
@@ -94,3 +94,24 @@ def test_api_plats(client):
 
 def test_page_diners(client):
     assert "<h1>Dîners</h1>" in client.get("/diners").get_data(as_text=True)
+
+
+def test_pour_julien_sort_du_nom(conn):
+    from db import separer_pour_julien
+    p = next(x for x in lire_plats(conn) if x["id"] == "tester-moules")
+    enregistrer_plat(conn, {**p, "nom": "Moules marinières frites (Julien)"})       # comme en prod au 01/11
+    assert separer_pour_julien(conn) == 1
+    conn.commit()
+    moules = next(x for x in lire_plats(conn) if x["id"] == "tester-moules")
+    assert moules["nom"] == "Moules marinières frites" and moules["pour"] == "julien"
+    assert separer_pour_julien(conn) is None                                       # une seule fois
+
+
+def test_api_proposer(client):
+    r = client.post("/api/diners/proposer", json={})
+    assert r.status_code == 200
+    proposes = r.get_json()["proposes"]
+    assert 1 <= len(proposes) <= 4
+    soirs = {s["jour"]: s["plat"] for s in client.get("/api/diners").get_json()["soirs"]}
+    assert all(soirs[j] == id_ for j, id_ in proposes.items())
+    assert client.post("/api/diners/proposer", json={"remplacer": ["pas-une-date"]}).status_code == 400

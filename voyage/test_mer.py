@@ -33,7 +33,7 @@ def test_donnees():
     for p in MER + MER_JULIEN:
         assert p["genre"] in dict(GENRES) and p["recette"].startswith("Pour ")
         assert [i for i in p["ingredients"] if not chercher(i)] == [], p["id"]   # tout est au catalogue
-    assert all(p["nom"].endswith("(Julien)") and p["note"].startswith("Pour Julien") for p in MER_JULIEN)
+    assert all(p["pour"] == "julien" and p["note"].startswith("Pour Julien") for p in MER_JULIEN)
 
 
 def test_rien_de_ses_jamais_dans_les_plats_du_couple():
@@ -46,7 +46,7 @@ def test_ajout(conn):
     assert ajouter_recettes(conn, NOM_REPRISE, MER + MER_JULIEN) == len(MER) + len(MER_JULIEN)
     conn.commit()
     plats = {p["id"]: p for p in lire_plats(conn)}
-    assert plats["mer-paella"]["statut"] == "a-tester" and plats["mer-brandade"]["nom"].endswith("(Julien)")
+    assert plats["mer-paella"]["statut"] == "a-tester" and plats["mer-brandade"]["pour"] == "julien"
     assert ajouter_recettes(conn, NOM_REPRISE, MER + MER_JULIEN) is None
 
 
@@ -54,4 +54,5 @@ def test_moules_frites_pour_julien(conn):
     assert pour_julien(conn, ["tester-moules"]) == 1 and pour_julien(conn, ["tester-moules"]) == 0
     conn.commit()
     moules = next(p for p in lire_plats(conn) if p["id"] == "tester-moules")
-    assert moules["nom"] == "Moules marinières frites (Julien)" and moules["note"].startswith("Pour Julien")
+    assert moules["nom"] == "Moules marinières frites" and moules["pour"] == "julien"
+    assert moules["note"].startswith("Pour Julien")

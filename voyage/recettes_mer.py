@@ -5,7 +5,7 @@ saumon, le thon, les calamars et la morue ; jamais pour le reste, poisson blanc 
 fish & chips et aux tenders). Ce qui passe : les crustacés, le saumon cru ou fumé, le thon émietté, la friture
 légère, les sauces coco et asiatiques.
 - MER : les 13 matchs (oui de Julien et de Laetitia) ; le poke, aussi matché, est déjà au carnet à tester.
-- MER_JULIEN : des recettes de poisson pour Julien, que Laetitia a refusées ; nom suivi de « (Julien) ».
+- MER_JULIEN : des recettes de poisson pour Julien, que Laetitia a refusées (pour = 'julien').
 Rédigées par Claude d'après les versions de référence, à corriger par eux dans l'app.
 Mêmes conventions que carnet_depart.py : noms d'ingrédients du catalogue, sel, poivre et huile sous-entendus.
 Ajoutées une seule fois (table reprises).
@@ -25,8 +25,8 @@ def _mer(id_, nom, genre, minutes, ingredients, recette, note=""):
 
 
 def _julien(id_, nom, genre, minutes, ingredients, recette, note=""):
-    return _mer(id_, nom + " (Julien)", genre, minutes, ingredients, recette,
-                ("Pour Julien : Laetitia a dit non au jeu. " + note).strip())
+    return {**_mer(id_, nom, genre, minutes, ingredients, recette,
+                   ("Pour Julien : Laetitia a dit non au jeu. " + note).strip()), "pour": "julien"}
 
 
 MER = [

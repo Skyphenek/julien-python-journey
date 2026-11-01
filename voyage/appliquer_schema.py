@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from carnet_depart import CARNET_DEPART, A_TESTER
 from courses import PLACARD_DEPART
 from db import connecter, semer_placard, semer_carnet, completer_recettes, reorganiser_placard, ajouter_recettes, \
-    actualiser_recettes, pour_julien
+    actualiser_recettes, pour_julien, separer_pour_julien
 from recettes_air_fryer import NOM_REPRISE as REPRISE_AIR_FRYER, NOM_REPRISE_6L, AIR_FRYER
 from recettes_legumes import NOM_REPRISE as REPRISE_LEGUMES, LEGUMES, RETIRES
 from recettes_mer import NOM_REPRISE as REPRISE_MER, MER, MER_JULIEN, POUR_JULIEN
@@ -65,9 +65,12 @@ def appliquer(conn, pour_de_bon):
         mer = ajouter_recettes(conn, REPRISE_MER, MER + MER_JULIEN)
         if mer is not None:
             pour_julien(conn, POUR_JULIEN)                   # avec la reprise : une seule fois
+        julien = separer_pour_julien(conn)                   # « (Julien) » -> champ pour, une seule fois
         conn.commit()
         if bilan:
             print(f"Placard v2 : {annonce(bilan)}.")
+        if julien is not None:
+            print(f"Pour qui : {julien} plat(s) passés « pour Julien », suffixe retiré du nom.")
         if air_fryer is not None:
             print(f"Recettes air fryer : {air_fryer} ajoutées à tester.")
         if six_litres is not None:
@@ -84,7 +87,10 @@ def appliquer(conn, pour_de_bon):
         mer = ajouter_recettes(conn, REPRISE_MER, MER + MER_JULIEN)
         if mer is not None:
             pour_julien(conn, POUR_JULIEN)                   # avec la reprise : une seule fois
+        julien = separer_pour_julien(conn)
         conn.rollback()
+        if julien is not None:
+            print(f"À blanc, pour qui : {julien} plat(s) à passer « pour Julien ».")
         print(f"À blanc : table(s) à créer : {', '.join(nouvelles) or 'aucune'}. Relance avec --appliquer.")
         if bilan:
             print(f"À blanc, Placard v2 : {annonce(bilan)}.")

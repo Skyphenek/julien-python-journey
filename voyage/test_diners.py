@@ -142,3 +142,88 @@ def test_page_diners():
     for vue in ("ce-soir", "semaine", "carnet", "a-tester"):
         assert f'data-vue="{vue}"' in html
     assert "function envoyerOuGarder" in html and "wakeLock" in html
+    assert "api/diners/proposer" in html and "Proposer ma semaine" in html and "Reproposer" in html   # A
+    assert "function ouvrirChoix" in html and "function barreEtiquettes" in html                       # B
+    for e in ("rapide", "nous", "julien", "air-fryer", "poisson", "legumes"):
+        assert f"'{e}'" in html
+    assert "badge julien" in html and "pour: pour.value" in html                                        # D
+
+
+# --- Pour qui (nous deux ou Julien) ---
+
+def test_valider_plat_pour():
+    corps = {"id": "plat-test-01", "nom": "Sardines", "genre": "plat", "minutes": 20}
+    assert valider_plat(corps)["pour"] == "nous"
+    assert valider_plat({**corps, "pour": "julien"})["pour"] == "julien"
+    with pytest.raises(ValueError):
+        valider_plat({**corps, "pour": "eux"})
+
+
+# --- Proposer ma semaine ---
+from random import Random
+from diners import proposer
+
+LUN = date(2026, 11, 2)                       # un lundi : la semaine va du lundi au dimanche
+SEMAINE = semaine(LUN)
+
+
+def carte(n=12, a_tester=3):
+    """Un carnet de n plats rapides et quelques plats à tester, tous avec recette."""
+    plats = [{**plat(f"plat-carnet-{i:02d}", f"Carnet {i}", minutes=30), "recette": "1.", "pour": "nous"} for i in range(n)]
+    plats += [{**plat(f"plat-tester-{i:02d}", f"Tester {i}", minutes=40, statut="a-tester"), "recette": "1.", "pour": "nous"}
+              for i in range(a_tester)]
+    return plats
+
+
+def test_proposer_quatre_soirs_varies():
+    plats = carte() + [{**plat("plat-julien-01", "Sardines", minutes=20), "recette": "1.", "pour": "julien"},
+                       {**plat("plat-archive-1", "Vieux", minutes=20, archive=True), "recette": "1.", "pour": "nous"},
+                       {**plat("plat-sans-rec", "À écrire", minutes=20), "recette": "", "pour": "nous"},
+                       {**plat("plat-dessert-1", "Mousse", genre="dessert"), "recette": "1.", "pour": "nous"}]
+    p = proposer(plats, [], SEMAINE, LUN, hasard=Random(1))
+    assert len(p) == 4 and len(set(p.values())) == 4
+    assert not {j.weekday() for j in p} & {4, 5}                      # ni vendredi ni samedi : souvent dehors
+    trois = proposer(plats, [{"jour": LUN + timedelta(days=6), "plat": "plat-carnet-00", "issue": None}], SEMAINE, LUN,
+                     hasard=Random(1))
+    assert [j.weekday() for j in trois] == [0, 2, 3]                     # répartis : lundi, mercredi, jeudi
+    assert not set(p.values()) & {"plat-julien-01", "plat-archive-1", "plat-sans-rec", "plat-dessert-1"}
+    assert sum(v.startswith("plat-tester") for v in p.values()) == 1    # un plat à tester par semaine
+
+
+def test_proposer_complete_ce_qui_est_prevu():
+    plats = carte()
+    soirs = [{"jour": LUN + timedelta(days=1), "plat": "plat-carnet-00", "issue": None},
+             {"jour": LUN, "plat": None, "issue": "dehors"}]
+    p = proposer(plats, soirs, SEMAINE, LUN, hasard=Random(2))
+    assert len(p) == 3 and LUN not in p and LUN + timedelta(days=1) not in p
+    assert "plat-carnet-00" not in p.values()
+
+
+def test_proposer_rapide_en_semaine():
+    plats = carte(n=6) + [{**plat(f"plat-long-{i:04d}", f"Long {i}", minutes=120), "recette": "1.", "pour": "nous"}
+                          for i in range(6)]
+    for graine in range(20):
+        for jour, id_ in proposer(plats, [], SEMAINE, LUN, hasard=Random(graine)).items():
+            if id_.startswith("plat-long"):
+                assert jour.weekday() == 6                               # le dimanche seulement
+
+
+def test_proposer_sans_ce_qu_on_a_mange_recemment():
+    plats = carte(n=5, a_tester=0)
+    soirs = [{"jour": LUN - timedelta(days=3), "plat": "plat-carnet-00", "issue": "fait"}]
+    for graine in range(10):
+        assert "plat-carnet-00" not in proposer(plats, soirs, SEMAINE, LUN, hasard=Random(graine)).values()
+
+
+def test_proposer_remplacer_un_soir():
+    plats = carte()
+    p = proposer(plats, [], SEMAINE, LUN, hasard=Random(3))
+    jour, avant = sorted(p.items())[0]
+    soirs = [{"jour": j, "plat": v, "issue": None} for j, v in p.items()]
+    q = proposer(plats, soirs, SEMAINE, LUN, remplacer=[jour], hasard=Random(4))
+    assert list(q) == [jour] and q[jour] != avant and q[jour] not in p.values()
+
+
+def test_proposer_rien_si_deja_quatre():
+    soirs = [{"jour": LUN + timedelta(days=i), "plat": f"plat-carnet-{i:02d}", "issue": None} for i in range(4)]
+    assert proposer(carte(), soirs, SEMAINE, LUN, hasard=Random(5)) == {}

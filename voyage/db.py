@@ -662,12 +662,17 @@ def semer_placard(conn, noms):
 
 # --- Casa Binomerie : dîners (carnet et soirs) ---------------------------------------------------
 
-CHAMPS_PLAT = ("nom", "genre", "minutes", "ingredients", "recette", "lien", "note", "statut", "archive")
+CHAMPS_PLAT = ("nom", "genre", "minutes", "ingredients", "recette", "lien", "note", "statut", "archive", "pour")
+_DEFAUTS_PLAT = {"pour": "nous"}
+
+
+def _valeurs_plat(p):
+    return [Json(p[c]) if c == "ingredients" else p.get(c, _DEFAUTS_PLAT.get(c)) for c in CHAMPS_PLAT]
 
 
 def enregistrer_plat(conn, p):
     """Crée ou met à jour (même id) une recette validée."""
-    valeurs = [Json(p[c]) if c == "ingredients" else p[c] for c in CHAMPS_PLAT]
+    valeurs = _valeurs_plat(p)
     with conn.cursor() as cur:
         cur.execute(
             f"""INSERT INTO plats (id, {", ".join(CHAMPS_PLAT)})
@@ -750,7 +755,7 @@ def ajouter_recettes(conn, nom_reprise, plats, retirer=()):
             cur.execute(
                 f"""INSERT INTO plats (id, {", ".join(CHAMPS_PLAT)})
                     VALUES (%s, {", ".join(["%s"] * len(CHAMPS_PLAT))}) ON CONFLICT (id) DO NOTHING""",
-                (p["id"], *[Json(p[c]) if c == "ingredients" else p[c] for c in CHAMPS_PLAT]))
+                (p["id"], *_valeurs_plat(p)))
             n += cur.rowcount
         for id_ in retirer:
             cur.execute("UPDATE plats SET archive = true, maj_le = now() WHERE id = %s", (id_,))
@@ -759,14 +764,28 @@ def ajouter_recettes(conn, nom_reprise, plats, retirer=()):
 
 
 def pour_julien(conn, ids):
-    """Marque des plats « (Julien) » : Laetitia n'en mange pas. Sans commit ; renvoie le nombre marqués."""
+    """Marque des plats pour Julien seul : Laetitia n'en mange pas. Sans commit ; renvoie le nombre marqués."""
     n = 0
     with conn.cursor() as cur:
         for id_ in ids:
-            cur.execute("""UPDATE plats SET nom = nom || ' (Julien)',
+            cur.execute("""UPDATE plats SET pour = 'julien',
                            note = trim('Pour Julien : Laetitia a dit non au jeu. ' || note), maj_le = now()
-                           WHERE id = %s AND nom NOT LIKE '%%(Julien)'""", (id_,))
+                           WHERE id = %s AND pour <> 'julien'""", (id_,))
             n += cur.rowcount
+    return n
+
+
+def separer_pour_julien(conn):
+    """La reprise du 01/11 : le suffixe « (Julien) » des noms devient le champ `pour`, une seule fois.
+    Sans commit ; renvoie le nombre de plats repris, ou None si c'est déjà fait."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT EXISTS (SELECT 1 FROM reprises WHERE nom = 'pour-julien')")
+        if cur.fetchone()[0]:
+            return None
+        cur.execute(r"""UPDATE plats SET pour = 'julien', nom = regexp_replace(nom, '\s*\(Julien\)$', ''),
+                        maj_le = now() WHERE nom LIKE '%%(Julien)'""")
+        n = cur.rowcount
+        cur.execute("INSERT INTO reprises (nom) VALUES ('pour-julien')")
     return n
 
 
