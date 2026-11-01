@@ -2,7 +2,7 @@
 
 Le croustillant du fast-food (tenders, wings, frites) sans friteuse, et des légumes rôtis croustillants,
 la forme sous laquelle Laetitia a le plus de chances de les aimer. Rédigées par Claude pour leur
-Ninja Air Fryer Pro (panier carré ; modes MAX CRISP, AIR FRY, ROAST, BAKE, REHEAT, DEHYDRATE ; AIR FRY
+Ninja Air Fryer Pro XL 6,2 L (panier carré ; modes MAX CRISP, AIR FRY, ROAST, BAKE, REHEAT, DEHYDRATE ; AIR FRY
 jusqu'à 210 °C, MAX CRISP à 240 °C fixe) d'après les temps de référence : vérifier à la première fournée
 et corriger dans l'app.
 Mêmes conventions que carnet_depart.py : noms d'ingrédients du placard, sel, poivre et huile sous-entendus.
@@ -10,6 +10,7 @@ Ajoutées une seule fois (table reprises) : une recette retirée ou corrigée da
 """
 
 NOM_REPRISE = "air-fryer"
+NOM_REPRISE_6L = "air-fryer-6l"        # 01/11 : textes réglés pour le 6,2 L
 
 _PANIER = "Toujours avec la grille au fond du panier ; une seule couche, sans tasser : l'air doit circuler."
 _HUILE = "huile au pinceau ou en flacon pompe (pas de spray aérosol : il abîme le revêtement du Ninja)"
@@ -60,7 +61,7 @@ AIR_FRYER = [
 
 1. Sécher les ailes au papier absorbant. Les rouler dans levure chimique, paprika, ail et sel : la levure fait cloquer la peau comme une friture.
 2. """ + _PANIER + """
-3. AIR FRY, 180 °C, 12 min, puis secouer et monter à 210 °C pour 10 à 12 min. 1 kg tient dans le panier carré en le secouant bien ; s'il déborde, deux fournées.
+3. AIR FRY, 180 °C, 12 min, puis secouer et monter à 210 °C pour 10 à 12 min. 1 kg tient en une fournée dans le panier de 6,2 L, à condition de bien le secouer.
 4. Pendant ce temps, chauffer la laque 1 min dans une petite casserole.
 5. Rouler les ailes dans la laque à la sortie, 2 min de plus en AIR FRY à 210 °C pour la caraméliser.""",
         "La levure chimique, pas la levure boulangère : c'est elle qui rend la peau croustillante."),

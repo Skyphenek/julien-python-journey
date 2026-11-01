@@ -6,10 +6,11 @@ sys.path.insert(0, str(Path(__file__).parent))
 import pytest
 from carnet_depart import CARNET_DEPART, A_TESTER
 from courses import PLACARD_DEPART, normaliser
-from db import connecter, semer_placard, semer_carnet, lire_plats, enregistrer_plat, ajouter_recettes
+from db import (connecter, semer_placard, semer_carnet, lire_plats, enregistrer_plat, ajouter_recettes,
+                actualiser_recettes)
 from diners import GENRES
 from placard_v2 import PLACARD, HABITUELS
-from recettes_air_fryer import NOM_REPRISE, AIR_FRYER
+from recettes_air_fryer import NOM_REPRISE, NOM_REPRISE_6L, AIR_FRYER
 
 
 @pytest.fixture
@@ -68,3 +69,18 @@ def test_a_blanc_ne_laisse_rien(conn):
     conn.rollback()
     assert len(lire_plats(conn)) == len(CARNET_DEPART) + len(A_TESTER)
     assert ajouter_recettes(conn, NOM_REPRISE, AIR_FRYER) == len(AIR_FRYER)
+
+
+def test_actualiser_ne_touche_pas_aux_corrigees(conn):
+    # Neon au 01/11 : lot ajouté avec les anciens textes ; l'une corrigée dans l'app depuis
+    anciens = [{**p, "recette": p["recette"] + " (ancien)"} for p in AIR_FRYER]
+    ajouter_recettes(conn, NOM_REPRISE, anciens)
+    conn.commit()
+    corrigee = next(p for p in lire_plats(conn) if p["id"] == AIR_FRYER[0]["id"])
+    enregistrer_plat(conn, {**corrigee, "recette": "La nôtre."})
+    assert actualiser_recettes(conn, NOM_REPRISE_6L, NOM_REPRISE, AIR_FRYER) == len(AIR_FRYER) - 1
+    conn.commit()
+    plats = {p["id"]: p for p in lire_plats(conn)}
+    assert plats[AIR_FRYER[0]["id"]]["recette"] == "La nôtre."
+    assert plats[AIR_FRYER[1]["id"]]["recette"] == AIR_FRYER[1]["recette"]
+    assert actualiser_recettes(conn, NOM_REPRISE_6L, NOM_REPRISE, AIR_FRYER) is None
