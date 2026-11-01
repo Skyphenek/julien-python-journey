@@ -149,6 +149,7 @@ def test_page_diners():
     assert "badge julien" in html and "pour: pour.value" in html                                        # D
     assert '<script type="application/json" id="prix">' in html and "function compteurDiners" in html     # C
     assert "Déjà sur la liste" in html and "À acheter" in html and "manquants aux courses" in html      # E
+    assert "Au hasard parmi" in html and "'laetitia'" in html and "Laetitia seule" in html
 
 
 # --- Pour qui (nous deux ou Julien) ---

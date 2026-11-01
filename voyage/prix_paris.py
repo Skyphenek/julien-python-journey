@@ -450,6 +450,7 @@ riz arborio | paquet de 1 kg | 3.90
 riz pour risotto | paquet de 1 kg | 3.90
 riz sauvage | paquet de 500 g | 4.50
 riz à sushi | paquet de 1 kg | 4.20
+crozets | paquet de 400 g | 3.50
 semoule | paquet de 500 g | 1.30
 couscous | paquet de 1 kg | 2.50
 boulgour | paquet de 500 g | 1.90
@@ -523,6 +524,7 @@ graines de chia | sachet de 200 g | 3.50
 graines de lin | sachet de 250 g | 2.50
 raisins secs | sachet de 250 g | 2.20
 abricots secs | sachet de 250 g | 3.50
+châtaignes | bocal de 200 g cuites | 4.50
 dattes | barquette de 250 g | 3.20
 pruneaux | sachet de 250 g | 3.20
 figues sèches | sachet de 250 g | 3.50
