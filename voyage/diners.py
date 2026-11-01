@@ -724,14 +724,16 @@ SCRIPT_DINERS = """
         const zoneEtiquettes = el('div'), listes = el('div', 'vue');
         const tous = d.plats.filter(function (p) { return p.genre === genre && !p.archive; });
         let affiches = [];
+        const dansRepas = repas(iso, moment).plats, plein = dansRepas.length >= 8;
         // Au hasard : parmi les plats affichés (recherche et filtre compris), hors ceux déjà prévus cette semaine
         const hasard = bouton('Au hasard', 'plein', function () {
-            const deja = platsDeLaSemaine();
+            const deja = platsDeLaSemaine().concat(dansRepas);
             const pool = affiches.filter(function (p) { return deja.indexOf(p.id) < 0; });
             if (!pool.length) { hasard.textContent = 'Rien à tirer avec ces filtres'; return; }
             const p = pool[Math.floor(Math.random() * pool.length)];
             ajouterPlat(iso, moment, p.id); fermer();
         });
+        hasard.disabled = plein;
         function remplir() {
             const trouves = tous.filter(function (p) { return correspond(p, normaliser(q)); });
             affiches = trouves.filter(function (p) { return aEtiquette(p, etiquette.choix); });
@@ -745,7 +747,12 @@ SCRIPT_DINERS = """
                     .forEach(function (p) {
                         const li = lignePlat(p);
                         li.querySelector('button.ouvrir').replaceWith(li.querySelector('button.ouvrir').cloneNode(true));
-                        li.querySelector('button.ouvrir').addEventListener('click', function () { ajouterPlat(iso, moment, p.id); fermer(); });
+                        if (plein || dansRepas.indexOf(p.id) >= 0) {
+                            li.querySelector('button.ouvrir').disabled = true;
+                            if (dansRepas.indexOf(p.id) >= 0) li.querySelector('.nom').append(el('span', 'badge', 'au menu'));
+                        } else {
+                            li.querySelector('button.ouvrir').addEventListener('click', function () { ajouterPlat(iso, moment, p.id); fermer(); });
+                        }
                         ul.append(li);
                     });
                 if (!ul.children.length) return;
@@ -755,7 +762,9 @@ SCRIPT_DINERS = """
         }
         r.addEventListener('input', function () { q = r.value; remplir(); });
         remplir();
-        c.append(haut, hasard, r, zoneEtiquettes);
+        c.append(haut);
+        if (plein) c.append(el('p', 'aide', 'Ce repas a déjà 8 plats : retires-en un avant d\\'en ajouter.'));
+        c.append(hasard, r, zoneEtiquettes);
         c.append(listes);
         document.getElementById('panneau').hidden = false;
         document.getElementById('panneau').scrollTop = 0;

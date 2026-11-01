@@ -149,6 +149,7 @@ def test_page_diners():
     for f in ("function ajouterPlat", "function retirerPlat", "function ranges", "function carteRepas"):
         assert f in html
     assert "+ déjeuner ou brunch" in html and "+ accompagnement" in html and "'brunch'" in html
+    assert "'au menu'" in html and "déjà 8 plats" in html                                              # feuille de choix
 
 
 def test_version_page_repas():
