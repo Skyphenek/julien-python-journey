@@ -96,10 +96,14 @@ def normaliser(nom):
 
 
 def deviner_rayon(nom):
-    """Le rayon d'un article d'après ses mots ; « surgelé » l'emporte toujours ; 'autre' sinon."""
+    """Le rayon d'un article : « surgelé » l'emporte toujours, puis le catalogue (catalogue.py), puis ses
+    mots ; 'autre' sinon."""
+    from catalogue import chercher
     n = normaliser(nom)
     if re.search(r"(?<![a-z])surgel", n):
         return "surgeles"
+    if chercher(nom):
+        return chercher(nom)[0]
     for mot, rayon in _MOTS:
         if re.search(r"(?<![a-z])" + re.escape(normaliser(mot)), n):
             return rayon
@@ -109,10 +113,14 @@ def deviner_rayon(nom):
 
 
 def deviner_zone(nom, rayon=None):
-    """La zone d'un élément du placard : surgelé -> congélateur, épices et condiments par mots, puis le rayon."""
+    """La zone d'un élément du placard : surgelé -> congélateur, puis le catalogue, puis épices et condiments
+    par mots, puis le rayon."""
+    from catalogue import chercher
     rayon = rayon or deviner_rayon(nom)
     if rayon == "surgeles":
         return "congelateur"
+    if chercher(nom):
+        return chercher(nom)[1]
     n = normaliser(nom)
     if any(re.search(r"(?<![a-z])" + re.escape(mot), n) for mot in MOTS_EPICES):
         return "epices"
@@ -447,6 +455,17 @@ SCRIPT_COURSES = """
     }
 
     document.getElementById('ranger').addEventListener('click', function () { ranger = !ranger; placardOuvert = null; afficher(); });
+    // Un nom du catalogue choisit sa zone tout seul (même clé que catalogue.cle_catalogue)
+    const cleCatalogue = function (nom) {
+        return normaliser(nom).split(' ').map(function (m) { return m.length > 3 && /[sx]$/.test(m) ? m.slice(0, -1) : m; }).join(' ');
+    };
+    const ZONES_CATALOGUE = {};
+    Object.entries(JSON.parse(document.getElementById('zones-catalogue').textContent))
+        .forEach(function (e) { ZONES_CATALOGUE[cleCatalogue(e[0])] = e[1]; });
+    document.querySelector('#ajout-placard input').addEventListener('input', function () {
+        const zone = ZONES_CATALOGUE[cleCatalogue(this.value)];
+        if (zone) document.querySelector('#ajout-placard select').value = zone;
+    });
     document.getElementById('ajout-placard').addEventListener('submit', function (ev) {
         ev.preventDefault();
         const nom = this.querySelector('input').value.trim();
@@ -481,6 +500,9 @@ def courses_en_html():
     """La page Courses : une coquille, remplie par le script depuis api/courses (copie gardée hors ligne)."""
     rayons = json.dumps(RAYONS, ensure_ascii=False)
     zones = json.dumps(ZONES, ensure_ascii=False)
+    from catalogue import CATALOGUE
+    suggestions = "".join(f'<option value="{nom}"></option>' for nom, _, _ in CATALOGUE)
+    zones_catalogue = json.dumps({nom: zone for nom, _, zone in CATALOGUE}, ensure_ascii=False)
     options_zones = "".join(f'<option value="{cle}"{" selected" if cle == "placard-sec" else ""}>{nom}</option>'
                             for cle, nom in ZONES)
     return f"""<!doctype html>
@@ -498,7 +520,7 @@ def courses_en_html():
 <p class="resume" id="resume">Chargement…</p>
 <div id="hors-ligne" hidden></div>
 <form id="ajout-course" autocomplete="off">
-<input name="nom" placeholder="Ajouter (ex. lait, œufs)" aria-label="Article à ajouter" enterkeyhint="done">
+<input name="nom" placeholder="Ajouter (ex. lait, œufs)" aria-label="Article à ajouter" enterkeyhint="done" list="catalogue">
 <button type="submit">Ajouter</button>
 </form>
 <div id="liste"></div>
@@ -513,7 +535,7 @@ def courses_en_html():
 <p class="aide">Ce qui dure, rangé comme la cuisine. Un appui : en stock, puis bientôt fini, puis épuisé. Bientôt fini ou épuisé, il part dans les courses ; acheté, il revient en stock tout seul.</p>
 <div id="placard"></div>
 <form id="ajout-placard" autocomplete="off" hidden>
-<input name="nom" placeholder="Ajouter au placard" aria-label="Élément à ajouter au placard">
+<input name="nom" placeholder="Ajouter au placard" aria-label="Élément à ajouter au placard" list="catalogue">
 <select name="zone" aria-label="Zone">{options_zones}</select>
 <button type="submit">Ajouter</button>
 </form>
@@ -522,6 +544,8 @@ def courses_en_html():
 {nav_hub("courses")}
 <script type="application/json" id="rayons">{rayons}</script>
 <script type="application/json" id="zones">{zones}</script>
+<script type="application/json" id="zones-catalogue">{zones_catalogue}</script>
+<datalist id="catalogue">{suggestions}</datalist>
 <script>{SCRIPT_FILE}
 window.addEventListener('online', function () {{ majHorsLigne(); viderFile(); }});
 window.addEventListener('offline', majHorsLigne);
