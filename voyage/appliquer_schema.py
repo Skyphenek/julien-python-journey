@@ -11,7 +11,8 @@ from dotenv import load_dotenv
 
 from carnet_depart import CARNET_DEPART, A_TESTER
 from courses import PLACARD_DEPART
-from db import connecter, semer_placard, semer_carnet, completer_recettes, reorganiser_placard
+from db import connecter, semer_placard, semer_carnet, completer_recettes, reorganiser_placard, ajouter_recettes
+from recettes_air_fryer import NOM_REPRISE as REPRISE_AIR_FRYER, AIR_FRYER
 
 load_dotenv(Path(__file__).parent / ".env")
 
@@ -50,15 +51,21 @@ def appliquer(conn, pour_de_bon):
         if completes:
             print(f"Recettes à tester complétées : {completes}.")
         bilan = reorganiser_placard(conn)                    # une seule fois (table reprises)
+        air_fryer = ajouter_recettes(conn, REPRISE_AIR_FRYER, AIR_FRYER)    # une seule fois aussi
         conn.commit()
         if bilan:
             print(f"Placard v2 : {annonce(bilan)}.")
+        if air_fryer is not None:
+            print(f"Recettes air fryer : {air_fryer} ajoutées à tester.")
     else:
         bilan = reorganiser_placard(conn) if a_un_placard(conn) else None
+        air_fryer = ajouter_recettes(conn, REPRISE_AIR_FRYER, AIR_FRYER)
         conn.rollback()
         print(f"À blanc : table(s) à créer : {', '.join(nouvelles) or 'aucune'}. Relance avec --appliquer.")
         if bilan:
             print(f"À blanc, Placard v2 : {annonce(bilan)}.")
+        if air_fryer is not None:
+            print(f"À blanc, recettes air fryer : {air_fryer} à ajouter à tester.")
 
 
 if __name__ == "__main__":

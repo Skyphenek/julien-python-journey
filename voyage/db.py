@@ -735,6 +735,26 @@ def completer_recettes(conn, recettes):
     return n
 
 
+def ajouter_recettes(conn, nom_reprise, plats):
+    """Ajoute un lot de recettes « à tester », une seule fois (table reprises) : une recette retirée ou
+    corrigée dans l'app ne revient pas. Sans commit : l'appelant valide ou annule (à blanc).
+    Renvoie le nombre de recettes ajoutées, ou None si le lot est déjà passé."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT EXISTS (SELECT 1 FROM reprises WHERE nom = %s)", (nom_reprise,))
+        if cur.fetchone()[0]:
+            return None
+        n = 0
+        for p in plats:
+            p = {**p, "statut": "a-tester", "archive": False}
+            cur.execute(
+                f"""INSERT INTO plats (id, {", ".join(CHAMPS_PLAT)})
+                    VALUES (%s, {", ".join(["%s"] * len(CHAMPS_PLAT))}) ON CONFLICT (id) DO NOTHING""",
+                (p["id"], *[Json(p[c]) if c == "ingredients" else p[c] for c in CHAMPS_PLAT]))
+            n += cur.rowcount
+        cur.execute("INSERT INTO reprises (nom) VALUES (%s)", (nom_reprise,))
+    return n
+
+
 def reorganiser_placard(conn):
     """La reprise Placard v2 (placard_v2.py), une seule fois : zones, états de la checklist, frais en
     habituels, et les épuisés à acheter ajoutés aux courses. Sans commit : l'appelant valide ou annule
