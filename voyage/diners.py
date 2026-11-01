@@ -196,6 +196,20 @@ def proposer(plats, soirs, jours, aujourd_hui, remplacer=(), cible=CIBLE_SOIRS, 
     return dict(sorted(choix.items()))
 
 
+LIVRAISON_DEUX = 35         # un Deliveroo pour deux, frais compris : l'ordre de grandeur à Paris
+
+
+def cout_semaine(prevus, placard, courses):
+    """Les dîners prévus : leur coût estimé (prix_paris.cout_repas), les courses qui restent à faire pour
+    eux (prix entier des produits ni au placard ni sur la liste) et le même nombre de soirs en livraison."""
+    from prix_paris import cout_repas, prix_de
+    a_acheter_ = [nom for nom, _ in a_acheter(prevus, placard, courses)]
+    return {"diners": len(prevus), "repas": round(sum(cout_repas(p["ingredients"], p["recette"]) for p in prevus), 2),
+            "a_acheter": a_acheter_,
+            "courses": round(sum(prix_de(n)[1] for n in a_acheter_ if prix_de(n)), 2),
+            "livraison": len(prevus) * LIVRAISON_DEUX}
+
+
 def compteur(soirs, aujourd_hui):
     """Commandes des 7 derniers jours, moyenne hebdomadaire sur 6 semaines, soirs renseignés."""
     recents = [s for s in soirs if s["issue"] and 0 <= (aujourd_hui - s["jour"]).days < FENETRE_PASSE]
@@ -252,6 +266,21 @@ div.filtres { display: flex; gap: 6px; flex-wrap: wrap; }
 div.filtres button { border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte); border-radius: 999px;
                      padding: 6px 12px; font-family: inherit; font-weight: 700; font-size: 14px; }
 div.filtres button.actif { background: var(--diners); border-color: var(--diners); color: #ffffff; }
+div.plat-soir .cout { font-size: 15px; font-weight: 700; opacity: .95; }
+div.compteur-diners { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap;
+                      background: var(--carte); border-radius: 18px; padding: 12px 16px; font-size: 14px; color: var(--doux); }
+div.compteur-diners strong { font-size: 16px; color: var(--texte); }
+div.compteur-diners.trop strong { color: var(--diners); }
+div.bilan-semaine { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+div.bilan-semaine div { background: var(--carte); border-radius: 18px; padding: 12px; display: flex; flex-direction: column; gap: 2px; }
+div.bilan-semaine strong { font-size: 20px; font-weight: 800; }
+div.bilan-semaine span { font-size: 12px; color: var(--doux); font-weight: 600; }
+div.bilan-semaine .livraison strong { color: var(--doux); text-decoration: line-through; }
+section.groupe-ing h3 { font-size: 13px; font-weight: 800; color: var(--doux); text-transform: uppercase; letter-spacing: .05em;
+                        margin: 4px 0 6px; }
+div.ingredients span.ok::before { content: "✓ "; color: var(--courses); font-weight: 800; }
+div.ingredients span.liste { background: var(--courses-doux); color: var(--courses); }
+div.ingredients span small { opacity: .75; margin-left: 4px; }
 div.filtres.etiquettes button span { font-weight: 600; opacity: .7; margin-left: 4px; }
 span.badge.julien { color: var(--doux); background: var(--carte); border: 1px solid var(--ligne); }
 div.jour button.choisir { width: 100%; min-width: 0; text-align: left; font-family: inherit; font-size: 16px; padding: 10px 12px;
@@ -323,6 +352,17 @@ SCRIPT_DINERS = """
     function plat(id) { return d.plats.find(function (p) { return p.id === id; }); }
     function soir(iso) { return d.soirs.find(function (s) { return s.jour === iso; }) || { jour: iso, plat: null, issue: null }; }
     function enStock(nom) { return d.stock.indexOf(normaliser(nom)) >= 0; }
+    function surLaListe(nom) { return (d.liste || []).indexOf(normaliser(nom)) >= 0; }
+    // Prix d'un panier parisien (prix_paris.py), par la même clé que le catalogue
+    function cleCatalogue(nom) {
+        return normaliser(nom).split(' ').map(function (m) { return m.length > 3 && /[sx]$/.test(m) ? m.slice(0, -1) : m; }).join(' ');
+    }
+    const PRIX = {};
+    Object.entries(JSON.parse(document.getElementById('prix').textContent)).forEach(function (e) { PRIX[cleCatalogue(e[0])] = e[1]; });
+    function prixDe(nom) { return PRIX[cleCatalogue(nom)] || null; }
+    function euros(x) {
+        return x.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    }
     function aEtiquette(p, e) {
         if (e === 'tout') return true;
         if (e === 'rapide') return p.minutes <= 20;
@@ -388,17 +428,26 @@ SCRIPT_DINERS = """
         const nom = el('span', 'nom', p.nom);
         if (d.secours.faisables.indexOf(p.id) >= 0) nom.append(el('span', 'badge', 'secours'));
         if (p.pour === 'julien') nom.append(el('span', 'badge julien', 'Julien'));
-        const meta = el('span', 'meta', NOMS_GENRE[p.genre] + ' · ' + duree(p.minutes));
+        const meta = el('span', 'meta', NOMS_GENRE[p.genre] + ' · ' + duree(p.minutes) + (p.cout ? ' · ≈ ' + euros(p.cout) : ''));
         if (extra) { meta.append(' · '); meta.append(extra); }
         o.append(nom, meta);
         li.append(o);
         return li;
     }
+    function compteurDiners() {
+        const c = d.compteur;
+        const b = el('div', 'compteur-diners' + (c.semaine > 1 ? ' trop' : ''));
+        b.append(el('strong', '', 'Deliveroo : ' + c.semaine + ' ces 7 jours'),
+                 el('span', '', 'objectif : 1 au plus · moyenne ' + c.moyenne.toFixed(1).replace('.', ',') + ' par semaine'));
+        return b;
+    }
     function vueCeSoir(zone) {
+        if (d.compteur && d.compteur.renseignes) zone.append(compteurDiners());
         const s = soir(d.aujourd_hui), p = s.plat && plat(s.plat);
         if (p) {
             const bloc = el('div', 'plat-soir');
             bloc.append(el('span', 'titre', 'Ce soir'), el('span', 'nom', p.nom), el('span', 'titre', duree(p.minutes)));
+            if (p.cout) bloc.append(el('span', 'cout', '≈ ' + euros(p.cout) + ' le repas · en livraison ≈ ' + euros(d.livraison)));
             const b = el('div', 'boutons');
             b.append(bouton('Voir la recette', '', function () { ouvrirFiche(p.id); }),
                      bouton('Changer', 'discret', function () { vue = 'semaine'; afficher(); }));
@@ -472,6 +521,16 @@ SCRIPT_DINERS = """
             e.append(ligne);
         });
         const msgP = el('p', 'message', messageSemaine); msgP.id = 'message-semaine';
+        const cs = d.cout_semaine;
+        if (cs && cs.diners) {
+            const bilan = el('div', 'bilan-semaine');
+            [['', euros(cs.repas), cs.diners + ' dîner' + (cs.diners > 1 ? 's' : '') + ' maison'],
+             ['livraison', euros(cs.livraison), 'les mêmes en livraison'],
+             ['', euros(cs.courses), 'courses à faire pour eux']].forEach(function (x) {
+                const c = el('div', x[0]); c.append(el('strong', '', x[1]), el('span', '', x[2])); bilan.append(c);
+            });
+            e.append(bilan);
+        }
         const prop = el('div', 'proposer');
         prop.append(bouton('Proposer ma semaine', 'plein', function () { proposerSemaine(msgP, []); }));
         const aRefaire = Object.keys(derniereProposition).filter(function (iso) { return soir(iso).plat === derniereProposition[iso]; });
@@ -601,19 +660,32 @@ SCRIPT_DINERS = """
         haut.append(el('span', 'meta', NOMS_GENRE[p.genre] + ' · ' + duree(p.minutes)), bouton('Fermer', 'petit', fermer));
         c.append(haut, el('h2', '', p.nom));
         if (p.lien) { const m = el('p', 'meta'); const a = el('a', '', 'Recette d\\'origine'); a.href = p.lien; a.target = '_blank'; a.rel = 'noopener'; m.append(a); c.append(m); }
-        if (p.ingredients.length) {
-            const ing = el('div', 'ingredients');
-            p.ingredients.forEach(function (i) { ing.append(el('span', enStock(i) ? '' : 'manque', i)); });
-            c.append(ing);
-        }
+        const groupes = [['ok', 'Au placard', p.ingredients.filter(enStock)],
+                         ['liste', 'Déjà sur la liste', p.ingredients.filter(function (i) { return !enStock(i) && surLaListe(i); })],
+                         ['manque', 'À acheter', p.ingredients.filter(function (i) { return !enStock(i) && !surLaListe(i); })]];
+        groupes.forEach(function (g) {
+            if (!g[2].length) return;
+            const sec = el('section', 'groupe-ing'), ing = el('div', 'ingredients');
+            g[2].forEach(function (i) {
+                const t = el('span', g[0], i), pr = prixDe(i);
+                if (g[0] === 'manque' && pr) t.append(el('small', '', euros(pr[1])));
+                ing.append(t);
+            });
+            sec.append(el('h3', '', g[1] + ' · ' + g[2].length), ing);
+            c.append(sec);
+        });
+        if (p.cout) c.append(el('p', 'meta', '≈ ' + euros(p.cout) + ' le repas pour deux (part utilisée de chaque produit) · en livraison ≈ ' + euros(d.livraison)));
         c.append(el('pre', 'recette', p.recette || 'Recette à écrire : demande à Claude, ou écris la tienne avec « Modifier ».'));
         if (p.note) c.append(el('p', 'meta', p.note));
         const act = el('div', 'actions');
         act.append(bouton('Ce soir', 'plein', function () { planifier(d.aujourd_hui, p.id); fermer(); vue = 'ce-soir'; afficher(); }),
                    bouton('Modifier', 'petit', function () { ouvrirEdition(p.id); }));
-        const manquants = p.ingredients.filter(function (i) { return !enStock(i); });
-        if (manquants.length) act.append(bouton('Manquants aux courses (' + manquants.length + ')', 'petit', function (ev) {
-            ajouterAuxCourses(manquants, 'plat:' + p.id); ev.target.textContent = 'Ajouté aux courses'; ev.target.disabled = true; }));
+        const manquants = p.ingredients.filter(function (i) { return !enStock(i) && !surLaListe(i); });
+        const total = manquants.reduce(function (t, i) { const pr = prixDe(i); return t + (pr ? pr[1] : 0); }, 0);
+        if (manquants.length) act.append(bouton('Ajouter les ' + manquants.length + ' manquants aux courses' + (total ? ' (≈ ' + euros(total) + ')' : ''), 'petit', function (ev) {
+            ajouterAuxCourses(manquants, 'plat:' + p.id);
+            d.liste = (d.liste || []).concat(manquants.map(normaliser)); garder();
+            ev.target.textContent = 'Ajouté aux courses'; ev.target.disabled = true; }));
         if (p.statut === 'a-tester') act.append(bouton('On l\\'a fait : au carnet', 'petit', function () {
             enregistrerPlat(Object.assign({}, p, { statut: 'carnet' })); fermer(); }));
         c.append(act);
@@ -691,7 +763,9 @@ SCRIPT_DINERS = """
 def diners_en_html():
     """La page Dîners : une coquille, remplie par le script depuis api/diners (copie gardée hors ligne)."""
     import json
+    from prix_paris import PRIX
     genres = json.dumps(GENRES, ensure_ascii=False)
+    prix = json.dumps(PRIX, ensure_ascii=False)
     vues = "".join(f'<button type="button" data-vue="{v}">{t}</button>'
                    for v, t in [("ce-soir", "Ce soir"), ("semaine", "Semaine"), ("carnet", "Carnet"), ("a-tester", "À tester")])
     return f"""<!doctype html>
@@ -712,6 +786,7 @@ def diners_en_html():
 <div class="panneau" id="panneau" hidden><div class="contenu"></div></div>
 {nav_hub("diners")}
 <script type="application/json" id="genres">{genres}</script>
+<script type="application/json" id="prix">{prix}</script>
 <script>{SCRIPT_FILE}
 window.addEventListener('online', function () {{ majHorsLigne(); viderFile(); }});
 window.addEventListener('offline', majHorsLigne);

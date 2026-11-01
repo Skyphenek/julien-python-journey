@@ -147,6 +147,8 @@ def test_page_diners():
     for e in ("rapide", "nous", "julien", "air-fryer", "poisson", "legumes"):
         assert f"'{e}'" in html
     assert "badge julien" in html and "pour: pour.value" in html                                        # D
+    assert '<script type="application/json" id="prix">' in html and "function compteurDiners" in html     # C
+    assert "Déjà sur la liste" in html and "À acheter" in html and "manquants aux courses" in html      # E
 
 
 # --- Pour qui (nous deux ou Julien) ---
@@ -227,3 +229,17 @@ def test_proposer_remplacer_un_soir():
 def test_proposer_rien_si_deja_quatre():
     soirs = [{"jour": LUN + timedelta(days=i), "plat": f"plat-carnet-{i:02d}", "issue": None} for i in range(4)]
     assert proposer(carte(), soirs, SEMAINE, LUN, hasard=Random(5)) == {}
+
+
+# --- Coût de la semaine ---
+from diners import cout_semaine, LIVRAISON_DEUX
+
+
+def test_cout_semaine():
+    prevus = [plat("plat-carbonara", "Carbonara", ingredients=["spaghetti", "œufs", "pecorino"]),
+              plat("plat-saumon-01", "Saumon", ingredients=["pavés de saumon", "riz basmati"])]
+    c = cout_semaine(prevus, placard("spaghetti", "riz basmati"), [habituel("œufs", actif=True)])
+    assert c["diners"] == 2 and c["livraison"] == 2 * LIVRAISON_DEUX
+    assert 0 < c["repas"] < c["livraison"]
+    assert c["a_acheter"] == ["pecorino", "pavés de saumon"]    # les œufs sont déjà sur la liste
+    assert c["courses"] == round(5.5 + 7.9, 2)
