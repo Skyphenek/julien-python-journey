@@ -292,9 +292,11 @@ SCRIPT_COURSES = """
         if (a.rayon !== 'specialise') return 'supermarche';
         return ITALIEN.has(cleCatalogue(a.nom)) ? 'italien' : 'asiatique';
     }
-    // Réassort : ce qui dure et revient au placard, sans dîner prévu qui l'attende cette semaine
+    // Réassort : ce qui dure (épicerie, surgelés, boissons) et revient au placard, sans dîner prévu qui
+    // l'attende ; le frais et les fruits et légumes, même au placard, sont toujours de la semaine
+    const DURABLES = ['epicerie', 'surgeles', 'boissons', 'specialise'];
     function estReassort(a) {
-        if (a.recurrent || (a.source || '').indexOf('plat:') === 0) return false;
+        if (a.recurrent || (a.source || '').indexOf('plat:') === 0 || DURABLES.indexOf(a.rayon) < 0) return false;
         const cle = normaliser(a.nom);
         return a.source === 'placard' || placard.some(function (p) { return p.cle === cle; });
     }
