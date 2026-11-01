@@ -145,6 +145,15 @@ def test_page_diners():
     assert '<script type="application/json" id="prix">' in html and "function compteurDiners" in html     # C
     assert "Déjà sur la liste" in html and "À acheter" in html and "manquants aux courses" in html      # E
     assert "Au hasard parmi" in html and "'laetitia'" in html and "Laetitia seule" in html
+    assert "api/repas" in html and "api/soirs" not in html and "d.soirs" not in html                  # repas composés
+    for f in ("function ajouterPlat", "function retirerPlat", "function ranges", "function carteRepas"):
+        assert f in html
+    assert "+ déjeuner ou brunch" in html and "+ accompagnement" in html and "'brunch'" in html
+
+
+def test_version_page_repas():
+    from valise import VERSION_PAGE
+    assert VERSION_PAGE >= 37
 
 
 # --- Pour qui (nous deux ou Julien) ---

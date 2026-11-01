@@ -284,13 +284,6 @@ button.plein { border: none; background: var(--diners); color: #ffffff; border-r
                font-family: inherit; font-weight: 800; font-size: 15px; }
 span.badge { font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--diners);
              background: var(--diners-doux); border-radius: 999px; padding: 2px 8px; margin-left: 6px; }
-div.jour { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 10px; min-height: 52px;
-           border-top: 1px solid var(--ligne); }
-div.jour:first-of-type { border-top: none; }
-div.jour .quand { font-weight: 800; font-size: 15px; }
-div.jour .quand small { display: block; font-weight: 600; color: var(--doux); font-size: 12px; }
-div.jour select { width: 100%; min-width: 0; font-family: inherit; font-size: 16px; padding: 10px 12px; border-radius: 14px;
-                  border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte); }
 input.recherche { width: 100%; font-family: inherit; font-size: 17px; padding: 12px 16px; border-radius: 999px;
                   border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte); }
 div.filtres { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -314,11 +307,26 @@ div.ingredients span.liste { background: var(--courses-doux); color: var(--cours
 div.ingredients span small { opacity: .75; margin-left: 4px; }
 div.filtres.etiquettes button span { font-weight: 600; opacity: .7; margin-left: 4px; }
 span.badge.julien { color: var(--doux); background: var(--carte); border: 1px solid var(--ligne); }
-div.jour button.choisir { width: 100%; min-width: 0; text-align: left; font-family: inherit; font-size: 16px; padding: 10px 12px;
-                          border-radius: 14px; border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte);
-                          min-height: 46px; }
-div.jour button.choisir.vide { color: var(--doux); }
-div.jour button.choisir small { color: var(--doux); font-size: 13px; }
+div.jour-repas { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-top: 1px solid var(--ligne); }
+div.jour-repas:first-of-type { border-top: none; }
+div.jour-repas .quand { font-weight: 800; font-size: 15px; }
+div.jour-repas .quand small { font-weight: 600; color: var(--doux); font-size: 12px; margin-left: 6px; }
+div.repas { background: var(--blanc); border: 2px solid var(--ligne); border-radius: 18px; padding: 10px 12px;
+            display: flex; flex-direction: column; gap: 6px; }
+div.repas .titre-repas { font-size: 13px; font-weight: 800; color: var(--doux); text-transform: uppercase; letter-spacing: .05em; }
+ul.plats-repas { list-style: none; margin: 0; padding: 0; }
+ul.plats-repas li { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+ul.plats-repas li > button.ouvrir { flex: 1; min-width: 0; text-align: left; background: none; border: none; padding: 4px 0;
+                                   font-family: inherit; color: var(--texte); display: flex; flex-direction: column; }
+ul.plats-repas .nom { font-size: 16px; font-weight: 700; }
+ul.plats-repas .meta, ul.plats-repas li.meta { font-size: 13px; color: var(--doux); }
+button.retirer { border: none; background: var(--carte); color: var(--doux); border-radius: 999px; width: 36px; height: 36px;
+                 font-size: 18px; font-weight: 800; flex: none; }
+div.ajouts { display: flex; gap: 6px; flex-wrap: wrap; }
+div.ajouts button.petit { padding: 6px 10px; }
+ul.plats-soir { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+ul.plats-soir li { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; }
+ul.plats-soir button { padding: 6px 12px !important; font-size: 13px !important; }
 div.proposer { display: flex; gap: 8px; flex-wrap: wrap; }
 div.proposer button.plein { flex: 1 1 220px; }
 p.message { color: var(--diners); font-weight: 700; font-size: 14px; margin: 0; min-height: 1.2em; }
@@ -350,6 +358,9 @@ SCRIPT_DINERS = """
     const GENRES = JSON.parse(document.getElementById('genres').textContent);
     const NOMS_GENRE = { plat: 'Plat', accompagnement: 'Accompagnement', entree: 'Entrée', dessert: 'Dessert' };
     const JOURS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
+    const MOMENTS = { diner: 'Dîner', dejeuner: 'Déjeuner', brunch: 'Brunch' };
+    const ORDRE_GENRES = ['entree', 'plat', 'accompagnement', 'dessert'];
+    const AJOUTS = [['plat', '+ plat'], ['entree', '+ entrée'], ['accompagnement', '+ accompagnement'], ['dessert', '+ dessert']];
     const CLE_COPIE = 'diners:copie';
     let d = null;                                         // ce que renvoie api/diners
     let vue = 'ce-soir', filtre = 'tout', recherche = '';
@@ -381,7 +392,20 @@ SCRIPT_DINERS = """
     function duree(m) { if (m < 60) return m + ' min'; const h = Math.floor(m / 60), r = m % 60; return h + ' h' + (r ? ' ' + String(r).padStart(2, '0') : ''); }
     function enClair(iso) { const j = new Date(iso + 'T12:00:00'); return JOURS[j.getDay()] + ' ' + j.getDate(); }
     function plat(id) { return d.plats.find(function (p) { return p.id === id; }); }
-    function soir(iso) { return d.soirs.find(function (s) { return s.jour === iso; }) || { jour: iso, plat: null, issue: null }; }
+    function repas(iso, moment) {
+        return d.repas.find(function (r) { return r.jour === iso && r.moment === moment; })
+            || { jour: iso, moment: moment, plats: [], issue: null };
+    }
+    // Les plats d\\'un repas, dans l'ordre du service (au brunch : l'ordre d'ajout)
+    function ranges(r) {
+        const ps = r.plats.map(plat).filter(Boolean);
+        if (r.moment === 'brunch') return ps;
+        return ps.sort(function (a, b) { return ORDRE_GENRES.indexOf(a.genre) - ORDRE_GENRES.indexOf(b.genre); });
+    }
+    function platsDeLaSemaine() {
+        return d.repas.filter(function (r) { return d.semaine.indexOf(r.jour) >= 0; })
+                      .reduce(function (t, r) { return t.concat(r.plats); }, []);
+    }
     function enStock(nom) { return d.stock.indexOf(normaliser(nom)) >= 0; }
     function surLaListe(nom) { return (d.liste || []).indexOf(normaliser(nom)) >= 0; }
     // Prix d'un panier parisien (prix_paris.py), par la même clé que le catalogue
@@ -433,11 +457,20 @@ SCRIPT_DINERS = """
             .then(function (lu) { d = lu; garder(); afficher(); })
             .catch(function () { try { d = d || JSON.parse(localStorage.getItem(CLE_COPIE)); } catch (e) {} if (d) afficher(); });
     }
-    function planifier(iso, idPlat) {
-        const s = Object.assign({}, soir(iso), { plat: idPlat || null });
-        d.soirs = d.soirs.filter(function (x) { return x.jour !== iso; }).concat([s]);
+    function enregistrerRepas(r) {
+        const vide = !r.plats.length && !r.issue;
+        d.repas = d.repas.filter(function (x) { return !(x.jour === r.jour && x.moment === r.moment); }).concat(vide ? [] : [r]);
         garder(); afficher();
-        envoyer({ url: 'api/soirs', methode: 'POST', corps: s, cle: 'soir:' + iso }).then(relire, relire);
+        envoyer({ url: 'api/repas', methode: 'POST', corps: r, cle: 'repas:' + r.jour + ':' + r.moment }).then(relire, relire);
+    }
+    function ajouterPlat(iso, moment, id) {
+        const r = repas(iso, moment);
+        if (r.plats.indexOf(id) >= 0 || r.plats.length >= 8) return;
+        enregistrerRepas(Object.assign({}, r, { plats: r.plats.concat([id]) }));
+    }
+    function retirerPlat(iso, moment, id) {
+        const r = repas(iso, moment);
+        enregistrerRepas(Object.assign({}, r, { plats: r.plats.filter(function (x) { return x !== id; }) }));
     }
     function enregistrerPlat(p) {
         d.plats = d.plats.filter(function (x) { return x.id !== p.id; }).concat([p]);
@@ -475,14 +508,23 @@ SCRIPT_DINERS = """
     }
     function vueCeSoir(zone) {
         if (d.compteur && d.compteur.renseignes) zone.append(compteurDiners());
-        const s = soir(d.aujourd_hui), p = s.plat && plat(s.plat);
-        if (p) {
+        const ps = ranges(repas(d.aujourd_hui, 'diner'));
+        const principal = ps.filter(function (x) { return x.genre === 'plat'; })[0] || ps[0];
+        if (principal) {
             const bloc = el('div', 'plat-soir');
-            bloc.append(el('span', 'titre', 'Ce soir'), el('span', 'nom', p.nom), el('span', 'titre', duree(p.minutes)));
-            if (p.cout) bloc.append(el('span', 'cout', '≈ ' + euros(p.cout) + ' le repas · en livraison ≈ ' + euros(d.livraison)));
+            bloc.append(el('span', 'titre', 'Ce soir'), el('span', 'nom', principal.nom));
+            const ul = el('ul', 'plats-soir');
+            ps.forEach(function (x) {
+                const li = el('li');
+                li.append(el('span', '', NOMS_GENRE[x.genre] + ' · ' + x.nom + ' · ' + duree(x.minutes)),
+                          bouton('Voir la recette', '', function () { ouvrirFiche(x.id); }));
+                ul.append(li);
+            });
+            bloc.append(ul);
+            const cout = ps.reduce(function (t, x) { return t + (x.cout || 0); }, 0);
+            if (cout) bloc.append(el('span', 'cout', '≈ ' + euros(cout) + ' le repas · en livraison ≈ ' + euros(d.livraison)));
             const b = el('div', 'boutons');
-            b.append(bouton('Voir la recette', '', function () { ouvrirFiche(p.id); }),
-                     bouton('Changer', 'discret', function () { vue = 'semaine'; afficher(); }));
+            b.append(bouton('Changer', 'discret', function () { vue = 'semaine'; afficher(); }));
             bloc.append(b);
             zone.append(bloc);
         } else {
@@ -496,7 +538,7 @@ SCRIPT_DINERS = """
         const ul = el('ul', 'plats');
         d.secours.faisables.map(plat).filter(Boolean).forEach(function (x) {
             const li = lignePlat(x);
-            if (!p) li.append(bouton('Ce soir', 'petit', function () { planifier(d.aujourd_hui, x.id); }));
+            if (!principal) li.append(bouton('Ce soir', 'petit', function () { ajouterPlat(d.aujourd_hui, 'diner', x.id); }));
             ul.append(li);
         });
         if (!ul.children.length) ul.append(el('li', 'meta', 'Rien de faisable avec le placard actuel.'));
@@ -529,34 +571,68 @@ SCRIPT_DINERS = """
           .then(function (r) {
               const jours = Object.keys(r.proposes);
               jours.forEach(function (iso) {
-                  d.soirs = d.soirs.filter(function (x) { return x.jour !== iso; }).concat([{ jour: iso, plat: r.proposes[iso], issue: null }]);
+                  d.repas = d.repas.filter(function (x) { return !(x.jour === iso && x.moment === 'diner'); })
+                                   .concat([{ jour: iso, moment: 'diner', plats: [r.proposes[iso]], issue: null }]);
               });
               derniereProposition = remplacer && remplacer.length ? Object.assign({}, derniereProposition, r.proposes) : r.proposes;
               garder(); afficher();
-              messageSemaine = jours.length ? jours.length + ' soir(s) proposé(s). Touche un soir pour le changer, puis envoie aux courses.'
-                                            : 'Rien à proposer : la semaine a déjà quatre soirs, ou aucun plat ne convient.';
+              messageSemaine = jours.length ? jours.length + ' dîner(s) proposé(s). Ajoute un accompagnement ou un dessert, puis envoie aux courses.'
+                                            : 'Rien à proposer : la semaine a déjà quatre dîners, ou aucun plat ne convient.';
               afficher(); relire();
           }, function () { msg.textContent = 'Pas de réseau : réessaie une fois connecté.'; });
     }
+    // Une carte de repas : ses plats (× pour retirer), puis + plat / + entrée / + accompagnement / + dessert
+    function carteRepas(iso, moment) {
+        const r = repas(iso, moment);
+        const c = el('div', 'repas');
+        const t = el('div', 'titre-repas');
+        t.append(el('span', '', MOMENTS[moment]));
+        if (r.issue) t.append(el('span', 'badge', r.issue === 'fait' ? 'fait maison' : r.issue === 'commande' ? 'commandé' : r.issue));
+        c.append(t);
+        const ul = el('ul', 'plats-repas');
+        ranges(r).forEach(function (p) {
+            const li = el('li');
+            const o = bouton('', 'ouvrir', function () { ouvrirFiche(p.id); });
+            o.append(el('span', 'nom', p.nom), el('span', 'meta', NOMS_GENRE[p.genre] + ' · ' + duree(p.minutes)));
+            const x = bouton('×', 'retirer', function () { retirerPlat(iso, moment, p.id); });
+            x.setAttribute('aria-label', 'Retirer ' + p.nom);
+            li.append(o, x);
+            ul.append(li);
+        });
+        if (!ul.children.length) ul.append(el('li', 'meta', 'Libre'));
+        c.append(ul);
+        const a = el('div', 'ajouts');
+        AJOUTS.forEach(function (g) { a.append(bouton(g[1], 'petit', function () { ouvrirChoix(iso, moment, g[0]); })); });
+        c.append(a);
+        return c;
+    }
     function vueSemaine(zone) {
         const e = el('div', 'encart');
-        e.append(el('h2', '', 'La semaine'), el('p', 'aide', 'Trois ou quatre soirs suffisent. Les autres restent libres.'));
+        e.append(el('h2', '', 'La semaine'), el('p', 'aide', 'Trois ou quatre dîners suffisent. Les autres restent libres.'));
         d.semaine.forEach(function (iso, i) {
-            const ligne = el('div', 'jour');
+            const jour = el('div', 'jour-repas');
             const q = el('span', 'quand', i === 0 ? 'Ce soir' : enClair(iso));
             if (i === 0) q.append(el('small', '', enClair(iso)));
-            const p = soir(iso).plat && plat(soir(iso).plat);
-            const b = bouton(p ? p.nom : 'Libre', 'choisir' + (p ? '' : ' vide'), function () { ouvrirChoix(iso); });
-            if (p) { b.append(' '); b.append(el('small', '', '· ' + duree(p.minutes))); }
-            b.setAttribute('aria-label', 'Dîner du ' + enClair(iso) + ' : ' + (p ? p.nom : 'libre'));
-            ligne.append(q, b);
-            e.append(ligne);
+            jour.append(q, carteRepas(iso, 'diner'));
+            const midi = ['dejeuner', 'brunch'].filter(function (m) { return repas(iso, m).plats.length || repas(iso, m).issue; });
+            midi.forEach(function (m) { jour.append(carteRepas(iso, m)); });
+            if (!midi.length) {
+                const plus = el('div', 'ajouts');
+                const lien = bouton('+ déjeuner ou brunch', 'petit', function () {
+                    plus.replaceChildren(
+                        bouton('Déjeuner', 'petit', function () { ouvrirChoix(iso, 'dejeuner', 'plat'); }),
+                        bouton('Brunch', 'petit', function () { ouvrirChoix(iso, 'brunch', 'plat'); }));
+                });
+                plus.append(lien);
+                jour.append(plus);
+            }
+            e.append(jour);
         });
         const msgP = el('p', 'message', messageSemaine); msgP.id = 'message-semaine';
         const cs = d.cout_semaine;
-        if (cs && cs.diners) {
+        if (cs && cs.nb_repas) {
             const bilan = el('div', 'bilan-semaine');
-            [['', euros(cs.repas), cs.diners + ' dîner' + (cs.diners > 1 ? 's' : '') + ' maison'],
+            [['', euros(cs.cout), cs.nb_repas + ' repas maison'],
              ['livraison', euros(cs.livraison), 'les mêmes en livraison'],
              ['', euros(cs.courses), 'courses à faire pour eux']].forEach(function (x) {
                 const c = el('div', x[0]); c.append(el('strong', '', x[1]), el('span', '', x[2])); bilan.append(c);
@@ -565,7 +641,8 @@ SCRIPT_DINERS = """
         }
         const prop = el('div', 'proposer');
         prop.append(bouton('Proposer ma semaine', 'plein', function () { proposerSemaine(msgP, []); }));
-        const aRefaire = Object.keys(derniereProposition).filter(function (iso) { return soir(iso).plat === derniereProposition[iso]; });
+        const aRefaire = Object.keys(derniereProposition).filter(function (iso) {
+            const r = repas(iso, 'diner'); return r.plats.length === 1 && r.plats[0] === derniereProposition[iso]; });
         if (aRefaire.length) prop.append(bouton('Reproposer', 'petit', function () { proposerSemaine(msgP, aRefaire); }));
         zone.append(prop, msgP, e);
         const msg = el('p', 'message');
@@ -634,25 +711,26 @@ SCRIPT_DINERS = """
         zone.append(r, f, zoneEtiquettes, e);
     }
 
-    // Choisir le dîner d'un soir : la même recherche et les mêmes étiquettes, carnet d'abord
-    function ouvrirChoix(iso) {
+    // Ajouter un plat d'un genre à un repas : la même recherche et les mêmes étiquettes, carnet d'abord
+    function ouvrirChoix(iso, moment, genre) {
         ouverte = { id: null, edition: false };
         const c = document.querySelector('#panneau .contenu'); c.replaceChildren();
         const haut = el('div', 'haut');
-        haut.append(el('h2', '', 'Dîner ' + (iso === d.aujourd_hui ? 'de ce soir' : 'du ' + enClair(iso))), bouton('Fermer', 'petit', fermer));
+        const quand = iso === d.aujourd_hui ? (moment === 'diner' ? 'ce soir' : 'aujourd\\'hui') : enClair(iso);
+        haut.append(el('h2', '', MOMENTS[moment] + ' · ' + quand + ' · ' + NOMS_GENRE[genre].toLowerCase()), bouton('Fermer', 'petit', fermer));
         let q = '';
         const r = el('input', 'recherche'); r.type = 'search'; r.placeholder = 'Chercher un plat ou un ingrédient';
         r.setAttribute('aria-label', 'Chercher');
         const zoneEtiquettes = el('div'), listes = el('div', 'vue');
-        const tous = d.plats.filter(function (p) { return p.genre === 'plat' && !p.archive; });
+        const tous = d.plats.filter(function (p) { return p.genre === genre && !p.archive; });
         let affiches = [];
         // Au hasard : parmi les plats affichés (recherche et filtre compris), hors ceux déjà prévus cette semaine
         const hasard = bouton('Au hasard', 'plein', function () {
-            const deja = d.semaine.map(function (j) { return soir(j).plat; });
+            const deja = platsDeLaSemaine();
             const pool = affiches.filter(function (p) { return deja.indexOf(p.id) < 0; });
             if (!pool.length) { hasard.textContent = 'Rien à tirer avec ces filtres'; return; }
             const p = pool[Math.floor(Math.random() * pool.length)];
-            planifier(iso, p.id); fermer();
+            ajouterPlat(iso, moment, p.id); fermer();
         });
         function remplir() {
             const trouves = tous.filter(function (p) { return correspond(p, normaliser(q)); });
@@ -667,7 +745,7 @@ SCRIPT_DINERS = """
                     .forEach(function (p) {
                         const li = lignePlat(p);
                         li.querySelector('button.ouvrir').replaceWith(li.querySelector('button.ouvrir').cloneNode(true));
-                        li.querySelector('button.ouvrir').addEventListener('click', function () { planifier(iso, p.id); fermer(); });
+                        li.querySelector('button.ouvrir').addEventListener('click', function () { ajouterPlat(iso, moment, p.id); fermer(); });
                         ul.append(li);
                     });
                 if (!ul.children.length) return;
@@ -678,7 +756,6 @@ SCRIPT_DINERS = """
         r.addEventListener('input', function () { q = r.value; remplir(); });
         remplir();
         c.append(haut, hasard, r, zoneEtiquettes);
-        if (soir(iso).plat) c.append(bouton('Rien de prévu ce soir-là', 'petit', function () { planifier(iso, ''); fermer(); }));
         c.append(listes);
         document.getElementById('panneau').hidden = false;
         document.getElementById('panneau').scrollTop = 0;
@@ -721,7 +798,7 @@ SCRIPT_DINERS = """
         c.append(el('pre', 'recette', p.recette || 'Recette à écrire : demande à Claude, ou écris la tienne avec « Modifier ».'));
         if (p.note) c.append(el('p', 'meta', p.note));
         const act = el('div', 'actions');
-        act.append(bouton('Ce soir', 'plein', function () { planifier(d.aujourd_hui, p.id); fermer(); vue = 'ce-soir'; afficher(); }),
+        act.append(bouton('Ce soir', 'plein', function () { ajouterPlat(d.aujourd_hui, 'diner', p.id); fermer(); vue = 'ce-soir'; afficher(); }),
                    bouton('Modifier', 'petit', function () { ouvrirEdition(p.id); }));
         const manquants = p.ingredients.filter(function (i) { return !enStock(i) && !surLaListe(i); });
         const total = manquants.reduce(function (t, i) { const pr = prixDe(i); return t + (pr ? pr[1] : 0); }, 0);
