@@ -219,6 +219,9 @@ ul.articles .nom { flex: 1; font-size: 17px; background: none; border: none; tex
                    color: var(--texte); font-family: inherit; }
 ul.articles li.pris .nom { text-decoration: line-through; color: var(--doux); }
 ul.articles .recurrent { display: flex; color: var(--courses); }
+ul.articles .nom small { display: block; font-size: 13px; color: var(--doux); margin-top: 2px; }
+p.budget { color: var(--doux); font-size: 14px; margin: -6px 0 14px; }
+p.budget strong { color: var(--texte); font-size: 16px; }
 div.edition { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 0 12px 38px; }
 div.edition select, div.edition button { font-family: inherit; font-size: 14px; padding: 8px 12px; border-radius: 999px;
                                           border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte); }
@@ -288,6 +291,16 @@ SCRIPT_COURSES = """
     }
     const ITALIEN = new Set(JSON.parse(document.getElementById('italien').textContent).map(cleCatalogue));
     // Où l'acheter : les épiceries spécialisées se partagent entre l'asiatique et l'italienne
+    // Prix d'un panier parisien (prix_paris.py) : unité type et prix, par la clé du catalogue
+    const PRIX = {};
+    Object.entries(JSON.parse(document.getElementById('prix').textContent))
+        .forEach(function (e) { PRIX[cleCatalogue(e[0])] = e[1]; });
+    function prixDe(a) { return PRIX[cleCatalogue(a.nom)] || null; }
+    function euros(x, arrondi) {
+        return x.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR',
+            minimumFractionDigits: arrondi ? 0 : 2, maximumFractionDigits: arrondi ? 0 : 2 });
+    }
+    function somme(liste_) { return liste_.reduce(function (t, a) { const p = prixDe(a); return t + (p ? p[1] : 0); }, 0); }
     function magasin(a) {
         if (a.rayon !== 'specialise') return 'supermarche';
         return ITALIEN.has(cleCatalogue(a.nom)) ? 'italien' : 'asiatique';
@@ -400,6 +413,8 @@ SCRIPT_COURSES = """
         coche.setAttribute('aria-label', a.nom);
         coche.addEventListener('change', function () { enregistrer(Object.assign({}, a, { pris: coche.checked })); });
         const nom = el('button', 'nom', a.nom); nom.type = 'button';
+        const prix = prixDe(a);
+        if (prix) nom.append(el('small', '', prix[0] + ' · ' + euros(prix[1])));
         nom.addEventListener('click', function () { ouvert = ouvert === a.id ? null : a.id; afficher(); });
         li.append(coche, nom);
         if (a.recurrent) {
@@ -467,6 +482,16 @@ SCRIPT_COURSES = """
         const panier = ici.filter(function (a) { return a.pris; });
         resume.textContent = aPrendre.length ? aPrendre.length + ' à prendre' + (panier.length ? ' · ' + panier.length + ' dans le panier' : '')
                                              : (panier.length ? 'Tout est dans le panier' : 'Rien à prendre ici');
+        const budget = document.getElementById('budget');
+        const sansPrix = aPrendre.filter(function (a) { return !prixDe(a); }).length;
+        budget.replaceChildren();
+        if (ici.length) {
+            budget.append(el('strong', '', '≈ ' + euros(somme(aPrendre), true)), ' à prendre ici');
+            if (panier.length) budget.append(' · ' + euros(somme(panier), true) + ' dans le panier');
+            if (sansPrix) budget.append(' · ' + sansPrix + ' sans prix');
+            const total = somme(actifs);
+            if (ici.length < actifs.length) budget.append(' · total des courses ≈ ' + euros(total, true));
+        }
         document.querySelector('div.progression div').style.width =
             (ici.length ? Math.round(100 * panier.length / ici.length) : 0) + '%';
 
@@ -601,8 +626,10 @@ def courses_en_html():
     rayons = json.dumps(RAYONS, ensure_ascii=False)
     zones = json.dumps(ZONES, ensure_ascii=False)
     from catalogue import CATALOGUE, ITALIEN
+    from prix_paris import PRIX
     suggestions = "".join(f'<option value="{nom}"></option>' for nom, _, _ in CATALOGUE)
     italien = json.dumps(ITALIEN, ensure_ascii=False)
+    prix = json.dumps(PRIX, ensure_ascii=False)
     zones_catalogue = json.dumps({nom: zone for nom, _, zone in CATALOGUE}, ensure_ascii=False)
     options_zones = "".join(f'<option value="{cle}"{" selected" if cle == "placard-sec" else ""}>{nom}</option>'
                             for cle, nom in ZONES)
@@ -621,6 +648,7 @@ def courses_en_html():
 <p class="resume" id="resume">Chargement…</p>
 <nav id="magasins" aria-label="Où je fais les courses"></nav>
 <div class="progression" aria-hidden="true"><div></div></div>
+<p class="budget" id="budget" title="Prix moyens en supérette parisienne, unité type par article : ±15 à 25 % sur un panier"></p>
 <div id="hors-ligne" hidden></div>
 <form id="ajout-course" autocomplete="off">
 <input name="nom" placeholder="Ajouter (ex. lait, œufs)" aria-label="Article à ajouter" enterkeyhint="done" list="catalogue">
@@ -649,6 +677,7 @@ def courses_en_html():
 <script type="application/json" id="zones">{zones}</script>
 <script type="application/json" id="zones-catalogue">{zones_catalogue}</script>
 <script type="application/json" id="italien">{italien}</script>
+<script type="application/json" id="prix">{prix}</script>
 <datalist id="catalogue">{suggestions}</datalist>
 <script>{SCRIPT_FILE}
 window.addEventListener('online', function () {{ majHorsLigne(); viderFile(); }});
