@@ -231,6 +231,14 @@ def test_proposer_remplacer_un_soir():
     assert list(q) == [jour] and q[jour] != avant and q[jour] not in p.values()
 
 
+def test_proposer_remplacer_ignore_un_diner_compose_ou_deja_vecu():
+    plats = carte()
+    mar = LUN + timedelta(days=1)
+    soirs = [diner(LUN, "plat-carnet-00", "plat-carnet-01"), diner(mar, "plat-carnet-02", issue="fait")]
+    q = proposer(plats, soirs, SEMAINE, LUN, remplacer=[LUN, mar], hasard=Random(7))
+    assert LUN not in q and mar not in q                           # composé / déjà vécu : intouchables
+
+
 def test_proposer_rien_si_deja_quatre():
     soirs = [diner(LUN + timedelta(days=i), f"plat-carnet-{i:02d}") for i in range(4)]
     assert proposer(carte(), soirs, SEMAINE, LUN, hasard=Random(5)) == {}

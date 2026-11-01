@@ -97,7 +97,7 @@ def valider_repas(corps, aujourd_hui):
         raise ValueError("jour invalide") from None
     if not -60 <= (jour - aujourd_hui).days <= FENETRE_FUTUR:
         raise ValueError("jour hors limites")
-    if corps.get("moment") not in dict(MOMENTS):
+    if not isinstance(corps.get("moment"), str) or corps["moment"] not in dict(MOMENTS):
         raise ValueError("moment invalide")
     plats = corps.get("plats") or []
     if (not isinstance(plats, list) or len(plats) > MAX_PLATS
@@ -106,7 +106,7 @@ def valider_repas(corps, aujourd_hui):
     if len(set(plats)) != len(plats):
         raise ValueError("plat en double")
     issue = corps.get("issue") or None
-    if issue is not None and issue not in dict(ISSUES):
+    if issue is not None and (not isinstance(issue, str) or issue not in dict(ISSUES)):
         raise ValueError("issue invalide")
     return {"jour": jour, "moment": corps["moment"], "plats": plats, "issue": issue}
 
@@ -185,8 +185,9 @@ def proposer(plats, repas, jours, aujourd_hui, remplacer=(), cible=CIBLE_SOIRS, 
     des jours à tirer au sort de nouveau, avec un autre plat. Déjeuners et brunchs ne remplissent pas un soir."""
     from random import Random
     hasard = hasard or Random()
-    remplacer = [j for j in remplacer if j in jours]
     diners = {r["jour"]: r for r in repas if r["moment"] == "diner"}
+    remplacer = [j for j in remplacer if j in jours
+                 and not (j in diners and (len(diners[j]["plats"]) > 1 or diners[j]["issue"]))]   # ni composé, ni déjà vécu
     prevus = {j: diners[j]["plats"] for j in jours if j in diners and diners[j]["plats"] and j not in remplacer}
     besoin = max(0, cible - len(prevus))
     libres = [j for j in jours if j not in prevus and j not in remplacer
@@ -320,7 +321,7 @@ ul.plats-repas li > button.ouvrir { flex: 1; min-width: 0; text-align: left; bac
                                    font-family: inherit; color: var(--texte); display: flex; flex-direction: column; }
 ul.plats-repas .nom { font-size: 16px; font-weight: 700; }
 ul.plats-repas .meta, ul.plats-repas li.meta { font-size: 13px; color: var(--doux); }
-button.retirer { border: none; background: var(--carte); color: var(--doux); border-radius: 999px; width: 36px; height: 36px;
+button.retirer { border: none; background: var(--carte); color: var(--doux); border-radius: 999px; width: 44px; height: 44px;
                  font-size: 18px; font-weight: 800; flex: none; }
 div.ajouts { display: flex; gap: 6px; flex-wrap: wrap; }
 div.ajouts button.petit { padding: 6px 10px; }
@@ -455,7 +456,7 @@ SCRIPT_DINERS = """
         fetch('api/diners', { headers: { 'X-Valise-Vite': '1' } })
             .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
             .then(function (lu) { d = lu; garder(); afficher(); })
-            .catch(function () { try { d = d || JSON.parse(localStorage.getItem(CLE_COPIE)); } catch (e) {} if (d) afficher(); });
+            .catch(function () { try { d = d || JSON.parse(localStorage.getItem(CLE_COPIE)); } catch (e) {} if (d && !d.repas) d = null; if (d) afficher(); });
     }
     function enregistrerRepas(r) {
         const vide = !r.plats.length && !r.issue;

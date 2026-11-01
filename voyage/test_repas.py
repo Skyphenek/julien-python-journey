@@ -86,7 +86,9 @@ def test_valider_repas():
     {"jour": "2026-10-28", "moment": "diner", "plats": ["plat-carbonara", "plat-carbonara"]},
     {"jour": "2026-10-28", "moment": "diner", "plats": [f"plat-numero-{i}" for i in range(9)]},
     {"jour": "2026-10-28", "moment": "diner", "plats": ["x"]},
-    {"jour": "2026-10-28", "moment": "diner", "issue": "livre"}])
+    {"jour": "2026-10-28", "moment": "diner", "issue": "livre"},
+    {"jour": "2026-10-28", "moment": ["diner"]},
+    {"jour": "2026-10-28", "moment": "diner", "issue": {"a": 1}}])
 def test_valider_repas_refuse(corps):
     with pytest.raises(ValueError):
         valider_repas(corps, AUJ)
