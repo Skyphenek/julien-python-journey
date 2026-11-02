@@ -1,4 +1,5 @@
 """Tests des accompagnements, des brunchs et des accords de départ (recettes_accompagnements.py)."""
+import re
 import sys
 from datetime import date
 from pathlib import Path
@@ -39,7 +40,7 @@ def conn():
 
 
 def a_un_jamais(p):
-    return [i for i in p["ingredients"] if any(j in normaliser(i) for j in JAMAIS)]
+    return [i for i in p["ingredients"] if any(re.search(r"\b" + re.escape(j), normaliser(i)) for j in JAMAIS)]
 
 
 def test_donnees():
@@ -58,6 +59,7 @@ def test_donnees():
 def test_rien_de_ses_jamais():
     for p in ACCOMPAGNEMENTS + BRUNCHS:
         assert not a_un_jamais(p), p["id"]
+    assert a_un_jamais({"ingredients": ["moules"]}) and not a_un_jamais({"ingredients": ["semoule"]})
 
 
 def test_accords_de_depart():

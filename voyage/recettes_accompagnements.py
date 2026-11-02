@@ -39,7 +39,7 @@ ACCOMPAGNEMENTS = [
 4. Hors du feu 5 min à couvert, puis égrainer à la fourchette.""",
          "Avec des gambas, un saumon, un chili ou un poisson."),
 
-    _acc("semoule", "Semoule au beurre", 10, ["couscous", "beurre", "bouillon"],
+    _acc("semoule", "Semoule au beurre", 10, ["semoule", "beurre", "bouillon"],
          """Pour 2
 - 150 g de semoule moyenne, 15 cl de bouillon, 1 noix de beurre
 
