@@ -85,6 +85,7 @@ table.budget td small { color: var(--doux); font-size: 12px; display: block; whi
 """
 
 HAUTEUR, LARGEUR = 140, 360
+BARRE_MAX = 28
 
 
 def graphique_svg(semaines):
@@ -94,8 +95,8 @@ def graphique_svg(semaines):
     pas = LARGEUR / len(ordre)
     barres = []
     for k, s in enumerate(ordre):
-        x = k * pas + pas * 0.15
-        l = pas * 0.7
+        l = min(pas * 0.7, BARRE_MAX)                  # peu de semaines : des barres fines, pas des pavés
+        x = k * pas + (pas - l) / 2
         h_courses = s["courses"] / haut * (HAUTEUR - 20)
         h_livraison = s["livraison"] / haut * (HAUTEUR - 20)
         bas = HAUTEUR - 14

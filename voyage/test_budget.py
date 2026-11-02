@@ -116,3 +116,8 @@ def test_graphique_barres_empilees():
     svg = graphique_svg(semaines)
     assert svg.count('class="barre-courses"') == 12 and svg.count('class="barre-livraison"') == 12
     assert svg.index("02/11") > svg.index("31/08")                              # la plus ancienne à gauche
+
+
+def test_peu_de_semaines_des_barres_fines():
+    svg = graphique_svg(semaines_budget([], [repas(MER, "commande")], {}, MER, n=2))
+    assert 'width="28.0"' in svg and svg.count('class="barre-livraison"') == 2
