@@ -728,24 +728,6 @@ def lire_repas(conn, debut, fin):
         return [dict(zip(("jour", "moment", "plats", "issue"), ligne)) for ligne in cur.fetchall()]
 
 
-def reprendre_soirs(conn):
-    """La reprise repas-v1, une seule fois (table reprises) : chaque soir renseigné devient un dîner
-    (même plat, même issue). Sans commit : l'appelant valide ou annule (à blanc).
-    Renvoie le nombre de dîners repris, ou None si la reprise est déjà faite."""
-    with conn.cursor() as cur:
-        cur.execute("SELECT EXISTS (SELECT 1 FROM reprises WHERE nom = 'repas-v1')")
-        if cur.fetchone()[0]:
-            return None
-        cur.execute("""INSERT INTO repas (jour, moment, plats, issue, maj_le)
-                       SELECT jour, 'diner', CASE WHEN plat IS NULL THEN '[]'::jsonb ELSE jsonb_build_array(plat) END,
-                              issue, maj_le
-                       FROM soirs WHERE plat IS NOT NULL OR issue IS NOT NULL
-                       ON CONFLICT (jour, moment) DO NOTHING""")
-        n = cur.rowcount
-        cur.execute("INSERT INTO reprises (nom) VALUES ('repas-v1')")
-    return n
-
-
 def semer_carnet(conn, carnet, a_tester):
     """Remplit le carnet de départ s'il est vide ; renvoie le nombre de recettes ajoutées.
     Jamais sur un carnet déjà utilisé : une recette retirée ne revient pas."""

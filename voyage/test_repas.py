@@ -1,4 +1,4 @@
-"""Tests des repas composés : validation, rangement (diners.py), base et reprise depuis soirs (db.py)."""
+"""Tests des repas composés : validation, rangement (diners.py), base (db.py)."""
 import sys
 from datetime import date, timedelta
 from pathlib import Path
@@ -8,7 +8,7 @@ import pytest
 from casa import aujourd_hui_paris
 from carnet_depart import CARNET_DEPART, A_TESTER
 from courses import PLACARD_DEPART
-from db import connecter, semer_carnet, semer_placard, lire_plats, enregistrer_repas, lire_repas, reprendre_soirs
+from db import connecter, semer_carnet, semer_placard, lire_plats, enregistrer_repas, lire_repas
 from diners import valider_repas, ranger
 
 AUJ = date(2026, 10, 28)
@@ -20,7 +20,7 @@ J = aujourd_hui_paris()
 def conn():
     c = connecter("valise_test")
     with c.cursor() as cur:
-        cur.execute("TRUNCATE repas, soirs, plats, courses, placard, reprises")
+        cur.execute("TRUNCATE repas, plats, courses, placard, reprises")
     c.commit()
     semer_placard(c, PLACARD_DEPART)
     semer_carnet(c, CARNET_DEPART, A_TESTER)
@@ -60,18 +60,18 @@ def test_fait_maison_fait_entrer_au_carnet_tous_les_plats_a_tester(conn):
     assert statut(conn, "tester-pesto") == statut(conn, "tester-shakshuka") == "carnet"
 
 
-def test_reprise_des_soirs_une_seule_fois(conn):
-    hier, avant = J - timedelta(days=1), J - timedelta(days=2)
-    with conn.cursor() as cur:
-        cur.execute("""INSERT INTO soirs (jour, plat, issue) VALUES (%s, 'plat-carbonara', 'fait'),
-                       (%s, NULL, 'commande'), (%s, NULL, NULL)""", (avant, hier, J))
-    conn.commit()
-    assert reprendre_soirs(conn) == 2                        # le soir sans plat ni issue ne devient rien
-    conn.commit()
-    assert lire_repas(conn, avant, J) == [
-        {"jour": avant, "moment": "diner", "plats": ["plat-carbonara"], "issue": "fait"},
-        {"jour": hier, "moment": "diner", "plats": [], "issue": "commande"}]
-    assert reprendre_soirs(conn) is None                     # une seule fois (table reprises)
+def test_plus_de_table_soirs():
+    """La reprise repas-v1 faite (01/11/2026), la table soirs n'existe plus : appliquer_schema la supprime."""
+    from appliquer_schema import tables
+    from pathlib import Path
+    schema = (Path(__file__).parent / "schema.sql").read_text()
+    assert "CREATE TABLE IF NOT EXISTS soirs" not in schema and "DROP TABLE IF EXISTS soirs" in schema
+    c = connecter("valise_test")
+    try:
+        with c.cursor() as cur:
+            assert "soirs" not in tables(cur)
+    finally:
+        c.close()
 
 
 def test_valider_repas():

@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from carnet_depart import CARNET_DEPART, A_TESTER
 from courses import PLACARD_DEPART
 from db import connecter, semer_placard, semer_carnet, completer_recettes, reorganiser_placard, ajouter_recettes, \
-    actualiser_recettes, pour_julien, separer_pour_julien, reprendre_soirs, poser_accords
+    actualiser_recettes, pour_julien, separer_pour_julien, poser_accords
 from recettes_air_fryer import NOM_REPRISE as REPRISE_AIR_FRYER, NOM_REPRISE_6L, AIR_FRYER
 from recettes_legumes import NOM_REPRISE as REPRISE_LEGUMES, LEGUMES, RETIRES
 from recettes_mer import NOM_REPRISE as REPRISE_MER, MER, MER_JULIEN, POUR_JULIEN
@@ -48,10 +48,11 @@ def appliquer(conn, pour_de_bon):
     with conn.cursor() as cur:
         avant = tables(cur)
         cur.execute((Path(__file__).parent / "schema.sql").read_text())
-        nouvelles = sorted(tables(cur) - avant)
+        nouvelles, supprimees = sorted(tables(cur) - avant), sorted(avant - tables(cur))
     if pour_de_bon:
         conn.commit()
-        print(f"Schéma appliqué ; table(s) créée(s) : {', '.join(nouvelles) or 'aucune'}.")
+        print(f"Schéma appliqué ; table(s) créée(s) : {', '.join(nouvelles) or 'aucune'} ; "
+              f"supprimée(s) : {', '.join(supprimees) or 'aucune'}.")
         semes = semer_placard(conn, PLACARD_DEPART)        # placard vide seulement : jamais d'écrasement
         if semes:
             print(f"Placard de départ : {semes} basiques, tous en stock.")
@@ -70,7 +71,6 @@ def appliquer(conn, pour_de_bon):
             pour_julien(conn, POUR_JULIEN)                   # avec la reprise : une seule fois
         julien = separer_pour_julien(conn)                   # « (Julien) » -> champ pour, une seule fois
         laetitia = ajouter_recettes(conn, REPRISE_LAETITIA, LAETITIA)
-        repas = reprendre_soirs(conn)                        # soirs -> repas, une seule fois
         accompagnements = ajouter_recettes(conn, REPRISE_ACCOMPAGNEMENTS, ACCOMPAGNEMENTS + BRUNCHS)
         accords = poser_accords(conn, NOM_REPRISE_ACCORDS, ACCORDS)    # après l'ajout : ils existent
         conn.commit()
@@ -88,8 +88,6 @@ def appliquer(conn, pour_de_bon):
             print(f"Légumes Démasqués : {legumes} recettes ajoutées à tester, {', '.join(RETIRES)} archivé.")
         if mer is not None:
             print(f"Poissons Démasqués : {mer} recettes ajoutées à tester, {len(POUR_JULIEN)} plat marqué « (Julien) ».")
-        if repas is not None:
-            print(f"Repas composés : {repas} soir(s) repris en dîners.")
         if accompagnements is not None:
             print(f"Accompagnements et brunchs : {accompagnements} recettes ajoutées à tester.")
         if accords is not None:
@@ -104,7 +102,6 @@ def appliquer(conn, pour_de_bon):
             pour_julien(conn, POUR_JULIEN)                   # avec la reprise : une seule fois
         julien = separer_pour_julien(conn)
         laetitia = ajouter_recettes(conn, REPRISE_LAETITIA, LAETITIA)
-        repas = reprendre_soirs(conn)
         accompagnements = ajouter_recettes(conn, REPRISE_ACCOMPAGNEMENTS, ACCOMPAGNEMENTS + BRUNCHS)
         accords = poser_accords(conn, NOM_REPRISE_ACCORDS, ACCORDS)
         conn.rollback()
@@ -112,7 +109,8 @@ def appliquer(conn, pour_de_bon):
             print(f"À blanc, rien que pour Laetitia : {laetitia} recettes à ajouter à tester.")
         if julien is not None:
             print(f"À blanc, pour qui : {julien} plat(s) à passer « pour Julien ».")
-        print(f"À blanc : table(s) à créer : {', '.join(nouvelles) or 'aucune'}. Relance avec --appliquer.")
+        print(f"À blanc : table(s) à créer : {', '.join(nouvelles) or 'aucune'} ; "
+              f"à supprimer : {', '.join(supprimees) or 'aucune'}. Relance avec --appliquer.")
         if bilan:
             print(f"À blanc, Placard v2 : {annonce(bilan)}.")
         if air_fryer is not None:
@@ -123,8 +121,6 @@ def appliquer(conn, pour_de_bon):
             print(f"À blanc, Légumes Démasqués : {legumes} recettes à ajouter à tester, {', '.join(RETIRES)} à archiver.")
         if mer is not None:
             print(f"À blanc, Poissons Démasqués : {mer} recettes à ajouter à tester, {len(POUR_JULIEN)} plat à marquer « (Julien) ».")
-        if repas is not None:
-            print(f"À blanc, repas composés : {repas} soir(s) à reprendre en dîners.")
         if accompagnements is not None:
             print(f"À blanc, accompagnements et brunchs : {accompagnements} recettes à ajouter à tester.")
         if accords is not None:

@@ -17,7 +17,7 @@ STEAK = {"id": "plat-test-steak", "nom": "Steak", "genre": "plat", "minutes": 15
 def conn():
     c = connecter("valise_test")
     with c.cursor() as cur:
-        cur.execute("TRUNCATE repas, soirs, plats, courses, placard, reprises")
+        cur.execute("TRUNCATE repas, plats, courses, placard, reprises")
     c.commit()
     semer_placard(c, PLACARD_DEPART)
     semer_carnet(c, CARNET_DEPART, A_TESTER)
