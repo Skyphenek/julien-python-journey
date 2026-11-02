@@ -322,6 +322,21 @@ def test_accompagner_garde_l_accompagnement_d_un_soir_qu_on_ne_repropose_pas():
         assert m == {LUN: ["plat-carnet-00"]}
 
 
+def test_accompagner_pas_le_soir_ce_qui_est_au_brunch_du_jour():
+    plats = avec_accords(carte(), {"plat-carnet-00": ["acc-salade-0"]})
+    dim = LUN + timedelta(days=6)
+    brunch = [diner(dim, "plat-carnet-05", "acc-salade-0", moment="brunch")]
+    assert accompagner({dim: "plat-carnet-00"}, plats, brunch, SEMAINE, hasard=Random(1)) == {dim: ["plat-carnet-00"]}
+
+
+def test_accompagner_rapide_en_semaine_et_avec_recette():
+    plats = avec_accords(carte(), {"plat-carnet-00": ["acc-gratin-0", "acc-vide-00"]})
+    plats = [{**p, "minutes": 90} if p["id"] == "acc-gratin-0" else {**p, "recette": ""} if p["id"] == "acc-vide-00" else p
+             for p in plats]
+    dim = LUN + timedelta(days=6)
+    assert accompagner({LUN: "plat-carnet-00"}, plats, [], SEMAINE, hasard=Random(1)) == {LUN: ["plat-carnet-00"]}
+    assert accompagner({dim: "plat-carnet-00"}, plats, [], SEMAINE, hasard=Random(1)) == {dim: ["plat-carnet-00", "acc-gratin-0"]}
+
 def test_proposer_remplace_un_diner_tel_que_propose():
     plats = avec_accords(carte(), {"plat-carnet-00": ["acc-puree-0"]})
     mar = LUN + timedelta(days=1)

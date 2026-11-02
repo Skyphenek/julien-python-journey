@@ -205,16 +205,19 @@ def tel_que_propose(plats_du_diner, par_id):
 def accompagner(choix, plats, repas, jours, hasard=None):
     """{jour: [plat] ou [plat, accompagnement]} : à chaque plat proposé (`choix`, voir proposer), un de ses accords
     au hasard — accompagnement non archivé, pour nous deux, ni déjà au menu de la semaine (tous moments, hors les
-    jours qu'on propose de nouveau), ni déjà donné à un autre jour. Sans accord possible : le plat seul."""
+    jours qu'on propose de nouveau : seul leur dîner est libéré), ni déjà donné à un autre jour ; avec recette, et
+    rapide (≤ 45 min) du lundi au jeudi comme le plat. Sans accord possible : le plat seul."""
     from random import Random
     hasard = hasard or Random()
     par_id = {p["id"]: p for p in plats}
-    pris = {i for r in repas if r["jour"] in jours and r["jour"] not in choix for i in r["plats"]}
+    pris = {i for r in repas
+            if r["jour"] in jours and not (r["jour"] in choix and r["moment"] == "diner") for i in r["plats"]}
     menus = {}
     for j, id_plat in sorted(choix.items()):
         possibles = [a for a in par_id[id_plat].get("accords") or []
                      if a in par_id and par_id[a]["genre"] == "accompagnement" and not par_id[a]["archive"]
-                     and par_id[a].get("pour", "nous") == "nous" and a not in pris]
+                     and par_id[a].get("pour", "nous") == "nous" and a not in pris
+                     and par_id[a]["recette"] and (j.weekday() >= 4 or par_id[a]["minutes"] <= MINUTES_SEMAINE)]
         if possibles:
             a = hasard.choice(possibles)
             pris.add(a)
