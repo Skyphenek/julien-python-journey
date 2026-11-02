@@ -8,7 +8,6 @@ Semaine du lundi au dimanche.
 """
 import math
 from datetime import timedelta
-from html import escape as echapper
 
 from diners import LIVRAISON_DEUX
 from prix_paris import cout_repas
@@ -55,8 +54,9 @@ def semaines_budget(achats, repas, plats, aujourd_hui, n=SEMAINES):
 
 
 def moyenne_precedentes(semaines, k=4):
-    """Le total moyen des k semaines avant la semaine en cours, celles sans aucun chiffre ignorées ; None sinon."""
-    precedentes = [s for s in semaines[1:1 + k] if s["total"] or s["maison"]]
+    """Le total moyen des k semaines avant la semaine en cours ; seules comptent celles où les courses sont suivies
+    et qui ont un chiffre (avant le suivi, le total ne contient que des livraisons) ; None sinon."""
+    precedentes = [s for s in semaines[1:1 + k] if s["courses_suivies"] and (s["total"] or s["maison"])]
     return round(sum(s["total"] for s in precedentes) / len(precedentes), 2) if precedentes else None
 
 
@@ -77,11 +77,11 @@ p.legende span::before { content: ""; display: inline-block; width: 10px; height
 p.legende .l-courses::before { background: var(--courses); }
 p.legende .l-livraison::before { background: var(--diners); }
 div.tableau { overflow-x: auto; }
-table.budget { width: 100%; border-collapse: collapse; font-size: 14px; }
-table.budget th { text-align: left; font-size: 12px; color: var(--doux); font-weight: 700; padding: 6px 4px; }
-table.budget td { padding: 10px 4px; border-top: 1px solid var(--ligne); white-space: nowrap; }
+table.budget { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.budget th { text-align: left; font-size: 12px; color: var(--doux); font-weight: 700; padding: 6px 3px; }
+table.budget td { padding: 8px 3px; border-top: 1px solid var(--ligne); white-space: nowrap; }
 table.budget td.total { font-weight: 800; }
-table.budget td small { color: var(--doux); font-size: 12px; display: block; }
+table.budget td small { color: var(--doux); font-size: 12px; display: block; white-space: normal; }
 """
 
 HAUTEUR, LARGEUR = 140, 360
@@ -122,11 +122,14 @@ def _ligne(s):
 
 
 def budget_en_html(semaines, moyenne):
-    """La page Budget : les chiffres de la semaine, le graphique des 12 dernières, le tableau."""
+    """La page Budget : les chiffres de la semaine, le graphique et le tableau des semaines depuis la plus ancienne
+    qui a un chiffre (total, repas maison ou courses suivies), la semaine en cours au moins."""
     s = semaines[0]
+    plus_ancienne = max((k for k, x in enumerate(semaines) if x["total"] or x["maison"] or x["courses_suivies"]), default=0)
+    semaines = semaines[:plus_ancienne + 1]
     chiffres = (f'<div><strong>{euros(s["total"])}</strong><span>Cette semaine</span></div>'
                 f'<div><strong>{euros(moyenne) if moyenne is not None else "—"}</strong><span>Moyenne des 4 précédentes</span></div>'
-                f'<div><strong>{euros(s["economie"])}</strong><span>Économisés vs tout livrer</span></div>')
+                f'<div><strong>{euros(s["economie"]) if s["economie"] > 0 else "—"}</strong><span>Économisés vs tout livrer</span></div>')
     lignes = "".join(_ligne(x) for x in semaines)
     return f"""<!doctype html>
 <html lang="fr">

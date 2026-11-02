@@ -59,10 +59,20 @@ def test_repas_maison_sans_plat_compte_mais_sans_cout():
 
 
 def test_moyenne_des_semaines_precedentes():
-    semaines = semaines_budget([], [repas(LUN - timedelta(weeks=1), "commande"),
-                                    repas(LUN - timedelta(weeks=2), "dehors")], {}, MER)
-    assert moyenne_precedentes(semaines) == round((LIVRAISON_DEUX + FORFAIT_RESTO) / 2, 2)    # semaines vides ignorées
+    avant = LUN - timedelta(weeks=3)
+    semaines = semaines_budget([achat(avant, "lait", 1.5)],                            # le suivi commence il y a 3 semaines
+                               [repas(LUN - timedelta(weeks=1), "commande"),
+                                repas(LUN - timedelta(weeks=2), "dehors")], {}, MER)
+    assert moyenne_precedentes(semaines) == round((LIVRAISON_DEUX + FORFAIT_RESTO + 1.5) / 3, 2)   # semaines vides ignorées
     assert moyenne_precedentes(semaines_budget([], [], {}, MER)) is None
+
+
+def test_moyenne_ignore_les_semaines_non_suivies():
+    """Avant le premier achat, le total ne contient que des livraisons : il fausserait la moyenne."""
+    semaines = semaines_budget([achat(LUN - timedelta(weeks=1), "lait", 1.5)],
+                               [repas(LUN - timedelta(weeks=3), "commande")], {}, MER)
+    assert not semaines[3]["courses_suivies"] and semaines[3]["total"] == LIVRAISON_DEUX
+    assert moyenne_precedentes(semaines) == 1.5                                       # seule la semaine 1 compte
 
 
 # --- Pages ---
@@ -71,15 +81,34 @@ from budget import budget_en_html, graphique_svg
 
 def test_page_budget():
     les_repas = [repas(MER, "commande"), repas(LUN, "fait", "plat-carbonara")]
-    semaines = semaines_budget([achat(LUN, "lait", 1.5), achat(LUN, "bidule", None)], les_repas, PLATS, MER)
+    achats = [achat(LUN, "lait", 1.5), achat(LUN, "bidule", None), achat(LUN - timedelta(weeks=3), "pain", 1.4)]
+    semaines = semaines_budget(achats, les_repas, PLATS, MER)
     # 1,50 € de courses + 35 € de livraison = 36,50 € -> 37 €
     html = budget_en_html(semaines, moyenne_precedentes(semaines))
     assert "<title>Budget · Casa Binomerie</title>" in html and "<h1>Budget</h1>" in html
     assert 'data-hub="budget" class="actif"' in html
     assert "Cette semaine" in html and "37 €" in html
-    assert "1 article sans prix" in html and "pas encore suivi" in html        # semaines d'avant le premier achat
-    assert html.count("<tr") == 13                                              # en-tête + 12 semaines
+    assert "1 article sans prix" in html and "pas encore suivi" not in html          # le suivi commence il y a 3 semaines
+    assert html.count("<tr") == 5                                                     # en-tête + 4 semaines
     assert '<svg class="graphique"' in html
+
+
+def test_page_budget_depuis_la_premiere_semaine_avec_des_chiffres():
+    semaines = semaines_budget([achat(LUN - timedelta(weeks=1), "lait", 1.5)], [repas(MER, "commande")], {}, MER)
+    html = budget_en_html(semaines, moyenne_precedentes(semaines))
+    assert html.count("<tr") == 3 and html.count('class="barre-courses"') == 2        # en-tête + 2 semaines
+
+
+def test_page_budget_sans_donnees_une_semaine():
+    html = budget_en_html(semaines_budget([], [], {}, MER), None)
+    assert html.count("<tr") == 2 and html.count('class="barre-courses"') == 1
+
+
+def test_economie_nulle_ou_negative_en_tiret():
+    semaines = semaines_budget([], [], {}, MER)
+    assert "<strong>—</strong><span>Économisés" in budget_en_html(semaines, None)
+    semaines = semaines_budget([], [repas(LUN, "fait", "plat-carbonara")], PLATS, MER)
+    assert semaines[0]["economie"] > 0 and "<strong>—</strong><span>Économisés" not in budget_en_html(semaines, None)
 
 
 def test_graphique_barres_empilees():

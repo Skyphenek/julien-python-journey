@@ -45,10 +45,16 @@ from uuid import uuid4
 load_dotenv(Path(__file__).parent / ".env")   # en local : lit voyage/.env s'il existe
 
 
-def articles_et_achats_recents(conn, articles, jour):
-    """La liste de courses, plus ce qui a été acheté ces FRAIS_JOURS derniers jours (voir avec_achats_recents)."""
-    recents = lire_achats(conn, jour - timedelta(days=FRAIS_JOURS - 1), jour)
-    return avec_achats_recents(articles, [a["nom"] for a in recents])
+def articles_et_achats_recents(conn, articles, jour, achats=None):
+    """La liste de courses, plus ce qui a été acheté ces FRAIS_JOURS derniers jours (voir avec_achats_recents).
+    `achats` : le journal déjà lu (au moins sur ces FRAIS_JOURS jours), sinon on le lit.
+    Un acheté qui est revenu sur la liste à prendre (actif, pas pris) n'est pas à la maison : il n'est pas ajouté."""
+    debut = jour - timedelta(days=FRAIS_JOURS - 1)
+    if achats is None:
+        achats = lire_achats(conn, debut, jour)
+    a_reprendre = {normaliser(a["nom"]) for a in articles if a["actif"] and not a["pris"]}
+    noms = [a["nom"] for a in achats if a["jour"] >= debut and normaliser(a["nom"]) not in a_reprendre]
+    return avec_achats_recents(articles, noms)
 
 
 def creer_app(nom_base="valise", secret=None):
@@ -74,9 +80,12 @@ def creer_app(nom_base="valise", secret=None):
                 hier = diners.get(veille, {"jour": veille, "moment": "diner", "plats": [], "issue": None})
                 du_jour = [plats[i] for r in repas if r["jour"] == jour and not r["issue"] for i in r["plats"] if i in plats]
                 lu = lire_courses(conn)
-                cette_semaine = semaines_budget(lire_achats(conn, lundi(jour), jour), repas, plats, jour, n=1)[0]
+                # Une seule lecture du journal : la semaine en cours (budget) et les derniers jours (à la maison)
+                achats = lire_achats(conn, min(lundi(jour), jour - timedelta(days=FRAIS_JOURS - 1)), jour)
+                cette_semaine = semaines_budget([a for a in achats if a["jour"] >= lundi(jour)], repas, plats, jour, n=1)[0]
                 html = aujourdhui_en_html(lister_voyages(conn), jour,
-                                          a_acheter_aujourd_hui(du_jour, lu["placard"], articles_et_achats_recents(conn, lu["articles"], jour)),
+                                          a_acheter_aujourd_hui(du_jour, lu["placard"],
+                                                                articles_et_achats_recents(conn, lu["articles"], jour, achats)),
                                           ce_soir, hier, compteur(repas, jour), cette_semaine)
             finally:
                 conn.close()

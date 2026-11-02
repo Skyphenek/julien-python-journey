@@ -122,6 +122,16 @@ def test_decocher_le_meme_jour_efface_l_achat(conn):
     assert lire_achats(conn, jour, jour) == []
 
 
+def test_decocher_n_efface_que_le_dernier_achat_du_jour(conn):
+    from casa import aujourd_hui_paris
+    jour = aujourd_hui_paris()
+    enregistrer_article(conn, article("lait-0001", "lait", recurrent=True, pris=True))
+    vider_pris(conn)                                                             # l'habituel est rangé, le journal reste
+    enregistrer_article(conn, article("lait-0001", "lait", recurrent=True, pris=True))
+    enregistrer_article(conn, article("lait-0001", "lait", recurrent=True))      # décoché : seul le dernier achat part
+    assert [a["nom"] for a in lire_achats(conn, jour, jour)] == ["lait"]
+
+
 def test_vider_les_pris_garde_le_journal(conn):
     from casa import aujourd_hui_paris
     jour = aujourd_hui_paris()

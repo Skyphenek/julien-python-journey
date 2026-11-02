@@ -617,8 +617,8 @@ def enregistrer_article(conn, a):
                            VALUES (%s, %s, %s, (now() AT TIME ZONE 'Europe/Paris')::date)""",
                         (a["id"], a["nom"], prix[1] if prix else None))
         elif etait_pris and not a["pris"]:
-            cur.execute("""DELETE FROM achats WHERE article = %s
-                           AND jour = (now() AT TIME ZONE 'Europe/Paris')::date""", (a["id"],))
+            cur.execute("""DELETE FROM achats WHERE id = (SELECT max(id) FROM achats WHERE article = %s
+                           AND jour = (now() AT TIME ZONE 'Europe/Paris')::date)""", (a["id"],))
     conn.commit()
 
 

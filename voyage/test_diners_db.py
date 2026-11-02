@@ -179,6 +179,17 @@ def test_aujourd_hui_oublie_pas_ce_qu_on_vient_d_acheter(client):
     assert "piece du boucher" in client.get("/api/diners").get_json()["stock"]   # clé normalisée
 
 
+def test_aujourd_hui_racheter_ce_qu_on_vient_d_acheter_le_remet_sur_la_liste(client):
+    client.post("/api/repas", json={"jour": J.isoformat(), "moment": "diner", "plats": ["plat-piece-du-boucher"],
+                                    "issue": None})
+    client.post("/api/courses", json={"id": "boucher-01", "nom": "pièce du boucher", "pris": True})
+    client.post("/api/courses/vider")
+    client.post("/api/courses", json={"id": "boucher-02", "nom": "pièce du boucher"})     # il en faut encore
+    bloc = client.get("/").get_data(as_text=True).split('<a class="bloc-courses"')[1].split("</a>")[0]
+    assert "pièce du boucher" in bloc
+    assert "piece du boucher" in client.get("/api/diners").get_json()["liste"]
+
+
 def test_page_budget(client):
     client.post("/api/courses", json={"id": "lait-0001", "nom": "lait", "pris": True})
     client.post("/api/repas", json={"jour": J.isoformat(), "moment": "diner", "plats": [], "issue": "commande"})
