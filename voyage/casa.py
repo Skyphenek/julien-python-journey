@@ -56,6 +56,10 @@ a.bloc-courses { display: flex; flex-direction: column; gap: 4px;
                 border-radius: 24px; padding: 18px 20px; margin: 16px 0; }
 a.bloc-courses strong { font-size: 19px; font-weight: 800; color: var(--courses); }
 a.bloc-courses span { font-weight: 700; }
+a.bloc-budget { display: flex; flex-direction: column; gap: 2px; background: var(--carte); color: var(--texte);
+                text-decoration: none; border-radius: 24px; padding: 16px 20px; margin: 16px 0; }
+a.bloc-budget strong { font-size: 19px; font-weight: 800; }
+a.bloc-budget span { color: var(--doux); font-size: 14px; }
 a.bloc-ce-soir { display: flex; flex-direction: column; gap: 2px; background: #c2410c; color: #ffffff;
                 text-decoration: none; border-radius: 28px; padding: 20px 22px; margin: 16px 0; }
 a.bloc-ce-soir.vide { background: var(--diners-doux); color: var(--texte); }
@@ -87,6 +91,15 @@ def bloc_courses(a_acheter):
         return ""
     return (f'<a class="bloc-courses" href="courses"><strong>À acheter pour aujourd\'hui</strong>'
             f'<span>{echapper(" · ".join(a_acheter))}</span></a>')
+
+
+def bloc_budget(semaine):
+    """« Cette semaine : 82 € · dont livraison et resto 35 € » (budget.semaines_budget) ; rien tant que c'est 0 €."""
+    from budget import euros
+    if not semaine or not semaine["total"]:
+        return ""
+    return (f'<a class="bloc-budget" href="budget"><strong>Cette semaine : {euros(semaine["total"])}</strong>'
+            f'<span>dont livraison et resto {euros(semaine["livraison"])}</span></a>')
 
 
 def bloc_ce_soir(plats):
@@ -145,11 +158,13 @@ SCRIPT_HIER = """
 """
 
 
-def aujourdhui_en_html(voyages, aujourd_hui, a_acheter=(), plats_du_soir=(), diner_hier=None, compte=None):
-    """L'accueil du hub : ce soir, hier soir, ce qu'il faut acheter aujourd'hui, le prochain voyage, le compteur
-    Deliveroo."""
+def aujourdhui_en_html(voyages, aujourd_hui, a_acheter=(), plats_du_soir=(), diner_hier=None, compte=None,
+                       semaine_budget=None):
+    """L'accueil du hub : ce soir, hier soir, ce qu'il faut acheter aujourd'hui, le budget de la semaine, le prochain
+    voyage, le compteur Deliveroo."""
     v = prochain_voyage(voyages, aujourd_hui)
     blocs = (bloc_ce_soir(list(plats_du_soir)) + (bloc_hier(diner_hier) if diner_hier else "") + bloc_courses(list(a_acheter))
+             + bloc_budget(semaine_budget)
              + (bloc_vadrouille(v, aujourd_hui) if v else "") + bloc_compteur(compte))
     return f"""<!doctype html>
 <html lang="fr">

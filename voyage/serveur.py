@@ -35,6 +35,7 @@ from a_voir import valider_a_voir, suggestions_depuis_wikitext
 from souvenirs import valider_proche, valider_souvenir
 from vocabulaire import LANGUES
 from casa import aujourdhui_en_html, aujourd_hui_paris
+from budget import semaines_budget, moyenne_precedentes, lundi, budget_en_html, SEMAINES
 from courses import valider_article, valider_placard, courses_en_html, normaliser
 from prix_paris import cout_repas
 from diners import (avec_achats_recents, FRAIS_JOURS, disponibles, a_acheter_aujourd_hui, valider_plat, valider_repas, secours, a_acheter, compteur, semaine, diners_en_html,
@@ -73,13 +74,27 @@ def creer_app(nom_base="valise", secret=None):
                 hier = diners.get(veille, {"jour": veille, "moment": "diner", "plats": [], "issue": None})
                 du_jour = [plats[i] for r in repas if r["jour"] == jour and not r["issue"] for i in r["plats"] if i in plats]
                 lu = lire_courses(conn)
+                cette_semaine = semaines_budget(lire_achats(conn, lundi(jour), jour), repas, plats, jour, n=1)[0]
                 html = aujourdhui_en_html(lister_voyages(conn), jour,
                                           a_acheter_aujourd_hui(du_jour, lu["placard"], articles_et_achats_recents(conn, lu["articles"], jour)),
-                                          ce_soir, hier, compteur(repas, jour))
+                                          ce_soir, hier, compteur(repas, jour), cette_semaine)
             finally:
                 conn.close()
             return Response(html, mimetype="text/html")
         return vadrouille()
+
+    @routes.get("/budget")
+    def page_budget():
+        """Le budget de la maison : 12 semaines de courses (journal des achats) et de repas (budget.py)."""
+        jour = aujourd_hui_paris()
+        debut = lundi(jour) - timedelta(weeks=SEMAINES - 1)
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            semaines = semaines_budget(lire_achats(conn, debut, jour), lire_repas(conn, debut, jour),
+                                       {p["id"]: p for p in lire_plats(conn)}, jour)
+        finally:
+            conn.close()
+        return Response(budget_en_html(semaines, moyenne_precedentes(semaines)), mimetype="text/html")
 
     # --- Casa Binomerie : dîners ---
 

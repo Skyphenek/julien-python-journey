@@ -34,6 +34,7 @@ HUB = [
     ("aujourdhui", "Aujourd'hui", "./"),
     ("diners", "Dîners", "diners"),
     ("courses", "Courses", "courses"),
+    ("budget", "Budget", "budget"),
     ("vadrouille", "Vadrouille", "vadrouille"),          # court : tient dans la barre du bas sur iPhone
 ]
 ICONES_HUB = {
@@ -41,6 +42,7 @@ ICONES_HUB = {
     "diners": _TRAIT.format('<path d="M7 3v7a2 2 0 0 0 4 0V3M9 10v11M17 3c-1.7 0-3 2-3 5s1.3 4 3 4v9"/>'),
     "courses": _TRAIT.format('<circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/>'
                              '<path d="M2 3h3l2.7 12.4a1 1 0 0 0 1 .8h9.6a1 1 0 0 0 1-.8L21 7H6"/>'),
+    "budget": _TRAIT.format('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
     "vadrouille": ICONES_RUBRIQUE["valise"],
 }
 
@@ -70,6 +72,7 @@ nav.hub a.actif .icone-hub { background: var(--c-doux); }
 nav.hub a[data-hub="aujourdhui"] { --c: var(--texte); --c-doux: var(--carte); }
 nav.hub a[data-hub="diners"] { --c: var(--diners); --c-doux: var(--diners-doux); }
 nav.hub a[data-hub="courses"] { --c: var(--courses); --c-doux: var(--courses-doux); }
+nav.hub a[data-hub="budget"] { --c: var(--courses); --c-doux: var(--courses-doux); }
 nav.hub a[data-hub="vadrouille"] { --c: var(--valise); --c-doux: var(--valise-doux); }
 body.hub-page { display: block; max-width: 720px; margin: 0 auto; padding: 28px 20px 110px; }   /* place pour la barre */
 @media (min-width: 900px) {

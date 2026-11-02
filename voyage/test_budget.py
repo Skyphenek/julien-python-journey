@@ -63,3 +63,27 @@ def test_moyenne_des_semaines_precedentes():
                                     repas(LUN - timedelta(weeks=2), "dehors")], {}, MER)
     assert moyenne_precedentes(semaines) == round((LIVRAISON_DEUX + FORFAIT_RESTO) / 2, 2)    # semaines vides ignorées
     assert moyenne_precedentes(semaines_budget([], [], {}, MER)) is None
+
+
+# --- Pages ---
+from budget import budget_en_html, graphique_svg
+
+
+def test_page_budget():
+    les_repas = [repas(MER, "commande"), repas(LUN, "fait", "plat-carbonara")]
+    semaines = semaines_budget([achat(LUN, "lait", 1.5), achat(LUN, "bidule", None)], les_repas, PLATS, MER)
+    # 1,50 € de courses + 35 € de livraison = 36,50 € -> 37 €
+    html = budget_en_html(semaines, moyenne_precedentes(semaines))
+    assert "<title>Budget · Casa Binomerie</title>" in html and "<h1>Budget</h1>" in html
+    assert 'data-hub="budget" class="actif"' in html
+    assert "Cette semaine" in html and "37 €" in html
+    assert "1 article sans prix" in html and "pas encore suivi" in html        # semaines d'avant le premier achat
+    assert html.count("<tr") == 13                                              # en-tête + 12 semaines
+    assert '<svg class="graphique"' in html
+
+
+def test_graphique_barres_empilees():
+    semaines = semaines_budget([achat(LUN, "lait", 20.0)], [repas(MER, "commande")], {}, MER)
+    svg = graphique_svg(semaines)
+    assert svg.count('class="barre-courses"') == 12 and svg.count('class="barre-livraison"') == 12
+    assert svg.index("02/11") > svg.index("31/08")                              # la plus ancienne à gauche

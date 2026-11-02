@@ -177,3 +177,11 @@ def test_aujourd_hui_oublie_pas_ce_qu_on_vient_d_acheter(client):
     bloc = html.split('<a class="bloc-courses"')[1].split("</a>")[0] if '<a class="bloc-courses"' in html else ""
     assert "pièce du boucher" not in bloc
     assert "piece du boucher" in client.get("/api/diners").get_json()["stock"]   # clé normalisée
+
+
+def test_page_budget(client):
+    client.post("/api/courses", json={"id": "lait-0001", "nom": "lait", "pris": True})
+    client.post("/api/repas", json={"jour": J.isoformat(), "moment": "diner", "plats": [], "issue": "commande"})
+    html = client.get("/budget").get_data(as_text=True)
+    assert "<h1>Budget</h1>" in html and 'data-hub="budget" class="actif"' in html
+    assert '<a class="bloc-budget" href="budget">' in client.get("/").get_data(as_text=True)
