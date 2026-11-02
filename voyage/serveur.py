@@ -38,7 +38,7 @@ from casa import aujourdhui_en_html, aujourd_hui_paris
 from courses import valider_article, valider_placard, courses_en_html, normaliser
 from prix_paris import cout_repas
 from diners import (disponibles, valider_plat, valider_repas, secours, a_acheter, compteur, semaine, diners_en_html,
-                    proposer, cout_semaine, repas_prevus, ranger, LIVRAISON_DEUX, FENETRE_PASSE, FENETRE_FUTUR)
+                    proposer, cout_semaine, repas_prevus, ranger, nettoyer_accords, LIVRAISON_DEUX, FENETRE_PASSE, FENETRE_FUTUR)
 from uuid import uuid4
 
 load_dotenv(Path(__file__).parent / ".env")   # en local : lit voyage/.env s'il existe
@@ -112,6 +112,8 @@ def creer_app(nom_base="valise", secret=None):
             return jsonify({"erreur": str(e)}), 400
         conn = emprunter(app.config["NOM_BASE"])
         try:
+            if plat["accords"] is not None:           # seulement des accompagnements connus et non archivés
+                plat["accords"] = nettoyer_accords(plat["accords"], {p["id"]: p for p in lire_plats(conn)})
             enregistrer_plat(conn, plat)
         finally:
             conn.close()

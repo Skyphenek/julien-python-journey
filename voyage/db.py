@@ -662,24 +662,34 @@ def semer_placard(conn, noms):
 
 # --- Casa Binomerie : dîners (carnet et repas) ---------------------------------------------------
 
-CHAMPS_PLAT = ("nom", "genre", "minutes", "ingredients", "recette", "lien", "note", "statut", "archive", "pour")
-_DEFAUTS_PLAT = {"pour": "nous"}
+CHAMPS_PLAT = ("nom", "genre", "minutes", "ingredients", "recette", "lien", "note", "statut", "archive", "pour",
+               "accords")
+_DEFAUTS_PLAT = {"pour": "nous", "accords": []}
+_JSON_PLAT = ("ingredients", "accords")
 
 
 def _valeurs_plat(p):
-    return [Json(p[c]) if c == "ingredients" else p.get(c, _DEFAUTS_PLAT.get(c)) for c in CHAMPS_PLAT]
+    valeurs = []
+    for c in CHAMPS_PLAT:
+        v = p.get(c)
+        if v is None:
+            v = _DEFAUTS_PLAT.get(c)
+        valeurs.append(Json(v) if c in _JSON_PLAT else v)
+    return valeurs
 
 
 def enregistrer_plat(conn, p):
-    """Crée ou met à jour (même id) une recette validée."""
-    valeurs = _valeurs_plat(p)
+    """Crée ou met à jour (même id) une recette validée. Sans accords (None : une page d'avant les accords),
+    ceux déjà en base restent."""
+    champs = [c for c in CHAMPS_PLAT if not (c == "accords" and p.get("accords") is None)]
+    valeurs = dict(zip(CHAMPS_PLAT, _valeurs_plat(p)))
     with conn.cursor() as cur:
         cur.execute(
-            f"""INSERT INTO plats (id, {", ".join(CHAMPS_PLAT)})
-                VALUES (%s, {", ".join(["%s"] * len(CHAMPS_PLAT))})
+            f"""INSERT INTO plats (id, {", ".join(champs)})
+                VALUES (%s, {", ".join(["%s"] * len(champs))})
                 ON CONFLICT (id) DO UPDATE SET
-                {", ".join(f"{c} = EXCLUDED.{c}" for c in CHAMPS_PLAT)}, maj_le = now()""",
-            (p["id"], *valeurs))
+                {", ".join(f"{c} = EXCLUDED.{c}" for c in champs)}, maj_le = now()""",
+            (p["id"], *[valeurs[c] for c in champs]))
     conn.commit()
 
 

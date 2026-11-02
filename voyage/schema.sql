@@ -247,6 +247,8 @@ CREATE TABLE IF NOT EXISTS plats (
 ALTER TABLE plats ADD COLUMN IF NOT EXISTS pour TEXT NOT NULL DEFAULT 'nous';
 ALTER TABLE plats DROP CONSTRAINT IF EXISTS plats_pour_check;          -- 01/11 : + Laetitia seule
 ALTER TABLE plats ADD CONSTRAINT plats_pour_check CHECK (pour IN ('nous', 'julien', 'laetitia'));
+-- Accords (02/11/2026) : les accompagnements qui vont avec un plat (ids de plats, 6 au plus)
+ALTER TABLE plats ADD COLUMN IF NOT EXISTS accords JSONB NOT NULL DEFAULT '[]';
 -- Les soirs : le plat prévu, et ce qui s'est vraiment passé — la mesure du succès (Deliveroo).
 CREATE TABLE IF NOT EXISTS soirs (
     jour        DATE        PRIMARY KEY,

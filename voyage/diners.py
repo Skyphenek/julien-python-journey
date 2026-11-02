@@ -24,6 +24,7 @@ ISSUES = [("fait", "Fait maison"), ("commande", "Commandé"), ("dehors", "Dehors
 MOMENTS = [("diner", "Dîner"), ("dejeuner", "Déjeuner"), ("brunch", "Brunch")]
 ORDRE_GENRES = ("entree", "plat", "accompagnement", "dessert")
 MAX_PLATS = 8
+MAX_ACCORDS = 6
 SECOURS_MINUTES = 20
 FENETRE_PASSE = 42           # jours de repas lus : les 6 semaines du compteur
 FENETRE_FUTUR = 30           # jusqu'où on peut planifier
@@ -84,7 +85,23 @@ def valider_plat(corps):
     if not isinstance(archive, bool):
         raise ValueError("archive invalide")
     p["archive"] = archive
+    accords = corps.get("accords")            # absent (page d'avant les accords) : None, ceux en base restent
+    if accords is not None:
+        if (not isinstance(accords, list) or len(accords) > MAX_ACCORDS
+                or not all(isinstance(i, str) and _ID.fullmatch(i) for i in accords)):
+            raise ValueError("accords invalides")
+        if len(set(accords)) != len(accords) or identifiant in accords:
+            raise ValueError("accord en double")
+        if p["genre"] != "plat":
+            accords = []
+    p["accords"] = accords
     return p
+
+
+def nettoyer_accords(accords, par_id):
+    """Les accords qui tiennent : des accompagnements connus et non archivés, dans l'ordre donné."""
+    return [i for i in accords
+            if i in par_id and par_id[i]["genre"] == "accompagnement" and not par_id[i]["archive"]]
 
 
 def valider_repas(corps, aujourd_hui):
