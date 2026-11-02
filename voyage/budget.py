@@ -40,8 +40,8 @@ def semaines_budget(achats, repas, plats, aujourd_hui, n=SEMAINES):
         commandes = sum(1 for r in vecus if r["issue"] == "commande")
         restos = sum(1 for r in vecus if r["issue"] == "dehors")
         maison = [r for r in vecus if r["issue"] == "fait"]
-        couts = [sum(cout_repas(plats[i]["ingredients"], plats[i]["recette"]) for i in r["plats"] if i in plats)
-                 for r in maison if any(i in plats for i in r["plats"])]
+        couts = [c for c in (sum(cout_repas(plats[i]["ingredients"], plats[i]["recette"]) for i in r["plats"] if i in plats)
+                             for r in maison) if c > 0]       # un repas tout prêt (sans coût estimable) n'y entre pas
         courses = round(sum(a["prix"] or 0 for a in achetes), 2)
         livraison = commandes * LIVRAISON_DEUX + restos * FORFAIT_RESTO
         semaines.append({

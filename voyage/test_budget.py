@@ -121,3 +121,9 @@ def test_graphique_barres_empilees():
 def test_peu_de_semaines_des_barres_fines():
     svg = graphique_svg(semaines_budget([], [repas(MER, "commande")], {}, MER, n=2))
     assert 'width="28.0"' in svg and svg.count('class="barre-livraison"') == 2
+
+
+def test_repas_tout_pret_sans_cout_ne_fausse_pas_l_economie():
+    plats = {**PLATS, "pret-roti-taboule": {"id": "pret-roti-taboule", "ingredients": [], "recette": "Pour 2"}}
+    s = semaines_budget([], [repas(LUN, "fait", "pret-roti-taboule", moment="dejeuner")], plats, MER)[0]
+    assert s["maison"] == 1 and s["cout_maison"] is None and s["economie"] == 0
