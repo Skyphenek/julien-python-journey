@@ -193,18 +193,54 @@ MINUTES_SEMAINE = 45        # du lundi au jeudi, on cuisine vite
 RECENT = 14                 # un plat mangé il y a moins de 14 jours ne revient pas
 
 
+def tel_que_propose(plats_du_diner, par_id):
+    """Un dîner tel que Proposer le pose : vide, un plat, ou un plat et un de ses accords. « Reproposer » peut le
+    changer ; un dîner composé à la main, jamais."""
+    if len(plats_du_diner) <= 1:
+        return True
+    principal = par_id.get(plats_du_diner[0])
+    return len(plats_du_diner) == 2 and principal is not None and plats_du_diner[1] in (principal.get("accords") or [])
+
+
+def accompagner(choix, plats, repas, jours, hasard=None):
+    """{jour: [plat] ou [plat, accompagnement]} : à chaque plat proposé (`choix`, voir proposer), un de ses accords
+    au hasard — accompagnement non archivé, pour nous deux, ni déjà au menu de la semaine (tous moments, hors les
+    jours qu'on propose de nouveau : seul leur dîner est libéré), ni déjà donné à un autre jour ; avec recette, et
+    rapide (≤ 45 min) du lundi au jeudi comme le plat. Sans accord possible : le plat seul."""
+    from random import Random
+    hasard = hasard or Random()
+    par_id = {p["id"]: p for p in plats}
+    pris = {i for r in repas
+            if r["jour"] in jours and not (r["jour"] in choix and r["moment"] == "diner") for i in r["plats"]}
+    menus = {}
+    for j, id_plat in sorted(choix.items()):
+        possibles = [a for a in par_id[id_plat].get("accords") or []
+                     if a in par_id and par_id[a]["genre"] == "accompagnement" and not par_id[a]["archive"]
+                     and par_id[a].get("pour", "nous") == "nous" and a not in pris
+                     and par_id[a]["recette"] and (j.weekday() >= 4 or par_id[a]["minutes"] <= MINUTES_SEMAINE)]
+        if possibles:
+            a = hasard.choice(possibles)
+            pris.add(a)
+            menus[j] = [id_plat, a]
+        else:
+            menus[j] = [id_plat]
+    return menus
+
+
 def proposer(plats, repas, jours, aujourd_hui, remplacer=(), cible=CIBLE_SOIRS, hasard=None):
     """{jour: id du plat} pour compléter la semaine jusqu'à `cible` dîners prévus.
 
     Dîners libres seulement (ni plat ni issue), vendredi et samedi en dernier recours (souvent dehors), répartis
     dans la semaine. Plats pour nous deux, avec recette ; rapides (≤ 45 min) du lundi au jeudi ; ni déjà prévus
     (tous moments), ni mangés ces 14 derniers jours, ni brunchs ; un plat à tester s'il n'y en a pas déjà un. `remplacer` :
-    des jours à tirer au sort de nouveau, avec un autre plat. Déjeuners et brunchs ne remplissent pas un soir."""
+    des jours à tirer au sort de nouveau, avec un autre plat (s'ils sont encore tels que proposés). L'accompagnement :
+    voir accompagner. Déjeuners et brunchs ne remplissent pas un soir."""
     from random import Random
     hasard = hasard or Random()
     diners = {r["jour"]: r for r in repas if r["moment"] == "diner"}
-    remplacer = [j for j in remplacer if j in jours
-                 and not (j in diners and (len(diners[j]["plats"]) > 1 or diners[j]["issue"]))]   # ni composé, ni déjà vécu
+    par_id = {p["id"]: p for p in plats}
+    remplacer = [j for j in remplacer if j in jours                          # ni composé à la main, ni déjà vécu
+                 and not (j in diners and (diners[j]["issue"] or not tel_que_propose(diners[j]["plats"], par_id)))]
     prevus = {j: diners[j]["plats"] for j in jours if j in diners and diners[j]["plats"] and j not in remplacer}
     besoin = max(0, cible - len(prevus))
     libres = [j for j in jours if j not in prevus and j not in remplacer
@@ -386,7 +422,7 @@ SCRIPT_DINERS = """
     let d = null;                                         // ce que renvoie api/diners
     let vue = 'ce-soir', filtre = 'tout', recherche = '';
     const etiquette = { carnet: 'tout', 'a-tester': 'tout', choix: 'nous' };   // un filtre par liste ; un soir : à deux
-    let derniereProposition = {};                         // {jour: plat} : ce que « Reproposer » peut changer
+    let derniereProposition = {};                         // {jour: 'plat accompagnement'} : ce que « Reproposer » peut changer
     let messageSemaine = '';
     const ETIQUETTES = [['tout', 'Tout'], ['rapide', 'Rapide'], ['nous', 'Nous deux'], ['julien', 'Julien'], ['laetitia', 'Laetitia'],
                         ['air-fryer', 'Air fryer'], ['poisson', 'Poisson'], ['legumes', 'Légumes'], ['brunch', 'Brunch']];
@@ -598,14 +634,16 @@ SCRIPT_DINERS = """
                                                   body: JSON.stringify({ remplacer: remplacer || [] }) });
         }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
           .then(function (r) {
-              const jours = Object.keys(r.proposes);
+              const jours = Object.keys(r.proposes), poses = {};
               jours.forEach(function (iso) {
+                  const plats = (r.menus && r.menus[iso]) || [r.proposes[iso]];   // le plat et son accompagnement
                   d.repas = d.repas.filter(function (x) { return !(x.jour === iso && x.moment === 'diner'); })
-                                   .concat([{ jour: iso, moment: 'diner', plats: [r.proposes[iso]], issue: null }]);
+                                   .concat([{ jour: iso, moment: 'diner', plats: plats, issue: null }]);
+                  poses[iso] = plats.join(' ');
               });
-              derniereProposition = remplacer && remplacer.length ? Object.assign({}, derniereProposition, r.proposes) : r.proposes;
+              derniereProposition = remplacer && remplacer.length ? Object.assign({}, derniereProposition, poses) : poses;
               garder(); afficher();
-              messageSemaine = jours.length ? jours.length + ' dîner(s) proposé(s). Ajoute un accompagnement ou un dessert, puis envoie aux courses.'
+              messageSemaine = jours.length ? jours.length + ' dîner(s) proposé(s), avec un accompagnement quand le plat en a. Change-le ou ajoute un dessert, puis envoie aux courses.'
                                             : 'Rien à proposer : la semaine a déjà quatre dîners, ou aucun plat ne convient.';
               afficher(); relire();
           }, function () { msg.textContent = 'Pas de réseau : réessaie une fois connecté.'; });
@@ -684,7 +722,7 @@ SCRIPT_DINERS = """
         const prop = el('div', 'proposer');
         prop.append(bouton('Proposer ma semaine', 'plein', function () { proposerSemaine(msgP, []); }));
         const aRefaire = Object.keys(derniereProposition).filter(function (iso) {
-            const r = repas(iso, 'diner'); return r.plats.length === 1 && r.plats[0] === derniereProposition[iso]; });
+            return repas(iso, 'diner').plats.join(' ') === derniereProposition[iso]; });
         if (aRefaire.length) prop.append(bouton('Reproposer', 'petit', function () { proposerSemaine(msgP, aRefaire); }));
         zone.append(prop, msgP, e);
         const msg = el('p', 'message');
