@@ -662,24 +662,34 @@ def semer_placard(conn, noms):
 
 # --- Casa Binomerie : dîners (carnet et repas) ---------------------------------------------------
 
-CHAMPS_PLAT = ("nom", "genre", "minutes", "ingredients", "recette", "lien", "note", "statut", "archive", "pour")
-_DEFAUTS_PLAT = {"pour": "nous"}
+CHAMPS_PLAT = ("nom", "genre", "minutes", "ingredients", "recette", "lien", "note", "statut", "archive", "pour",
+               "accords")
+_DEFAUTS_PLAT = {"pour": "nous", "accords": []}
+_JSON_PLAT = ("ingredients", "accords")
 
 
 def _valeurs_plat(p):
-    return [Json(p[c]) if c == "ingredients" else p.get(c, _DEFAUTS_PLAT.get(c)) for c in CHAMPS_PLAT]
+    valeurs = []
+    for c in CHAMPS_PLAT:
+        v = p.get(c)
+        if v is None:
+            v = _DEFAUTS_PLAT.get(c)
+        valeurs.append(Json(v) if c in _JSON_PLAT else v)
+    return valeurs
 
 
 def enregistrer_plat(conn, p):
-    """Crée ou met à jour (même id) une recette validée."""
-    valeurs = _valeurs_plat(p)
+    """Crée ou met à jour (même id) une recette validée. Sans accords (None : une page d'avant les accords),
+    ceux déjà en base restent."""
+    champs = [c for c in CHAMPS_PLAT if not (c == "accords" and p.get("accords") is None)]
+    valeurs = dict(zip(CHAMPS_PLAT, _valeurs_plat(p)))
     with conn.cursor() as cur:
         cur.execute(
-            f"""INSERT INTO plats (id, {", ".join(CHAMPS_PLAT)})
-                VALUES (%s, {", ".join(["%s"] * len(CHAMPS_PLAT))})
+            f"""INSERT INTO plats (id, {", ".join(champs)})
+                VALUES (%s, {", ".join(["%s"] * len(champs))})
                 ON CONFLICT (id) DO UPDATE SET
-                {", ".join(f"{c} = EXCLUDED.{c}" for c in CHAMPS_PLAT)}, maj_le = now()""",
-            (p["id"], *valeurs))
+                {", ".join(f"{c} = EXCLUDED.{c}" for c in champs)}, maj_le = now()""",
+            (p["id"], *[valeurs[c] for c in champs]))
     conn.commit()
 
 
@@ -809,6 +819,29 @@ def separer_pour_julien(conn):
                         maj_le = now() WHERE nom LIKE '%%(Julien)'""")
         n = cur.rowcount
         cur.execute("INSERT INTO reprises (nom) VALUES ('pour-julien')")
+    return n
+
+
+def poser_accords(conn, nom_reprise, accords):
+    """Les accords de départ ({id de plat: [ids d'accompagnements]}), une seule fois (table reprises) :
+    seulement sur les plats qui n'en ont pas encore (ceux réglés dans l'app restent), et seulement des
+    accompagnements présents et non archivés. Sans commit : l'appelant valide ou annule (à blanc).
+    Ne touche pas maj_le : actualiser_recettes le lit comme « touché dans l'app » après une reprise.
+    Renvoie le nombre de plats réglés, ou None si c'est déjà fait."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT EXISTS (SELECT 1 FROM reprises WHERE nom = %s)", (nom_reprise,))
+        if cur.fetchone()[0]:
+            return None
+        cur.execute("SELECT id FROM plats WHERE genre = 'accompagnement' AND NOT archive")
+        possibles = {ligne[0] for ligne in cur.fetchall()}
+        n = 0
+        for id_, ids in accords.items():
+            gardes = [i for i in ids if i in possibles]
+            if gardes:
+                cur.execute("""UPDATE plats SET accords = %s
+                               WHERE id = %s AND genre = 'plat' AND accords = '[]'::jsonb""", (Json(gardes), id_))
+                n += cur.rowcount
+        cur.execute("INSERT INTO reprises (nom) VALUES (%s)", (nom_reprise,))
     return n
 
 

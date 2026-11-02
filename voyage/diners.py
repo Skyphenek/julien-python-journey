@@ -24,6 +24,7 @@ ISSUES = [("fait", "Fait maison"), ("commande", "Commandé"), ("dehors", "Dehors
 MOMENTS = [("diner", "Dîner"), ("dejeuner", "Déjeuner"), ("brunch", "Brunch")]
 ORDRE_GENRES = ("entree", "plat", "accompagnement", "dessert")
 MAX_PLATS = 8
+MAX_ACCORDS = 6
 SECOURS_MINUTES = 20
 FENETRE_PASSE = 42           # jours de repas lus : les 6 semaines du compteur
 FENETRE_FUTUR = 30           # jusqu'où on peut planifier
@@ -84,7 +85,23 @@ def valider_plat(corps):
     if not isinstance(archive, bool):
         raise ValueError("archive invalide")
     p["archive"] = archive
+    accords = corps.get("accords")            # absent (page d'avant les accords) : None, ceux en base restent
+    if accords is not None:
+        if (not isinstance(accords, list) or len(accords) > MAX_ACCORDS
+                or not all(isinstance(i, str) and _ID.fullmatch(i) for i in accords)):
+            raise ValueError("accords invalides")
+        if len(set(accords)) != len(accords) or identifiant in accords:
+            raise ValueError("accord en double")
+        if p["genre"] != "plat":
+            accords = []
+    p["accords"] = accords
     return p
+
+
+def nettoyer_accords(accords, par_id):
+    """Les accords qui tiennent : des accompagnements connus et non archivés, dans l'ordre donné."""
+    return [i for i in accords
+            if i in par_id and par_id[i]["genre"] == "accompagnement" and not par_id[i]["archive"]]
 
 
 def valider_repas(corps, aujourd_hui):
@@ -181,7 +198,7 @@ def proposer(plats, repas, jours, aujourd_hui, remplacer=(), cible=CIBLE_SOIRS, 
 
     Dîners libres seulement (ni plat ni issue), vendredi et samedi en dernier recours (souvent dehors), répartis
     dans la semaine. Plats pour nous deux, avec recette ; rapides (≤ 45 min) du lundi au jeudi ; ni déjà prévus
-    (tous moments), ni mangés ces 14 derniers jours ; un plat à tester s'il n'y en a pas déjà un. `remplacer` :
+    (tous moments), ni mangés ces 14 derniers jours, ni brunchs ; un plat à tester s'il n'y en a pas déjà un. `remplacer` :
     des jours à tirer au sort de nouveau, avec un autre plat. Déjeuners et brunchs ne remplissent pas un soir."""
     from random import Random
     hasard = hasard or Random()
@@ -209,9 +226,9 @@ def proposer(plats, repas, jours, aujourd_hui, remplacer=(), cible=CIBLE_SOIRS, 
     deja = {i for r in repas if r["jour"] in jours and r["jour"] not in remplacer for i in r["plats"]}
     exclus = deja | manges | {i for j in remplacer if j in diners for i in diners[j]["plats"]}
     candidats = [p for p in plats if p["genre"] == "plat" and not p["archive"] and p.get("pour", "nous") == "nous"
-                 and p["recette"] and p["id"] not in exclus]
+                 and p["recette"] and p["id"] not in exclus and not p["id"].startswith("brunch-")]
     hasard.shuffle(candidats)
-    a_tester = any(p["statut"] == "a-tester" for p in plats if p["id"] in deja)
+    a_tester = any(p["statut"] == "a-tester" and p["genre"] == "plat" for p in plats if p["id"] in deja)
     choix = {}
     for j in sorted(a_remplir, key=lambda j: j.weekday() != 6):     # le plat à tester, le dimanche s'il y en a un
         rapide = j.weekday() < 4
@@ -325,6 +342,9 @@ button.retirer { border: none; background: var(--carte); color: var(--doux); bor
                  font-size: 18px; font-weight: 800; flex: none; }
 div.ajouts { display: flex; gap: 6px; flex-wrap: wrap; }
 div.ajouts button.petit { padding: 6px 10px; }
+ul.plats-repas li.avec { flex-wrap: wrap; gap: 6px; min-height: 0; padding: 0 0 6px; }
+ul.plats-repas li.avec button.petit { padding: 6px 10px; }
+section.accords div.ingredients { margin-bottom: 8px; }
 ul.plats-soir { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 ul.plats-soir li { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; }
 ul.plats-soir button { padding: 6px 12px !important; font-size: 13px !important; }
@@ -369,7 +389,9 @@ SCRIPT_DINERS = """
     let derniereProposition = {};                         // {jour: plat} : ce que « Reproposer » peut changer
     let messageSemaine = '';
     const ETIQUETTES = [['tout', 'Tout'], ['rapide', 'Rapide'], ['nous', 'Nous deux'], ['julien', 'Julien'], ['laetitia', 'Laetitia'],
-                        ['air-fryer', 'Air fryer'], ['poisson', 'Poisson'], ['legumes', 'Légumes']];
+                        ['air-fryer', 'Air fryer'], ['poisson', 'Poisson'], ['legumes', 'Légumes'], ['brunch', 'Brunch']];
+    // Brunch : les recettes « brunch- » et celles du carnet qui s'y prêtent
+    const BRUNCH = ['plat-oeufs-brouilles', 'plat-oeuf-coque', 'plat-oeuf-cocotte', 'tester-pancakes', 'tester-shakshuka', 'mer-bagel-saumon'];
     const MER = ['saumon', 'thon', 'crevette', 'gambas', 'cabillaud', 'dorade', 'sole', 'sardine', 'moule', 'calamar',
                  'poulpe', 'saint-jacques', 'langoustine', 'morue', 'crabe', 'maquereau', 'lieu', 'colin'];
     let ouverte = null, verrou = null;                    // fiche ouverte, wake lock
@@ -407,6 +429,11 @@ SCRIPT_DINERS = """
         return d.repas.filter(function (r) { return d.semaine.indexOf(r.jour) >= 0; })
                       .reduce(function (t, r) { return t.concat(r.plats); }, []);
     }
+    // Les accords d'un plat qui tiennent encore : des accompagnements non archivés
+    function accordsDe(p) {
+        if (p.genre !== 'plat') return [];
+        return (p.accords || []).map(plat).filter(function (a) { return a && !a.archive && a.genre === 'accompagnement'; });
+    }
     function enStock(nom) { return d.stock.indexOf(normaliser(nom)) >= 0; }
     function surLaListe(nom) { return (d.liste || []).indexOf(normaliser(nom)) >= 0; }
     // Prix d'un panier parisien (prix_paris.py), par la même clé que le catalogue
@@ -427,6 +454,7 @@ SCRIPT_DINERS = """
         if (e === 'poisson') return p.ingredients.some(function (i) {
             const n = normaliser(i); return n.indexOf('sauce') !== 0 && MER.some(function (m) { return n.indexOf(m) >= 0; }); });
         if (e === 'legumes') return p.id.indexOf('lg-') === 0 || (p.id.indexOf('af-') === 0 && p.genre === 'accompagnement');
+        if (e === 'brunch') return p.id.indexOf('brunch-') === 0 || BRUNCH.indexOf(p.id) >= 0;
         return true;
     }
     function correspond(p, q) {
@@ -599,11 +627,24 @@ SCRIPT_DINERS = """
             x.setAttribute('aria-label', 'Retirer ' + p.nom);
             li.append(o, x);
             ul.append(li);
+            // Ses accords pas encore au menu : un appui les ajoute
+            const absents = accordsDe(p).filter(function (acc) { return r.plats.indexOf(acc.id) < 0; });
+            if (absents.length && r.plats.length < 8) {
+                const avec = el('li', 'avec');
+                avec.append(el('span', 'meta', 'Avec :'));
+                absents.forEach(function (acc) {
+                    avec.append(bouton(acc.nom, 'petit', function () { ajouterPlat(iso, moment, acc.id); }));
+                });
+                ul.append(avec);
+            }
         });
         if (!ul.children.length) ul.append(el('li', 'meta', 'Libre'));
         c.append(ul);
         const a = el('div', 'ajouts');
-        AJOUTS.forEach(function (g) { a.append(bouton(g[1], 'petit', function () { ouvrirChoix(iso, moment, g[0]); })); });
+        // Au brunch, un seul bouton : tous les genres, étiquette Brunch
+        (moment === 'brunch' ? [[null, '+ ajouter']] : AJOUTS).forEach(function (g) {
+            a.append(bouton(g[1], 'petit', function () { ouvrirChoix(iso, moment, g[0]); }));
+        });
         c.append(a);
         return c;
     }
@@ -622,7 +663,7 @@ SCRIPT_DINERS = """
                 const lien = bouton('+ déjeuner ou brunch', 'petit', function () {
                     plus.replaceChildren(
                         bouton('Déjeuner', 'petit', function () { ouvrirChoix(iso, 'dejeuner', 'plat'); }),
-                        bouton('Brunch', 'petit', function () { ouvrirChoix(iso, 'brunch', 'plat'); }));
+                        bouton('Brunch', 'petit', function () { ouvrirChoix(iso, 'brunch', null); }));
                 });
                 plus.append(lien);
                 jour.append(plus);
@@ -718,12 +759,15 @@ SCRIPT_DINERS = """
         const c = document.querySelector('#panneau .contenu'); c.replaceChildren();
         const haut = el('div', 'haut');
         const quand = iso === d.aujourd_hui ? (moment === 'diner' ? 'ce soir' : 'aujourd\\'hui') : enClair(iso);
-        haut.append(el('h2', '', MOMENTS[moment] + ' · ' + quand + ' · ' + NOMS_GENRE[genre].toLowerCase()), bouton('Fermer', 'petit', fermer));
+        haut.append(el('h2', '', MOMENTS[moment] + ' · ' + quand + (genre ? ' · ' + NOMS_GENRE[genre].toLowerCase() : '')),
+                    bouton('Fermer', 'petit', fermer));
+        if (moment === 'brunch') etiquette.choix = 'brunch';                 // au brunch, d'abord les recettes de brunch
+        else if (etiquette.choix === 'brunch') etiquette.choix = 'nous';
         let q = '';
         const r = el('input', 'recherche'); r.type = 'search'; r.placeholder = 'Chercher un plat ou un ingrédient';
         r.setAttribute('aria-label', 'Chercher');
         const zoneEtiquettes = el('div'), listes = el('div', 'vue');
-        const tous = d.plats.filter(function (p) { return p.genre === genre && !p.archive; });
+        const tous = d.plats.filter(function (p) { return (!genre || p.genre === genre) && !p.archive; });
         let affiches = [];
         const dansRepas = repas(iso, moment).plats, plein = dansRepas.length >= 8;
         // Au hasard : parmi les plats affichés (recherche et filtre compris), hors ceux déjà prévus cette semaine
@@ -807,6 +851,13 @@ SCRIPT_DINERS = """
         if (p.cout) c.append(el('p', 'meta', '≈ ' + euros(p.cout) + ' le repas pour deux (part utilisée de chaque produit) · en livraison ≈ ' + euros(d.livraison)));
         c.append(el('pre', 'recette', p.recette || 'Recette à écrire : demande à Claude, ou écris la tienne avec « Modifier ».'));
         if (p.note) c.append(el('p', 'meta', p.note));
+        if (p.genre === 'plat') {
+            const va = el('section', 'groupe-ing accords'), liste = el('div', 'ingredients');
+            accordsDe(p).forEach(function (a) { liste.append(bouton(a.nom, 'petit', function () { ouvrirFiche(a.id); })); });
+            if (!liste.children.length) liste.append(el('span', '', 'Aucun accompagnement choisi.'));
+            va.append(el('h3', '', 'Va bien avec'), liste, bouton('Modifier les accords', 'petit', function () { ouvrirAccords(p.id); }));
+            c.append(va);
+        }
         const act = el('div', 'actions');
         act.append(bouton('Ce soir', 'plein', function () { ajouterPlat(d.aujourd_hui, 'diner', p.id); fermer(); vue = 'ce-soir'; afficher(); }),
                    bouton('Modifier', 'petit', function () { ouvrirEdition(p.id); }));
@@ -822,6 +873,47 @@ SCRIPT_DINERS = """
         document.getElementById('panneau').hidden = false;
         document.getElementById('panneau').scrollTop = 0;
         verrouiller();                                     // l'écran reste allumé pendant qu'on cuisine
+    }
+    // Les accords d'un plat : les accompagnements (carnet et à tester), 6 au plus ; un appui coche ou décoche
+    function ouvrirAccords(id) {
+        const p = plat(id); if (!p) return;
+        ouverte = { id: id, edition: true };                // pas de rechargement pendant le choix
+        let choisis = accordsDe(p).map(function (a) { return a.id; });
+        const c = document.querySelector('#panneau .contenu'); c.replaceChildren();
+        const haut = el('div', 'haut');
+        haut.append(el('h2', '', 'Avec : ' + p.nom), bouton('Annuler', 'petit', function () { ouvrirFiche(id); }));
+        const aide = el('p', 'aide'), ul = el('ul', 'plats'), msg = el('p', 'message');
+        const accs = d.plats.filter(function (a) { return a.genre === 'accompagnement' && !a.archive; })
+                            .sort(function (a, b) { return a.nom.localeCompare(b.nom, 'fr'); });
+        function remplir() {
+            aide.textContent = choisis.length + ' choisi(s), 6 au plus.';
+            ul.replaceChildren();
+            accs.forEach(function (a) {
+                const pris = choisis.indexOf(a.id) >= 0;
+                function basculer() {
+                    if (!pris && choisis.length >= 6) return;
+                    choisis = pris ? choisis.filter(function (x) { return x !== a.id; }) : choisis.concat([a.id]);
+                    remplir();
+                }
+                const li = lignePlat(a);
+                const o = li.querySelector('button.ouvrir'), o2 = o.cloneNode(true);
+                o.replaceWith(o2); o2.addEventListener('click', basculer);
+                const b = bouton(pris ? 'Retirer' : 'Ajouter', pris ? 'plein' : 'petit', basculer);
+                b.disabled = !pris && choisis.length >= 6;
+                b.setAttribute('aria-pressed', String(pris));
+                li.append(b);
+                ul.append(li);
+            });
+        }
+        remplir();
+        const ok = bouton('Enregistrer', 'plein', function () {
+            enregistrerPlat(Object.assign({}, p, { accords: choisis })).then(function () { ouvrirFiche(id); },
+                function (e) { msg.textContent = 'Refusé par le serveur (' + e.message + ').'; });
+        });
+        const e = el('div', 'encart'); e.append(ul);
+        c.append(haut, aide, ok, msg, e);
+        document.getElementById('panneau').hidden = false;
+        document.getElementById('panneau').scrollTop = 0;
     }
     function ouvrirEdition(id) {
         const p = id ? plat(id) : { id: nouvelId('plat'), nom: '', genre: 'plat', minutes: 30, ingredients: [], recette: '',
