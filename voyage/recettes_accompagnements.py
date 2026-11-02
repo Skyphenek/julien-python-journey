@@ -37,7 +37,7 @@ ACCOMPAGNEMENTS = [
 2. Riz versé à sec, remué 2 min : les grains deviennent nacrés.
 3. Bouillon chaud, couvercle, feu doux 15 min sans soulever.
 4. Hors du feu 5 min à couvert, puis égrainer à la fourchette.""",
-         "Avec des gambas, un saumon, un chili ou un poisson."),
+         "Avec des gambas, une viande en sauce ou un poisson."),
 
     _acc("semoule", "Semoule au beurre", 10, ["semoule", "beurre", "bouillon"],
          """Pour 2
