@@ -23,7 +23,7 @@ from db import (emprunter, ajouter_depense, lire_depenses, supprimer_depense, ob
                 enregistrer_a_voir, lire_a_voir, supprimer_a_voir, enregistrer_proche, enregistrer_souvenir,
                 lire_souvenirs, supprimer_souvenir, enregistrer_coche, lister_voyages, lire_voyage, archiver_voyage,
                 VERDICTS, enregistrer_retour, supprimer_retour, lire_retours,
-                enregistrer_article, lire_courses, supprimer_article, vider_pris, compter_a_prendre,
+                enregistrer_article, lire_courses, supprimer_article, vider_pris,
                 enregistrer_placard, retirer_du_placard, enregistrer_plat, lire_plats, plat_existe, enregistrer_repas, lire_repas)
 from valise import (solde_depenses, actualiser_meteo, fenetres_du_voyage, page_du_voyage, accueil_en_html,
                     lieux_depuis_reponse, normales_ou_url, normales_depuis_historique,
@@ -37,7 +37,7 @@ from vocabulaire import LANGUES
 from casa import aujourdhui_en_html, aujourd_hui_paris
 from courses import valider_article, valider_placard, courses_en_html, normaliser
 from prix_paris import cout_repas
-from diners import (disponibles, valider_plat, valider_repas, secours, a_acheter, compteur, semaine, diners_en_html,
+from diners import (disponibles, a_acheter_aujourd_hui, valider_plat, valider_repas, secours, a_acheter, compteur, semaine, diners_en_html,
                     proposer, accompagner, cout_semaine, repas_prevus, ranger, nettoyer_accords, LIVRAISON_DEUX, FENETRE_PASSE, FENETRE_FUTUR)
 from uuid import uuid4
 
@@ -65,7 +65,10 @@ def creer_app(nom_base="valise", secret=None):
                 ce_soir = ranger([plats[i] for i in diners.get(jour, {"plats": []})["plats"] if i in plats], "diner")
                 veille = jour - timedelta(days=1)
                 hier = diners.get(veille, {"jour": veille, "moment": "diner", "plats": [], "issue": None})
-                html = aujourdhui_en_html(lister_voyages(conn), jour, compter_a_prendre(conn),
+                du_jour = [plats[i] for r in repas if r["jour"] == jour and not r["issue"] for i in r["plats"] if i in plats]
+                lu = lire_courses(conn)
+                html = aujourdhui_en_html(lister_voyages(conn), jour,
+                                          a_acheter_aujourd_hui(du_jour, lu["placard"], lu["articles"]),
                                           ce_soir, hier, compteur(repas, jour))
             finally:
                 conn.close()

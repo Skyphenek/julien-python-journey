@@ -106,8 +106,9 @@ def test_compteur_deliveroo():
     assert "bloc-compteur" not in aujourdhui_en_html([], AUJOURD_HUI, compte={"semaine": 0, "moyenne": 0, "renseignes": 0}).split("<body")[1]
 
 
-def test_bloc_courses():
-    html = aujourdhui_en_html([], AUJOURD_HUI, a_prendre=3)
-    assert '<a class="bloc-courses" href="courses"><strong>Courses</strong><span>3 articles à prendre</span></a>' in html
-    assert "1 article à prendre" in aujourdhui_en_html([], AUJOURD_HUI, a_prendre=1)
-    assert 'class="bloc-courses"' not in aujourdhui_en_html([], AUJOURD_HUI).split("<body")[1]   # liste vide : rien
+def test_bloc_a_acheter_aujourd_hui():
+    # Seulement ce qu'il faut acheter pour les repas du jour (02/11/2026), plus le compte de toute la liste
+    html = aujourdhui_en_html([], AUJOURD_HUI, a_acheter=["steaks hachés", "pains burger", "Tomates & co"])
+    assert ('<a class="bloc-courses" href="courses"><strong>À acheter pour aujourd\'hui</strong>'
+            '<span>steaks hachés · pains burger · Tomates &amp; co</span></a>') in html
+    assert 'class="bloc-courses"' not in aujourdhui_en_html([], AUJOURD_HUI).split("<body")[1]   # rien à acheter : rien

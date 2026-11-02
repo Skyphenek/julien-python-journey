@@ -157,3 +157,12 @@ def test_api_diners_couts(client):
     assert carbo["cout"] > 0 and d["livraison"] > 0
     assert {"nb_repas", "cout", "courses", "livraison", "a_acheter"} <= set(d["cout_semaine"])
     assert isinstance(d["liste"], list)
+
+
+def test_aujourd_hui_ce_qu_il_faut_acheter_pour_les_repas_du_jour(client):
+    jour = J.isoformat()
+    client.post("/api/repas", json={"jour": jour, "moment": "diner", "plats": ["plat-piece-du-boucher"], "issue": None})
+    client.post("/api/repas", json={"jour": jour, "moment": "dejeuner", "plats": ["plat-bacon-cheese-burger"],
+                                    "issue": "fait"})                                    # déjà mangé : rien à acheter
+    bloc = client.get("/").get_data(as_text=True).split('<a class="bloc-courses"')[1].split("</a>")[0]
+    assert "pièce du boucher" in bloc and "pains burger" not in bloc

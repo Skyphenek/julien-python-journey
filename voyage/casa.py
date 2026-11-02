@@ -51,7 +51,7 @@ div.bloc-vadrouille a { color: #ffffff; text-decoration: none; display: block; }
 div.bloc-vadrouille .titre { display: block; color: #e3e8ff; font-size: 15px; }
 div.bloc-vadrouille .compte { display: block; color: #ffffff; font-size: 30px; font-weight: 800;
                               letter-spacing: -0.02em; }
-a.bloc-courses { display: flex; justify-content: space-between; align-items: center; gap: 12px;
+a.bloc-courses { display: flex; flex-direction: column; gap: 4px;
                 background: var(--courses-doux); color: var(--texte); text-decoration: none;
                 border-radius: 24px; padding: 18px 20px; margin: 16px 0; }
 a.bloc-courses strong { font-size: 19px; font-weight: 800; color: var(--courses); }
@@ -81,11 +81,12 @@ p.attente { background: var(--carte); border-radius: 24px; padding: 18px; color:
 """
 
 
-def bloc_courses(a_prendre):
-    if not a_prendre:
+def bloc_courses(a_acheter):
+    """Ce qu'il faut acheter pour les repas du jour (diners.a_acheter_aujourd_hui) ; rien à acheter : rien."""
+    if not a_acheter:
         return ""
-    return (f'<a class="bloc-courses" href="courses"><strong>Courses</strong>'
-            f'<span>{a_prendre} article{"s" if a_prendre > 1 else ""} à prendre</span></a>')
+    return (f'<a class="bloc-courses" href="courses"><strong>À acheter pour aujourd\'hui</strong>'
+            f'<span>{echapper(" · ".join(a_acheter))}</span></a>')
 
 
 def bloc_ce_soir(plats):
@@ -144,10 +145,11 @@ SCRIPT_HIER = """
 """
 
 
-def aujourdhui_en_html(voyages, aujourd_hui, a_prendre=0, plats_du_soir=(), diner_hier=None, compte=None):
-    """L'accueil du hub : ce soir, hier soir, les courses, le prochain voyage, le compteur Deliveroo."""
+def aujourdhui_en_html(voyages, aujourd_hui, a_acheter=(), plats_du_soir=(), diner_hier=None, compte=None):
+    """L'accueil du hub : ce soir, hier soir, ce qu'il faut acheter aujourd'hui, le prochain voyage, le compteur
+    Deliveroo."""
     v = prochain_voyage(voyages, aujourd_hui)
-    blocs = (bloc_ce_soir(list(plats_du_soir)) + (bloc_hier(diner_hier) if diner_hier else "") + bloc_courses(a_prendre)
+    blocs = (bloc_ce_soir(list(plats_du_soir)) + (bloc_hier(diner_hier) if diner_hier else "") + bloc_courses(list(a_acheter))
              + (bloc_vadrouille(v, aujourd_hui) if v else "") + bloc_compteur(compte))
     return f"""<!doctype html>
 <html lang="fr">

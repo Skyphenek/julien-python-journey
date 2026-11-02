@@ -143,8 +143,7 @@ def test_api_vider_et_placard(client):
     assert client.get("/api/courses").get_json()["placard"] == []
 
 
-def test_aujourd_hui_compte_les_courses(client):
+def test_aujourd_hui_sans_repas_pas_de_courses(client):
     client.post("/api/courses", json={"id": "pain-0001", "nom": "pain"})
-    client.post("/api/courses", json={"id": "lait-0001", "nom": "lait"})
     html = client.get("/").get_data(as_text=True)
-    assert '<a class="bloc-courses" href="courses">' in html and "2 articles à prendre" in html
+    assert 'class="bloc-courses"' not in html.split("<body")[1] and "articles à prendre" not in html
