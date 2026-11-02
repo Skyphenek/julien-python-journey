@@ -177,6 +177,18 @@ def a_acheter(plats_prevus, placard, courses):
     return resultat
 
 
+def a_acheter_aujourd_hui(plats_du_jour, placard, courses):
+    """Les ingrédients des repas du jour qu'on n'a pas (ni au placard, ni en habituel rangé), sur la liste ou
+    non : ce qu'il faut acheter avant de cuisiner (page Aujourd'hui)."""
+    stock, vus, noms = disponibles(placard, courses), set(), []
+    for p in plats_du_jour:
+        for i in p["ingredients"]:
+            if normaliser(i) not in stock and normaliser(i) not in vus:
+                vus.add(normaliser(i))
+                noms.append(i)
+    return noms
+
+
 def repas_prevus(repas, par_id, jours):
     """Les repas encore à venir des `jours` (sans issue) : pour chacun, ses plats connus ; les vides sont omis."""
     prevus = []

@@ -377,3 +377,15 @@ def test_repas_prevus():
              diner(LUN + timedelta(days=9), "plat-aaaa-01")]                        # hors semaine
     assert [[p["id"] for p in r] for r in repas_prevus(repas, par_id, SEMAINE)] == [
         ["plat-aaaa-01", "plat-bbbb-01"], ["plat-cccc-01"]]
+
+
+# --- À acheter pour les repas du jour (page Aujourd'hui) ---
+
+def test_a_acheter_aujourd_hui():
+    from diners import a_acheter_aujourd_hui
+    burger = plat("plat-burger-01", "Burger", ingredients=["steaks hachés", "pains burger", "Tomates", "oignons"])
+    puree = plat("acc-puree-001", "Purée", genre="accompagnement", ingredients=["pommes de terre", "tomates", "lait"])
+    courses = [{"nom": "oignons", "actif": True, "pris": False, "recurrent": False},       # sur la liste : à acheter
+               {"nom": "lait", "actif": False, "pris": False, "recurrent": True}]         # habituel rangé : on en a
+    assert a_acheter_aujourd_hui([burger, puree], placard("pains burger"), courses) == [
+        "steaks hachés", "Tomates", "oignons", "pommes de terre"]
