@@ -122,11 +122,21 @@ def test_pour_julien_sort_du_nom(conn):
 def test_api_proposer(client):
     r = client.post("/api/diners/proposer", json={})
     assert r.status_code == 200
-    proposes = r.get_json()["proposes"]
-    assert 1 <= len(proposes) <= 4
+    proposes, menus = r.get_json()["proposes"], r.get_json()["menus"]
+    assert 1 <= len(proposes) <= 4 and set(menus) == set(proposes)
     diners = {r["jour"]: r["plats"] for r in client.get("/api/diners").get_json()["repas"] if r["moment"] == "diner"}
-    assert all(diners[j] == [id_] for j, id_ in proposes.items())
+    assert all(diners[j] == menus[j] and menus[j][0] == id_ for j, id_ in proposes.items())
     assert client.post("/api/diners/proposer", json={"remplacer": ["pas-une-date"]}).status_code == 400
+
+
+def test_api_proposer_avec_un_accompagnement(client, conn):
+    for p in lire_plats(conn):
+        if p["genre"] == "plat":
+            enregistrer_plat(conn, {**p, "accords": ["acc-puree-robuchon", "acc-pommes-sautees"]})
+    menus = client.post("/api/diners/proposer", json={}).get_json()["menus"]
+    accs = [ids[1] for ids in menus.values() if len(ids) == 2]
+    assert accs and len(set(accs)) == len(accs) <= 2
+    assert set(accs) <= {"acc-puree-robuchon", "acc-pommes-sautees"}
 
 
 def test_api_diners_couts(client):

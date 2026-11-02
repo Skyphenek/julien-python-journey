@@ -263,6 +263,59 @@ def test_proposer_un_diner_compose_compte_comme_prevu():
     assert proposer(carte(), repas, SEMAINE, LUN, hasard=Random(7)) == {}
 
 
+# --- Proposer avec un accompagnement (étape 3) ---
+from diners import accompagner
+
+
+def avec_accords(plats, accords):
+    """Le carnet `plats`, ses accords ({id de plat: [ids]}) et les accompagnements qu'ils citent."""
+    accs = sorted({a for ids in accords.values() for a in ids})
+    return ([{**p, "accords": accords.get(p["id"], [])} for p in plats]
+            + [{**plat(a, a, genre="accompagnement"), "recette": "1.", "pour": "nous"} for a in accs])
+
+
+def test_accompagner_un_accord_du_plat():
+    plats = avec_accords(carte(), {"plat-carnet-00": ["acc-puree-0", "acc-salade-0"]})
+    mer = LUN + timedelta(days=2)
+    m = accompagner({LUN: "plat-carnet-00", mer: "plat-carnet-01"}, plats, [], SEMAINE, hasard=Random(1))
+    assert m[LUN][0] == "plat-carnet-00" and len(m[LUN]) == 2 and m[LUN][1] in ("acc-puree-0", "acc-salade-0")
+    assert m[mer] == ["plat-carnet-01"]                                   # sans accord : le plat seul
+
+
+def test_accompagner_pas_deux_fois_dans_la_semaine():
+    plats = avec_accords(carte(), {"plat-carnet-00": ["acc-puree-0", "acc-salade-0"],
+                                   "plat-carnet-01": ["acc-puree-0", "acc-salade-0"]})
+    mer, sam = LUN + timedelta(days=2), LUN + timedelta(days=5)
+    deja = [diner(sam, "plat-carnet-05", "acc-salade-0")]                 # la salade est déjà au menu samedi
+    for graine in range(10):
+        m = accompagner({LUN: "plat-carnet-00", mer: "plat-carnet-01"}, plats, deja, SEMAINE, hasard=Random(graine))
+        assert m == {LUN: ["plat-carnet-00", "acc-puree-0"], mer: ["plat-carnet-01"]}
+
+
+def test_accompagner_ni_archive_ni_pour_un_seul_ni_inconnu():
+    plats = avec_accords(carte(), {"plat-carnet-00": ["acc-vieux-0", "acc-coleslaw", "acc-absent"]})
+    plats = [{**p, "archive": True} if p["id"] == "acc-vieux-0"
+             else {**p, "pour": "laetitia"} if p["id"] == "acc-coleslaw" else p
+             for p in plats if p["id"] != "acc-absent"]
+    assert accompagner({LUN: "plat-carnet-00"}, plats, [], SEMAINE, hasard=Random(1)) == {LUN: ["plat-carnet-00"]}
+
+
+def test_accompagner_reproposer_libere_l_ancien_accompagnement():
+    plats = avec_accords(carte(), {"plat-carnet-01": ["acc-puree-0"]})
+    ancien = [diner(LUN, "plat-carnet-00", "acc-puree-0")]                # le dîner qu'on repropose
+    m = accompagner({LUN: "plat-carnet-01"}, plats, ancien, SEMAINE, remplacer=[LUN], hasard=Random(1))
+    assert m == {LUN: ["plat-carnet-01", "acc-puree-0"]}
+
+
+def test_proposer_remplace_un_diner_tel_que_propose():
+    plats = avec_accords(carte(), {"plat-carnet-00": ["acc-puree-0"]})
+    mar = LUN + timedelta(days=1)
+    soirs = [diner(LUN, "plat-carnet-00", "acc-puree-0"),                 # un plat et son accord : tel que proposé
+             diner(mar, "plat-carnet-01", "acc-puree-0")]                 # un accompagnement choisi à la main
+    q = proposer(plats, soirs, SEMAINE, LUN, remplacer=[LUN, mar], hasard=Random(8))
+    assert LUN in q and mar not in q
+
+
 # --- Coût de la semaine ---
 from diners import cout_semaine, LIVRAISON_DEUX
 from prix_paris import prix_de

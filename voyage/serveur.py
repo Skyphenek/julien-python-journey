@@ -38,7 +38,7 @@ from casa import aujourdhui_en_html, aujourd_hui_paris
 from courses import valider_article, valider_placard, courses_en_html, normaliser
 from prix_paris import cout_repas
 from diners import (disponibles, valider_plat, valider_repas, secours, a_acheter, compteur, semaine, diners_en_html,
-                    proposer, cout_semaine, repas_prevus, ranger, nettoyer_accords, LIVRAISON_DEUX, FENETRE_PASSE, FENETRE_FUTUR)
+                    proposer, accompagner, cout_semaine, repas_prevus, ranger, nettoyer_accords, LIVRAISON_DEUX, FENETRE_PASSE, FENETRE_FUTUR)
 from uuid import uuid4
 
 load_dotenv(Path(__file__).parent / ".env")   # en local : lit voyage/.env s'il existe
@@ -154,7 +154,7 @@ def creer_app(nom_base="valise", secret=None):
 
     @routes.post("/api/diners/proposer")
     def proposer_la_semaine():
-        """Complète la semaine (diners.proposer) et enregistre les dîners proposés ; `remplacer` : jours à retirer."""
+        """Complète la semaine (diners.proposer, un accompagnement par diners.accompagner) et enregistre les dîners proposés ; `remplacer` : jours à retirer."""
         corps = request.get_json(silent=True) or {}
         try:
             remplacer = [date.fromisoformat(j) for j in corps.get("remplacer", [])]
@@ -166,11 +166,13 @@ def creer_app(nom_base="valise", secret=None):
             plats = lire_plats(conn)
             repas = lire_repas(conn, jour - timedelta(days=FENETRE_PASSE), jour + timedelta(days=6))
             proposes = proposer(plats, repas, semaine(jour), jour, remplacer=remplacer)
-            for j, id_plat in proposes.items():
-                enregistrer_repas(conn, {"jour": j, "moment": "diner", "plats": [id_plat], "issue": None})
+            menus = accompagner(proposes, plats, repas, semaine(jour), remplacer=remplacer)
+            for j, ids in menus.items():
+                enregistrer_repas(conn, {"jour": j, "moment": "diner", "plats": ids, "issue": None})
         finally:
             conn.close()
-        return jsonify({"proposes": {j.isoformat(): id_plat for j, id_plat in proposes.items()}})
+        return jsonify({"proposes": {j.isoformat(): id_plat for j, id_plat in proposes.items()},   # pages v38
+                        "menus": {j.isoformat(): ids for j, ids in menus.items()}})
 
     # --- Casa Binomerie : courses et placard ---
 

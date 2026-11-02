@@ -193,18 +193,51 @@ MINUTES_SEMAINE = 45        # du lundi au jeudi, on cuisine vite
 RECENT = 14                 # un plat mangé il y a moins de 14 jours ne revient pas
 
 
+def tel_que_propose(plats_du_diner, par_id):
+    """Un dîner tel que Proposer le pose : vide, un plat, ou un plat et un de ses accords. « Reproposer » peut le
+    changer ; un dîner composé à la main, jamais."""
+    if len(plats_du_diner) <= 1:
+        return True
+    principal = par_id.get(plats_du_diner[0])
+    return len(plats_du_diner) == 2 and principal is not None and plats_du_diner[1] in (principal.get("accords") or [])
+
+
+def accompagner(choix, plats, repas, jours, remplacer=(), hasard=None):
+    """{jour: [plat] ou [plat, accompagnement]} : à chaque plat proposé (`choix`, voir proposer), un de ses accords
+    au hasard — accompagnement non archivé, pour nous deux, ni déjà au menu de la semaine (tous moments, hors les
+    jours remplacés), ni déjà donné à un autre jour. Sans accord possible : le plat seul."""
+    from random import Random
+    hasard = hasard or Random()
+    par_id = {p["id"]: p for p in plats}
+    pris = {i for r in repas if r["jour"] in jours and r["jour"] not in remplacer for i in r["plats"]}
+    menus = {}
+    for j, id_plat in sorted(choix.items()):
+        possibles = [a for a in par_id[id_plat].get("accords") or []
+                     if a in par_id and par_id[a]["genre"] == "accompagnement" and not par_id[a]["archive"]
+                     and par_id[a].get("pour", "nous") == "nous" and a not in pris]
+        if possibles:
+            a = hasard.choice(possibles)
+            pris.add(a)
+            menus[j] = [id_plat, a]
+        else:
+            menus[j] = [id_plat]
+    return menus
+
+
 def proposer(plats, repas, jours, aujourd_hui, remplacer=(), cible=CIBLE_SOIRS, hasard=None):
     """{jour: id du plat} pour compléter la semaine jusqu'à `cible` dîners prévus.
 
     Dîners libres seulement (ni plat ni issue), vendredi et samedi en dernier recours (souvent dehors), répartis
     dans la semaine. Plats pour nous deux, avec recette ; rapides (≤ 45 min) du lundi au jeudi ; ni déjà prévus
     (tous moments), ni mangés ces 14 derniers jours, ni brunchs ; un plat à tester s'il n'y en a pas déjà un. `remplacer` :
-    des jours à tirer au sort de nouveau, avec un autre plat. Déjeuners et brunchs ne remplissent pas un soir."""
+    des jours à tirer au sort de nouveau, avec un autre plat (s'ils sont encore tels que proposés). L'accompagnement :
+    voir accompagner. Déjeuners et brunchs ne remplissent pas un soir."""
     from random import Random
     hasard = hasard or Random()
     diners = {r["jour"]: r for r in repas if r["moment"] == "diner"}
-    remplacer = [j for j in remplacer if j in jours
-                 and not (j in diners and (len(diners[j]["plats"]) > 1 or diners[j]["issue"]))]   # ni composé, ni déjà vécu
+    par_id = {p["id"]: p for p in plats}
+    remplacer = [j for j in remplacer if j in jours                          # ni composé à la main, ni déjà vécu
+                 and not (j in diners and (diners[j]["issue"] or not tel_que_propose(diners[j]["plats"], par_id)))]
     prevus = {j: diners[j]["plats"] for j in jours if j in diners and diners[j]["plats"] and j not in remplacer}
     besoin = max(0, cible - len(prevus))
     libres = [j for j in jours if j not in prevus and j not in remplacer
