@@ -5,7 +5,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 import pytest
 from db import (connecter, enregistrer_article, lire_courses, supprimer_article, vider_pris, enregistrer_placard,
-                semer_placard, compter_a_prendre, retirer_du_placard)
+                semer_placard, compter_a_prendre, retirer_du_placard, lire_achats)
 
 
 def basique(nom, en_stock=True, bientot=False, zone="placard-sec"):
@@ -23,7 +23,7 @@ def article(id_, nom, **reste):
 def conn():
     c = connecter("valise_test")
     with c.cursor() as cur:
-        cur.execute("TRUNCATE courses, placard")
+        cur.execute("TRUNCATE courses, placard, achats")
     c.commit()
     yield c
     c.close()
@@ -97,6 +97,38 @@ def test_cocher_un_doublon_coche_l_article_de_la_liste(conn):
     enregistrer_article(conn, article("lait-0001", "lait", rayon="frais"))
     enregistrer_article(conn, article("lait-0002", "Lait", rayon="frais", pris=True))
     assert [(a["id"], a["pris"]) for a in lire_courses(conn)["articles"]] == [("lait-0001", True)]
+
+
+# --- Le journal des achats (budget) ---
+
+def test_cocher_note_l_achat_avec_son_prix_estime(conn):
+    from casa import aujourd_hui_paris
+    from prix_paris import prix_de
+    jour = aujourd_hui_paris()
+    enregistrer_article(conn, article("lait-0001", "lait", rayon="frais"))
+    assert lire_achats(conn, jour, jour) == []                                   # sur la liste : pas encore acheté
+    enregistrer_article(conn, article("lait-0001", "lait", rayon="frais", pris=True))
+    enregistrer_article(conn, article("lait-0001", "lait", rayon="frais", pris=True))   # recoché : une seule fois
+    enregistrer_article(conn, article("truc-0001", "bidule introuvable", pris=True))
+    assert lire_achats(conn, jour, jour) == [{"jour": jour, "nom": "lait", "prix": prix_de("lait")[1]},
+                                             {"jour": jour, "nom": "bidule introuvable", "prix": None}]
+
+
+def test_decocher_le_meme_jour_efface_l_achat(conn):
+    from casa import aujourd_hui_paris
+    jour = aujourd_hui_paris()
+    enregistrer_article(conn, article("pain-0001", "pain", pris=True))
+    enregistrer_article(conn, article("pain-0001", "pain"))                      # coché par erreur
+    assert lire_achats(conn, jour, jour) == []
+
+
+def test_vider_les_pris_garde_le_journal(conn):
+    from casa import aujourd_hui_paris
+    jour = aujourd_hui_paris()
+    enregistrer_article(conn, article("pain-0001", "pain", pris=True))
+    enregistrer_article(conn, article("lait-0001", "lait", pris=True, recurrent=True))
+    vider_pris(conn)
+    assert [a["nom"] for a in lire_achats(conn, jour, jour)] == ["pain", "lait"]
 
 
 def test_supprimer_et_compter(conn):

@@ -261,3 +261,14 @@ CREATE TABLE IF NOT EXISTS repas (
     maj_le      TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (jour, moment)
 );
+
+-- Le journal des achats (02/11/2026) : chaque article coché dans Courses, son prix estimé (prix_paris), le jour à
+-- Paris. Décoché le même jour : la ligne part. Vider les pris n'y touche pas. Sert au budget de la maison.
+CREATE TABLE IF NOT EXISTS achats (
+    id          SERIAL        PRIMARY KEY,
+    article     TEXT          NOT NULL,
+    nom         TEXT          NOT NULL,
+    prix        NUMERIC(8,2),
+    jour        DATE          NOT NULL,
+    cree_le     TIMESTAMPTZ   NOT NULL DEFAULT now()
+);

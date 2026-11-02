@@ -583,7 +583,8 @@ def enregistrer_article(conn, a):
     """Crée ou met à jour (même id) un article validé. Pris : son élément du placard revient en stock ;
     un durable acheté pour une recette (source plat:) et absent du placard y entre.
     Pas de doublon : un nouvel article déjà sur la liste (ou habituel rangé) sous le même nom, c'est celui-là
-    qu'on remet à prendre, ou qu'on coche."""
+    qu'on remet à prendre, ou qu'on coche.
+    Coché : noté au journal des achats (prix estimé) ; décoché le même jour : retiré du journal."""
     from courses import normaliser, deviner_zone
     with conn.cursor() as cur:
         cur.execute("SELECT EXISTS (SELECT 1 FROM courses WHERE id = %s)", (a["id"],))
@@ -593,6 +594,9 @@ def enregistrer_article(conn, a):
             if meme:
                 a = {**a, "id": meme[0], "nom": meme[1], "rayon": meme[2], "recurrent": meme[3] or a["recurrent"],
                      "source": meme[4], "actif": True}
+        cur.execute("SELECT pris FROM courses WHERE id = %s", (a["id"],))
+        avant = cur.fetchone()
+        etait_pris = bool(avant and avant[0])
         cur.execute(
             f"""INSERT INTO courses (id, {", ".join(CHAMPS_ARTICLE)})
                 VALUES (%s, {", ".join(["%s"] * len(CHAMPS_ARTICLE))})
@@ -605,6 +609,16 @@ def enregistrer_article(conn, a):
             if a["source"].startswith("plat:") and a["rayon"] in RAYONS_DURABLES:
                 cur.execute("""INSERT INTO placard (cle, nom, zone) VALUES (%s, %s, %s) ON CONFLICT (cle) DO NOTHING""",
                             (normaliser(a["nom"]), a["nom"], deviner_zone(a["nom"], a["rayon"])))
+        # Le journal des achats (budget) : coché, une ligne au prix estimé ; décoché le même jour, elle part
+        if a["pris"] and not etait_pris:
+            from prix_paris import prix_de
+            prix = prix_de(a["nom"])
+            cur.execute("""INSERT INTO achats (article, nom, prix, jour)
+                           VALUES (%s, %s, %s, (now() AT TIME ZONE 'Europe/Paris')::date)""",
+                        (a["id"], a["nom"], prix[1] if prix else None))
+        elif etait_pris and not a["pris"]:
+            cur.execute("""DELETE FROM achats WHERE article = %s
+                           AND jour = (now() AT TIME ZONE 'Europe/Paris')::date""", (a["id"],))
     conn.commit()
 
 
@@ -616,6 +630,14 @@ def lire_courses(conn):
         cur.execute(f"SELECT {', '.join(CHAMPS_PLACARD)} FROM placard ORDER BY nom")
         placard = [dict(zip(CHAMPS_PLACARD, ligne)) for ligne in cur.fetchall()]
     return {"articles": articles, "placard": placard}
+
+
+def lire_achats(conn, debut, fin):
+    """Le journal des achats entre deux jours (compris) : [{jour, nom, prix (None hors catalogue)}]."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT jour, nom, prix FROM achats WHERE jour BETWEEN %s AND %s ORDER BY jour, id", (debut, fin))
+        return [{"jour": jour, "nom": nom, "prix": float(prix) if prix is not None else None}
+                for jour, nom, prix in cur.fetchall()]
 
 
 def supprimer_article(conn, identifiant):
