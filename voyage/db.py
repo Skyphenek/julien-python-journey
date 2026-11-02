@@ -581,9 +581,18 @@ CHAMPS_PLACARD = ("cle", "nom", "en_stock", "bientot", "zone")
 
 def enregistrer_article(conn, a):
     """Crée ou met à jour (même id) un article validé. Pris : son élément du placard revient en stock ;
-    un durable acheté pour une recette (source plat:) et absent du placard y entre."""
+    un durable acheté pour une recette (source plat:) et absent du placard y entre.
+    Pas de doublon : un nouvel article déjà sur la liste (ou habituel rangé) sous le même nom, c'est celui-là
+    qu'on remet à prendre, ou qu'on coche."""
     from courses import normaliser, deviner_zone
     with conn.cursor() as cur:
+        cur.execute("SELECT EXISTS (SELECT 1 FROM courses WHERE id = %s)", (a["id"],))
+        if not cur.fetchone()[0]:
+            cur.execute("SELECT id, nom, rayon, recurrent, source FROM courses WHERE actif OR recurrent")
+            meme = next((l for l in cur.fetchall() if normaliser(l[1]) == normaliser(a["nom"])), None)
+            if meme:
+                a = {**a, "id": meme[0], "nom": meme[1], "rayon": meme[2], "recurrent": meme[3] or a["recurrent"],
+                     "source": meme[4], "actif": True}
         cur.execute(
             f"""INSERT INTO courses (id, {", ".join(CHAMPS_ARTICLE)})
                 VALUES (%s, {", ".join(["%s"] * len(CHAMPS_ARTICLE))})
@@ -726,24 +735,6 @@ def lire_repas(conn, debut, fin):
         cur.execute("""SELECT jour, moment, plats, issue FROM repas WHERE jour BETWEEN %s AND %s
                        ORDER BY jour, moment""", (debut, fin))
         return [dict(zip(("jour", "moment", "plats", "issue"), ligne)) for ligne in cur.fetchall()]
-
-
-def reprendre_soirs(conn):
-    """La reprise repas-v1, une seule fois (table reprises) : chaque soir renseigné devient un dîner
-    (même plat, même issue). Sans commit : l'appelant valide ou annule (à blanc).
-    Renvoie le nombre de dîners repris, ou None si la reprise est déjà faite."""
-    with conn.cursor() as cur:
-        cur.execute("SELECT EXISTS (SELECT 1 FROM reprises WHERE nom = 'repas-v1')")
-        if cur.fetchone()[0]:
-            return None
-        cur.execute("""INSERT INTO repas (jour, moment, plats, issue, maj_le)
-                       SELECT jour, 'diner', CASE WHEN plat IS NULL THEN '[]'::jsonb ELSE jsonb_build_array(plat) END,
-                              issue, maj_le
-                       FROM soirs WHERE plat IS NOT NULL OR issue IS NOT NULL
-                       ON CONFLICT (jour, moment) DO NOTHING""")
-        n = cur.rowcount
-        cur.execute("INSERT INTO reprises (nom) VALUES ('repas-v1')")
-    return n
 
 
 def semer_carnet(conn, carnet, a_tester):

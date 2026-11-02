@@ -249,15 +249,10 @@ ALTER TABLE plats DROP CONSTRAINT IF EXISTS plats_pour_check;          -- 01/11 
 ALTER TABLE plats ADD CONSTRAINT plats_pour_check CHECK (pour IN ('nous', 'julien', 'laetitia'));
 -- Accords (02/11/2026) : les accompagnements qui vont avec un plat (ids de plats, 6 au plus)
 ALTER TABLE plats ADD COLUMN IF NOT EXISTS accords JSONB NOT NULL DEFAULT '[]';
--- Les soirs : le plat prévu, et ce qui s'est vraiment passé — la mesure du succès (Deliveroo).
-CREATE TABLE IF NOT EXISTS soirs (
-    jour        DATE        PRIMARY KEY,
-    plat        TEXT        REFERENCES plats(id) ON DELETE SET NULL,
-    issue       TEXT        CHECK (issue IN ('fait', 'commande', 'dehors', 'autre')),
-    maj_le      TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+-- Les soirs (un plat par jour) : repris en repas le 01/11/2026 (reprise repas-v1), supprimés le 02/11/2026.
+DROP TABLE IF EXISTS soirs;
 -- Un repas = plusieurs plats (01/11/2026) : le dîner de chaque jour, un déjeuner ou un brunch à la demande.
--- plats : ids de plats, dans l'ordre d'ajout. Remplace `soirs` (gardée en lecture, reprise repas-v1).
+-- plats : ids de plats, dans l'ordre d'ajout ; issue : ce qui s'est vraiment passé — la mesure du succès (Deliveroo).
 CREATE TABLE IF NOT EXISTS repas (
     jour        DATE        NOT NULL,
     moment      TEXT        NOT NULL CHECK (moment IN ('diner', 'dejeuner', 'brunch')),
