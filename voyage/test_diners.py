@@ -303,8 +303,17 @@ def test_accompagner_ni_archive_ni_pour_un_seul_ni_inconnu():
 def test_accompagner_reproposer_libere_l_ancien_accompagnement():
     plats = avec_accords(carte(), {"plat-carnet-01": ["acc-puree-0"]})
     ancien = [diner(LUN, "plat-carnet-00", "acc-puree-0")]                # le dîner qu'on repropose
-    m = accompagner({LUN: "plat-carnet-01"}, plats, ancien, SEMAINE, remplacer=[LUN], hasard=Random(1))
+    m = accompagner({LUN: "plat-carnet-01"}, plats, ancien, SEMAINE, hasard=Random(1))
     assert m == {LUN: ["plat-carnet-01", "acc-puree-0"]}
+
+
+def test_accompagner_garde_l_accompagnement_d_un_soir_qu_on_ne_repropose_pas():
+    plats = avec_accords(carte(), {"plat-carnet-00": ["acc-puree-0"], "plat-carnet-01": ["acc-puree-0"]})
+    mar = LUN + timedelta(days=1)
+    compose = [diner(mar, "plat-carnet-01", "acc-puree-0")]               # composé à la main : Reproposer le laisse
+    for graine in range(10):
+        m = accompagner({LUN: "plat-carnet-00"}, plats, compose, SEMAINE, hasard=Random(graine))
+        assert m == {LUN: ["plat-carnet-00"]}
 
 
 def test_proposer_remplace_un_diner_tel_que_propose():

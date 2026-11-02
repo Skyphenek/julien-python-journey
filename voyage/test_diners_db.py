@@ -139,6 +139,18 @@ def test_api_proposer_avec_un_accompagnement(client, conn):
     assert set(accs) <= {"acc-puree-robuchon", "acc-pommes-sautees"}
 
 
+def test_api_reproposer_ne_reprend_pas_l_accompagnement_d_un_soir_garde(client, conn):
+    for p in lire_plats(conn):
+        if p["genre"] == "plat":
+            enregistrer_plat(conn, {**p, "accords": ["acc-puree-robuchon"]})
+    garde = (J + timedelta(days=1)).isoformat()
+    client.post("/api/repas", json={"jour": garde, "moment": "diner",
+                                    "plats": ["plat-carbonara", "acc-puree-robuchon", "dessert-tiramisu"], "issue": None})
+    menus = client.post("/api/diners/proposer", json={"remplacer": [garde]}).get_json()["menus"]
+    assert garde not in menus
+    assert all("acc-puree-robuchon" not in ids for ids in menus.values())
+
+
 def test_api_diners_couts(client):
     d = client.get("/api/diners").get_json()
     carbo = next(p for p in d["plats"] if p["id"] == "plat-carbonara")

@@ -166,7 +166,7 @@ def creer_app(nom_base="valise", secret=None):
             plats = lire_plats(conn)
             repas = lire_repas(conn, jour - timedelta(days=FENETRE_PASSE), jour + timedelta(days=6))
             proposes = proposer(plats, repas, semaine(jour), jour, remplacer=remplacer)
-            menus = accompagner(proposes, plats, repas, semaine(jour), remplacer=remplacer)
+            menus = accompagner(proposes, plats, repas, semaine(jour))
             for j, ids in menus.items():
                 enregistrer_repas(conn, {"jour": j, "moment": "diner", "plats": ids, "issue": None})
         finally:

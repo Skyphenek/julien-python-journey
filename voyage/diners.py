@@ -202,14 +202,14 @@ def tel_que_propose(plats_du_diner, par_id):
     return len(plats_du_diner) == 2 and principal is not None and plats_du_diner[1] in (principal.get("accords") or [])
 
 
-def accompagner(choix, plats, repas, jours, remplacer=(), hasard=None):
+def accompagner(choix, plats, repas, jours, hasard=None):
     """{jour: [plat] ou [plat, accompagnement]} : à chaque plat proposé (`choix`, voir proposer), un de ses accords
     au hasard — accompagnement non archivé, pour nous deux, ni déjà au menu de la semaine (tous moments, hors les
-    jours remplacés), ni déjà donné à un autre jour. Sans accord possible : le plat seul."""
+    jours qu'on propose de nouveau), ni déjà donné à un autre jour. Sans accord possible : le plat seul."""
     from random import Random
     hasard = hasard or Random()
     par_id = {p["id"]: p for p in plats}
-    pris = {i for r in repas if r["jour"] in jours and r["jour"] not in remplacer for i in r["plats"]}
+    pris = {i for r in repas if r["jour"] in jours and r["jour"] not in choix for i in r["plats"]}
     menus = {}
     for j, id_plat in sorted(choix.items()):
         possibles = [a for a in par_id[id_plat].get("accords") or []
