@@ -46,7 +46,7 @@ ACCOMPAGNEMENTS = [
 1. Semoule dans un saladier, bouillon bouillant juste à hauteur, couvrir d'une assiette.
 2. 5 min de repos, puis le beurre, et égrainer à la fourchette.
 3. Poivre, un filet d'huile d'olive.""",
-         "Avec des cuisses de poulet au paprika ou un poulet rôti."),
+         "Prête en 10 minutes, avec un plat en sauce ou des légumes rôtis."),
 
     _acc("pommes-grenaille", "Pommes grenaille ail-romarin (air fryer)", 30,
          ["pommes de terre grenaille", "ail", "romarin"],
@@ -142,7 +142,7 @@ ACCOMPAGNEMENTS = [
 2. Œuf, sel, poivre, mélanger.
 3. Poêle chaude bien huilée : 4 petits tas aplatis, 5 min par face à feu moyen, jusqu'à ce qu'ils soient dorés.
 4. Égoutter sur du papier absorbant.""",
-         "Avec un steak, des ailes de poulet, ou des œufs au brunch."),
+         "Croustillant : le registre où Laetitia dit oui. Au brunch, avec des œufs."),
 
     _acc("pommes-four", "Pommes de terre au four, crème ciboulette (air fryer)", 45,
          ["pommes de terre", "crème fraîche", "ciboulette"],
@@ -152,7 +152,7 @@ ACCOMPAGNEMENTS = [
 1. Pommes de terre lavées, piquées à la fourchette, frottées d'huile et de gros sel.
 2. Air fryer 200 °C, 40 à 45 min, retournées à mi-cuisson : peau croustillante, cœur fondant.
 3. Fendre en croix, presser les côtés, crème mélangée à la ciboulette ciselée dans l'ouverture.""",
-         "Avec un rôti de bœuf ou une pièce du boucher."),
+         "Peau croustillante, cœur fondant ; se prépare pendant que le reste cuit."),
 
     _acc("carottes-vichy", "Carottes Vichy", 25, ["carottes", "beurre", "sucre", "persil"],
          """Pour 2

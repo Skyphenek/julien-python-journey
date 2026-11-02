@@ -73,6 +73,28 @@ def test_accords_de_depart():
             assert a not in RETIRES and not a_un_jamais(acc), (id_, a)
 
 
+def test_poser_accords_ne_touche_pas_maj_le(conn):
+    ajouter_recettes(conn, NOM_REPRISE, ACCOMPAGNEMENTS)
+    conn.commit()
+    lire = "SELECT maj_le FROM plats WHERE id = 'plat-piece-du-boucher'"
+    with conn.cursor() as cur:
+        cur.execute(lire)
+        avant = cur.fetchone()[0]
+        assert poser_accords(conn, NOM_REPRISE_ACCORDS, ACCORDS) > 0
+        cur.execute(lire)
+        assert cur.fetchone()[0] == avant
+
+
+def test_accompagnement_a_tester_ne_bloque_pas_le_plat_a_tester():
+    lundi = date(2026, 11, 2)
+    base = {"genre": "plat", "pour": "nous", "recette": "x", "minutes": 30, "archive": False, "ingredients": []}
+    plats = [{**base, "id": "p-carnet", "statut": "carnet"}, {**base, "id": "p-test", "statut": "a-tester"},
+             {**ACCOMPAGNEMENTS[0], "statut": "a-tester", "archive": False}]
+    repas = [{"jour": lundi, "moment": "diner", "plats": [ACCOMPAGNEMENTS[0]["id"]], "issue": ""}]
+    choix = proposer(plats, repas, semaine(lundi), lundi, cible=2, hasard=Random(1))
+    assert list(choix.values()) == ["p-test"]
+
+
 def test_ajout_et_accords_une_seule_fois(conn):
     assert ajouter_recettes(conn, NOM_REPRISE, ACCOMPAGNEMENTS + BRUNCHS) == 21
     assert poser_accords(conn, NOM_REPRISE_ACCORDS, ACCORDS) == len(ACCORDS)

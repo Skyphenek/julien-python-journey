@@ -228,7 +228,7 @@ def proposer(plats, repas, jours, aujourd_hui, remplacer=(), cible=CIBLE_SOIRS, 
     candidats = [p for p in plats if p["genre"] == "plat" and not p["archive"] and p.get("pour", "nous") == "nous"
                  and p["recette"] and p["id"] not in exclus and not p["id"].startswith("brunch-")]
     hasard.shuffle(candidats)
-    a_tester = any(p["statut"] == "a-tester" for p in plats if p["id"] in deja)
+    a_tester = any(p["statut"] == "a-tester" and p["genre"] == "plat" for p in plats if p["id"] in deja)
     choix = {}
     for j in sorted(a_remplir, key=lambda j: j.weekday() != 6):     # le plat à tester, le dimanche s'il y en a un
         rapide = j.weekday() < 4
@@ -431,6 +431,7 @@ SCRIPT_DINERS = """
     }
     // Les accords d'un plat qui tiennent encore : des accompagnements non archivés
     function accordsDe(p) {
+        if (p.genre !== 'plat') return [];
         return (p.accords || []).map(plat).filter(function (a) { return a && !a.archive && a.genre === 'accompagnement'; });
     }
     function enStock(nom) { return d.stock.indexOf(normaliser(nom)) >= 0; }

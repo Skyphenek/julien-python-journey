@@ -826,6 +826,7 @@ def poser_accords(conn, nom_reprise, accords):
     """Les accords de départ ({id de plat: [ids d'accompagnements]}), une seule fois (table reprises) :
     seulement sur les plats qui n'en ont pas encore (ceux réglés dans l'app restent), et seulement des
     accompagnements présents et non archivés. Sans commit : l'appelant valide ou annule (à blanc).
+    Ne touche pas maj_le : actualiser_recettes le lit comme « touché dans l'app » après une reprise.
     Renvoie le nombre de plats réglés, ou None si c'est déjà fait."""
     with conn.cursor() as cur:
         cur.execute("SELECT EXISTS (SELECT 1 FROM reprises WHERE nom = %s)", (nom_reprise,))
@@ -837,7 +838,7 @@ def poser_accords(conn, nom_reprise, accords):
         for id_, ids in accords.items():
             gardes = [i for i in ids if i in possibles]
             if gardes:
-                cur.execute("""UPDATE plats SET accords = %s, maj_le = now()
+                cur.execute("""UPDATE plats SET accords = %s
                                WHERE id = %s AND genre = 'plat' AND accords = '[]'::jsonb""", (Json(gardes), id_))
                 n += cur.rowcount
         cur.execute("INSERT INTO reprises (nom) VALUES (%s)", (nom_reprise,))
