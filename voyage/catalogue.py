@@ -130,7 +130,7 @@ _GROUPES = [
         chocolat blanc, pépites de chocolat, cacao, cacao en poudre, poudre d'amande, amandes effilées,
         noix de coco râpée, gélatine, agar-agar, pâte d'amande, pâte à tartiner, nutella, confiture,
         compote, crème de marrons, lait concentré sucré, caramel, sirop de grenadine, sirop de menthe,
-        boudoirs, biscuits, petits-beurre, spéculoos, sablés, madeleines, gâteaux secs, céréales, muesli,
+        boudoirs, biscuits à la cuillère, biscuits, petits-beurre, spéculoos, sablés, madeleines, gâteaux secs, céréales, muesli,
         granola, café, café moulu, café en grains, capsules de café, café soluble, thé, thé vert, thé noir,
         infusion, tisane, chicorée, chocolat en poudre, cookies, barres de céréales, bonbons"""),
 

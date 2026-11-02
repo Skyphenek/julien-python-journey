@@ -62,3 +62,12 @@ def test_epicerie_italienne():
     for nom in ("pecorino", "guanciale ou pancetta", "tomates pelées", "anchois", "farine 00"):
         assert cle_catalogue(nom) in italien, nom
     assert cle_catalogue("sauce soja") not in italien
+
+
+def test_biscuits_a_la_cuillere_pour_le_tiramisu():
+    """02/11/2026 : on achète des biscuits à la cuillère, plus des boudoirs (Julien)."""
+    from carnet_depart import CARNET_DEPART
+    from prix_paris import prix_de
+    assert chercher("biscuits à la cuillère") == chercher("boudoirs") and prix_de("biscuits à la cuillère")
+    tiramisu = next(p for p in CARNET_DEPART if p["id"] == "dessert-tiramisu")
+    assert "biscuits à la cuillère" in tiramisu["ingredients"] and "boudoir" not in tiramisu["recette"]

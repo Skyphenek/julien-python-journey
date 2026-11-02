@@ -314,18 +314,18 @@ Avec : pain pita ou demi-baguette grillée, crudités.""",
     },
     {
         "id": "dessert-tiramisu", "nom": "Tiramisu", "genre": "dessert", "minutes": 30,
-        "ingredients": ["mascarpone", "cacao", "œufs", "sucre", "boudoirs", "café"],
+        "ingredients": ["mascarpone", "cacao", "œufs", "sucre", "biscuits à la cuillère", "café"],
         "recette": """Pour 6 — à faire la veille (6 h de frigo minimum)
 - 3 œufs très frais
 - 250 g de mascarpone, 70 g de sucre
-- 200 g de boudoirs (savoiardi)
+- 200 g de biscuits à la cuillère (savoiardi)
 - 30 cl de café fort (espresso), refroidi ; en option 2 c. à s. de marsala ou d'amaretto
 - cacao amer en poudre
 
 1. Séparer blancs et jaunes. Fouetter jaunes et sucre jusqu'à ce que le mélange blanchisse et double de volume.
 2. Ajouter le mascarpone, fouetter juste pour lisser.
 3. Monter les blancs en neige ferme avec une pincée de sel, les incorporer à la spatule en soulevant, en trois fois, sans casser la mousse.
-4. Tremper chaque boudoir 1 seconde dans le café (pas plus, sinon il s'effondre). Une couche de boudoirs, la moitié de la crème, une couche de boudoirs, le reste de la crème.
+4. Tremper chaque biscuit 1 seconde dans le café (pas plus, sinon il s'effondre). Une couche de biscuits, la moitié de la crème, une couche de biscuits, le reste de la crème.
 5. Filmer, au frigo au moins 6 h, idéalement une nuit.
 6. Cacao tamisé au moment de servir, pas avant (il détrempe).""",
         "lien": "",

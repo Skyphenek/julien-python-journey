@@ -696,6 +696,7 @@ caramel | pot de 200 g | 3.20
 sirop de grenadine | bouteille de 75 cl | 2.90
 sirop de menthe | bouteille de 75 cl | 2.90
 boudoirs | paquet de 175 g | 1.90
+biscuits à la cuillère | paquet de 175 g | 1.90
 biscuits | paquet de 200 g | 2.20
 petits-beurre | paquet de 200 g | 1.90
 spéculoos | paquet de 250 g | 2.20
