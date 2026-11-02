@@ -657,6 +657,7 @@ SCRIPT_DINERS = """
         if (r.issue) t.append(el('span', 'badge', r.issue === 'fait' ? 'fait maison' : r.issue === 'commande' ? 'commandé' : r.issue));
         c.append(t);
         const ul = el('ul', 'plats-repas');
+        const accompagne = ranges(r).some(function (x) { return x.genre === 'accompagnement'; });
         ranges(r).forEach(function (p) {
             const li = el('li');
             const o = bouton('', 'ouvrir', function () { ouvrirFiche(p.id); });
@@ -665,9 +666,9 @@ SCRIPT_DINERS = """
             x.setAttribute('aria-label', 'Retirer ' + p.nom);
             li.append(o, x);
             ul.append(li);
-            // Ses accords pas encore au menu : un appui les ajoute
+            // Ses accords, tant que le repas n'a pas d'accompagnement : un appui en ajoute un
             const absents = accordsDe(p).filter(function (acc) { return r.plats.indexOf(acc.id) < 0; });
-            if (absents.length && r.plats.length < 8) {
+            if (absents.length && !accompagne && r.plats.length < 8) {
                 const avec = el('li', 'avec');
                 avec.append(el('span', 'meta', 'Avec :'));
                 absents.forEach(function (acc) {
