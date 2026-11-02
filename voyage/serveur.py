@@ -23,7 +23,7 @@ from db import (emprunter, ajouter_depense, lire_depenses, supprimer_depense, ob
                 enregistrer_a_voir, lire_a_voir, supprimer_a_voir, enregistrer_proche, enregistrer_souvenir,
                 lire_souvenirs, supprimer_souvenir, enregistrer_coche, lister_voyages, lire_voyage, archiver_voyage,
                 VERDICTS, enregistrer_retour, supprimer_retour, lire_retours,
-                enregistrer_article, lire_courses, supprimer_article, vider_pris,
+                enregistrer_article, lire_courses, supprimer_article, vider_pris, lire_achats,
                 enregistrer_placard, retirer_du_placard, enregistrer_plat, lire_plats, plat_existe, enregistrer_repas, lire_repas)
 from valise import (solde_depenses, actualiser_meteo, fenetres_du_voyage, page_du_voyage, accueil_en_html,
                     lieux_depuis_reponse, normales_ou_url, normales_depuis_historique,
@@ -37,11 +37,17 @@ from vocabulaire import LANGUES
 from casa import aujourdhui_en_html, aujourd_hui_paris
 from courses import valider_article, valider_placard, courses_en_html, normaliser
 from prix_paris import cout_repas
-from diners import (disponibles, a_acheter_aujourd_hui, valider_plat, valider_repas, secours, a_acheter, compteur, semaine, diners_en_html,
+from diners import (avec_achats_recents, FRAIS_JOURS, disponibles, a_acheter_aujourd_hui, valider_plat, valider_repas, secours, a_acheter, compteur, semaine, diners_en_html,
                     proposer, accompagner, cout_semaine, repas_prevus, ranger, nettoyer_accords, LIVRAISON_DEUX, FENETRE_PASSE, FENETRE_FUTUR)
 from uuid import uuid4
 
 load_dotenv(Path(__file__).parent / ".env")   # en local : lit voyage/.env s'il existe
+
+
+def articles_et_achats_recents(conn, articles, jour):
+    """La liste de courses, plus ce qui a été acheté ces FRAIS_JOURS derniers jours (voir avec_achats_recents)."""
+    recents = lire_achats(conn, jour - timedelta(days=FRAIS_JOURS - 1), jour)
+    return avec_achats_recents(articles, [a["nom"] for a in recents])
 
 
 def creer_app(nom_base="valise", secret=None):
@@ -68,7 +74,7 @@ def creer_app(nom_base="valise", secret=None):
                 du_jour = [plats[i] for r in repas if r["jour"] == jour and not r["issue"] for i in r["plats"] if i in plats]
                 lu = lire_courses(conn)
                 html = aujourdhui_en_html(lister_voyages(conn), jour,
-                                          a_acheter_aujourd_hui(du_jour, lu["placard"], lu["articles"]),
+                                          a_acheter_aujourd_hui(du_jour, lu["placard"], articles_et_achats_recents(conn, lu["articles"], jour)),
                                           ce_soir, hier, compteur(repas, jour))
             finally:
                 conn.close()
@@ -90,9 +96,10 @@ def creer_app(nom_base="valise", secret=None):
             plats = lire_plats(conn)
             repas = lire_repas(conn, jour - timedelta(days=FENETRE_PASSE), jour + timedelta(days=FENETRE_FUTUR))
             lu = lire_courses(conn)
+            articles = articles_et_achats_recents(conn, lu["articles"], jour)
         finally:
             conn.close()
-        faisables, presque = secours(plats, lu["placard"], lu["articles"])
+        faisables, presque = secours(plats, lu["placard"], articles)
         par_id = {p["id"]: p for p in plats}
         jours = semaine(jour)
         prevus = repas_prevus(repas, par_id, jours)
@@ -101,8 +108,8 @@ def creer_app(nom_base="valise", secret=None):
             "plats": [{**p, "cout": cout_repas(p["ingredients"], p["recette"])} for p in plats],
             "repas": [{**r, "jour": r["jour"].isoformat()} for r in repas],
             "liste": sorted({normaliser(a["nom"]) for a in lu["articles"] if a["actif"] and not a["pris"]}),
-            "livraison": LIVRAISON_DEUX, "cout_semaine": cout_semaine(prevus, lu["placard"], lu["articles"]),
-            "stock": sorted(disponibles(lu["placard"], lu["articles"])),
+            "livraison": LIVRAISON_DEUX, "cout_semaine": cout_semaine(prevus, lu["placard"], articles),
+            "stock": sorted(disponibles(lu["placard"], articles)),
             "secours": {"faisables": [p["id"] for p in faisables],
                         "presque": [{"plat": x["plat"]["id"], "manquants": x["manquants"]} for x in presque]},
             "compteur": compteur(repas, jour)})
@@ -148,7 +155,7 @@ def creer_app(nom_base="valise", secret=None):
                       for p in r]
             lu = lire_courses(conn)
             ajoutes = []
-            for nom, id_plat in a_acheter(prevus, lu["placard"], lu["articles"]):
+            for nom, id_plat in a_acheter(prevus, lu["placard"], articles_et_achats_recents(conn, lu["articles"], jour)):
                 enregistrer_article(conn, valider_article({"id": str(uuid4()), "nom": nom, "source": f"plat:{id_plat}"}))
                 ajoutes.append(nom)
         finally:
