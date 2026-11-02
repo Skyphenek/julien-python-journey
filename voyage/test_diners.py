@@ -153,6 +153,7 @@ def test_page_diners():
     assert "function accordsDe" in html and "function ouvrirAccords" in html                          # accords
     assert "Va bien avec" in html and "Modifier les accords" in html and "'Avec :'" in html
     assert "['brunch', 'Brunch']" in html and "brunch-" in html and "'+ ajouter'" in html            # brunch
+    assert "r.menus" in html and "plats.join(' ') === derniereProposition[iso]" in html             # étape 3
 
 
 def test_version_page_repas():
@@ -163,6 +164,11 @@ def test_version_page_repas():
 def test_version_page_accords():
     from valise import VERSION_PAGE
     assert VERSION_PAGE >= 38
+
+
+def test_version_page_proposer():
+    from valise import VERSION_PAGE
+    assert VERSION_PAGE >= 39
 
 
 # --- Pour qui (nous deux ou Julien) ---

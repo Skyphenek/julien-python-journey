@@ -419,7 +419,7 @@ SCRIPT_DINERS = """
     let d = null;                                         // ce que renvoie api/diners
     let vue = 'ce-soir', filtre = 'tout', recherche = '';
     const etiquette = { carnet: 'tout', 'a-tester': 'tout', choix: 'nous' };   // un filtre par liste ; un soir : à deux
-    let derniereProposition = {};                         // {jour: plat} : ce que « Reproposer » peut changer
+    let derniereProposition = {};                         // {jour: 'plat accompagnement'} : ce que « Reproposer » peut changer
     let messageSemaine = '';
     const ETIQUETTES = [['tout', 'Tout'], ['rapide', 'Rapide'], ['nous', 'Nous deux'], ['julien', 'Julien'], ['laetitia', 'Laetitia'],
                         ['air-fryer', 'Air fryer'], ['poisson', 'Poisson'], ['legumes', 'Légumes'], ['brunch', 'Brunch']];
@@ -631,14 +631,16 @@ SCRIPT_DINERS = """
                                                   body: JSON.stringify({ remplacer: remplacer || [] }) });
         }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
           .then(function (r) {
-              const jours = Object.keys(r.proposes);
+              const jours = Object.keys(r.proposes), poses = {};
               jours.forEach(function (iso) {
+                  const plats = (r.menus && r.menus[iso]) || [r.proposes[iso]];   // le plat et son accompagnement
                   d.repas = d.repas.filter(function (x) { return !(x.jour === iso && x.moment === 'diner'); })
-                                   .concat([{ jour: iso, moment: 'diner', plats: [r.proposes[iso]], issue: null }]);
+                                   .concat([{ jour: iso, moment: 'diner', plats: plats, issue: null }]);
+                  poses[iso] = plats.join(' ');
               });
-              derniereProposition = remplacer && remplacer.length ? Object.assign({}, derniereProposition, r.proposes) : r.proposes;
+              derniereProposition = remplacer && remplacer.length ? Object.assign({}, derniereProposition, poses) : poses;
               garder(); afficher();
-              messageSemaine = jours.length ? jours.length + ' dîner(s) proposé(s). Ajoute un accompagnement ou un dessert, puis envoie aux courses.'
+              messageSemaine = jours.length ? jours.length + ' dîner(s) proposé(s), avec un accompagnement quand le plat en a. Change-le ou ajoute un dessert, puis envoie aux courses.'
                                             : 'Rien à proposer : la semaine a déjà quatre dîners, ou aucun plat ne convient.';
               afficher(); relire();
           }, function () { msg.textContent = 'Pas de réseau : réessaie une fois connecté.'; });
@@ -717,7 +719,7 @@ SCRIPT_DINERS = """
         const prop = el('div', 'proposer');
         prop.append(bouton('Proposer ma semaine', 'plein', function () { proposerSemaine(msgP, []); }));
         const aRefaire = Object.keys(derniereProposition).filter(function (iso) {
-            const r = repas(iso, 'diner'); return r.plats.length === 1 && r.plats[0] === derniereProposition[iso]; });
+            return repas(iso, 'diner').plats.join(' ') === derniereProposition[iso]; });
         if (aRefaire.length) prop.append(bouton('Reproposer', 'petit', function () { proposerSemaine(msgP, aRefaire); }));
         zone.append(prop, msgP, e);
         const msg = el('p', 'message');
