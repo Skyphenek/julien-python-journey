@@ -198,7 +198,7 @@ def proposer(plats, repas, jours, aujourd_hui, remplacer=(), cible=CIBLE_SOIRS, 
 
     Dîners libres seulement (ni plat ni issue), vendredi et samedi en dernier recours (souvent dehors), répartis
     dans la semaine. Plats pour nous deux, avec recette ; rapides (≤ 45 min) du lundi au jeudi ; ni déjà prévus
-    (tous moments), ni mangés ces 14 derniers jours ; un plat à tester s'il n'y en a pas déjà un. `remplacer` :
+    (tous moments), ni mangés ces 14 derniers jours, ni brunchs ; un plat à tester s'il n'y en a pas déjà un. `remplacer` :
     des jours à tirer au sort de nouveau, avec un autre plat. Déjeuners et brunchs ne remplissent pas un soir."""
     from random import Random
     hasard = hasard or Random()
@@ -226,7 +226,7 @@ def proposer(plats, repas, jours, aujourd_hui, remplacer=(), cible=CIBLE_SOIRS, 
     deja = {i for r in repas if r["jour"] in jours and r["jour"] not in remplacer for i in r["plats"]}
     exclus = deja | manges | {i for j in remplacer if j in diners for i in diners[j]["plats"]}
     candidats = [p for p in plats if p["genre"] == "plat" and not p["archive"] and p.get("pour", "nous") == "nous"
-                 and p["recette"] and p["id"] not in exclus]
+                 and p["recette"] and p["id"] not in exclus and not p["id"].startswith("brunch-")]
     hasard.shuffle(candidats)
     a_tester = any(p["statut"] == "a-tester" for p in plats if p["id"] in deja)
     choix = {}

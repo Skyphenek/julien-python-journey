@@ -822,6 +822,28 @@ def separer_pour_julien(conn):
     return n
 
 
+def poser_accords(conn, nom_reprise, accords):
+    """Les accords de départ ({id de plat: [ids d'accompagnements]}), une seule fois (table reprises) :
+    seulement sur les plats qui n'en ont pas encore (ceux réglés dans l'app restent), et seulement des
+    accompagnements présents et non archivés. Sans commit : l'appelant valide ou annule (à blanc).
+    Renvoie le nombre de plats réglés, ou None si c'est déjà fait."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT EXISTS (SELECT 1 FROM reprises WHERE nom = %s)", (nom_reprise,))
+        if cur.fetchone()[0]:
+            return None
+        cur.execute("SELECT id FROM plats WHERE genre = 'accompagnement' AND NOT archive")
+        possibles = {ligne[0] for ligne in cur.fetchall()}
+        n = 0
+        for id_, ids in accords.items():
+            gardes = [i for i in ids if i in possibles]
+            if gardes:
+                cur.execute("""UPDATE plats SET accords = %s, maj_le = now()
+                               WHERE id = %s AND genre = 'plat' AND accords = '[]'::jsonb""", (Json(gardes), id_))
+                n += cur.rowcount
+        cur.execute("INSERT INTO reprises (nom) VALUES (%s)", (nom_reprise,))
+    return n
+
+
 def actualiser_recettes(conn, nom_reprise, depuis, plats):
     """Réécrit un lot de recettes ajouté par la reprise `depuis`, une seule fois (table reprises) : seulement
     celles qu'ils n'ont pas touchées dans l'app depuis cet ajout. Sans commit : l'appelant valide ou annule.
