@@ -17,7 +17,7 @@ def voyage(depart, jours=10, libelle="Hanoï"):
 
 
 def test_le_hub_commence_par_aujourd_hui_et_finit_par_la_vadrouille():
-    assert [cle for cle, _, _ in HUB] == ["aujourdhui", "diners", "courses", "vadrouille"]   # les modules s'ajoutent à leur livraison
+    assert [cle for cle, _, _ in HUB] == ["aujourdhui", "diners", "courses", "budget", "vadrouille"]   # les modules s'ajoutent à leur livraison
     assert HUB[0][2] == "./" and HUB[-1][2] == "vadrouille"
     assert HUB[-1][1] == "Vadrouille"           # « En Vadrouille » débordait de la barre du bas sur iPhone
 
@@ -112,3 +112,12 @@ def test_bloc_a_acheter_aujourd_hui():
     assert ('<a class="bloc-courses" href="courses"><strong>À acheter pour aujourd\'hui</strong>'
             '<span>steaks hachés · pains burger · Tomates &amp; co</span></a>') in html
     assert 'class="bloc-courses"' not in aujourdhui_en_html([], AUJOURD_HUI).split("<body")[1]   # rien à acheter : rien
+
+
+def test_ligne_budget_sur_aujourd_hui():
+    semaine = {"total": 81.6, "livraison": 35, "courses": 46.6}
+    html = aujourdhui_en_html([], AUJOURD_HUI, semaine_budget=semaine)
+    assert ('<a class="bloc-budget" href="budget"><strong>Cette semaine : 82 €</strong>'
+            '<span>dont livraison et resto 35 €</span></a>') in html
+    vide = aujourdhui_en_html([], AUJOURD_HUI, semaine_budget={"total": 0, "livraison": 0, "courses": 0})
+    assert 'class="bloc-budget"' not in vide.split("<body")[1]

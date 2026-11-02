@@ -19,7 +19,7 @@ J = aujourd_hui_paris()
 def conn():
     c = connecter("valise_test")
     with c.cursor() as cur:
-        cur.execute("TRUNCATE repas, plats, courses, placard, reprises")
+        cur.execute("TRUNCATE repas, plats, courses, placard, reprises, achats")
     c.commit()
     semer_placard(c, PLACARD_DEPART)
     semer_carnet(c, CARNET_DEPART, A_TESTER)
@@ -166,3 +166,33 @@ def test_aujourd_hui_ce_qu_il_faut_acheter_pour_les_repas_du_jour(client):
                                     "issue": "fait"})                                    # déjà mangé : rien à acheter
     bloc = client.get("/").get_data(as_text=True).split('<a class="bloc-courses"')[1].split("</a>")[0]
     assert "pièce du boucher" in bloc and "pains burger" not in bloc
+
+
+def test_aujourd_hui_oublie_pas_ce_qu_on_vient_d_acheter(client):
+    client.post("/api/repas", json={"jour": J.isoformat(), "moment": "diner", "plats": ["plat-piece-du-boucher"],
+                                    "issue": None})
+    client.post("/api/courses", json={"id": "boucher-01", "nom": "pièce du boucher", "pris": True})
+    client.post("/api/courses/vider")                                     # le panier est vidé
+    html = client.get("/").get_data(as_text=True)
+    bloc = html.split('<a class="bloc-courses"')[1].split("</a>")[0] if '<a class="bloc-courses"' in html else ""
+    assert "pièce du boucher" not in bloc
+    assert "piece du boucher" in client.get("/api/diners").get_json()["stock"]   # clé normalisée
+
+
+def test_aujourd_hui_racheter_ce_qu_on_vient_d_acheter_le_remet_sur_la_liste(client):
+    client.post("/api/repas", json={"jour": J.isoformat(), "moment": "diner", "plats": ["plat-piece-du-boucher"],
+                                    "issue": None})
+    client.post("/api/courses", json={"id": "boucher-01", "nom": "pièce du boucher", "pris": True})
+    client.post("/api/courses/vider")
+    client.post("/api/courses", json={"id": "boucher-02", "nom": "pièce du boucher"})     # il en faut encore
+    bloc = client.get("/").get_data(as_text=True).split('<a class="bloc-courses"')[1].split("</a>")[0]
+    assert "pièce du boucher" in bloc
+    assert "piece du boucher" in client.get("/api/diners").get_json()["liste"]
+
+
+def test_page_budget(client):
+    client.post("/api/courses", json={"id": "lait-0001", "nom": "lait", "pris": True})
+    client.post("/api/repas", json={"jour": J.isoformat(), "moment": "diner", "plats": [], "issue": "commande"})
+    html = client.get("/budget").get_data(as_text=True)
+    assert "<h1>Budget</h1>" in html and 'data-hub="budget" class="actif"' in html
+    assert '<a class="bloc-budget" href="budget">' in client.get("/").get_data(as_text=True)

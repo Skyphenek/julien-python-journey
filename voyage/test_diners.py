@@ -389,3 +389,11 @@ def test_a_acheter_aujourd_hui():
                {"nom": "lait", "actif": False, "pris": False, "recurrent": True}]         # habituel rangé : on en a
     assert a_acheter_aujourd_hui([burger, puree], placard("pains burger"), courses) == [
         "steaks hachés", "Tomates", "oignons", "pommes de terre"]
+
+
+def test_achete_recemment_compte_comme_a_la_maison():
+    from diners import a_acheter_aujourd_hui, avec_achats_recents
+    burger = plat("plat-burger-01", "Burger", ingredients=["salade", "tomates"])
+    courses = avec_achats_recents([], ["Salade"])                        # achetée, panier vidé
+    assert a_acheter_aujourd_hui([burger], placard(), courses) == ["tomates"]
+    assert "salade" in disponibles(placard(), courses)

@@ -142,6 +142,15 @@ def semaine(aujourd_hui):
     return [aujourd_hui + timedelta(days=i) for i in range(7)]
 
 
+FRAIS_JOURS = 3             # acheté il y a moins de 3 jours (aujourd'hui compris) : on l'a encore
+
+
+def avec_achats_recents(courses, noms):
+    """Les articles de la liste, plus ce qu'on vient d'acheter (journal des achats, FRAIS_JOURS) : compté comme un
+    habituel rangé, donc disponible, même si le panier a été vidé."""
+    return list(courses) + [{"nom": n, "recurrent": True, "actif": False, "pris": False} for n in noms]
+
+
 def disponibles(placard, courses=()):
     """Les clés de ce qu'on a : le placard en stock (bientôt fini compris) et le frais habituel rangé
     ou déjà dans le panier (un habituel sur la liste à prendre, c'est qu'il en manque)."""
