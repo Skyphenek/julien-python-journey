@@ -581,9 +581,18 @@ CHAMPS_PLACARD = ("cle", "nom", "en_stock", "bientot", "zone")
 
 def enregistrer_article(conn, a):
     """Crée ou met à jour (même id) un article validé. Pris : son élément du placard revient en stock ;
-    un durable acheté pour une recette (source plat:) et absent du placard y entre."""
+    un durable acheté pour une recette (source plat:) et absent du placard y entre.
+    Pas de doublon : un nouvel article déjà sur la liste (ou habituel rangé) sous le même nom, c'est celui-là
+    qu'on remet à prendre, ou qu'on coche."""
     from courses import normaliser, deviner_zone
     with conn.cursor() as cur:
+        cur.execute("SELECT EXISTS (SELECT 1 FROM courses WHERE id = %s)", (a["id"],))
+        if not cur.fetchone()[0]:
+            cur.execute("SELECT id, nom, rayon, recurrent, source FROM courses WHERE actif OR recurrent")
+            meme = next((l for l in cur.fetchall() if normaliser(l[1]) == normaliser(a["nom"])), None)
+            if meme:
+                a = {**a, "id": meme[0], "nom": meme[1], "rayon": meme[2], "recurrent": meme[3] or a["recurrent"],
+                     "source": meme[4], "actif": True}
         cur.execute(
             f"""INSERT INTO courses (id, {", ".join(CHAMPS_ARTICLE)})
                 VALUES (%s, {", ".join(["%s"] * len(CHAMPS_ARTICLE))})

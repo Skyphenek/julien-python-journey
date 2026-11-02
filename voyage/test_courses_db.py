@@ -76,6 +76,29 @@ def test_vider_pris_garde_les_habituels(conn):
     assert restants["œufs"]["actif"] is True
 
 
+def test_pas_de_doublon_sur_la_liste(conn):
+    # « Aux courses » d'une recette, alors que l'habituel est déjà à racheter : un seul article, toujours à prendre
+    enregistrer_article(conn, article("creme-hab1", "crème fraîche", rayon="frais", recurrent=True, source="placard"))
+    enregistrer_article(conn, article("art-creme-2", "Crème  fraiche", rayon="frais", source="plat:plat-oeuf-cocotte"))
+    from courses import normaliser
+    cremes = [a for a in lire_courses(conn)["articles"] if normaliser(a["nom"]) == "creme fraiche"]
+    assert [(a["id"], a["actif"], a["recurrent"], a["source"]) for a in cremes] == [("creme-hab1", True, True, "placard")]
+
+
+def test_un_habituel_range_revient_sur_la_liste(conn):
+    enregistrer_article(conn, article("jambon-hab", "jambon", rayon="frais", recurrent=True, actif=False))
+    enregistrer_article(conn, article("art-jambon-2", "Jambon", rayon="frais", source="plat:pret-galettes"))
+    jambons = lire_courses(conn)["articles"]
+    assert [(a["id"], a["actif"], a["recurrent"]) for a in jambons] == [("jambon-hab", True, True)]
+
+
+def test_cocher_un_doublon_coche_l_article_de_la_liste(conn):
+    # Hors ligne, le téléphone a gardé le doublon et le coche : c'est l'article de la liste qui est pris
+    enregistrer_article(conn, article("lait-0001", "lait", rayon="frais"))
+    enregistrer_article(conn, article("lait-0002", "Lait", rayon="frais", pris=True))
+    assert [(a["id"], a["pris"]) for a in lire_courses(conn)["articles"]] == [("lait-0001", True)]
+
+
 def test_supprimer_et_compter(conn):
     enregistrer_article(conn, article("pain-0001", "pain"))
     enregistrer_article(conn, article("lait-0001", "lait", pris=True))
