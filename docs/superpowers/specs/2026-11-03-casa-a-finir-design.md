@@ -17,6 +17,7 @@ quand un produit frais doit être fini. « Faisable tout de suite » (Dîners) n
 - **Rien à saisir.** Chaque produit du frigo a une date « à finir avant », estimée.
 - **Aujourd'hui** : un bloc « À finir », au-dessus de « À acheter pour aujourd'hui », absent quand il est vide :
   - les produits **à vérifier** (date dépassée), avec [Fini] et [Encore bon] ;
+  - chaque produit affiché a [Fini] (mangé, jeté) ;
   - les produits à finir **d'ici 2 jours** (aujourd'hui compris : date ≤ aujourd'hui + 2) qu'aucun repas prévu n'utilise
     à temps : « rien de prévu », ou « prévu vendredi, trop tard » ;
   - sous chaque produit, jusqu'à 3 plats du carnet qui l'utilisent, avec un bouton qui l'ajoute au premier dîner libre
@@ -82,23 +83,22 @@ produit entamé se corrige avec [Fini] ou [Encore bon]) — valeurs réalistes p
 -- À finir (03/11/2026) : les dates corrigées à la main (« Encore bon », reprise du frigo).
 CREATE TABLE IF NOT EXISTS a_finir (
     cle         TEXT        PRIMARY KEY,             -- nom normalisé du produit
-    jusqu_au    DATE        NOT NULL,
-    depuis      DATE        NOT NULL                 -- la date d'entrée qu'elle corrige
+    jusqu_au    DATE        NOT NULL
 );
 ```
 
-- Une correction vaut tant que la date d'entrée calculée n'est pas plus récente que `depuis` : un produit racheté
-  repart de zéro (la correction est ignorée, et supprimée au prochain achat de ce produit).
-- **Encore bon** : `jusqu_au` = aujourd'hui + 2, `depuis` = la date d'entrée actuelle.
+- Une correction l'emporte sur le calcul. Elle est supprimée quand le produit repart de zéro : coché dans Courses
+  (`db.enregistrer_article`), remis en stock alors qu'il ne l'était pas (`db.enregistrer_placard`), ou [Fini].
+- **Encore bon** : `jusqu_au` = aujourd'hui + 2 (`ENCORE_BON_JOURS`).
 - **Fini** : un élément du placard passe `en_stock = false` (et `bientot = false`) ; un habituel revient sur la liste
   (`actif = true`, `pris = false`), comme quand il en manque. La correction est supprimée.
 
 ### Reprise du frigo (une fois, `reprises` : `a-finir-v1`)
 
-Pour chaque produit suivi sans date d'entrée connue au 03/11 : une correction `depuis` = 03/11, `jusqu_au` = 03/11 +
-durée, sauf ce qu'on sait déjà :
-- hauts de cuisse de poulet : achetés le 01/11 → `jusqu_au` = 03/11 ;
-- galettes de sarrasin (pour `pret-galettes-completes`) : 09/11 (date imprimée).
+Les habituels du frigo rangés sans achat au journal (donc sans date) : une correction `jusqu_au` = 03/11 + durée.
+Ce qu'on sait déjà (`a_finir.FRIGO_CONNU`) entre au placard (zone frigo, en stock) avec sa correction :
+- cuisses de poulet (nom des recettes) : achetées le 01/11 → `jusqu_au` = 01/11 + 2 = 03/11 ;
+- galettes de sarrasin : 09/11 (date imprimée).
 
 La liste datée est montrée sur la démo (copie prod) ; Julien la corrige avant l'écriture sur Neon.
 
@@ -118,22 +118,25 @@ manque : … » si besoin.
 
 Bouton : le premier jour d'aujourd'hui à `jusqu_au` sans dîner prévu ; libellé « Ce soir », « Demain » ou le nom du
 jour. Il pose le plat en dîner ce jour-là par l'API repas existante (file hors ligne comprise). Aucun jour libre : pas
-de bouton, « soirs pris jusqu'à <jour> ». Un produit à vérifier propose des plats seulement si `jusqu_au` + 2 laisse
-la place (sinon seulement [Fini] / [Encore bon]).
+de bouton, « soirs pris jusqu'à <jour> ». Un produit à vérifier ne propose pas de plats : [Fini] ou [Encore bon]
+d'abord (après « Encore bon », il redevient à finir, avec ses plats).
 
 ## Dîners et Proposer
 
 - `secours` : à nombre de manquants égal, les plats qui utilisent un produit à finir (à finir ou à vérifier) passent
   en tête ; l'API renvoie leurs ids, la page affiche le badge « à finir ».
-- `proposer` : avant le tirage, pour chaque produit à finir non couvert, le meilleur plat suggéré (règles ci-dessus,
-  recette ≤ 45 min du lundi au jeudi comme aujourd'hui) est placé sur le premier soir libre ≤ `jusqu_au`, s'il n'est
-  pas refusé (Reproposer) ; le reste de la semaine est tiré comme aujourd'hui.
+- `proposer` : avant le tirage, pour chaque produit à finir non couvert (par date), un plat du carnet qui l'utilise
+  (avec les filtres habituels de Proposer, ≤ 45 min du lundi au jeudi, le plus rapide) est placé sur le premier soir
+  à remplir ≤ `jusqu_au`, dans la limite des soirs à remplir ; avec Reproposer, seulement sur les jours à remplacer.
+  Le reste de la semaine est tiré comme aujourd'hui.
 
 ## Écrans et API
 
 - `POST api/a-finir/<cle>` avec `{"action": "fini" | "encore-bon"}` ; erreur 400 sur une action inconnue, 404 sur un
   produit non suivi.
 - Aujourd'hui (page servie par le serveur) : bloc « À finir », style des blocs existants, largeur iPhone, mode sombre.
+  Les boutons font comme « Hier soir ? » : envoi, rechargement ; hors connexion, « Pas envoyé : réessaie une fois
+  connecté ».
 - `VERSION_PAGE` +1 (43).
 
 ## Hors périmètre
@@ -156,7 +159,7 @@ Date imprimée lue sur photo, congélateur, notifications push, réglage des dur
 - États : à vérifier, à finir (bornes aujourd'hui et +2), rien.
 - Couverture : couvert avant la date, prévu trop tard, non prévu ; à vérifier toujours affiché.
 - Suggestions : filtres (carnet, pour nous, archivé), tri, 3 max, jour du bouton, soirs pris.
-- Actions : fini (placard, habituel), encore bon, 400, 404 ; correction supprimée au rachat.
+- Actions : fini (placard, habituel), encore bon, 400, 404 ; correction supprimée au rachat et à la remise en stock.
 - Secours et Proposer : priorité aux plats à finir, refus respecté.
 - Reprise `a-finir-v1` une seule fois.
 - Page : bloc présent/absent, boutons.
