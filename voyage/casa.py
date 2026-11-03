@@ -148,8 +148,11 @@ def bloc_ce_soir(plats):
 def _vin_en_li(v, classe=""):
     millesime = f' {v["millesime"]}' if v.get("millesime") else ""
     attributs = f' class="{classe}"' if classe else ""
+    lieu = ", ".join(x for x in (v.get("region"), v.get("pays") if v.get("pays") not in (None, "", "France") else "")
+                     if x)
+    lieu = f"{echapper(lieu)} · " if lieu else ""
     return (f'<li data-id="{echapper(v["id"])}"{attributs} hidden><strong>{echapper(v["nom"])}{millesime}</strong>'
-            f'<span>à boire avant {v["fin"]}</span></li>')
+            f'<span>{lieu}à boire avant {v["fin"]}</span></li>')
 
 
 def bloc_vin(vins, belle):

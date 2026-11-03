@@ -300,3 +300,5 @@ CREATE TABLE IF NOT EXISTS cave (
     note        TEXT        NOT NULL DEFAULT '',
     maj_le      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Le pays d'une bouteille étrangère (ajouté le 03/11/2026, avant la mise en ligne)
+ALTER TABLE cave ADD COLUMN IF NOT EXISTS pays TEXT NOT NULL DEFAULT 'France';

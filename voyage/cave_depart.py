@@ -10,7 +10,7 @@ def _vin(id_, nom, producteur, appellation, region, couleur, millesime, debut, f
          note="", quantite=1):
     return {"id": id_, "nom": nom, "producteur": producteur, "appellation": appellation, "region": region,
             "couleur": couleur, "millesime": millesime, "quantite": quantite, "debut": debut, "fin": fin,
-            "prix_bas": prix_bas, "prix_haut": prix_haut, "accords": accords, "note": note}
+            "prix_bas": prix_bas, "prix_haut": prix_haut, "accords": accords, "note": note, "pays": "France"}
 
 
 CAVE_DEPART = [

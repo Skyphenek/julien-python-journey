@@ -9,6 +9,9 @@ from accords_vins import PROFILS
 from design import STYLE_D, STYLE_NAV_HUB, STYLE_ANNEXE, STYLE_HORS_LIGNE, TETE_POLICE, nav_hub
 from pwa import SCRIPT_FILE, TETE_PWA
 
+# Suggestions à la saisie de la région ; une bouteille étrangère prend aussi son pays (France par défaut)
+REGIONS = ["Alsace", "Beaujolais", "Bordeaux", "Bourgogne", "Champagne", "Corse", "Jura", "Languedoc", "Loire",
+           "Lorraine", "Provence", "Rhône Nord", "Rhône Sud", "Roussillon", "Savoie", "Sud-Ouest"]
 COULEURS = [("rouge", "Rouge"), ("blanc", "Blanc"), ("rose", "Rosé"), ("bulles", "Effervescent"), ("doux", "Doux")]
 # Fenêtre à boire par défaut, en années après le millésime (début, fin)
 _FENETRE = {"rouge": (2, 6), "blanc": (0, 2), "rose": (0, 2), "bulles": (0, 5), "doux": (0, 5)}
@@ -85,12 +88,14 @@ def valider_bouteille(corps, annee):
             "appellation": _texte(corps, "appellation"), "region": _texte(corps, "region"), "couleur": couleur,
             "millesime": millesime, "quantite": _entier(corps, "quantite", 0, 999, 1), "debut": debut, "fin": fin,
             "prix_bas": prix_bas, "prix_haut": prix_haut, "accords": [p for p in PROFILS if p in accords],
-            "note": _texte(corps, "note")}
+            "note": _texte(corps, "note"), "pays": _texte(corps, "pays") or "France"}
 
 
 STYLE_CAVE = """
 body.cave [hidden] { display: none; }
 body.cave button, body.cave select, body.cave input { min-height: 40px; font-family: inherit; font-size: 14px; }
+body.cave input, body.cave select { background: var(--blanc); color: var(--texte); border: 2px solid var(--ligne);
+                                    border-radius: 14px; padding: 0 12px; min-width: 0; }
 body.cave button { border-radius: 14px; border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte);
                    font-weight: 700; padding: 0 14px; }
 body.cave button#ajouter { background: var(--cave); border-color: var(--cave); color: var(--blanc); }
@@ -191,9 +196,10 @@ SCRIPT_CAVE = """
         const a = el('article', 'vin'); a.dataset.couleur = b.couleur;
         const ligne = el('div', 'ligne');
         const nom = el('button', 'nom', b.nom); nom.type = 'button';
-        nom.append(el('span', 'meta', [b.millesime || 'sans millésime', NOM_COULEUR[b.couleur],
+        const lieu = [b.region, b.pays && b.pays !== 'France' ? b.pays : ''].filter(Boolean).join(', ');
+        nom.append(el('span', 'meta', [lieu, b.millesime || 'sans millésime', NOM_COULEUR[b.couleur],
                                        b.debut === b.fin ? '' + b.fin : b.debut + '–' + b.fin,
-                                       '× ' + b.quantite].join(' · ')));
+                                       '× ' + b.quantite].filter(Boolean).join(' · ')));
         nom.addEventListener('click', function () { ouvert = ouvert === b.id ? null : b.id; afficher(); });
         ligne.append(nom);
         if (b.quantite > 0) ligne.append(bouton('Bue', function () { bue(b); }));
@@ -230,12 +236,17 @@ SCRIPT_CAVE = """
             puces.append(x);
         });
         const note = el('input'); note.name = 'note'; note.value = b.note; note.placeholder = 'Note'; note.setAttribute('aria-label', 'Note');
-        e.append(quantite, debut, fin, puces, note,
+        const region = el('input'); region.name = 'region'; region.value = b.region || ''; region.placeholder = 'Région';
+        region.setAttribute('aria-label', 'Région'); region.setAttribute('list', 'regions');
+        const pays = el('input'); pays.name = 'pays'; pays.value = b.pays || 'France'; pays.placeholder = 'Pays';
+        pays.setAttribute('aria-label', 'Pays');
+        e.append(quantite, debut, fin, region, pays, puces, note,
             bouton('Enregistrer', function () {
                 ouvert = null;
                 enregistrer(Object.assign({}, b, { quantite: Math.max(entierOu(quantite, b.quantite), 0),
                     debut: entierOu(debut, b.debut), fin: entierOu(fin, b.fin),
-                    accords: PROFILS.filter(function (p) { return accords.indexOf(p) >= 0; }), note: note.value.trim() }));
+                    accords: PROFILS.filter(function (p) { return accords.indexOf(p) >= 0; }), note: note.value.trim(),
+                    region: region.value.trim(), pays: pays.value.trim() || 'France' }));
             }),
             retrait(b),
             bouton('Fermer', function () { ouvert = null; afficher(); }));
@@ -276,7 +287,8 @@ SCRIPT_CAVE = """
         const entier = function (cle) { const v = parseInt(f.get(cle), 10); return isNaN(v) ? null : v; };
         const prix = entier('prix');
         const corps = { id: 'vin-' + Date.now().toString(36), nom: (f.get('nom') || '').trim(), couleur: f.get('couleur'),
-                        millesime: entier('millesime'), quantite: entier('quantite') || 1, prix_bas: prix, prix_haut: prix };
+                        millesime: entier('millesime'), quantite: entier('quantite') || 1, prix_bas: prix, prix_haut: prix,
+                        region: (f.get('region') || '').trim(), pays: (f.get('pays') || '').trim() || 'France' };
         if (!corps.nom) return;
         // Fenêtre et accords par défaut : posés par le serveur (cave.par_defaut), relus à la réponse
         bouteilles = bouteilles.concat([Object.assign({ debut: annee, fin: annee + 2, accords: [], note: '' }, corps)]);
@@ -296,6 +308,7 @@ def cave_en_html():
     couleurs = json.dumps(COULEURS, ensure_ascii=False)
     profils = json.dumps(PROFILS, ensure_ascii=False)
     options = "".join(f'<option value="{c}">{nom}</option>' for c, nom in COULEURS)
+    regions = "".join(f'<option value="{r}">' for r in REGIONS)
     return f"""<!doctype html>
 <html lang="fr">
 <head>
@@ -318,6 +331,8 @@ def cave_en_html():
 <input name="millesime" type="number" min="1900" placeholder="Millésime" aria-label="Millésime">
 <input name="quantite" type="number" min="1" value="1" aria-label="Quantité">
 <input name="prix" type="number" min="0" placeholder="Prix (€)" aria-label="Prix estimé">
+<input name="region" placeholder="Région" aria-label="Région" list="regions">
+<input name="pays" placeholder="Pays (France)" aria-label="Pays">
 <div class="actions"><button type="submit">Ajouter</button><button type="button" data-action="annuler">Annuler</button></div>
 </form>
 <div id="cave"></div>
@@ -326,6 +341,7 @@ def cave_en_html():
 <div id="bues"></div>
 </details>
 {nav_hub("cave")}
+<datalist id="regions">{regions}</datalist>
 <script type="application/json" id="couleurs">{couleurs}</script>
 <script type="application/json" id="profils">{profils}</script>
 <script>{SCRIPT_FILE}

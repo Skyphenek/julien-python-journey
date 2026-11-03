@@ -17,9 +17,9 @@ def plat(id_):
     return next(p for p in CARNET_DEPART if p["id"] == id_)
 
 
-def vin(id_, accords, quantite=1, debut=2026, fin=2028, prix_haut=15, nom=None):
+def vin(id_, accords, quantite=1, debut=2026, fin=2028, prix_haut=15, nom=None, couleur="rouge"):
     return {"id": id_, "nom": nom or id_, "quantite": quantite, "debut": debut, "fin": fin,
-            "prix_haut": prix_haut, "accords": list(accords)}
+            "prix_haut": prix_haut, "accords": list(accords), "couleur": couleur}
 
 
 def test_profils_et_table():
@@ -89,3 +89,10 @@ def test_suggestion_prix_inconnu_en_dernier_et_rien_qui_colle():
     assert [b["id"] for b in suggerer(cave, "boeuf", [], MARDI)] == ["prix", "sans-prix"]
     assert suggerer(cave, "poisson", [], MARDI) == []
     assert suggerer(cave, None, [], MARDI) == []
+
+
+def test_vin_doux_seulement_au_dessert():
+    cave = [vin("jurancon", ["fromage", "dessert"], couleur="doux"), vin("blanc-sec", ["fromage"])]
+    assert [b["id"] for b in suggerer(cave, "fromage", [], MARDI)] == ["blanc-sec"]        # risotto : pas de moelleux
+    assert [b["id"] for b in suggerer(cave, "charcuterie", ["fromage", "dessert"], MARDI)] == ["blanc-sec"]
+    assert [b["id"] for b in suggerer(cave, "dessert", [], MARDI)] == ["jurancon"]

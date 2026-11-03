@@ -171,3 +171,20 @@ def test_script_cave_syntaxe_js(tmp_path):
     fichier.write_text(SCRIPT_CAVE, encoding="utf-8")
     r = subprocess.run([node, "--check", str(fichier)], capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
+
+
+def test_pays_par_defaut_france():
+    assert valider_bouteille(corps(), A)["pays"] == "France"
+    assert valider_bouteille(corps(pays=""), A)["pays"] == "France"
+    b = valider_bouteille(corps(region="Toscane", pays="Italie"), A)
+    assert (b["region"], b["pays"]) == ("Toscane", "Italie")
+    assert all(b["pays"] == "France" for b in CAVE_DEPART)
+
+
+def test_page_cave_region_pays_et_saisie_lisible():
+    html = cave_en_html()
+    assert '<input name="region"' in html and 'list="regions"' in html and '<datalist id="regions">' in html
+    assert '<option value="Bourgogne">' in html and '<option value="Bordeaux">' in html
+    assert '<input name="pays"' in html
+    # en sombre, le texte des champs (nombres compris) prend la couleur du thème
+    assert "body.cave input, body.cave select { background: var(--blanc); color: var(--texte);" in html

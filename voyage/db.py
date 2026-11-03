@@ -1030,7 +1030,7 @@ def dater_frigo(conn, nom_reprise, jour, connus):
 # --- Casa Binomerie : la cave -------------------------------------------------------------------
 
 CHAMPS_CAVE = ("nom", "producteur", "appellation", "region", "couleur", "millesime", "quantite", "debut", "fin",
-               "prix_bas", "prix_haut", "accords", "note")
+               "prix_bas", "prix_haut", "accords", "note", "pays")
 
 
 def lire_cave(conn):

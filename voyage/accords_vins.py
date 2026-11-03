@@ -78,7 +78,7 @@ def profils_du_repas(plats):
 
 
 def suggerer(cave, principal, secondaires, jour, belle=False):
-    """Au plus MAX_SUGGESTIONS bouteilles pour ce repas. Écartées : vides, à garder (fenêtre pas ouverte), et les
+    """Au plus MAX_SUGGESTIONS bouteilles pour ce repas. Écartées : vides, à garder (fenêtre pas ouverte), les vins doux hors dessert, et les
     belles (prix_haut > SEUIL_BELLE) du dimanche au jeudi. belle=True : seulement les belles, quel que soit le jour.
     Points : +2 pour le profil principal, +1 par profil secondaire ; 0 point -> écartée.
     Tri : points, puis fin de la fenêtre la plus proche, puis le moins cher (prix inconnu en dernier), puis nom."""
@@ -88,6 +88,8 @@ def suggerer(cave, principal, secondaires, jour, belle=False):
     for b in cave:
         est_belle = b.get("prix_haut") is not None and b["prix_haut"] > SEUIL_BELLE
         if b["quantite"] <= 0 or b["debut"] > jour.year:
+            continue
+        if b.get("couleur") == "doux" and principal != "dessert":      # un moelleux : au dessert seulement
             continue
         if belle and not est_belle:
             continue

@@ -11,7 +11,7 @@ from cave_depart import CAVE_DEPART
 def bouteille(id_="vin-a", **champs):
     return {"id": id_, "nom": "Saint-Joseph", "producteur": "", "appellation": "", "region": "", "couleur": "rouge",
             "millesime": 2019, "quantite": 1, "debut": 2026, "fin": 2028, "prix_bas": 25, "prix_haut": 30,
-            "accords": ["boeuf"], "note": ""} | champs
+            "accords": ["boeuf"], "note": "", "pays": "France"} | champs
 
 
 @pytest.fixture

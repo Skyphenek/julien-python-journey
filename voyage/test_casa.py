@@ -165,8 +165,8 @@ def test_page_aujourd_hui_avec_a_finir():
 from casa import bloc_vin
 
 
-def vin(id_, nom, fin=2028, millesime=2019):
-    return {"id": id_, "nom": nom, "millesime": millesime, "fin": fin}
+def vin(id_, nom, fin=2028, millesime=2019, region="", pays="France"):
+    return {"id": id_, "nom": nom, "millesime": millesime, "fin": fin, "region": region, "pays": pays}
 
 
 def test_bloc_vin_vide():
@@ -227,3 +227,11 @@ def test_six_onglets_tiennent_sur_iphone():
     from design import STYLE_NAV_HUB
     # base « auto » : un onglet au libellé long (« Aujourd'hui », 61 px) prend sa place au lieu de déborder sur le voisin
     assert "nav.hub a { flex: 1 1 auto; min-width: 0;" in STYLE_NAV_HUB
+
+
+def test_bloc_vin_indique_la_region_et_le_pays_etranger():
+    html = bloc_vin([vin("vin-a", "Esprit de Granit", region="Rhône Nord"),
+                     vin("vin-b", "Chianti", region="Toscane", pays="Italie"), vin("vin-c", "Plan Cuvé")], None)
+    assert "<span>Rhône Nord · à boire avant 2028</span>" in html
+    assert "<span>Toscane, Italie · à boire avant 2028</span>" in html
+    assert "<span>à boire avant 2028</span>" in html                     # sans région : rien de plus
