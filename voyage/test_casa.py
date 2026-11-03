@@ -195,7 +195,7 @@ def test_bloc_vin_seulement_une_belle():
 
 def test_bloc_vin_styles_tactiles_et_hidden():
     from casa import STYLE_CASA
-    assert "div.bloc-vin [hidden] { display: none; }" in STYLE_CASA
+    assert "div.bloc-vin [hidden], div.bloc-vin button.lien[hidden] { display: none; }" in STYLE_CASA   # .lien impose un display plus spécifique
     assert "div.bloc-vin p.message:empty { display: none; }" in STYLE_CASA
     assert "div.bloc-vin button { min-height: 40px" in STYLE_CASA
     assert "div.bloc-vin button.lien:focus-visible" in STYLE_CASA
