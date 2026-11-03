@@ -95,3 +95,21 @@ def test_reprise_de_depart():
     belles = sorted(b["nom"] for b in CAVE_DEPART if b["prix_haut"] > 30)
     assert belles == ["Billecart-Salmon Brut Rosé", "Château Sociando-Mallet", "Connétable Talbot", "Le Clos des Fées",
                       "Lucile Avril", "Nuits-Saint-Georges « Les Longecourts »"]
+
+
+from cave import cave_en_html
+import re
+
+EMOJI = re.compile("[\U0001F300-\U0001FAFF☀-➿]")
+
+
+def test_page_cave():
+    html = cave_en_html()
+    assert "<h1>Cave</h1>" in html and 'data-hub="cave" class="actif"' in html
+    assert 'id="cave"' in html and 'id="zone-bues"' in html and 'id="ajout-vin"' in html
+    for libelle in ("À boire vite", "Prêtes", "À garder"):
+        assert libelle in html
+    assert '<script type="application/json" id="couleurs">' in html
+    assert '<script type="application/json" id="profils">' in html
+    assert "envoyerOuGarder" in html                                   # la file hors ligne de Courses
+    assert EMOJI.findall(html) == []

@@ -67,3 +67,25 @@ def test_reprise_n_ecrase_pas(conn):
     assert poser_cave(conn, "cave-test", CAVE_DEPART) == 18
     conn.commit()
     assert next(b for b in lire_cave(conn) if b["id"] == "vin-peyrouquet")["quantite"] == 6
+
+
+from serveur import creer_app
+
+
+@pytest.fixture
+def client(conn):
+    return creer_app("valise_test", secret="").test_client()
+
+
+def test_routes_cave(client, conn):
+    assert client.get("/cave").status_code == 200
+    r = client.post("/api/cave", json={"id": "vin-x", "nom": "Saint-Amour", "couleur": "rouge", "millesime": 2022,
+                                       "quantite": 2})
+    assert r.status_code == 200 and r.get_json()["bouteille"]["accords"] == ["boeuf", "charcuterie"]
+    lu = client.get("/api/cave").get_json()
+    assert [b["id"] for b in lu["bouteilles"]] == ["vin-x"] and isinstance(lu["annee"], int)
+    assert client.post("/api/cave/vin-x/bue").get_json() == {"ok": True, "quantite": 1}
+    assert client.post("/api/cave/inconnu/bue").status_code == 404
+    assert client.post("/api/cave", json={"id": "vin-y", "nom": "", "couleur": "rouge"}).status_code == 400
+    assert client.delete("/api/cave/vin-x").status_code == 200
+    assert client.delete("/api/cave/vin-x").status_code == 404

@@ -3,7 +3,11 @@
 Une ligne par référence (nom, millésime, couleur…) avec sa quantité et sa fenêtre à boire. Les vins de cuisine
 restent au placard (Courses). Le vin du soir : accords_vins.py.
 """
+import json
+
 from accords_vins import PROFILS
+from design import STYLE_D, STYLE_NAV_HUB, nav_hub
+from pwa import SCRIPT_FILE
 
 COULEURS = [("rouge", "Rouge"), ("blanc", "Blanc"), ("rose", "Rosé"), ("bulles", "Effervescent"), ("doux", "Doux")]
 # Fenêtre à boire par défaut, en années après le millésime (début, fin)
@@ -82,3 +86,225 @@ def valider_bouteille(corps, annee):
             "millesime": millesime, "quantite": _entier(corps, "quantite", 0, 999, 1), "debut": debut, "fin": fin,
             "prix_bas": prix_bas, "prix_haut": prix_haut, "accords": [p for p in PROFILS if p in accords],
             "note": _texte(corps, "note")}
+
+
+GROUPES = [("vite", "À boire vite"), ("prete", "Prêtes"), ("garder", "À garder")]
+
+STYLE_CAVE = """
+body.cave h1 { margin-bottom: 4px; }
+p.resume { color: var(--doux); margin: 0 0 14px; }
+#ajouter { margin: 0 0 14px; }
+form#ajout-vin { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: var(--carte);
+                 border-radius: 20px; padding: 14px; margin: 0 0 14px; }
+form#ajout-vin input[name="nom"] { grid-column: 1 / -1; }
+form#ajout-vin .actions { grid-column: 1 / -1; display: flex; gap: 8px; }
+section.groupe-cave h2 { font-size: 15px; font-weight: 800; color: var(--doux); margin: 18px 0 8px; }
+article.vin { background: var(--carte); border-radius: 20px; padding: 12px 14px 12px 18px; margin: 0 0 8px;
+              position: relative; }
+article.vin::before { content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 5px;
+                      border-radius: 0 4px 4px 0; background: var(--c); }
+article.vin .ligne { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+article.vin button.nom { all: unset; cursor: pointer; font-weight: 700; min-width: 0; }
+article.vin .meta { display: block; color: var(--doux); font-size: 13px; font-weight: 400; }
+article.vin .edition { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center; }
+article.vin .edition input[type="number"] { width: 5.5em; }
+article.vin .edition input[name="note"] { flex: 1 1 100%; }
+article.vin .puces-accords { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 100%; }
+article.vin .puces-accords button[aria-pressed="true"] { background: var(--cave); color: var(--blanc); }
+article.vin[data-couleur="rouge"] { --c: #9b2c4f; }
+article.vin[data-couleur="blanc"] { --c: #c9a227; }
+article.vin[data-couleur="rose"] { --c: #e58aa3; }
+article.vin[data-couleur="bulles"] { --c: #a08c5b; }
+article.vin[data-couleur="doux"] { --c: #d39a2a; }
+"""
+
+SCRIPT_CAVE = """
+(function () {
+    const COULEURS = JSON.parse(document.getElementById('couleurs').textContent);
+    const PROFILS = JSON.parse(document.getElementById('profils').textContent);
+    const NOM_COULEUR = {}; COULEURS.forEach(function (c) { NOM_COULEUR[c[0]] = c[1]; });
+    const CLE_COPIE = 'cave-copie';
+    let bouteilles = [], annee = new Date().getFullYear(), ouvert = null;
+
+    function el(balise, classe, texte) {
+        const e = document.createElement(balise);
+        if (classe) e.className = classe;
+        if (texte !== undefined) e.textContent = texte;
+        return e;
+    }
+    function bouton(texte, action) {
+        const b = el('button', '', texte); b.type = 'button'; b.addEventListener('click', action); return b;
+    }
+    function statut(b) { return b.debut > annee ? 'garder' : (b.fin <= annee ? 'vite' : 'prete'); }
+    function garder() { try { localStorage.setItem(CLE_COPIE, JSON.stringify({ bouteilles: bouteilles, annee: annee })); } catch (e) {} }
+    function appliquer(lu) { bouteilles = lu.bouteilles; annee = lu.annee; garder(); afficher(); }
+    function charger() {
+        if (ouvert || lireFile().length) {                       // une édition en cours, ou des envois en attente
+            if (!bouteilles.length) { try { appliquer(JSON.parse(localStorage.getItem(CLE_COPIE))); } catch (e) {} }
+            return;
+        }
+        fetch('api/cave').then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+            .then(appliquer)
+            .catch(function () { try { appliquer(JSON.parse(localStorage.getItem(CLE_COPIE))); } catch (e) {} });
+    }
+    let chaine = Promise.resolve();
+    function envoyer(envoi) {
+        const p = chaine.then(function () { return envoyerOuGarder(envoi); });
+        chaine = p.catch(function () {});
+        return p.then(function (etat) { if (etat === 'ok') charger(); return etat; });
+    }
+
+    function enregistrer(b) {
+        bouteilles = bouteilles.filter(function (x) { return x.id !== b.id; }).concat([b]);
+        garder(); afficher();
+        envoyer({ url: 'api/cave', methode: 'POST', corps: b, cle: 'vin:' + b.id });
+    }
+    function bue(b) {
+        b.quantite = Math.max(b.quantite - 1, 0);
+        garder(); afficher();
+        envoyer({ url: 'api/cave/' + encodeURIComponent(b.id) + '/bue', methode: 'POST' });   // sans clé : chaque tap compte
+    }
+    function retirer(b) {
+        bouteilles = bouteilles.filter(function (x) { return x.id !== b.id; });
+        ouvert = null; garder(); afficher();
+        envoyer({ url: 'api/cave/' + encodeURIComponent(b.id), methode: 'DELETE', cle: 'vin:' + b.id });
+    }
+
+    function fiche(b) {
+        const a = el('article', 'vin'); a.dataset.couleur = b.couleur;
+        const ligne = el('div', 'ligne');
+        const nom = el('button', 'nom', b.nom); nom.type = 'button';
+        nom.append(el('span', 'meta', [b.millesime || 'sans millésime', NOM_COULEUR[b.couleur],
+                                       b.debut === b.fin ? '' + b.fin : b.debut + '–' + b.fin,
+                                       '× ' + b.quantite].join(' · ')));
+        nom.addEventListener('click', function () { ouvert = ouvert === b.id ? null : b.id; afficher(); });
+        ligne.append(nom);
+        if (b.quantite > 0) ligne.append(bouton('Bue', function () { bue(b); }));
+        else ligne.append(bouton('Remettre', function () { enregistrer(Object.assign({}, b, { quantite: 1 })); }));
+        a.append(ligne);
+        if (ouvert === b.id) a.append(edition(b));
+        return a;
+    }
+    function nombre(nom, valeur, mini) {
+        const i = el('input'); i.type = 'number'; i.name = nom; i.value = valeur; i.min = mini;
+        i.setAttribute('aria-label', nom); return i;
+    }
+    function edition(b) {
+        const e = el('div', 'edition');
+        const quantite = nombre('quantité', b.quantite, 0), debut = nombre('début', b.debut, 1900), fin = nombre('fin', b.fin, 1900);
+        const accords = b.accords.slice();
+        const puces = el('div', 'puces-accords');
+        PROFILS.forEach(function (p) {
+            const x = bouton(p, function () {
+                const i = accords.indexOf(p);
+                if (i < 0) accords.push(p); else accords.splice(i, 1);
+                x.setAttribute('aria-pressed', i < 0);
+            });
+            x.setAttribute('aria-pressed', accords.indexOf(p) >= 0);
+            puces.append(x);
+        });
+        const note = el('input'); note.name = 'note'; note.value = b.note; note.placeholder = 'Note'; note.setAttribute('aria-label', 'Note');
+        e.append(quantite, debut, fin, puces, note,
+            bouton('Enregistrer', function () {
+                ouvert = null;
+                enregistrer(Object.assign({}, b, { quantite: parseInt(quantite.value, 10) || 0,
+                    debut: parseInt(debut.value, 10) || b.debut, fin: parseInt(fin.value, 10) || b.fin,
+                    accords: PROFILS.filter(function (p) { return accords.indexOf(p) >= 0; }), note: note.value.trim() }));
+            }),
+            bouton('Retirer', function () { retirer(b); }),
+            bouton('Fermer', function () { ouvert = null; afficher(); }));
+        return e;
+    }
+
+    function afficher() {
+        const zone = document.getElementById('cave');
+        zone.replaceChildren();
+        const enCave = bouteilles.filter(function (b) { return b.quantite > 0; });
+        [['vite', 'À boire vite'], ['prete', 'Prêtes'], ['garder', 'À garder']].forEach(function (g) {
+            const du = enCave.filter(function (b) { return statut(b) === g[0]; })
+                .sort(function (x, y) { return (x.fin - y.fin) || x.nom.localeCompare(y.nom, 'fr'); });
+            if (!du.length) return;
+            const s = el('section', 'groupe-cave'); s.append(el('h2', '', g[1]));
+            du.forEach(function (b) { s.append(fiche(b)); });
+            zone.append(s);
+        });
+        const bues = bouteilles.filter(function (b) { return b.quantite === 0; })
+            .sort(function (x, y) { return x.nom.localeCompare(y.nom, 'fr'); });
+        const liste = document.getElementById('bues'); liste.replaceChildren();
+        bues.forEach(function (b) { liste.append(fiche(b)); });
+        document.getElementById('nb-bues').textContent = bues.length;
+        const n = enCave.reduce(function (t, b) { return t + b.quantite; }, 0);
+        const bas = enCave.reduce(function (t, b) { return t + (b.prix_bas || 0) * b.quantite; }, 0);
+        const haut = enCave.reduce(function (t, b) { return t + (b.prix_haut || 0) * b.quantite; }, 0);
+        const vite = enCave.filter(function (b) { return statut(b) === 'vite'; }).reduce(function (t, b) { return t + b.quantite; }, 0);
+        document.getElementById('resume').textContent = n + ' bouteille' + (n > 1 ? 's' : '') + ' · ' + bas + '–' + haut
+            + ' € · ' + vite + ' à boire d\\'ici fin ' + annee;
+    }
+
+    const formulaire = document.getElementById('ajout-vin');
+    document.getElementById('ajouter').addEventListener('click', function () { formulaire.hidden = !formulaire.hidden; });
+    formulaire.querySelector('[data-action="annuler"]').addEventListener('click', function () { formulaire.hidden = true; });
+    formulaire.addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        const f = new FormData(formulaire);
+        const entier = function (cle) { const v = parseInt(f.get(cle), 10); return isNaN(v) ? null : v; };
+        const prix = entier('prix');
+        const corps = { id: 'vin-' + Date.now().toString(36), nom: (f.get('nom') || '').trim(), couleur: f.get('couleur'),
+                        millesime: entier('millesime'), quantite: entier('quantite') || 1, prix_bas: prix, prix_haut: prix };
+        if (!corps.nom) return;
+        // Fenêtre et accords par défaut : posés par le serveur (cave.par_defaut), relus à la réponse
+        bouteilles = bouteilles.concat([Object.assign({ debut: annee, fin: annee + 2, accords: [], note: '' }, corps)]);
+        garder(); afficher();
+        envoyer({ url: 'api/cave', methode: 'POST', corps: corps, cle: 'vin:' + corps.id });
+        formulaire.reset(); formulaire.hidden = true;
+    });
+    document.addEventListener('file-videe', charger);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) charger(); });
+    charger();
+})();
+"""
+
+
+def cave_en_html():
+    """La page Cave : une coquille, remplie par le script depuis api/cave (copie gardée hors ligne)."""
+    from accords_vins import PROFILS
+    couleurs = json.dumps(COULEURS, ensure_ascii=False)
+    profils = json.dumps(PROFILS, ensure_ascii=False)
+    options = "".join(f'<option value="{c}">{nom}</option>' for c, nom in COULEURS)
+    return f"""<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>{STYLE_D}{STYLE_NAV_HUB}{STYLE_CAVE}</style>
+</head>
+<body class="accueil hub-page cave">
+<h1>Cave</h1>
+<p class="resume" id="resume">Chargement…</p>
+<div id="hors-ligne" hidden></div>
+<button type="button" id="ajouter">+ Ajouter</button>
+<form id="ajout-vin" autocomplete="off" hidden>
+<input name="nom" placeholder="Nom du vin" aria-label="Nom du vin" required>
+<select name="couleur" aria-label="Couleur">{options}</select>
+<input name="millesime" type="number" min="1900" placeholder="Millésime" aria-label="Millésime">
+<input name="quantite" type="number" min="1" value="1" aria-label="Quantité">
+<input name="prix" type="number" min="0" placeholder="Prix (€)" aria-label="Prix estimé">
+<div class="actions"><button type="submit">Ajouter</button><button type="button" data-action="annuler">Annuler</button></div>
+</form>
+<div id="cave"></div>
+<details class="annexe" id="zone-bues">
+<summary>Bues (<span id="nb-bues">0</span>)</summary>
+<div id="bues"></div>
+</details>
+{nav_hub("cave")}
+<script type="application/json" id="couleurs">{couleurs}</script>
+<script type="application/json" id="profils">{profils}</script>
+<script>{SCRIPT_FILE}
+window.addEventListener('online', function () {{ majHorsLigne(); viderFile(); }});
+window.addEventListener('offline', majHorsLigne);
+majHorsLigne();
+viderFile();
+</script>
+<script>{SCRIPT_CAVE}</script>
+</body>
+</html>"""
