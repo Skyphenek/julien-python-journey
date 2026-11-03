@@ -199,7 +199,7 @@ SCRIPT_CAVE = """
         const lieu = [b.region, b.pays && b.pays !== 'France' ? b.pays : ''].filter(Boolean).join(', ');
         nom.append(el('span', 'meta', [lieu, b.millesime || 'sans millésime', NOM_COULEUR[b.couleur],
                                        b.debut === b.fin ? '' + b.fin : b.debut + '–' + b.fin,
-                                       '× ' + b.quantite].filter(Boolean).join(' · ')));
+                                       '×\u00a0' + b.quantite].filter(Boolean).join(' · ')));
         nom.addEventListener('click', function () { ouvert = ouvert === b.id ? null : b.id; afficher(); });
         ligne.append(nom);
         if (b.quantite > 0) ligne.append(bouton('Bue', function () { bue(b); }));
