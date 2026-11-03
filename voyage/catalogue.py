@@ -138,7 +138,7 @@ _GROUPES = [
         ail surgelé, poivrons surgelés, frites surgelées"""),
 
     # --- Boissons -----------------------------------------------------------------------------
-    ("boissons", "cave", """eau, eau plate, eau gazeuse, eau pétillante, eau Volvic citron, Volvic, Evian, Badoit,
+    ("boissons", "cave", """eau, pack d'eau, eau plate, eau gazeuse, eau pétillante, eau Volvic citron, Volvic, Evian, Badoit,
         Perrier, San Pellegrino, jus d'orange, jus de pomme, jus de raisin, jus de fruits, smoothie, limonade,
         soda, Coca-Cola, Coca zéro, Orangina, Schweppes, tonic, ginger beer, ice tea, thé glacé, kombucha,
         sirop, vin, vin rouge, vin blanc, vin rosé, champagne, crémant, prosecco, bières, cidre, porto,

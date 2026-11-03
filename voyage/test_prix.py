@@ -17,6 +17,7 @@ def test_chaque_article_du_catalogue_a_unite_et_prix():
 def test_unites_types():
     assert PRIX["filets de poulet"][0].startswith("barquette de 2")
     assert PRIX["œufs"] == ("boîte de 12", 4.2)
+    assert PRIX["pack d'eau"] == ("pack de 6 × 1,5 L", 3.5)
 
 
 def test_page():

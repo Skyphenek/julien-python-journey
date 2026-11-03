@@ -756,6 +756,7 @@ ail surgelé | pot de 50 g | 2.20
 poivrons surgelés | sachet de 750 g | 2.90
 frites surgelées | sachet de 1 kg | 2.90
 eau | pack de 6 × 1,5 L | 3.50
+pack d'eau | pack de 6 × 1,5 L | 3.50
 eau plate | pack de 6 × 1,5 L | 3.50
 eau gazeuse | pack de 6 × 1 L | 4.50
 eau pétillante | pack de 6 × 1 L | 4.50

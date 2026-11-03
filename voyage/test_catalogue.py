@@ -46,6 +46,7 @@ def test_tout_ce_qui_existe_deja_est_au_catalogue():
     ("bacon", "frais", "frigo"),
     ("mozzarella râpée", "frais", "frigo"),
     ("gyoza", "surgeles", "congelateur"),
+    ("pack d'eau", "boissons", "cave"),
 ])
 def test_range_d_office(nom, rayon, zone):
     assert deviner_rayon(nom) == rayon and deviner_zone(nom) == zone
