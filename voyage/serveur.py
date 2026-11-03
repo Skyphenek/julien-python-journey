@@ -24,7 +24,8 @@ from db import (emprunter, ajouter_depense, lire_depenses, supprimer_depense, ob
                 lire_souvenirs, supprimer_souvenir, enregistrer_coche, lister_voyages, lire_voyage, archiver_voyage,
                 VERDICTS, enregistrer_retour, supprimer_retour, lire_retours,
                 enregistrer_article, lire_courses, supprimer_article, vider_pris, lire_achats,
-                enregistrer_placard, retirer_du_placard, enregistrer_plat, lire_plats, plat_existe, enregistrer_repas, lire_repas)
+                enregistrer_placard, retirer_du_placard, enregistrer_plat, lire_plats, plat_existe, enregistrer_repas, lire_repas,
+                lire_frais, finir, corriger_a_finir)
 from valise import (solde_depenses, actualiser_meteo, fenetres_du_voyage, page_du_voyage, accueil_en_html,
                     lieux_depuis_reponse, normales_ou_url, normales_depuis_historique,
                     formulaire_en_html, creer_voyage, VERSION_PAGE)
@@ -40,6 +41,7 @@ from courses import valider_article, valider_placard, courses_en_html, normalise
 from prix_paris import cout_repas
 from diners import (avec_achats_recents, FRAIS_JOURS, disponibles, a_acheter_aujourd_hui, valider_plat, valider_repas, secours, a_acheter, compteur, semaine, diners_en_html,
                     proposer, accompagner, cout_semaine, repas_prevus, ranger, nettoyer_accords, LIVRAISON_DEUX, FENETRE_PASSE, FENETRE_FUTUR)
+from a_finir import suivis, alertes, plats_qui_utilisent, ENCORE_BON_JOURS
 from uuid import uuid4
 
 load_dotenv(Path(__file__).parent / ".env")   # en local : lit voyage/.env s'il existe
@@ -55,6 +57,15 @@ def articles_et_achats_recents(conn, articles, jour, achats=None):
     a_reprendre = {normaliser(a["nom"]) for a in articles if a["actif"] and not a["pris"]}
     noms = [a["nom"] for a in achats if a["jour"] >= debut and normaliser(a["nom"]) not in a_reprendre]
     return avec_achats_recents(articles, noms)
+
+
+def alertes_du_frigo(conn, jour, plats, lu, articles):
+    """(produits suivis, alertes du jour) — a_finir.py : le frais daté, et ce qu'aucun repas prévu (d'aujourd'hui à
+    FENETRE_FUTUR) n'utilise à temps. `lu` : lire_courses ; `articles` : articles_et_achats_recents."""
+    frais = lire_frais(conn)
+    produits = suivis(frais["placard"], lu["articles"], frais["derniers_achats"], frais["corrections"])
+    a_venir = lire_repas(conn, jour, jour + timedelta(days=FENETRE_FUTUR))
+    return produits, alertes(produits, a_venir, plats, disponibles(lu["placard"], articles), jour)
 
 
 def creer_app(nom_base="valise", secret=None):
@@ -83,10 +94,11 @@ def creer_app(nom_base="valise", secret=None):
                 # Une seule lecture du journal : la semaine en cours (budget) et les derniers jours (à la maison)
                 achats = lire_achats(conn, min(lundi(jour), jour - timedelta(days=FRAIS_JOURS - 1)), jour)
                 cette_semaine = semaines_budget([a for a in achats if a["jour"] >= lundi(jour)], repas, plats, jour, n=1)[0]
+                articles = articles_et_achats_recents(conn, lu["articles"], jour, achats)
+                _, a_finir = alertes_du_frigo(conn, jour, list(plats.values()), lu, articles)
                 html = aujourdhui_en_html(lister_voyages(conn), jour,
-                                          a_acheter_aujourd_hui(du_jour, lu["placard"],
-                                                                articles_et_achats_recents(conn, lu["articles"], jour, achats)),
-                                          ce_soir, hier, compteur(repas, jour), cette_semaine)
+                                          a_acheter_aujourd_hui(du_jour, lu["placard"], articles),
+                                          ce_soir, hier, compteur(repas, jour), cette_semaine, a_finir)
             finally:
                 conn.close()
             return Response(html, mimetype="text/html")
@@ -121,9 +133,11 @@ def creer_app(nom_base="valise", secret=None):
             repas = lire_repas(conn, jour - timedelta(days=FENETRE_PASSE), jour + timedelta(days=FENETRE_FUTUR))
             lu = lire_courses(conn)
             articles = articles_et_achats_recents(conn, lu["articles"], jour)
+            _, a_finir = alertes_du_frigo(conn, jour, plats, lu, articles)
         finally:
             conn.close()
-        faisables, presque = secours(plats, lu["placard"], articles)
+        cles_a_finir = {a["cle"] for a in a_finir}
+        faisables, presque = secours(plats, lu["placard"], articles, a_finir=cles_a_finir)
         par_id = {p["id"]: p for p in plats}
         jours = semaine(jour)
         prevus = repas_prevus(repas, par_id, jours)
@@ -136,6 +150,7 @@ def creer_app(nom_base="valise", secret=None):
             "stock": sorted(disponibles(lu["placard"], articles)),
             "secours": {"faisables": [p["id"] for p in faisables],
                         "presque": [{"plat": x["plat"]["id"], "manquants": x["manquants"]} for x in presque]},
+            "a_finir": plats_qui_utilisent(plats, cles_a_finir),
             "compteur": compteur(repas, jour)})
 
     @routes.post("/api/plats")
@@ -155,14 +170,20 @@ def creer_app(nom_base="valise", secret=None):
 
     @routes.post("/api/repas")
     def enregistrer_un_repas():
+        corps = request.get_json(silent=True)
         try:
-            repas = valider_repas(request.get_json(silent=True), aujourd_hui_paris())
+            repas = valider_repas(corps, aujourd_hui_paris())
         except ValueError as e:
             return jsonify({"erreur": str(e)}), 400
         conn = emprunter(app.config["NOM_BASE"])
         try:
             if not all(plat_existe(conn, i) for i in repas["plats"]):
                 return jsonify({"erreur": "plat inconnu"}), 400
+            if corps.get("si_libre") is True:           # le bouton d'À finir (page peut-être en cache) n'écrase rien
+                pris = lire_repas(conn, repas["jour"], repas["jour"])
+                if repas["jour"] < aujourd_hui_paris() or any(
+                        r["moment"] == repas["moment"] and (r["plats"] or r["issue"]) for r in pris):
+                    return jsonify({"erreur": "soir déjà pris"}), 409
             enregistrer_repas(conn, repas)
         finally:
             conn.close()
@@ -199,7 +220,10 @@ def creer_app(nom_base="valise", secret=None):
         try:
             plats = lire_plats(conn)
             repas = lire_repas(conn, jour - timedelta(days=FENETRE_PASSE), jour + timedelta(days=6))
-            proposes = proposer(plats, repas, semaine(jour), jour, remplacer=remplacer)
+            lu = lire_courses(conn)
+            _, a_finir = alertes_du_frigo(conn, jour, plats, lu, articles_et_achats_recents(conn, lu["articles"], jour))
+            proposes = proposer(plats, repas, semaine(jour), jour, remplacer=remplacer,
+                                a_finir=[(a["cle"], a["jusqu_au"]) for a in a_finir if a["etat"] == "a-finir"])
             menus = accompagner(proposes, plats, repas, semaine(jour))
             for j, ids in menus.items():
                 enregistrer_repas(conn, {"jour": j, "moment": "diner", "plats": ids, "issue": None})
@@ -271,6 +295,29 @@ def creer_app(nom_base="valise", secret=None):
         conn = emprunter(app.config["NOM_BASE"])
         try:
             retirer_du_placard(conn, cle)
+        finally:
+            conn.close()
+        return jsonify({"ok": True})
+
+    @routes.post("/api/a-finir/<path:cle>")
+    def corriger_un_produit(cle):
+        """[Fini] ou [Encore bon] sur un produit du frais suivi (a_finir.py)."""
+        corps = request.get_json(silent=True)
+        action = corps.get("action") if isinstance(corps, dict) else None
+        if action not in ("fini", "encore-bon"):
+            return jsonify({"erreur": "action inconnue"}), 400
+        jour = aujourd_hui_paris()
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            frais = lire_frais(conn)
+            produits = suivis(frais["placard"], lire_courses(conn)["articles"], frais["derniers_achats"],
+                              frais["corrections"])
+            if cle not in {p["cle"] for p in produits}:
+                return jsonify({"erreur": "produit non suivi"}), 404
+            if action == "fini":
+                finir(conn, cle)
+            else:
+                corriger_a_finir(conn, cle, jour + timedelta(days=ENCORE_BON_JOURS))
         finally:
             conn.close()
         return jsonify({"ok": True})

@@ -12,7 +12,8 @@ from dotenv import load_dotenv
 from carnet_depart import CARNET_DEPART, A_TESTER
 from courses import PLACARD_DEPART
 from db import connecter, semer_placard, semer_carnet, completer_recettes, reorganiser_placard, ajouter_recettes, \
-    actualiser_recettes, pour_julien, separer_pour_julien, poser_accords
+    actualiser_recettes, pour_julien, separer_pour_julien, poser_accords, dater_frigo
+from a_finir import NOM_REPRISE as REPRISE_A_FINIR, JOUR_REPRISE, FRIGO_CONNU
 from recettes_air_fryer import NOM_REPRISE as REPRISE_AIR_FRYER, NOM_REPRISE_6L, AIR_FRYER
 from recettes_legumes import NOM_REPRISE as REPRISE_LEGUMES, LEGUMES, RETIRES
 from recettes_mer import NOM_REPRISE as REPRISE_MER, MER, MER_JULIEN, POUR_JULIEN
@@ -73,6 +74,7 @@ def appliquer(conn, pour_de_bon):
         laetitia = ajouter_recettes(conn, REPRISE_LAETITIA, LAETITIA)
         accompagnements = ajouter_recettes(conn, REPRISE_ACCOMPAGNEMENTS, ACCOMPAGNEMENTS + BRUNCHS)
         accords = poser_accords(conn, NOM_REPRISE_ACCORDS, ACCORDS)    # après l'ajout : ils existent
+        frigo = dater_frigo(conn, REPRISE_A_FINIR, JOUR_REPRISE, FRIGO_CONNU)    # une seule fois
         conn.commit()
         if bilan:
             print(f"Placard v2 : {annonce(bilan)}.")
@@ -92,6 +94,9 @@ def appliquer(conn, pour_de_bon):
             print(f"Accompagnements et brunchs : {accompagnements} recettes ajoutées à tester.")
         if accords is not None:
             print(f"Accords : {accords} plat(s) avec leurs accompagnements.")
+        if frigo is not None:
+            print(f"À finir : {len(frigo)} produit(s) du frigo datés : "
+                  + ", ".join(f"{cle} {d:%d/%m}" for cle, d in sorted(frigo.items())) + ".")
     else:
         bilan = reorganiser_placard(conn) if a_un_placard(conn) else None
         air_fryer = ajouter_recettes(conn, REPRISE_AIR_FRYER, AIR_FRYER)
@@ -104,6 +109,7 @@ def appliquer(conn, pour_de_bon):
         laetitia = ajouter_recettes(conn, REPRISE_LAETITIA, LAETITIA)
         accompagnements = ajouter_recettes(conn, REPRISE_ACCOMPAGNEMENTS, ACCOMPAGNEMENTS + BRUNCHS)
         accords = poser_accords(conn, NOM_REPRISE_ACCORDS, ACCORDS)
+        frigo = dater_frigo(conn, REPRISE_A_FINIR, JOUR_REPRISE, FRIGO_CONNU)
         conn.rollback()
         if laetitia is not None:
             print(f"À blanc, rien que pour Laetitia : {laetitia} recettes à ajouter à tester.")
@@ -125,6 +131,9 @@ def appliquer(conn, pour_de_bon):
             print(f"À blanc, accompagnements et brunchs : {accompagnements} recettes à ajouter à tester.")
         if accords is not None:
             print(f"À blanc, accords : {accords} plat(s) à régler.")
+        if frigo is not None:
+            print(f"À blanc, À finir : {len(frigo)} produit(s) du frigo à dater : "
+                  + ", ".join(f"{cle} {d:%d/%m}" for cle, d in sorted(frigo.items())) + ".")
 
 
 if __name__ == "__main__":

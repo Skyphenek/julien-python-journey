@@ -82,6 +82,22 @@ div.bloc-compteur.ok strong { color: var(--courses); }
 div.bloc-compteur.trop strong { color: var(--diners); }
 div.bloc-compteur span:last-child { color: var(--doux); font-size: 14px; }
 p.attente { background: var(--carte); border-radius: 24px; padding: 18px; color: var(--doux); }
+div.bloc-a-finir { background: var(--carte); border-radius: 24px; padding: 18px 20px; margin: 16px 0; }
+div.bloc-a-finir .titre { font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+                          color: var(--diners); }
+div.bloc-a-finir ul { list-style: none; margin: 8px 0 0; padding: 0; }
+div.bloc-a-finir > ul > li { padding: 12px 0; border-top: 1px solid var(--ligne); }
+div.bloc-a-finir .produit { display: flex; flex-direction: column; gap: 2px; }
+div.bloc-a-finir .produit strong { font-size: 17px; font-weight: 800; }
+div.bloc-a-finir .produit span, div.bloc-a-finir p.pris, div.bloc-a-finir small { color: var(--doux); font-size: 14px; }
+div.bloc-a-finir .actions { display: flex; gap: 8px; margin: 8px 0 0; }
+div.bloc-a-finir button { min-height: 40px; border-radius: 14px; border: 2px solid var(--ligne); background: var(--blanc);
+                          color: var(--texte); font-family: inherit; font-weight: 700; font-size: 14px; padding: 0 12px; }
+div.bloc-a-finir ul.plats li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; }
+div.bloc-a-finir ul.plats li span { display: flex; flex-direction: column; min-width: 0; }
+div.bloc-a-finir ul.plats button { border-color: var(--diners); color: var(--diners); flex: none; }
+div.bloc-a-finir p.pris { margin: 6px 0 0; }
+div.bloc-a-finir .message { margin: 8px 0 0; color: var(--diners); font-weight: 700; font-size: 14px; }
 """
 
 
@@ -137,6 +153,50 @@ def bloc_compteur(c):
             f'<span>Moyenne {moyenne} par semaine sur 6 semaines · objectif : 1 au plus · départ : 3</span></div>')
 
 
+def _quand(jour, aujourd_hui):
+    """« Ce soir », « Demain », ou le jour de la semaine (« Jeudi ») : le libellé d'un bouton."""
+    ecart = (jour - aujourd_hui).days
+    return "Ce soir" if ecart == 0 else "Demain" if ecart == 1 else JOURS[jour.weekday()].capitalize()
+
+
+def _a_finir_quand(jusqu_au, aujourd_hui):
+    ecart = (jusqu_au - aujourd_hui).days
+    return "à finir aujourd'hui" if ecart == 0 else "à finir demain" if ecart == 1 else f"à finir d'ici {JOURS[jusqu_au.weekday()]}"
+
+
+def bloc_a_finir(alertes, aujourd_hui):
+    """Le frais qui va tourner (a_finir.alertes) : à vérifier ([Fini], [Encore bon]) ; à finir sans repas prévu à temps
+    ([Fini], et jusqu'à 3 plats du carnet à poser au premier soir libre). Rien à signaler : rien."""
+    if not alertes:
+        return ""
+    lignes = []
+    for a in alertes:
+        if a["etat"] == "a-verifier":
+            etat = "à vérifier"
+            boutons = ('<button type="button" data-action="fini">Fini</button>'
+                       '<button type="button" data-action="encore-bon">Encore bon</button>')
+        else:
+            prevu = f'prévu {JOURS[a["trop_tard"].weekday()]}, trop tard' if a["trop_tard"] else "rien de prévu"
+            etat = f'{_a_finir_quand(a["jusqu_au"], aujourd_hui)} · {prevu}'
+            boutons = '<button type="button" data-action="fini">Fini</button>'
+        plats = ""
+        if a["suggestions"]:
+            items = []
+            for s in a["suggestions"]:
+                manque = f'<small>il manque : {echapper(", ".join(s["manquants"]))}</small>' if s["manquants"] else ""
+                bouton = (f'<button type="button" data-plat="{echapper(s["plat"]["id"])}" '
+                          f'data-jour="{a["jour"].isoformat()}">{_quand(a["jour"], aujourd_hui)}</button>'
+                          if a["jour"] else "")
+                items.append(f'<li><span>{echapper(s["plat"]["nom"])}{manque}</span>{bouton}</li>')
+            plats = f'<ul class="plats">{"".join(items)}</ul>'
+            if not a["jour"]:
+                plats += f'<p class="pris">soirs pris jusqu\'à {JOURS[a["jusqu_au"].weekday()]}</p>'
+        lignes.append(f'<li data-cle="{echapper(a["cle"])}"><div class="produit"><strong>{echapper(a["nom"])}</strong>'
+                      f'<span>{etat}</span></div><div class="actions">{boutons}</div>{plats}</li>')
+    return (f'<div class="bloc-a-finir"><span class="titre">À finir</span><ul>{"".join(lignes)}</ul>'
+            f'<p class="message" aria-live="polite"></p></div>')
+
+
 SCRIPT_HIER = """
 (function () {
     const bloc = document.querySelector('div.bloc-hier');
@@ -158,12 +218,42 @@ SCRIPT_HIER = """
 """
 
 
+SCRIPT_A_FINIR = """
+(function () {
+    const bloc = document.querySelector('div.bloc-a-finir');
+    if (!bloc) return;
+    function envoyer(url, corps) {
+        bloc.querySelectorAll('button').forEach(function (x) { x.disabled = true; });
+        fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) })
+            .then(function (r) { if (!r.ok) throw new Error(r.status); location.reload(); })
+            .catch(function (e) {
+                bloc.querySelector('.message').textContent = (e && e.message === '409')
+                    ? 'Ce soir-là est déjà pris : recharge la page.' : 'Pas envoyé : réessaie une fois connecté.';
+                bloc.querySelectorAll('button').forEach(function (x) { x.disabled = false; });
+            });
+    }
+    bloc.querySelectorAll('button[data-action]').forEach(function (b) {
+        b.addEventListener('click', function () {
+            const cle = b.closest('li[data-cle]').dataset.cle;
+            envoyer('api/a-finir/' + encodeURIComponent(cle), { action: b.dataset.action });
+        });
+    });
+    bloc.querySelectorAll('button[data-plat]').forEach(function (b) {
+        b.addEventListener('click', function () {
+            envoyer('api/repas', { jour: b.dataset.jour, moment: 'diner', plats: [b.dataset.plat], issue: null, si_libre: true });
+        });
+    });
+})();
+"""
+
+
 def aujourdhui_en_html(voyages, aujourd_hui, a_acheter=(), plats_du_soir=(), diner_hier=None, compte=None,
-                       semaine_budget=None):
-    """L'accueil du hub : ce soir, hier soir, ce qu'il faut acheter aujourd'hui, le budget de la semaine, le prochain
-    voyage, le compteur Deliveroo."""
+                       semaine_budget=None, a_finir=()):
+    """L'accueil du hub : ce soir, hier soir, ce qui est à finir, ce qu'il faut acheter aujourd'hui, le budget de la
+    semaine, le prochain voyage, le compteur Deliveroo."""
     v = prochain_voyage(voyages, aujourd_hui)
-    blocs = (bloc_ce_soir(list(plats_du_soir)) + (bloc_hier(diner_hier) if diner_hier else "") + bloc_courses(list(a_acheter))
+    blocs = (bloc_ce_soir(list(plats_du_soir)) + (bloc_hier(diner_hier) if diner_hier else "")
+             + bloc_a_finir(list(a_finir), aujourd_hui) + bloc_courses(list(a_acheter))
              + bloc_budget(semaine_budget)
              + (bloc_vadrouille(v, aujourd_hui) if v else "") + bloc_compteur(compte))
     return f"""<!doctype html>
@@ -183,5 +273,6 @@ def aujourdhui_en_html(voyages, aujourd_hui, a_acheter=(), plats_du_soir=(), din
 {nav_hub("aujourdhui")}
 <script>{SCRIPT_COMPTE}</script>
 <script>{SCRIPT_HIER}</script>
+<script>{SCRIPT_A_FINIR}</script>
 </body>
 </html>"""

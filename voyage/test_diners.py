@@ -397,3 +397,38 @@ def test_achete_recemment_compte_comme_a_la_maison():
     courses = avec_achats_recents([], ["Salade"])                        # achetée, panier vidé
     assert a_acheter_aujourd_hui([burger], placard(), courses) == ["tomates"]
     assert "salade" in disponibles(placard(), courses)
+
+
+# --- À finir : d'abord ce qui va tourner ---
+
+def test_secours_met_en_tete_ce_qui_finit_un_produit():
+    plats = [plat("plat-omelette", "Omelette", minutes=10, ingredients=["œufs"]),
+             plat("plat-salade-1", "Salade jambon", minutes=15, ingredients=["salade", "jambon"])]
+    stock = placard("œufs", "salade", "jambon")
+    assert [p["id"] for p in secours(plats, stock)[0]] == ["plat-omelette", "plat-salade-1"]
+    assert [p["id"] for p in secours(plats, stock, a_finir={"jambon"})[0]] == ["plat-salade-1", "plat-omelette"]
+
+
+def test_proposer_place_d_abord_un_plat_qui_finit_un_produit():
+    plats = carte() + [{**plat("plat-poulet-01", "Poulet rôti", minutes=40, ingredients=["cuisses de poulet"]),
+                        "recette": "1.", "pour": "nous"},
+                       {**plat("plat-poulet-02", "Poulet lent", minutes=90, ingredients=["cuisses de poulet"]),
+                        "recette": "1.", "pour": "nous"}]
+    mar = LUN + timedelta(days=1)
+    for graine in range(10):
+        p = proposer(plats, [diner(LUN, "plat-carnet-00")], SEMAINE, LUN, hasard=Random(graine),
+                     a_finir=[("cuisses de poulet", mar)])
+        assert p[mar] == "plat-poulet-01" and len(p) == 3           # lundi déjà pris : mardi, ≤ 45 min
+
+
+def test_proposer_a_finir_respecte_reproposer_et_la_cible():
+    plats = carte() + [{**plat("plat-poulet-01", "Poulet rôti", minutes=40, ingredients=["cuisses de poulet"]),
+                        "recette": "1.", "pour": "nous"}]
+    p = proposer(plats, [], SEMAINE, LUN, hasard=Random(3))
+    jour = sorted(p)[-1]
+    soirs = [diner(j, v) for j, v in p.items()]
+    q = proposer(plats, soirs, SEMAINE, LUN, remplacer=[jour], hasard=Random(4),
+                 a_finir=[("cuisses de poulet", LUN + timedelta(days=1))])
+    assert list(q) == [jour]                                         # Reproposer ne touche qu'au jour demandé
+    plein = [diner(LUN + timedelta(days=i), f"plat-carnet-{i:02d}") for i in range(4)]
+    assert proposer(plats, plein, SEMAINE, LUN, a_finir=[("cuisses de poulet", LUN + timedelta(days=5))]) == {}
