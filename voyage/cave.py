@@ -32,7 +32,10 @@ def statut(b, annee):
 
 
 def _entier(corps, cle, mini, maxi, defaut=None):
-    v = corps.get(cle, defaut)
+    """Entier de la plage [mini, maxi]. Un null (ou une clé absente) prend la valeur par défaut."""
+    v = corps.get(cle)
+    if v is None:
+        v = defaut
     if v is None:
         return None
     if isinstance(v, bool) or not isinstance(v, int) or not mini <= v <= maxi:
@@ -58,7 +61,7 @@ def valider_bouteille(corps, annee):
     if len(identifiant) > 64:
         raise ValueError("id invalide")
     couleur = corps.get("couleur")
-    if couleur not in dict(COULEURS):
+    if not isinstance(couleur, str) or couleur not in dict(COULEURS):
         raise ValueError("couleur invalide")
     millesime = _entier(corps, "millesime", 1900, annee)
     debut, fin, accords = par_defaut(couleur, millesime, annee)
@@ -66,7 +69,8 @@ def valider_bouteille(corps, annee):
     fin = _entier(corps, "fin", 1900, 2200, fin)
     if debut > fin:
         raise ValueError("fenêtre invalide")
-    accords = corps.get("accords", accords)
+    if corps.get("accords") is not None:
+        accords = corps["accords"]
     if not isinstance(accords, list) or any(a not in PROFILS for a in accords):
         raise ValueError("accords invalides")
     prix_bas = _entier(corps, "prix_bas", 0, 10000)

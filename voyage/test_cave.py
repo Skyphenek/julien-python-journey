@@ -35,10 +35,31 @@ def test_valider_garde_ce_qui_est_donne():
     {"id": ""}, {"nom": "  "}, {"couleur": "vert"}, {"millesime": 1800}, {"millesime": 2027}, {"millesime": "2019"},
     {"quantite": -1}, {"quantite": True}, {"quantite": 1000}, {"debut": 2029, "fin": 2027},
     {"accords": ["pizza"]}, {"accords": "boeuf"}, {"prix_bas": 40, "prix_haut": 30}, {"prix_haut": -1},
+    {"couleur": []},
 ])
 def test_valider_refuse(mauvais):
     with pytest.raises(ValueError):
         valider_bouteille(corps(**mauvais), A)
+
+
+def test_valider_null_vaut_absent():
+    """Un null explicite dans le JSON se comporte comme une clé absente."""
+    b = valider_bouteille(corps(quantite=None), A)
+    assert b["quantite"] == 1
+
+
+def test_valider_null_sur_fenetre_prend_le_defaut():
+    b = valider_bouteille(corps(debut=None, fin=None), A)
+    assert (b["debut"], b["fin"]) == (2026, 2026)                  # rouge 2019 : fenêtre par défaut, ramenée à 2026
+
+
+def test_valider_null_sur_accords_prend_le_defaut():
+    assert valider_bouteille(corps(accords=None), A)["accords"] == ["boeuf", "charcuterie"]
+
+
+def test_valider_null_reste_none_pour_millesime_et_prix():
+    b = valider_bouteille(corps(millesime=None, prix_bas=None, prix_haut=None), A)
+    assert b["millesime"] is None and b["prix_bas"] is None and b["prix_haut"] is None
 
 
 def test_valider_refuse_un_corps_absent():
