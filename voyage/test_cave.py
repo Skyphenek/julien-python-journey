@@ -188,3 +188,16 @@ def test_page_cave_region_pays_et_saisie_lisible():
     assert '<input name="pays"' in html
     # en sombre, le texte des champs (nombres compris) prend la couleur du thème
     assert "body.cave input, body.cave select { background: var(--blanc); color: var(--texte);" in html
+
+
+def test_edition_avec_libelles_et_profils_en_francais():
+    html = cave_en_html()
+    for libelle in ("Bouteilles", "À boire dès", "Jusqu'en", "Région", "Pays"):
+        assert f"etiquette('{libelle}'" in html or f'etiquette("{libelle}"' in html
+    assert '"boeuf": "Bœuf"' in html and '"fruits-de-mer": "Fruits de mer"' in html and '"epice": "Épicé"' in html
+
+
+def test_chaque_profil_a_son_nom():
+    from cave import NOMS_PROFILS
+    from accords_vins import PROFILS
+    assert list(NOMS_PROFILS) == PROFILS

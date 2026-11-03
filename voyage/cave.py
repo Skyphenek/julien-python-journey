@@ -9,6 +9,11 @@ from accords_vins import PROFILS
 from design import STYLE_D, STYLE_NAV_HUB, STYLE_ANNEXE, STYLE_HORS_LIGNE, TETE_POLICE, nav_hub
 from pwa import SCRIPT_FILE, TETE_PWA
 
+# Les profils d'accord (accords_vins.PROFILS) tels qu'affichés
+NOMS_PROFILS = {"boeuf": "Bœuf", "agneau": "Agneau", "gibier": "Gibier", "volaille": "Volaille", "porc": "Porc",
+                "charcuterie": "Charcuterie", "poisson": "Poisson", "fruits-de-mer": "Fruits de mer",
+                "fromage": "Fromage", "epice": "Épicé", "tomate": "Tomate", "legumes": "Légumes", "apero": "Apéro",
+                "dessert": "Dessert"}
 # Suggestions à la saisie de la région ; une bouteille étrangère prend aussi son pays (France par défaut)
 REGIONS = ["Alsace", "Beaujolais", "Bordeaux", "Bourgogne", "Champagne", "Corse", "Jura", "Languedoc", "Loire",
            "Lorraine", "Provence", "Rhône Nord", "Rhône Sud", "Roussillon", "Savoie", "Sud-Ouest"]
@@ -122,6 +127,8 @@ article.vin button.nom { all: unset; cursor: pointer; font-weight: 700; min-widt
 article.vin .meta { display: block; color: var(--doux); font-size: 13px; font-weight: 400; }
 article.vin .edition { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center; }
 article.vin .edition input[type="number"] { width: 5.5em; }
+article.vin .edition label.champ { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 700;
+                                   color: var(--doux); }
 article.vin .edition input[name="note"] { flex: 1 1 100%; }
 article.vin .puces-accords { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 100%; }
 article.vin .puces-accords button[aria-pressed="true"] { background: var(--cave); border-color: var(--cave); color: var(--blanc); }
@@ -137,6 +144,7 @@ SCRIPT_CAVE = """
 (function () {
     const COULEURS = JSON.parse(document.getElementById('couleurs').textContent);
     const PROFILS = JSON.parse(document.getElementById('profils').textContent);
+    const NOMS_PROFILS = JSON.parse(document.getElementById('noms-profils').textContent);
     const NOM_COULEUR = {}; COULEURS.forEach(function (c) { NOM_COULEUR[c[0]] = c[1]; });
     const CLE_COPIE = 'cave-copie';
     let bouteilles = [], annee = new Date().getFullYear(), ouvert = null;
@@ -210,8 +218,10 @@ SCRIPT_CAVE = """
     }
     function entierOu(champ, defaut) { const v = parseInt(champ.value, 10); return isNaN(v) ? defaut : v; }
     function nombre(nom, valeur, mini) {
-        const i = el('input'); i.type = 'number'; i.name = nom; i.value = valeur; i.min = mini;
-        i.setAttribute('aria-label', nom); return i;
+        const i = el('input'); i.type = 'number'; i.name = nom; i.value = valeur; i.min = mini; return i;
+    }
+    function etiquette(libelle, champ) {                        // un libellé visible au-dessus du champ
+        const l = el('label', 'champ'); l.append(el('span', '', libelle), champ); return l;
     }
     function retrait(b) {                                       // deux taps, sans boîte de dialogue : le 2e confirme, 4 s pour le faire
         const r = bouton('Retirer', function () {
@@ -227,7 +237,7 @@ SCRIPT_CAVE = """
         const accords = b.accords.slice();
         const puces = el('div', 'puces-accords');
         PROFILS.forEach(function (p) {
-            const x = bouton(p, function () {
+            const x = bouton(NOMS_PROFILS[p] || p, function () {
                 const i = accords.indexOf(p);
                 if (i < 0) accords.push(p); else accords.splice(i, 1);
                 x.setAttribute('aria-pressed', i < 0);
@@ -240,7 +250,8 @@ SCRIPT_CAVE = """
         region.setAttribute('aria-label', 'Région'); region.setAttribute('list', 'regions');
         const pays = el('input'); pays.name = 'pays'; pays.value = b.pays || 'France'; pays.placeholder = 'Pays';
         pays.setAttribute('aria-label', 'Pays');
-        e.append(quantite, debut, fin, region, pays, puces, note,
+        e.append(etiquette('Bouteilles', quantite), etiquette('À boire dès', debut), etiquette("Jusqu'en", fin),
+                 etiquette('Région', region), etiquette('Pays', pays), puces, note,
             bouton('Enregistrer', function () {
                 ouvert = null;
                 enregistrer(Object.assign({}, b, { quantite: Math.max(entierOu(quantite, b.quantite), 0),
@@ -307,6 +318,7 @@ def cave_en_html():
     """La page Cave : une coquille, remplie par le script depuis api/cave (copie gardée hors ligne)."""
     couleurs = json.dumps(COULEURS, ensure_ascii=False)
     profils = json.dumps(PROFILS, ensure_ascii=False)
+    noms_profils = json.dumps(NOMS_PROFILS, ensure_ascii=False)
     options = "".join(f'<option value="{c}">{nom}</option>' for c, nom in COULEURS)
     regions = "".join(f'<option value="{r}">' for r in REGIONS)
     return f"""<!doctype html>
@@ -343,6 +355,7 @@ def cave_en_html():
 {nav_hub("cave")}
 <datalist id="regions">{regions}</datalist>
 <script type="application/json" id="couleurs">{couleurs}</script>
+<script type="application/json" id="noms-profils">{noms_profils}</script>
 <script type="application/json" id="profils">{profils}</script>
 <script>{SCRIPT_FILE}
 window.addEventListener('online', function () {{ majHorsLigne(); viderFile(); }});
