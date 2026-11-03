@@ -158,13 +158,14 @@ def disponibles(placard, courses=()):
             | {normaliser(a["nom"]) for a in courses if a["recurrent"] and (not a["actif"] or a["pris"])})
 
 
-def secours(plats, placard, courses=()):
-    """(faisables, presque) : plats du carnet ≤ SECOURS_MINUTES, tout disponible / 1-2 manquants."""
+def secours(plats, placard, courses=(), a_finir=()):
+    """(faisables, presque) : plats du carnet ≤ SECOURS_MINUTES, tout disponible / 1-2 manquants. `a_finir` : les
+    clés des produits à finir (a_finir.py) ; les plats qui en utilisent passent en tête."""
     stock = disponibles(placard, courses)
     faisables, presque = [], []
     candidats = sorted((p for p in plats if p["genre"] == "plat" and p["statut"] == "carnet" and not p["archive"]
                         and p["minutes"] <= SECOURS_MINUTES and p["ingredients"]),
-                       key=lambda p: (p["minutes"], p["nom"]))
+                       key=lambda p: (not any(normaliser(i) in a_finir for i in p["ingredients"]), p["minutes"], p["nom"]))
     for p in candidats:
         manquants = [i for i in p["ingredients"] if normaliser(i) not in stock]
         if not manquants:
@@ -248,14 +249,17 @@ def accompagner(choix, plats, repas, jours, hasard=None):
     return menus
 
 
-def proposer(plats, repas, jours, aujourd_hui, remplacer=(), cible=CIBLE_SOIRS, hasard=None):
+def proposer(plats, repas, jours, aujourd_hui, remplacer=(), cible=CIBLE_SOIRS, hasard=None, a_finir=()):
     """{jour: id du plat} pour compléter la semaine jusqu'à `cible` dîners prévus.
 
     Dîners libres seulement (ni plat ni issue), vendredi et samedi en dernier recours (souvent dehors), répartis
     dans la semaine. Plats pour nous deux, avec recette ; rapides (≤ 45 min) du lundi au jeudi ; ni déjà prévus
     (tous moments), ni mangés ces 14 derniers jours, ni brunchs ; un plat à tester s'il n'y en a pas déjà un. `remplacer` :
-    des jours à tirer au sort de nouveau, avec un autre plat (s'ils sont encore tels que proposés). L'accompagnement :
-    voir accompagner. Déjeuners et brunchs ne remplissent pas un soir."""
+    des jours à tirer au sort de nouveau, avec un autre plat (s'ils sont encore tels que proposés). `a_finir` :
+    [(clé, à finir avant)] des produits qu'aucun repas prévu n'utilise à temps (a_finir.alertes) — pour chacun, d'abord,
+    le plus rapide des plats du carnet qui l'utilisent, au premier soir à remplir avant sa date (avec Reproposer,
+    seulement sur les jours à remplacer). L'accompagnement : voir accompagner. Déjeuners et brunchs ne remplissent
+    pas un soir."""
     from random import Random
     hasard = hasard or Random()
     diners = {r["jour"]: r for r in repas if r["moment"] == "diner"}
@@ -266,17 +270,6 @@ def proposer(plats, repas, jours, aujourd_hui, remplacer=(), cible=CIBLE_SOIRS, 
     besoin = max(0, cible - len(prevus))
     libres = [j for j in jours if j not in prevus and j not in remplacer
               and not (j in diners and diners[j]["issue"])]
-    preferes = [j for j in libres if j.weekday() not in (4, 5)]
-    autres = [j for j in libres if j.weekday() in (4, 5)]
-    a_remplir = remplacer[:besoin]
-    reste = besoin - len(a_remplir)
-    if reste > 0:
-        if len(preferes) > reste:                       # répartis : au milieu de chaque tranche, pas d'affilée
-            a_remplir += [preferes[(2 * i + 1) * len(preferes) // (2 * reste)] for i in range(reste)]
-        else:
-            a_remplir += preferes + autres[:reste - len(preferes)]
-    if not a_remplir:
-        return {}
 
     manges = {i for r in repas if r["issue"] == "fait" and 0 <= (aujourd_hui - r["jour"]).days < RECENT
               for i in r["plats"]}
@@ -286,7 +279,36 @@ def proposer(plats, repas, jours, aujourd_hui, remplacer=(), cible=CIBLE_SOIRS, 
                  and p["recette"] and p["id"] not in exclus and not p["id"].startswith("brunch-")]
     hasard.shuffle(candidats)
     a_tester = any(p["statut"] == "a-tester" and p["genre"] == "plat" for p in plats if p["id"] in deja)
+
     choix = {}
+    possibles = sorted(remplacer[:besoin]) if remplacer else libres         # anti-gaspi : où poser un plat à finir
+    for cle, jusqu_au in sorted(a_finir, key=lambda x: (x[1], x[0])):
+        if len(choix) >= besoin:
+            break
+        for j in possibles:
+            if j > jusqu_au or j in choix:
+                continue
+            p = next((p for p in sorted(candidats, key=lambda p: (p["minutes"], p["nom"]))
+                      if p["statut"] == "carnet" and p["id"] not in choix.values()
+                      and any(normaliser(i) == cle for i in p["ingredients"])
+                      and not (j.weekday() < 4 and p["minutes"] > MINUTES_SEMAINE)), None)
+            if p:
+                choix[j] = p["id"]
+                break
+
+    restant = besoin - len(choix)
+    a_remplir = [j for j in remplacer if j not in choix][:restant]
+    reste = restant - len(a_remplir)
+    preferes = [j for j in libres if j.weekday() not in (4, 5) and j not in choix]
+    autres = [j for j in libres if j.weekday() in (4, 5) and j not in choix]
+    if reste > 0:
+        if len(preferes) > reste:                       # répartis : au milieu de chaque tranche, pas d'affilée
+            a_remplir += [preferes[(2 * i + 1) * len(preferes) // (2 * reste)] for i in range(reste)]
+        else:
+            a_remplir += preferes + autres[:reste - len(preferes)]
+    if not a_remplir and not choix:
+        return {}
+
     for j in sorted(a_remplir, key=lambda j: j.weekday() != 6):     # le plat à tester, le dimanche s'il y en a un
         rapide = j.weekday() < 4
         ordre = sorted(candidats, key=lambda p: (p["statut"] == "a-tester") == a_tester)
