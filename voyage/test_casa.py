@@ -193,6 +193,14 @@ def test_bloc_vin_seulement_une_belle():
     assert "Une belle bouteille ?" in html and 'data-action="ouverte"' in html
 
 
+def test_bloc_vin_styles_tactiles_et_hidden():
+    from casa import STYLE_CASA
+    assert "div.bloc-vin [hidden] { display: none; }" in STYLE_CASA
+    assert "div.bloc-vin p.message:empty { display: none; }" in STYLE_CASA
+    assert "div.bloc-vin button { min-height: 40px" in STYLE_CASA
+    assert "div.bloc-vin button.lien:focus-visible" in STYLE_CASA
+
+
 def test_page_aujourd_hui_avec_vin():
     html = aujourdhui_en_html([], AUJOURD_HUI, vins=[vin("vin-a", "Saint-Joseph")])
     assert html.index('class="bloc-ce-soir') < html.index('<div class="bloc-vin">')

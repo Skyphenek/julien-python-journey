@@ -372,3 +372,15 @@ div.depenses form label:has(input[name=pour]) { position: relative; min-height: 
 div.depenses form label input[name=pour] { position: absolute; opacity: 0; pointer-events: none; }
 div.depenses form label:has(input[name=pour]:checked) { background: var(--rubrique); border-color: var(--rubrique); color: #ffffff; }
 """
+
+
+# Repli « annexe » et bandeau hors ligne, partagés par les pages à file hors ligne (Courses, Cave)
+STYLE_ANNEXE = """details.annexe { background: var(--carte); border-radius: 24px; padding: 14px 16px; margin: 0 0 12px; }
+details.annexe summary { font-size: 17px; font-weight: 800; cursor: pointer; }
+details.annexe p.aide { color: var(--doux); font-size: 14px; margin: 8px 0; }
+"""
+
+STYLE_HORS_LIGNE = """div#hors-ligne { background: #fff4d6; color: #6b4e00; border-radius: 16px; padding: 10px 14px; margin: 0 0 12px;
+                 font-weight: 600; font-size: 14px; }
+@media (prefers-color-scheme: dark) { div#hors-ligne { background: #3d3214; color: #ffe08a; } }
+"""

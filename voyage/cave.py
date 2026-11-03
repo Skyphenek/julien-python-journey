@@ -6,8 +6,8 @@ restent au placard (Courses). Le vin du soir : accords_vins.py.
 import json
 
 from accords_vins import PROFILS
-from design import STYLE_D, STYLE_NAV_HUB, nav_hub
-from pwa import SCRIPT_FILE
+from design import STYLE_D, STYLE_NAV_HUB, STYLE_ANNEXE, STYLE_HORS_LIGNE, TETE_POLICE, nav_hub
+from pwa import SCRIPT_FILE, TETE_PWA
 
 COULEURS = [("rouge", "Rouge"), ("blanc", "Blanc"), ("rose", "Rosé"), ("bulles", "Effervescent"), ("doux", "Doux")]
 # Fenêtre à boire par défaut, en années après le millésime (début, fin)
@@ -89,6 +89,13 @@ def valider_bouteille(corps, annee):
 
 
 STYLE_CAVE = """
+body.cave [hidden] { display: none; }
+body.cave button, body.cave select, body.cave input { min-height: 40px; font-family: inherit; font-size: 14px; }
+body.cave button { border-radius: 14px; border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte);
+                   font-weight: 700; padding: 0 14px; }
+body.cave button#ajouter { background: var(--cave); border-color: var(--cave); color: var(--blanc); }
+form#ajout-vin button[type="submit"] { background: var(--cave); border-color: var(--cave); color: var(--blanc); }
+article.vin .ligne > button:not(.nom) { flex: none; border-color: var(--cave); color: var(--cave); }
 body.cave h1 { margin-bottom: 4px; }
 p.resume { color: var(--doux); margin: 0 0 14px; }
 p.message { color: var(--doux); margin: 0 0 14px; }
@@ -105,13 +112,15 @@ article.vin { background: var(--carte); border-radius: 20px; padding: 12px 14px 
 article.vin::before { content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 5px;
                       border-radius: 0 4px 4px 0; background: var(--c); }
 article.vin .ligne { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-article.vin button.nom { all: unset; cursor: pointer; font-weight: 700; min-width: 0; }
+article.vin button.nom { all: unset; cursor: pointer; font-weight: 700; min-width: 0; flex: 1; min-height: 40px;
+                         display: flex; flex-direction: column; justify-content: center; }
 article.vin .meta { display: block; color: var(--doux); font-size: 13px; font-weight: 400; }
 article.vin .edition { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center; }
 article.vin .edition input[type="number"] { width: 5.5em; }
 article.vin .edition input[name="note"] { flex: 1 1 100%; }
 article.vin .puces-accords { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 100%; }
-article.vin .puces-accords button[aria-pressed="true"] { background: var(--cave); color: var(--blanc); }
+article.vin .puces-accords button[aria-pressed="true"] { background: var(--cave); border-color: var(--cave); color: var(--blanc); }
+article.vin button.nom:focus-visible { outline: 2px solid var(--cave); outline-offset: 2px; border-radius: 6px; }
 article.vin[data-couleur="rouge"] { --c: #9b2c4f; }
 article.vin[data-couleur="blanc"] { --c: #c9a227; }
 article.vin[data-couleur="rose"] { --c: #e58aa3; }
@@ -198,6 +207,14 @@ SCRIPT_CAVE = """
         const i = el('input'); i.type = 'number'; i.name = nom; i.value = valeur; i.min = mini;
         i.setAttribute('aria-label', nom); return i;
     }
+    function retrait(b) {                                       // deux taps, sans boîte de dialogue : le 2e confirme, 4 s pour le faire
+        const r = bouton('Retirer', function () {
+            if (r.dataset.confirme) { retirer(b); return; }
+            r.dataset.confirme = '1'; r.textContent = 'Confirmer le retrait';
+            setTimeout(function () { delete r.dataset.confirme; r.textContent = 'Retirer'; }, 4000);
+        });
+        return r;
+    }
     function edition(b) {
         const e = el('div', 'edition');
         const quantite = nombre('quantité', b.quantite, 0), debut = nombre('début', b.debut, 1900), fin = nombre('fin', b.fin, 1900);
@@ -220,7 +237,7 @@ SCRIPT_CAVE = """
                     debut: entierOu(debut, b.debut), fin: entierOu(fin, b.fin),
                     accords: PROFILS.filter(function (p) { return accords.indexOf(p) >= 0; }), note: note.value.trim() }));
             }),
-            bouton('Retirer', function () { retirer(b); }),
+            retrait(b),
             bouton('Fermer', function () { ouvert = null; afficher(); }));
         return e;
     }
@@ -276,7 +293,6 @@ SCRIPT_CAVE = """
 
 def cave_en_html():
     """La page Cave : une coquille, remplie par le script depuis api/cave (copie gardée hors ligne)."""
-    from accords_vins import PROFILS
     couleurs = json.dumps(COULEURS, ensure_ascii=False)
     profils = json.dumps(PROFILS, ensure_ascii=False)
     options = "".join(f'<option value="{c}">{nom}</option>' for c, nom in COULEURS)
@@ -285,7 +301,10 @@ def cave_en_html():
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<style>{STYLE_D}{STYLE_NAV_HUB}{STYLE_CAVE}</style>
+<title>Cave · Casa Binomerie</title>
+{TETE_PWA}
+{TETE_POLICE}
+<style>{STYLE_D}{STYLE_NAV_HUB}{STYLE_ANNEXE}{STYLE_HORS_LIGNE}{STYLE_CAVE}</style>
 </head>
 <body class="accueil hub-page cave">
 <h1>Cave</h1>

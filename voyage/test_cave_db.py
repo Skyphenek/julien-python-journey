@@ -22,6 +22,11 @@ def conn():
         cur.execute("DELETE FROM reprises WHERE nom = 'cave-test'")
     c.commit()
     yield c
+    c.rollback()
+    with c.cursor() as cur:                          # ne pas laisser de lignes aux modules suivants
+        cur.execute("TRUNCATE cave")
+        cur.execute("DELETE FROM reprises WHERE nom = 'cave-test'")
+    c.commit()
     c.close()
 
 
@@ -122,3 +127,19 @@ def test_aujourd_hui_sans_vin_qui_colle(client_diner, conn):
     enregistrer_bouteille(conn, bouteille("vin-poisson", nom="Cheverny", accords=["poisson"], prix_haut=10))
     enregistrer_repas(conn, {"jour": aujourd_hui_paris(), "moment": "diner", "plats": ["plat-test-boeuf"], "issue": None})
     assert '<div class="bloc-vin">' not in client_diner.get("/").get_data(as_text=True)
+
+
+def test_aujourd_hui_diner_avec_issue_sans_vin(client_diner, conn):
+    enregistrer_bouteille(conn, bouteille("vin-boeuf", nom="Plan de Dieu", accords=["boeuf"], prix_haut=12))
+    enregistrer_repas(conn, {"jour": aujourd_hui_paris(), "moment": "diner", "plats": ["plat-test-boeuf"], "issue": "commande"})
+    assert '<div class="bloc-vin">' not in client_diner.get("/").get_data(as_text=True)
+
+
+def test_aujourd_hui_belle_bouteille_quel_que_soit_le_jour(client_diner, conn):
+    """Vendredi/samedi la belle est dans la liste du soir, les autres jours derrière « Une belle bouteille ? »."""
+    enregistrer_bouteille(conn, bouteille("vin-belle", nom="Clos des Fées", accords=["boeuf"], prix_bas=40, prix_haut=60))
+    enregistrer_repas(conn, {"jour": aujourd_hui_paris(), "moment": "diner", "plats": ["plat-test-boeuf"], "issue": None})
+    html = client_diner.get("/").get_data(as_text=True)
+    assert '<div class="bloc-vin">' in html and "Clos des Fées" in html
+    if aujourd_hui_paris().weekday() not in (4, 5):
+        assert "Une belle bouteille ?" in html

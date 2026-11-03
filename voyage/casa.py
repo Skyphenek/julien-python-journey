@@ -103,7 +103,16 @@ div.bloc-vin .titre { display: block; font-size: 13px; font-weight: 800; color: 
 div.bloc-vin ul { list-style: none; margin: 4px 0 8px; padding: 0; }
 div.bloc-vin li span { display: block; color: var(--doux); font-size: 13px; }
 div.bloc-vin .choix { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-div.bloc-vin button.lien { all: unset; cursor: pointer; text-decoration: underline; color: var(--doux); font-size: 13px; }
+div.bloc-vin [hidden] { display: none; }
+div.bloc-vin p.message { margin: 6px 0 0; color: var(--diners); font-weight: 700; font-size: 14px; }
+div.bloc-vin p.message:empty { display: none; }
+div.bloc-vin ul:not(:has(li:not([hidden]))) { display: none; }
+div.bloc-vin button { min-height: 40px; border-radius: 14px; border: 2px solid var(--ligne); background: var(--blanc);
+                      color: var(--texte); font-family: inherit; font-weight: 700; font-size: 14px; padding: 0 14px; }
+div.bloc-vin button[data-action="ouverte"] { border-color: var(--cave); color: var(--cave); }
+div.bloc-vin button.lien { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 40px;
+                           padding: 0 6px; cursor: pointer; text-decoration: underline; color: var(--doux); font-size: 13px; }
+div.bloc-vin button.lien:focus-visible { outline: 2px solid var(--diners); outline-offset: 2px; border-radius: 6px; }
 """
 
 

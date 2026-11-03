@@ -115,6 +115,32 @@ def test_page_cave():
     assert EMOJI.findall(html) == []
 
 
+def test_page_cave_a_la_tete_des_autres_onglets():
+    html = cave_en_html()
+    assert "<title>Cave · Casa Binomerie</title>" in html
+    assert 'rel="manifest"' in html
+    assert "fonts.googleapis.com" in html
+    assert "details.annexe" in html and "div#hors-ligne" in html          # repli Bues et bandeau, comme Courses
+
+
+def test_boutons_cave_assez_grands_et_hidden_respecte():
+    from cave import STYLE_CAVE
+    assert "body.cave button" in STYLE_CAVE and "min-height: 40px" in STYLE_CAVE
+    assert "body.cave [hidden] { display: none; }" in STYLE_CAVE
+
+
+def test_retirer_en_deux_temps_sans_dialogue():
+    from cave import SCRIPT_CAVE
+    assert "Confirmer le retrait" in SCRIPT_CAVE and "4000" in SCRIPT_CAVE
+    assert "confirm(" not in SCRIPT_CAVE and "alert(" not in SCRIPT_CAVE
+
+
+def test_courses_garde_les_memes_regles_partagees():
+    from courses import STYLE_COURSES
+    from design import STYLE_ANNEXE, STYLE_HORS_LIGNE
+    assert STYLE_ANNEXE in STYLE_COURSES and STYLE_HORS_LIGNE in STYLE_COURSES
+
+
 def test_formulaire_ajout_cache_par_defaut():
     """Le display:grid du formulaire ne doit pas écraser l'attribut hidden."""
     assert "form#ajout-vin[hidden]" in cave_en_html()
