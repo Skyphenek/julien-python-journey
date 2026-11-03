@@ -66,7 +66,7 @@ STYLE_NAV_HUB = """
 nav.hub { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; justify-content: center;
           gap: 4px; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); background: var(--fond);
           border-top: 1px solid var(--ligne); }
-nav.hub a { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px;
+nav.hub a { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px;
             font-size: 11px; font-weight: 600; color: var(--doux); text-decoration: none; }
 nav.hub a .icone-hub { display: flex; padding: 6px 10px; border-radius: 16px; color: var(--c); }
 nav.hub a.actif { color: var(--texte); font-weight: 800; }

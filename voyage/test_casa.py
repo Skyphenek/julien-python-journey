@@ -221,3 +221,9 @@ def test_script_vin_syntaxe_js(tmp_path):
     fichier.write_text(SCRIPT_VIN, encoding="utf-8")
     r = subprocess.run([node, "--check", str(fichier)], capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
+
+
+def test_six_onglets_tiennent_sur_iphone():
+    from design import STYLE_NAV_HUB
+    # base « auto » : un onglet au libellé long (« Aujourd'hui », 61 px) prend sa place au lieu de déborder sur le voisin
+    assert "nav.hub a { flex: 1 1 auto; min-width: 0;" in STYLE_NAV_HUB
