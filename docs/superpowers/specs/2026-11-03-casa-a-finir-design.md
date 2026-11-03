@@ -54,15 +54,18 @@ Sans aucune des deux (habituel jamais acheté depuis le 02/11, sans correction) 
 | epicerie (sauces entamées) | 30 |
 | specialise | 14 |
 
-Exceptions (valeurs réalistes pour un frigo domestique, pas la prudence maximale) :
+Exceptions : la durée d'un produit **fermé** (décision du 03/11 : une seule durée, pas d'état « entamé » ; un
+produit entamé se corrige avec [Fini] ou [Encore bon]) — valeurs réalistes pour un frigo domestique :
 
 | Jours | Produits |
 |---|---|
 | 1 | bœuf haché, porc haché, steak haché, steaks hachés, chair à saucisse, tartare, carpaccio, foies de volaille, tous les poissons et fruits de mer frais du rayon boucherie (saumon … langoustines, sauf morue salée) |
-| 3 | fraises, framboises, myrtilles, mûres, groseilles, cassis, cerises, champignons de Paris, champignons, pleurotes, shiitakés, girolles, cèpes, pousses de soja, germes de haricot mungo, mozzarella, mozzarella di bufala, burrata, stracciatella, ricotta, saumon fumé, truite fumée |
-| 4 | salade, sucrine, laitue, batavia, roquette, mâche, mesclun, jeunes pousses, épinards frais, persil, persil plat, coriandre, basilic, menthe, ciboulette, aneth, cerfeuil, estragon, basilic thaï, lait, lait entier, lait demi-écrémé, crème liquide, crème fleurette, crème entière, jambon, jambon blanc, blanc de dinde |
-| 10 | carottes, chou blanc, chou rouge, chou vert, céleri-rave, poireaux, navets, panais, betteraves, radis noir, crème fraîche, crème fraîche épaisse, mascarpone, lardons, lardons fumés, allumettes de bacon, saucisses de Strasbourg, saucisses de Francfort, knacks, galettes de sarrasin, crêpes, pâte brisée, pâte feuilletée, pâte sablée, pâte à pizza, gnocchi, tortellini, raviolis frais, pâtes fraîches, tagliatelles fraîches, ravioles |
-| 14 | yaourts, yaourt nature, yaourt grec, skyr, fromage blanc, faisselle, petits-suisses, crème dessert, kéfir, emmental râpé, fromage râpé, cheddar râpé, feta, halloumi, tofu, tofu fumé, chorizo, gingembre |
+| 3 | fraises, framboises, myrtilles, mûres, groseilles, cassis, cerises, champignons de Paris, champignons, pleurotes, shiitakés, girolles, cèpes, pousses de soja, germes de haricot mungo |
+| 4 | salade, sucrine, laitue, batavia, roquette, mâche, mesclun, jeunes pousses, épinards frais, persil, persil plat, coriandre, basilic, menthe, ciboulette, aneth, cerfeuil, estragon, basilic thaï |
+| 5 | burrata, stracciatella |
+| 7 | lait, lait entier, lait demi-écrémé, ricotta, jambon, jambon blanc, blanc de dinde |
+| 10 | mozzarella, mozzarella di bufala, saumon fumé, truite fumée, carottes, chou blanc, chou rouge, chou vert, céleri-rave, poireaux, navets, panais, betteraves, radis noir, lardons, lardons fumés, allumettes de bacon, saucisses de Strasbourg, saucisses de Francfort, knacks, galettes de sarrasin, crêpes, pâte brisée, pâte feuilletée, pâte sablée, pâte à pizza, gnocchi, tortellini, raviolis frais, pâtes fraîches, tagliatelles fraîches, ravioles |
+| 14 | crème fraîche, crème fraîche épaisse, crème liquide, crème fleurette, crème entière, mascarpone, yaourts, yaourt nature, yaourt grec, skyr, fromage blanc, faisselle, petits-suisses, crème dessert, kéfir, emmental râpé, fromage râpé, cheddar râpé, feta, halloumi, tofu, tofu fumé, chorizo, gingembre |
 | 21 | parmesan, pecorino, pecorino romano, parmigiano reggiano, grana padano, comté, beaufort, emmental, gruyère, abondance, cantal, mimolette, gouda, cheddar, saucisson, saucisson sec, rosette, salami, guanciale, guanciale entier, pancetta, guanciale ou pancetta |
 | 28 | œufs, beurre, beurre doux, beurre demi-sel |
 
@@ -140,6 +143,8 @@ Date imprimée lue sur photo, congélateur, notifications push, réglage des dur
 ## Limites connues
 
 - Les dates sont des estimations : un emballé à date longue peut sortir plus tard qu'annoncé (« Encore bon »).
+- Durée d'un produit fermé : un produit entamé (jambon, crème) peut tourner avant l'alerte ; l'app ne sait pas
+  qu'il est ouvert.
 - Un achat hors liste (pas coché dans Courses ni mis en stock) n'est pas suivi.
 - Un `maj_le` du placard touché pour une autre raison (bientôt fini) décale la date d'entrée d'un élément.
 
