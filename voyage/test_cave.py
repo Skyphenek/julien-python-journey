@@ -113,3 +113,35 @@ def test_page_cave():
     assert '<script type="application/json" id="profils">' in html
     assert "envoyerOuGarder" in html                                   # la file hors ligne de Courses
     assert EMOJI.findall(html) == []
+
+
+def test_formulaire_ajout_cache_par_defaut():
+    """Le display:grid du formulaire ne doit pas écraser l'attribut hidden."""
+    assert "form#ajout-vin[hidden]" in cave_en_html()
+
+
+def test_ecriture_refusee_affiche_un_message():
+    html = cave_en_html()
+    assert 'id="message-cave"' in html and 'aria-live="polite"' in html
+    assert "Pas enregistré : vérifie les valeurs." in html
+
+
+def test_edition_garde_la_valeur_si_champ_vide():
+    html = cave_en_html()
+    assert "parseInt(quantite.value, 10) || 0" not in html
+
+
+def test_script_cave_syntaxe_js(tmp_path):
+    """Le script rendu dans la page est du JavaScript valide (node --check), sinon test ignoré."""
+    import shutil
+    import subprocess
+    from cave import SCRIPT_CAVE
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node absent")
+    html = cave_en_html()
+    assert SCRIPT_CAVE in html
+    fichier = tmp_path / "cave.js"
+    fichier.write_text(SCRIPT_CAVE, encoding="utf-8")
+    r = subprocess.run([node, "--check", str(fichier)], capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr

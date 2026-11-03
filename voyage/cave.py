@@ -88,12 +88,13 @@ def valider_bouteille(corps, annee):
             "note": _texte(corps, "note")}
 
 
-GROUPES = [("vite", "À boire vite"), ("prete", "Prêtes"), ("garder", "À garder")]
-
 STYLE_CAVE = """
 body.cave h1 { margin-bottom: 4px; }
 p.resume { color: var(--doux); margin: 0 0 14px; }
+p.message { color: var(--doux); margin: 0 0 14px; }
+p.message:empty { display: none; }
 #ajouter { margin: 0 0 14px; }
+form#ajout-vin[hidden] { display: none; }
 form#ajout-vin { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: var(--carte);
                  border-radius: 20px; padding: 14px; margin: 0 0 14px; }
 form#ajout-vin input[name="nom"] { grid-column: 1 / -1; }
@@ -147,11 +148,18 @@ SCRIPT_CAVE = """
             .then(appliquer)
             .catch(function () { try { appliquer(JSON.parse(localStorage.getItem(CLE_COPIE))); } catch (e) {} });
     }
+    function message(texte) { document.getElementById('message-cave').textContent = texte; }
     let chaine = Promise.resolve();
     function envoyer(envoi) {
         const p = chaine.then(function () { return envoyerOuGarder(envoi); });
         chaine = p.catch(function () {});
-        return p.then(function (etat) { if (etat === 'ok') charger(); return etat; });
+        return p.then(function (etat) {
+            if (etat === 'ok') { message(''); charger(); }
+            return etat;
+        }, function () {                                         // écriture refusée (4xx) : on dit pourquoi et on relit le serveur
+            message('Pas enregistré : vérifie les valeurs.');
+            ouvert = null; charger();
+        });
     }
 
     function enregistrer(b) {
@@ -185,6 +193,7 @@ SCRIPT_CAVE = """
         if (ouvert === b.id) a.append(edition(b));
         return a;
     }
+    function entierOu(champ, defaut) { const v = parseInt(champ.value, 10); return isNaN(v) ? defaut : v; }
     function nombre(nom, valeur, mini) {
         const i = el('input'); i.type = 'number'; i.name = nom; i.value = valeur; i.min = mini;
         i.setAttribute('aria-label', nom); return i;
@@ -207,8 +216,8 @@ SCRIPT_CAVE = """
         e.append(quantite, debut, fin, puces, note,
             bouton('Enregistrer', function () {
                 ouvert = null;
-                enregistrer(Object.assign({}, b, { quantite: parseInt(quantite.value, 10) || 0,
-                    debut: parseInt(debut.value, 10) || b.debut, fin: parseInt(fin.value, 10) || b.fin,
+                enregistrer(Object.assign({}, b, { quantite: Math.max(entierOu(quantite, b.quantite), 0),
+                    debut: entierOu(debut, b.debut), fin: entierOu(fin, b.fin),
                     accords: PROFILS.filter(function (p) { return accords.indexOf(p) >= 0; }), note: note.value.trim() }));
             }),
             bouton('Retirer', function () { retirer(b); }),
@@ -281,6 +290,7 @@ def cave_en_html():
 <body class="accueil hub-page cave">
 <h1>Cave</h1>
 <p class="resume" id="resume">Chargement…</p>
+<p class="message" id="message-cave" aria-live="polite"></p>
 <div id="hors-ligne" hidden></div>
 <button type="button" id="ajouter">+ Ajouter</button>
 <form id="ajout-vin" autocomplete="off" hidden>
