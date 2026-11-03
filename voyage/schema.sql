@@ -279,3 +279,24 @@ CREATE TABLE IF NOT EXISTS a_finir (
     cle         TEXT        PRIMARY KEY,             -- nom normalisé du produit
     jusqu_au    DATE        NOT NULL
 );
+
+
+-- Casa Binomerie : la cave (vins à boire ; les vins de cuisine restent au placard). Une ligne par référence ;
+-- à 0, elle reste (repli « Bues »).
+CREATE TABLE IF NOT EXISTS cave (
+    id          TEXT        PRIMARY KEY,
+    nom         TEXT        NOT NULL,
+    producteur  TEXT        NOT NULL DEFAULT '',
+    appellation TEXT        NOT NULL DEFAULT '',
+    region      TEXT        NOT NULL DEFAULT '',
+    couleur     TEXT        NOT NULL,
+    millesime   INT,
+    quantite    INT         NOT NULL DEFAULT 1 CHECK (quantite >= 0),
+    debut       INT         NOT NULL,
+    fin         INT         NOT NULL,
+    prix_bas    INT,
+    prix_haut   INT,
+    accords     JSONB       NOT NULL DEFAULT '[]'::jsonb,
+    note        TEXT        NOT NULL DEFAULT '',
+    maj_le      TIMESTAMPTZ NOT NULL DEFAULT now()
+);

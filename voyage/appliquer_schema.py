@@ -12,7 +12,8 @@ from dotenv import load_dotenv
 from carnet_depart import CARNET_DEPART, A_TESTER
 from courses import PLACARD_DEPART
 from db import connecter, semer_placard, semer_carnet, completer_recettes, reorganiser_placard, ajouter_recettes, \
-    actualiser_recettes, pour_julien, separer_pour_julien, poser_accords, dater_frigo
+    actualiser_recettes, pour_julien, separer_pour_julien, poser_accords, dater_frigo, poser_cave
+from cave_depart import NOM_REPRISE as REPRISE_CAVE, CAVE_DEPART
 from a_finir import NOM_REPRISE as REPRISE_A_FINIR, JOUR_REPRISE, FRIGO_CONNU
 from recettes_air_fryer import NOM_REPRISE as REPRISE_AIR_FRYER, NOM_REPRISE_6L, AIR_FRYER
 from recettes_legumes import NOM_REPRISE as REPRISE_LEGUMES, LEGUMES, RETIRES
@@ -75,6 +76,7 @@ def appliquer(conn, pour_de_bon):
         accompagnements = ajouter_recettes(conn, REPRISE_ACCOMPAGNEMENTS, ACCOMPAGNEMENTS + BRUNCHS)
         accords = poser_accords(conn, NOM_REPRISE_ACCORDS, ACCORDS)    # après l'ajout : ils existent
         frigo = dater_frigo(conn, REPRISE_A_FINIR, JOUR_REPRISE, FRIGO_CONNU)    # une seule fois
+        cave = poser_cave(conn, REPRISE_CAVE, CAVE_DEPART)                       # une seule fois
         conn.commit()
         if bilan:
             print(f"Placard v2 : {annonce(bilan)}.")
@@ -97,6 +99,8 @@ def appliquer(conn, pour_de_bon):
         if frigo is not None:
             print(f"À finir : {len(frigo)} produit(s) du frigo datés : "
                   + ", ".join(f"{cle} {d:%d/%m}" for cle, d in sorted(frigo.items())) + ".")
+        if cave is not None:
+            print(f"Cave : {cave} référence(s) de départ ajoutée(s).")
     else:
         bilan = reorganiser_placard(conn) if a_un_placard(conn) else None
         air_fryer = ajouter_recettes(conn, REPRISE_AIR_FRYER, AIR_FRYER)
@@ -110,6 +114,7 @@ def appliquer(conn, pour_de_bon):
         accompagnements = ajouter_recettes(conn, REPRISE_ACCOMPAGNEMENTS, ACCOMPAGNEMENTS + BRUNCHS)
         accords = poser_accords(conn, NOM_REPRISE_ACCORDS, ACCORDS)
         frigo = dater_frigo(conn, REPRISE_A_FINIR, JOUR_REPRISE, FRIGO_CONNU)
+        cave = poser_cave(conn, REPRISE_CAVE, CAVE_DEPART)
         conn.rollback()
         if laetitia is not None:
             print(f"À blanc, rien que pour Laetitia : {laetitia} recettes à ajouter à tester.")
@@ -134,6 +139,8 @@ def appliquer(conn, pour_de_bon):
         if frigo is not None:
             print(f"À blanc, À finir : {len(frigo)} produit(s) du frigo à dater : "
                   + ", ".join(f"{cle} {d:%d/%m}" for cle, d in sorted(frigo.items())) + ".")
+        if cave is not None:
+            print(f"À blanc, Cave : {cave} référence(s) de départ à ajouter.")
 
 
 if __name__ == "__main__":
