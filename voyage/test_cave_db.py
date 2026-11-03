@@ -103,7 +103,10 @@ def client_diner(client, conn):
     enregistrer_plat(conn, {"id": "plat-test-boeuf", "nom": "Steak", "genre": "plat", "minutes": 15,
                             "ingredients": ["pièce du boucher", "beurre"], "recette": "", "lien": "", "note": "",
                             "statut": "carnet", "archive": False, "pour": "nous"})
-    return client
+    yield client
+    with conn.cursor() as cur:                       # ne pas laisser de dîner prévu aux autres tests
+        cur.execute("TRUNCATE repas, plats")
+    conn.commit()
 
 
 def test_aujourd_hui_propose_un_vin(client_diner, conn):
