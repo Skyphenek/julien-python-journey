@@ -98,6 +98,21 @@ div.bloc-a-finir ul.plats li span { display: flex; flex-direction: column; min-w
 div.bloc-a-finir ul.plats button { border-color: var(--diners); color: var(--diners); flex: none; }
 div.bloc-a-finir p.pris { margin: 6px 0 0; }
 div.bloc-a-finir .message { margin: 8px 0 0; color: var(--diners); font-weight: 700; font-size: 14px; }
+div.bloc-vin { background: var(--carte); border-radius: 24px; padding: 14px 16px; margin: 0 0 12px; }
+div.bloc-vin .titre { display: block; font-size: 13px; font-weight: 800; color: var(--doux); }
+div.bloc-vin ul { list-style: none; margin: 4px 0 8px; padding: 0; }
+div.bloc-vin li span { display: block; color: var(--doux); font-size: 13px; }
+div.bloc-vin .choix { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+div.bloc-vin [hidden], div.bloc-vin button.lien[hidden] { display: none; }
+div.bloc-vin p.message { margin: 6px 0 0; color: var(--diners); font-weight: 700; font-size: 14px; }
+div.bloc-vin p.message:empty { display: none; }
+div.bloc-vin ul:not(:has(li:not([hidden]))) { display: none; }
+div.bloc-vin button { min-height: 40px; border-radius: 14px; border: 2px solid var(--ligne); background: var(--blanc);
+                      color: var(--texte); font-family: inherit; font-weight: 700; font-size: 14px; padding: 0 14px; }
+div.bloc-vin button[data-action="ouverte"] { border-color: var(--cave); color: var(--cave); }
+div.bloc-vin button.lien { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 40px;
+                           padding: 0 6px; cursor: pointer; text-decoration: underline; color: var(--doux); font-size: 13px; }
+div.bloc-vin button.lien:focus-visible { outline: 2px solid var(--diners); outline-offset: 2px; border-radius: 6px; }
 """
 
 
@@ -128,6 +143,63 @@ def bloc_ce_soir(plats):
                 f'<strong>{echapper(principal["nom"])}</strong><span>{principal["minutes"]} min · {avec}voir la recette</span></a>')
     return ('<a class="bloc-ce-soir vide" href="diners#ce-soir"><span class="titre">Ce soir</span>'
             '<strong>Rien de prévu</strong><span>Voir ce que le placard permet en 20 minutes</span></a>')
+
+
+def _vin_en_li(v, classe=""):
+    millesime = f' {v["millesime"]}' if v.get("millesime") else ""
+    attributs = f' class="{classe}"' if classe else ""
+    lieu = ", ".join(x for x in (v.get("region"), v.get("pays") if v.get("pays") not in (None, "", "France") else "")
+                     if x)
+    lieu = f"{echapper(lieu)} · " if lieu else ""
+    return (f'<li data-id="{echapper(v["id"])}"{attributs} hidden><strong>{echapper(v["nom"])}{millesime}</strong>'
+            f'<span>{lieu}à boire avant {v["fin"]}</span></li>')
+
+
+def bloc_vin(vins, belle):
+    """Le vin du soir (accords_vins.suggerer) : la première suggestion visible, [Autre] pour les suivantes,
+    « Une belle bouteille ? » pour la belle (belle bouteille d'un soir de semaine). Rien si ni l'une ni l'autre."""
+    vins = list(vins)
+    if not vins and not belle:
+        return ""
+    lis = [_vin_en_li(v) for v in vins] + ([_vin_en_li(belle, "belle")] if belle else [])
+    if vins:
+        lis[0] = lis[0].replace(" hidden>", ">", 1)
+    boutons = ('<button type="button" data-action="ouverte"' + ("" if vins else " hidden") + '>Ouverte</button>'
+               + ('<button type="button" data-action="autre">Autre</button>' if len(vins) > 1 else ""))
+    lien = '<button type="button" class="lien" data-action="belle">Une belle bouteille ?</button>' if belle else ""
+    return (f'<div class="bloc-vin"><span class="titre">À ouvrir</span><ul>{"".join(lis)}</ul>'
+            f'<div class="choix">{boutons}{lien}</div><p class="message" aria-live="polite"></p></div>')
+
+
+SCRIPT_VIN = """
+(function () {
+    const bloc = document.querySelector('div.bloc-vin');
+    if (!bloc) return;
+    const lis = Array.prototype.slice.call(bloc.querySelectorAll('li'));
+    const ordinaires = lis.filter(function (li) { return !li.classList.contains('belle'); });
+    let i = 0;
+    function montrer(li) { lis.forEach(function (x) { x.hidden = x !== li; }); }
+    function visible() { return lis.find(function (x) { return !x.hidden; }); }
+    const autre = bloc.querySelector('[data-action="autre"]');
+    if (autre) autre.addEventListener('click', function () { i = (i + 1) % ordinaires.length; montrer(ordinaires[i]); });
+    const belle = bloc.querySelector('[data-action="belle"]');
+    const ouverte = bloc.querySelector('[data-action="ouverte"]');
+    if (belle) belle.addEventListener('click', function () {
+        montrer(bloc.querySelector('li.belle')); belle.hidden = true; ouverte.hidden = false;
+    });
+    ouverte.addEventListener('click', function () {
+        const li = visible();
+        if (!li) return;
+        bloc.querySelectorAll('button').forEach(function (x) { x.disabled = true; });
+        fetch('api/cave/' + encodeURIComponent(li.dataset.id) + '/bue', { method: 'POST' })
+            .then(function (r) { if (!r.ok) throw new Error(r.status); location.reload(); })
+            .catch(function () {
+                bloc.querySelector('.message').textContent = 'Pas envoyé : réessaie une fois connecté.';
+                bloc.querySelectorAll('button').forEach(function (x) { x.disabled = false; });
+            });
+    });
+})();
+"""
 
 
 ISSUES_HIER = [("fait", "Fait maison"), ("commande", "Commandé"), ("dehors", "Dehors"), ("autre", "Autre")]
@@ -248,11 +320,12 @@ SCRIPT_A_FINIR = """
 
 
 def aujourdhui_en_html(voyages, aujourd_hui, a_acheter=(), plats_du_soir=(), diner_hier=None, compte=None,
-                       semaine_budget=None, a_finir=()):
-    """L'accueil du hub : ce soir, hier soir, ce qui est à finir, ce qu'il faut acheter aujourd'hui, le budget de la
+                       semaine_budget=None, a_finir=(), vins=(), belle=None):
+    """L'accueil du hub : ce soir (et le vin à ouvrir), hier soir, ce qui est à finir, ce qu'il faut acheter aujourd'hui, le budget de la
     semaine, le prochain voyage, le compteur Deliveroo."""
     v = prochain_voyage(voyages, aujourd_hui)
-    blocs = (bloc_ce_soir(list(plats_du_soir)) + (bloc_hier(diner_hier) if diner_hier else "")
+    blocs = (bloc_ce_soir(list(plats_du_soir)) + bloc_vin(vins, belle)
+             + (bloc_hier(diner_hier) if diner_hier else "")
              + bloc_a_finir(list(a_finir), aujourd_hui) + bloc_courses(list(a_acheter))
              + bloc_budget(semaine_budget)
              + (bloc_vadrouille(v, aujourd_hui) if v else "") + bloc_compteur(compte))
@@ -274,5 +347,6 @@ def aujourdhui_en_html(voyages, aujourd_hui, a_acheter=(), plats_du_soir=(), din
 <script>{SCRIPT_COMPTE}</script>
 <script>{SCRIPT_HIER}</script>
 <script>{SCRIPT_A_FINIR}</script>
+<script>{SCRIPT_VIN}</script>
 </body>
 </html>"""

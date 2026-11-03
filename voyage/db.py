@@ -1025,3 +1025,65 @@ def dater_frigo(conn, nom_reprise, jour, connus):
                            ON CONFLICT (cle) DO UPDATE SET jusqu_au = EXCLUDED.jusqu_au""", (cle, jusqu_au))
         cur.execute("INSERT INTO reprises (nom) VALUES (%s)", (nom_reprise,))
     return dates
+
+
+# --- Casa Binomerie : la cave -------------------------------------------------------------------
+
+CHAMPS_CAVE = ("nom", "producteur", "appellation", "region", "couleur", "millesime", "quantite", "debut", "fin",
+               "prix_bas", "prix_haut", "accords", "note", "pays")
+
+
+def lire_cave(conn):
+    """Toutes les références de la cave (bues comprises), par nom."""
+    with conn.cursor() as cur:
+        cur.execute(f"SELECT id, {', '.join(CHAMPS_CAVE)} FROM cave ORDER BY nom, id")
+        return [dict(zip(("id",) + CHAMPS_CAVE, ligne)) for ligne in cur.fetchall()]
+
+
+def _ecrire_bouteille(cur, b, sur_conflit):
+    valeurs = [Json(b[c]) if c == "accords" else b[c] for c in CHAMPS_CAVE]
+    cur.execute(f"""INSERT INTO cave (id, {', '.join(CHAMPS_CAVE)})
+                    VALUES (%s, {', '.join(['%s'] * len(CHAMPS_CAVE))}) {sur_conflit}""", [b["id"]] + valeurs)
+
+
+def enregistrer_bouteille(conn, b):
+    """Crée ou met à jour (même id) une référence de la cave (cave.valider_bouteille)."""
+    with conn.cursor() as cur:
+        _ecrire_bouteille(cur, b, "ON CONFLICT (id) DO UPDATE SET "
+                          + ", ".join(f"{c} = EXCLUDED.{c}" for c in CHAMPS_CAVE) + ", maj_le = now()")
+    conn.commit()
+
+
+def boire(conn, identifiant):
+    """Une bouteille de moins (jamais sous 0). Renvoie la nouvelle quantité, ou None si la référence n'existe pas."""
+    with conn.cursor() as cur:
+        cur.execute("""UPDATE cave SET quantite = GREATEST(quantite - 1, 0), maj_le = now()
+                       WHERE id = %s RETURNING quantite""", (identifiant,))
+        ligne = cur.fetchone()
+    conn.commit()
+    return ligne[0] if ligne else None
+
+
+def retirer_bouteille(conn, identifiant):
+    """Retire une référence de la cave. Renvoie False si elle n'existait pas."""
+    with conn.cursor() as cur:
+        cur.execute("DELETE FROM cave WHERE id = %s", (identifiant,))
+        retiree = cur.rowcount > 0
+    conn.commit()
+    return retiree
+
+
+def poser_cave(conn, nom_reprise, references):
+    """La cave de départ (cave_depart.py), une seule fois (table reprises) : une référence déjà en base n'est pas
+    touchée. Sans commit : l'appelant valide ou annule (à blanc). Renvoie le nombre de références ajoutées, ou None
+    si c'est déjà fait."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT EXISTS (SELECT 1 FROM reprises WHERE nom = %s)", (nom_reprise,))
+        if cur.fetchone()[0]:
+            return None
+        n = 0
+        for b in references:
+            _ecrire_bouteille(cur, b, "ON CONFLICT (id) DO NOTHING")
+            n += cur.rowcount
+        cur.execute("INSERT INTO reprises (nom) VALUES (%s)", (nom_reprise,))
+    return n

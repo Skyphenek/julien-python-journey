@@ -1,5 +1,6 @@
 """Tests du hub Casa Binomerie : la navigation et la page Aujourd'hui."""
 import sys
+import pytest
 from datetime import date, timedelta
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -17,7 +18,7 @@ def voyage(depart, jours=10, libelle="Hanoï"):
 
 
 def test_le_hub_commence_par_aujourd_hui_et_finit_par_la_vadrouille():
-    assert [cle for cle, _, _ in HUB] == ["aujourdhui", "diners", "courses", "budget", "vadrouille"]   # les modules s'ajoutent à leur livraison
+    assert [cle for cle, _, _ in HUB] == ["aujourdhui", "diners", "courses", "cave", "budget", "vadrouille"]   # les modules s'ajoutent à leur livraison
     assert HUB[0][2] == "./" and HUB[-1][2] == "vadrouille"
     assert HUB[-1][1] == "Vadrouille"           # « En Vadrouille » débordait de la barre du bas sur iPhone
 
@@ -159,3 +160,78 @@ def test_page_aujourd_hui_avec_a_finir():
     assert '<div class="bloc-a-finir">' in html and "api/a-finir/" in html
     assert "si_libre: true" in html and "Ce soir-là est déjà pris : recharge la page." in html
     assert '<div class="bloc-a-finir">' not in aujourdhui_en_html([], AUJOURD_HUI)   # le CSS, lui, contient toujours le nom
+
+
+from casa import bloc_vin
+
+
+def vin(id_, nom, fin=2028, millesime=2019, region="", pays="France"):
+    return {"id": id_, "nom": nom, "millesime": millesime, "fin": fin, "region": region, "pays": pays}
+
+
+def test_bloc_vin_vide():
+    assert bloc_vin([], None) == ""
+
+
+def test_bloc_vin():
+    html = bloc_vin([vin("vin-a", "Saint-Joseph"), vin("vin-b", "Saint-Amour", millesime=None)], None)
+    assert html.startswith('<div class="bloc-vin">') and "À ouvrir" in html
+    assert '<li data-id="vin-a">' in html and '<li data-id="vin-b" hidden>' in html
+    assert "Saint-Joseph 2019" in html and "à boire avant 2028" in html
+    assert 'data-action="ouverte"' in html and 'data-action="autre"' in html
+    assert "belle bouteille" not in html
+
+
+def test_bloc_vin_une_seule_et_une_belle():
+    html = bloc_vin([vin("vin-a", "Saint-Joseph")], vin("vin-c", "Clos des Fées", fin=2035, millesime=2020))
+    assert 'data-action="autre"' not in html
+    assert '<li data-id="vin-c" class="belle" hidden>' in html and "Une belle bouteille ?" in html
+
+
+def test_bloc_vin_seulement_une_belle():
+    html = bloc_vin([], vin("vin-c", "Clos des Fées"))
+    assert "Une belle bouteille ?" in html and 'data-action="ouverte"' in html
+
+
+def test_bloc_vin_styles_tactiles_et_hidden():
+    from casa import STYLE_CASA
+    assert "div.bloc-vin [hidden], div.bloc-vin button.lien[hidden] { display: none; }" in STYLE_CASA   # .lien impose un display plus spécifique
+    assert "div.bloc-vin p.message:empty { display: none; }" in STYLE_CASA
+    assert "div.bloc-vin button { min-height: 40px" in STYLE_CASA
+    assert "div.bloc-vin button.lien:focus-visible" in STYLE_CASA
+
+
+def test_page_aujourd_hui_avec_vin():
+    html = aujourdhui_en_html([], AUJOURD_HUI, vins=[vin("vin-a", "Saint-Joseph")])
+    assert html.index('class="bloc-ce-soir') < html.index('<div class="bloc-vin">')
+    assert "<script>" in html and "api/cave/" in html
+
+
+def test_script_vin_syntaxe_js(tmp_path):
+    """Le script du vin du soir est du JavaScript valide (node --check), sinon test ignoré."""
+    import shutil
+    import subprocess
+    from casa import SCRIPT_VIN
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node absent")
+    html = aujourdhui_en_html([], AUJOURD_HUI, vins=[vin("vin-a", "Saint-Joseph")])
+    assert SCRIPT_VIN in html
+    fichier = tmp_path / "vin.js"
+    fichier.write_text(SCRIPT_VIN, encoding="utf-8")
+    r = subprocess.run([node, "--check", str(fichier)], capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+
+
+def test_six_onglets_tiennent_sur_iphone():
+    from design import STYLE_NAV_HUB
+    # base « auto » : un onglet au libellé long (« Aujourd'hui », 61 px) prend sa place au lieu de déborder sur le voisin
+    assert "nav.hub a { flex: 1 1 auto; min-width: 0;" in STYLE_NAV_HUB
+
+
+def test_bloc_vin_indique_la_region_et_le_pays_etranger():
+    html = bloc_vin([vin("vin-a", "Esprit de Granit", region="Rhône Nord"),
+                     vin("vin-b", "Chianti", region="Toscane", pays="Italie"), vin("vin-c", "Plan Cuvé")], None)
+    assert "<span>Rhône Nord · à boire avant 2028</span>" in html
+    assert "<span>Toscane, Italie · à boire avant 2028</span>" in html
+    assert "<span>à boire avant 2028</span>" in html                     # sans région : rien de plus

@@ -25,7 +25,8 @@ from db import (emprunter, ajouter_depense, lire_depenses, supprimer_depense, ob
                 VERDICTS, enregistrer_retour, supprimer_retour, lire_retours,
                 enregistrer_article, lire_courses, supprimer_article, vider_pris, lire_achats,
                 enregistrer_placard, retirer_du_placard, enregistrer_plat, lire_plats, plat_existe, enregistrer_repas, lire_repas,
-                lire_frais, finir, corriger_a_finir)
+                lire_frais, finir, corriger_a_finir,
+                lire_cave, enregistrer_bouteille, boire, retirer_bouteille)
 from valise import (solde_depenses, actualiser_meteo, fenetres_du_voyage, page_du_voyage, accueil_en_html,
                     lieux_depuis_reponse, normales_ou_url, normales_depuis_historique,
                     formulaire_en_html, creer_voyage, VERSION_PAGE)
@@ -36,7 +37,9 @@ from a_voir import valider_a_voir, suggestions_depuis_wikitext
 from souvenirs import valider_proche, valider_souvenir
 from vocabulaire import LANGUES
 from casa import aujourdhui_en_html, aujourd_hui_paris
+from accords_vins import profils_du_repas, suggerer
 from budget import semaines_budget, moyenne_precedentes, lundi, budget_en_html, SEMAINES
+from cave import valider_bouteille, cave_en_html
 from courses import valider_article, valider_placard, courses_en_html, normaliser
 from prix_paris import cout_repas
 from diners import (avec_achats_recents, FRAIS_JOURS, disponibles, a_acheter_aujourd_hui, valider_plat, valider_repas, secours, a_acheter, compteur, semaine, diners_en_html,
@@ -96,9 +99,18 @@ def creer_app(nom_base="valise", secret=None):
                 cette_semaine = semaines_budget([a for a in achats if a["jour"] >= lundi(jour)], repas, plats, jour, n=1)[0]
                 articles = articles_et_achats_recents(conn, lu["articles"], jour, achats)
                 _, a_finir = alertes_du_frigo(conn, jour, list(plats.values()), lu, articles)
+                soir = diners.get(jour)
+                vins, belle = [], None
+                if soir and soir["plats"] and not soir["issue"]:          # un dîner prévu, pas encore passé
+                    cave = lire_cave(conn)
+                    principal, secondaires = profils_du_repas(ce_soir)
+                    vins = suggerer(cave, principal, secondaires, jour)
+                    belles = [b for b in suggerer(cave, principal, secondaires, jour, belle=True)
+                              if b["id"] not in {v["id"] for v in vins}]
+                    belle = belles[0] if belles else None
                 html = aujourdhui_en_html(lister_voyages(conn), jour,
                                           a_acheter_aujourd_hui(du_jour, lu["placard"], articles),
-                                          ce_soir, hier, compteur(repas, jour), cette_semaine, a_finir)
+                                          ce_soir, hier, compteur(repas, jour), cette_semaine, a_finir, vins, belle)
             finally:
                 conn.close()
             return Response(html, mimetype="text/html")
@@ -297,6 +309,55 @@ def creer_app(nom_base="valise", secret=None):
             retirer_du_placard(conn, cle)
         finally:
             conn.close()
+        return jsonify({"ok": True})
+
+    # --- Casa Binomerie : la cave ---
+
+    @routes.get("/cave")
+    def page_cave():
+        return Response(cave_en_html(), mimetype="text/html")
+
+    @routes.get("/api/cave")
+    def lire_la_cave():
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            return jsonify({"bouteilles": lire_cave(conn), "annee": aujourd_hui_paris().year})
+        finally:
+            conn.close()
+
+    @routes.post("/api/cave")
+    def enregistrer_une_bouteille():
+        try:
+            bouteille = valider_bouteille(request.get_json(silent=True), aujourd_hui_paris().year)
+        except ValueError as e:
+            return jsonify({"erreur": str(e)}), 400
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            enregistrer_bouteille(conn, bouteille)
+        finally:
+            conn.close()
+        return jsonify({"ok": True, "bouteille": bouteille})
+
+    @routes.post("/api/cave/<identifiant>/bue")
+    def boire_une_bouteille(identifiant):
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            quantite = boire(conn, identifiant)
+        finally:
+            conn.close()
+        if quantite is None:
+            return jsonify({"erreur": "bouteille inconnue"}), 404
+        return jsonify({"ok": True, "quantite": quantite})
+
+    @routes.delete("/api/cave/<identifiant>")
+    def retirer_une_bouteille(identifiant):
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            retiree = retirer_bouteille(conn, identifiant)
+        finally:
+            conn.close()
+        if not retiree:
+            return jsonify({"erreur": "bouteille inconnue"}), 404
         return jsonify({"ok": True})
 
     @routes.post("/api/a-finir/<path:cle>")

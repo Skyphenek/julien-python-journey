@@ -12,7 +12,7 @@ import json
 import re
 import unicodedata
 
-from design import STYLE_D, STYLE_NAV_HUB, TETE_POLICE, nav_hub
+from design import STYLE_D, STYLE_NAV_HUB, STYLE_ANNEXE, STYLE_HORS_LIGNE, TETE_POLICE, nav_hub
 from pwa import TETE_PWA, SCRIPT_FILE
 
 _ID = re.compile(r"[A-Za-z0-9-]{8,64}")
@@ -228,10 +228,7 @@ div.edition select, div.edition button { font-family: inherit; font-size: 14px; 
 button#vider-pris { width: 100%; min-height: 48px; border-radius: 999px; border: 2px solid var(--ligne);
                     background: var(--blanc); color: var(--texte); font-weight: 800; font-family: inherit;
                     font-size: 15px; margin: 4px 0 20px; }
-details.annexe { background: var(--carte); border-radius: 24px; padding: 14px 16px; margin: 0 0 12px; }
-details.annexe summary { font-size: 17px; font-weight: 800; cursor: pointer; }
-details.annexe p.aide { color: var(--doux); font-size: 14px; margin: 8px 0; }
-div.puces-courses { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+""" + STYLE_ANNEXE + """div.puces-courses { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 div.puces-courses button { font-family: inherit; font-size: 15px; padding: 8px 14px; border-radius: 999px;
                            border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte); }
 div.puces-courses button.epuise { border-color: var(--courses); background: var(--courses-doux); font-weight: 700; }
@@ -252,10 +249,7 @@ form#ajout-placard input { flex: 1 1 160px; min-width: 0; }
 form#ajout-placard[hidden] { display: none; }
 button#ranger { margin-top: 12px; font-weight: 700; }
 p.vide-courses { background: var(--carte); border-radius: 24px; padding: 18px; color: var(--doux); }
-div#hors-ligne { background: #fff4d6; color: #6b4e00; border-radius: 16px; padding: 10px 14px; margin: 0 0 12px;
-                 font-weight: 600; font-size: 14px; }
-@media (prefers-color-scheme: dark) { div#hors-ligne { background: #3d3214; color: #ffe08a; } }
-"""
+""" + STYLE_HORS_LIGNE + """"""
 
 ICONE_HABITUEL = ('<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" '
                   'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/>'
