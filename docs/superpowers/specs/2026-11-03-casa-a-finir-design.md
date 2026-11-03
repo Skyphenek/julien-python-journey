@@ -34,6 +34,11 @@ Le frais du frigo : les éléments du placard en stock de zone `frigo`, et les h
 pas sur la liste, ou pris) dont la zone (`courses.deviner_zone`) est `frigo`. Congélateur, placard sec, épices et cave
 ne sont pas suivis.
 
+Décision du 03/11 (option A, après la revue) : un frais non habituel coché dans Courses (zone frigo, ex. des cuisses
+de poulet pour une recette) **entre au placard du frigo** ce jour-là, en stock — sinon il disparaissait au « vider
+les pris » sans jamais être suivi. La viande et le poisson (rayon boucherie) du placard du frigo **sortent seuls du
+stock** quand un repas qui les utilise est marqué « Fait maison » (cuisinés en entier) ; les autres produits non.
+
 ### Date d'entrée
 
 La plus récente de :
@@ -90,8 +95,9 @@ CREATE TABLE IF NOT EXISTS a_finir (
 - Une correction l'emporte sur le calcul. Elle est supprimée quand le produit repart de zéro : coché dans Courses
   (`db.enregistrer_article`), remis en stock alors qu'il ne l'était pas (`db.enregistrer_placard`), ou [Fini].
 - **Encore bon** : `jusqu_au` = aujourd'hui + 2 (`ENCORE_BON_JOURS`).
-- **Fini** : un élément du placard passe `en_stock = false` (et `bientot = false`) ; un habituel revient sur la liste
-  (`actif = true`, `pris = false`), comme quand il en manque. La correction est supprimée.
+- **Fini** : l'élément du placard **du frigo** passe `en_stock = false` (et `bientot = false`) ; l'habituel du même
+  nom revient sur la liste (`actif = true`, `pris = false`), comme quand il en manque — les deux s'il y a les deux.
+  La correction est supprimée.
 
 ### Reprise du frigo (une fois, `reprises` : `a-finir-v1`)
 
@@ -117,7 +123,9 @@ déjà les « jamais » de Laetitia), dont un ingrédient a ce nom. Tri : nombre
 manque : … » si besoin.
 
 Bouton : le premier jour d'aujourd'hui à `jusqu_au` sans dîner prévu ; libellé « Ce soir », « Demain » ou le nom du
-jour. Il pose le plat en dîner ce jour-là par l'API repas existante (file hors ligne comprise). Aucun jour libre : pas
+jour. Il pose le plat en dîner ce jour-là par l'API repas existante, avec `si_libre` : le serveur refuse (409, « Ce
+soir-là est déjà pris : recharge la page. ») si ce soir a été pris entre-temps ou est passé — une page en cache ne
+peut pas écraser un dîner ni une issue. Aucun jour libre : pas
 de bouton, « soirs pris jusqu'à <jour> ». Un produit à vérifier ne propose pas de plats : [Fini] ou [Encore bon]
 d'abord (après « Encore bon », il redevient à finir, avec ses plats).
 
@@ -149,6 +157,7 @@ Date imprimée lue sur photo, congélateur, notifications push, réglage des dur
 - Durée d'un produit fermé : un produit entamé (jambon, crème) peut tourner avant l'alerte ; l'app ne sait pas
   qu'il est ouvert.
 - Un achat hors liste (pas coché dans Courses ni mis en stock) n'est pas suivi.
+- Les produits entrés au placard par un achat restent visibles côté Stock (épuisés une fois finis).
 - Un `maj_le` du placard touché pour une autre raison (bientôt fini) décale la date d'entrée d'un élément.
 
 ## Tests
