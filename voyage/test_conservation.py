@@ -11,6 +11,7 @@ def test_exceptions_par_produit():
     assert duree("fraises") == 3 and duree("salade") == 4 and duree("burrata") == 5
     assert duree("jambon") == 7 and duree("lait") == 7 and duree("mozzarella") == 10
     assert duree("crème fraîche") == 14 and duree("yaourt grec") == 14
+    assert duree("bacon") == 10 and duree("mozzarella râpée") == 14
     assert duree("comté") == 21 and duree("œufs") == 28 and duree("beurre demi-sel") == 28
 
 
