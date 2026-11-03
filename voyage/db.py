@@ -612,6 +612,7 @@ def enregistrer_article(conn, a):
         # Le journal des achats (budget) : coché, une ligne au prix estimé ; décoché le même jour, elle part
         if a["pris"] and not etait_pris:
             from prix_paris import prix_de
+            cur.execute("DELETE FROM a_finir WHERE cle = %s", (normaliser(a["nom"]),))    # racheté : repart de zéro
             prix = prix_de(a["nom"])
             cur.execute("""INSERT INTO achats (article, nom, prix, jour)
                            VALUES (%s, %s, %s, (now() AT TIME ZONE 'Europe/Paris')::date)""",
@@ -640,6 +641,51 @@ def lire_achats(conn, debut, fin):
                 for jour, nom, prix in cur.fetchall()]
 
 
+def lire_frais(conn):
+    """De quoi dater le frais (a_finir.suivis) : le placard du frigo avec sa date d'entrée (dernière mise à jour, à
+    Paris), le dernier achat de chaque produit {clé : jour}, les dates corrigées {clé : jusqu_au}."""
+    from courses import normaliser
+    with conn.cursor() as cur:
+        cur.execute("""SELECT cle, nom, en_stock, zone, (maj_le AT TIME ZONE 'Europe/Paris')::date FROM placard
+                       WHERE zone = 'frigo' ORDER BY nom""")
+        placard = [dict(zip(("cle", "nom", "en_stock", "zone", "entre_le"), ligne)) for ligne in cur.fetchall()]
+        cur.execute("SELECT nom, max(jour) FROM achats GROUP BY nom")
+        derniers = {}
+        for nom, jour in cur.fetchall():
+            cle = normaliser(nom)
+            derniers[cle] = max(jour, derniers.get(cle, jour))
+        cur.execute("SELECT cle, jusqu_au FROM a_finir")
+        corrections = dict(cur.fetchall())
+    return {"placard": placard, "derniers_achats": derniers, "corrections": corrections}
+
+
+def finir(conn, cle):
+    """[Fini] : l'élément du placard n'est plus en stock ; sinon l'habituel revient sur la liste, comme quand il en
+    manque. Sa date corrigée part. False si aucun des deux ne correspond."""
+    from courses import normaliser
+    with conn.cursor() as cur:
+        cur.execute("""UPDATE placard SET en_stock = false, bientot = false, maj_le = now()
+                       WHERE cle = %s AND en_stock""", (cle,))
+        trouve = cur.rowcount > 0
+        if not trouve:
+            cur.execute("SELECT id, nom FROM courses WHERE recurrent")
+            ids = [i for i, nom in cur.fetchall() if normaliser(nom) == cle]
+            if ids:
+                cur.execute("UPDATE courses SET actif = true, pris = false, maj_le = now() WHERE id = ANY(%s)", (ids,))
+                trouve = True
+        cur.execute("DELETE FROM a_finir WHERE cle = %s", (cle,))
+    conn.commit()
+    return trouve
+
+
+def corriger_a_finir(conn, cle, jusqu_au):
+    """La date « à finir avant » d'un produit, corrigée ([Encore bon])."""
+    with conn.cursor() as cur:
+        cur.execute("""INSERT INTO a_finir (cle, jusqu_au) VALUES (%s, %s)
+                       ON CONFLICT (cle) DO UPDATE SET jusqu_au = EXCLUDED.jusqu_au""", (cle, jusqu_au))
+    conn.commit()
+
+
 def supprimer_article(conn, identifiant):
     with conn.cursor() as cur:
         cur.execute("DELETE FROM courses WHERE id = %s", (identifiant,))
@@ -661,7 +707,12 @@ def compter_a_prendre(conn):
 
 
 def enregistrer_placard(conn, p):
+    """Un élément du placard. Remis en stock alors qu'il ne l'était pas : il repart de zéro (À finir)."""
     with conn.cursor() as cur:
+        cur.execute("SELECT en_stock FROM placard WHERE cle = %s", (p["cle"],))
+        avant = cur.fetchone()
+        if p["en_stock"] and not (avant and avant[0]):
+            cur.execute("DELETE FROM a_finir WHERE cle = %s", (p["cle"],))
         cur.execute("""INSERT INTO placard (cle, nom, en_stock, bientot, zone) VALUES (%s, %s, %s, %s, %s)
                        ON CONFLICT (cle) DO UPDATE SET nom = EXCLUDED.nom, en_stock = EXCLUDED.en_stock,
                        bientot = EXCLUDED.bientot, zone = EXCLUDED.zone, maj_le = now()""",
@@ -925,3 +976,35 @@ def reorganiser_placard(conn):
             bilan["habituels"] += 1
         cur.execute("INSERT INTO reprises (nom) VALUES (%s)", (NOM_REPRISE,))
     return bilan
+
+
+def dater_frigo(conn, nom_reprise, jour, connus):
+    """La reprise À finir, une seule fois (table reprises) : ce qu'on sait du frigo (`connus`, {nom : (acheté le, à
+    finir avant ou None)}) entre au placard, en stock, avec sa date ; les habituels du frigo rangés jamais achetés
+    depuis le journal partent de `jour`. Sans commit : l'appelant valide ou annule (à blanc).
+    Renvoie {clé : jusqu_au} des produits datés, ou None si c'est déjà fait."""
+    from datetime import timedelta
+    from conservation import duree
+    from courses import normaliser, deviner_zone
+    with conn.cursor() as cur:
+        cur.execute("SELECT EXISTS (SELECT 1 FROM reprises WHERE nom = %s)", (nom_reprise,))
+        if cur.fetchone()[0]:
+            return None
+        dates = {}
+        for nom, (achete_le, jusqu_au) in connus.items():
+            cle = normaliser(nom)
+            cur.execute("""INSERT INTO placard (cle, nom, zone, en_stock) VALUES (%s, %s, 'frigo', true)
+                           ON CONFLICT (cle) DO UPDATE SET en_stock = true, bientot = false""", (cle, nom))
+            dates[cle] = jusqu_au or achete_le + timedelta(days=duree(nom))
+        frais = lire_frais(conn)
+        en_stock = {p["cle"] for p in frais["placard"] if p["en_stock"]}
+        for a in lire_courses(conn)["articles"]:
+            cle = normaliser(a["nom"])
+            if (a["recurrent"] and (not a["actif"] or a["pris"]) and deviner_zone(a["nom"]) == "frigo"
+                    and cle not in frais["derniers_achats"] and cle not in en_stock and cle not in dates):
+                dates[cle] = jour + timedelta(days=duree(a["nom"]))
+        for cle, jusqu_au in dates.items():
+            cur.execute("""INSERT INTO a_finir (cle, jusqu_au) VALUES (%s, %s)
+                           ON CONFLICT (cle) DO UPDATE SET jusqu_au = EXCLUDED.jusqu_au""", (cle, jusqu_au))
+        cur.execute("INSERT INTO reprises (nom) VALUES (%s)", (nom_reprise,))
+    return dates

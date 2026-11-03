@@ -272,3 +272,10 @@ CREATE TABLE IF NOT EXISTS achats (
     jour        DATE          NOT NULL,
     cree_le     TIMESTAMPTZ   NOT NULL DEFAULT now()
 );
+
+-- À finir (03/11/2026) : les dates « à finir avant » corrigées à la main ([Encore bon], reprise du frigo). Effacée
+-- quand le produit repart de zéro : racheté, remis en stock, [Fini].
+CREATE TABLE IF NOT EXISTS a_finir (
+    cle         TEXT        PRIMARY KEY,             -- nom normalisé du produit
+    jusqu_au    DATE        NOT NULL
+);
