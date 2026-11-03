@@ -121,3 +121,40 @@ def test_ligne_budget_sur_aujourd_hui():
             '<span>dont livraison et resto 35 €</span></a>') in html
     vide = aujourdhui_en_html([], AUJOURD_HUI, semaine_budget={"total": 0, "livraison": 0, "courses": 0})
     assert 'class="bloc-budget"' not in vide.split("<body")[1]
+
+
+# --- À finir ---
+from casa import bloc_a_finir
+
+
+def alerte(nom, jusqu_au, etat="a-finir", trop_tard=None, suggestions=(), jour=None):
+    from courses import normaliser
+    return {"cle": normaliser(nom), "nom": nom, "origine": "placard", "jusqu_au": jusqu_au, "etat": etat,
+            "trop_tard": trop_tard, "suggestions": list(suggestions), "jour": jour}
+
+
+def test_bloc_a_finir_vide():
+    assert bloc_a_finir([], AUJOURD_HUI) == ""
+
+
+def test_bloc_a_finir():
+    demain = AUJOURD_HUI + timedelta(days=1)
+    salade = {"id": "plat-salade-01", "nom": "Salade César"}
+    html = bloc_a_finir([alerte("steaks hachés", AUJOURD_HUI - timedelta(days=1), etat="a-verifier"),
+                         alerte("cuisses de poulet", demain, trop_tard=AUJOURD_HUI + timedelta(days=2),
+                                suggestions=[{"plat": salade, "manquants": ["crème"]}], jour=AUJOURD_HUI),
+                         alerte("salade", AUJOURD_HUI + timedelta(days=2), suggestions=[{"plat": salade, "manquants": []}])],
+                        AUJOURD_HUI)
+    assert "À finir" in html and "steaks hachés" in html and "à vérifier" in html
+    assert 'data-cle="steaks haches"' in html and 'data-action="encore-bon"' in html
+    assert "à finir demain" in html and "prévu vendredi, trop tard" in html          # 28/10/2026 : un mercredi
+    assert "Salade César" in html and "il manque : crème" in html
+    assert f'data-plat="plat-salade-01" data-jour="{AUJOURD_HUI.isoformat()}">Ce soir</button>' in html
+    assert "d'ici vendredi" in html and "rien de prévu" in html and "soirs pris jusqu'à vendredi" in html
+    assert html.count('data-action="fini"') == 3 and html.count('data-action="encore-bon"') == 1
+
+
+def test_page_aujourd_hui_avec_a_finir():
+    html = aujourdhui_en_html([], AUJOURD_HUI, a_finir=[alerte("salade", AUJOURD_HUI)])
+    assert '<div class="bloc-a-finir">' in html and "api/a-finir/" in html
+    assert '<div class="bloc-a-finir">' not in aujourdhui_en_html([], AUJOURD_HUI)   # le CSS, lui, contient toujours le nom

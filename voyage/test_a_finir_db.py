@@ -94,3 +94,36 @@ def test_dater_frigo_une_seule_fois(conn):
     assert {p["cle"] for p in lire_courses(conn)["placard"] if p["en_stock"]} == {"cuisses de poulet",
                                                                                    "galettes de sarrasin"}
     assert dater_frigo(conn, "a-finir-test", JOUR, connus) is None
+
+
+# --- Routes ---
+from serveur import creer_app
+
+
+@pytest.fixture
+def client(conn):
+    with conn.cursor() as cur:
+        cur.execute("TRUNCATE plats, repas")
+    conn.commit()
+    return creer_app("valise_test", secret="").test_client()
+
+
+def test_api_a_finir(client, conn):
+    enregistrer_placard(conn, element("steaks hachés"))
+    assert client.post("/api/a-finir/steaks%20haches", json={"action": "encore-bon"}).status_code == 200
+    assert lire_frais(conn)["corrections"] == {"steaks haches": aujourd_hui(conn) + timedelta(days=2)}
+    assert client.post("/api/a-finir/steaks%20haches", json={"action": "fini"}).status_code == 200
+    assert not lire_courses(conn)["placard"][0]["en_stock"]
+    assert client.post("/api/a-finir/steaks%20haches", json={"action": "fini"}).status_code == 404   # plus suivi
+    assert client.post("/api/a-finir/steaks%20haches", json={"action": "jeter"}).status_code == 400
+    assert client.post("/api/a-finir/steaks%20haches", json=["fini"]).status_code == 400
+
+
+def test_aujourd_hui_et_diners_montrent_ce_qui_est_a_finir(client, conn):
+    enregistrer_placard(conn, element("steaks hachés"))           # entré aujourd'hui, 1 jour : à finir demain
+    client.post("/api/plats", json={"id": "plat-burger-01", "nom": "Burger", "genre": "plat", "minutes": 15,
+                                    "ingredients": ["steaks hachés", "pains burger"], "recette": "1.",
+                                    "statut": "carnet"})
+    html = client.get("/").get_data(as_text=True)
+    assert "bloc-a-finir" in html and "steaks hachés" in html and "Burger" in html
+    assert client.get("/api/diners").get_json()["a_finir"] == ["plat-burger-01"]

@@ -599,6 +599,7 @@ SCRIPT_DINERS = """
         const o = bouton('', 'ouvrir', function () { ouvrirFiche(p.id); });
         const nom = el('span', 'nom', p.nom);
         if (d.secours.faisables.indexOf(p.id) >= 0) nom.append(el('span', 'badge', 'secours'));
+        if ((d.a_finir || []).indexOf(p.id) >= 0) nom.append(el('span', 'badge', 'à finir'));
         if (p.pour === 'julien') nom.append(el('span', 'badge julien', 'Julien'));
         if (p.pour === 'laetitia') nom.append(el('span', 'badge julien', 'Laetitia'));
         const meta = el('span', 'meta', NOMS_GENRE[p.genre] + ' · ' + duree(p.minutes) + (p.cout ? ' · ≈ ' + euros(p.cout) : ''));
