@@ -62,7 +62,7 @@ def test_achat_pour_une_recette_entre_au_placard(conn):
     enregistrer_article(conn, article("pois-0001", "Pois chiches", rayon="epicerie", source="plat:tester-chana"))
     enregistrer_article(conn, article("coriandre", "Coriandre", rayon="fruits-legumes", source="plat:tester-chana", pris=True))
     enregistrer_article(conn, article("nouilles-1", "Nouilles udon", rayon="epicerie", pris=True))
-    assert lire_courses(conn)["placard"] == [basique("Garam masala", zone="epices")]
+    assert [p for p in lire_courses(conn)["placard"] if p["zone"] != "frigo"] == [basique("Garam masala", zone="epices")]
 
 
 def test_vider_pris_garde_les_habituels(conn):

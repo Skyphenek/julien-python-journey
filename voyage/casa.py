@@ -226,8 +226,9 @@ SCRIPT_A_FINIR = """
         bloc.querySelectorAll('button').forEach(function (x) { x.disabled = true; });
         fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) })
             .then(function (r) { if (!r.ok) throw new Error(r.status); location.reload(); })
-            .catch(function () {
-                bloc.querySelector('.message').textContent = 'Pas envoyé : réessaie une fois connecté.';
+            .catch(function (e) {
+                bloc.querySelector('.message').textContent = (e && e.message === '409')
+                    ? 'Ce soir-là est déjà pris : recharge la page.' : 'Pas envoyé : réessaie une fois connecté.';
                 bloc.querySelectorAll('button').forEach(function (x) { x.disabled = false; });
             });
     }
@@ -239,7 +240,7 @@ SCRIPT_A_FINIR = """
     });
     bloc.querySelectorAll('button[data-plat]').forEach(function (b) {
         b.addEventListener('click', function () {
-            envoyer('api/repas', { jour: b.dataset.jour, moment: 'diner', plats: [b.dataset.plat], issue: null });
+            envoyer('api/repas', { jour: b.dataset.jour, moment: 'diner', plats: [b.dataset.plat], issue: null, si_libre: true });
         });
     });
 })();

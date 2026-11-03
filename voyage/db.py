@@ -609,6 +609,11 @@ def enregistrer_article(conn, a):
             if a["source"].startswith("plat:") and a["rayon"] in RAYONS_DURABLES:
                 cur.execute("""INSERT INTO placard (cle, nom, zone) VALUES (%s, %s, %s) ON CONFLICT (cle) DO NOTHING""",
                             (normaliser(a["nom"]), a["nom"], deviner_zone(a["nom"], a["rayon"])))
+            elif (not a["recurrent"] and not etait_pris and deviner_zone(a["nom"], a["rayon"]) == "frigo"):
+                # Le frais acheté (non habituel) entre au frigo : suivi par À finir, daté d'aujourd'hui
+                cur.execute("""INSERT INTO placard (cle, nom, zone) VALUES (%s, %s, 'frigo')
+                               ON CONFLICT (cle) DO UPDATE SET en_stock = true, bientot = false, maj_le = now()""",
+                            (normaliser(a["nom"]), a["nom"]))
         # Le journal des achats (budget) : coché, une ligne au prix estimé ; décoché le même jour, elle part
         if a["pris"] and not etait_pris:
             from prix_paris import prix_de
@@ -660,19 +665,18 @@ def lire_frais(conn):
 
 
 def finir(conn, cle):
-    """[Fini] : l'élément du placard n'est plus en stock ; sinon l'habituel revient sur la liste, comme quand il en
-    manque. Sa date corrigée part. False si aucun des deux ne correspond."""
+    """[Fini] : l'élément du placard du frigo n'est plus en stock, ET l'habituel du même nom revient sur la liste,
+    comme quand il en manque. Sa date corrigée part. False si aucun des deux ne correspond."""
     from courses import normaliser
     with conn.cursor() as cur:
         cur.execute("""UPDATE placard SET en_stock = false, bientot = false, maj_le = now()
-                       WHERE cle = %s AND en_stock""", (cle,))
+                       WHERE cle = %s AND en_stock AND zone = 'frigo'""", (cle,))
         trouve = cur.rowcount > 0
-        if not trouve:
-            cur.execute("SELECT id, nom FROM courses WHERE recurrent")
-            ids = [i for i, nom in cur.fetchall() if normaliser(nom) == cle]
-            if ids:
-                cur.execute("UPDATE courses SET actif = true, pris = false, maj_le = now() WHERE id = ANY(%s)", (ids,))
-                trouve = True
+        cur.execute("SELECT id, nom FROM courses WHERE recurrent")
+        ids = [i for i, nom in cur.fetchall() if normaliser(nom) == cle]
+        if ids:
+            cur.execute("UPDATE courses SET actif = true, pris = false, maj_le = now() WHERE id = ANY(%s)", (ids,))
+            trouve = True
         cur.execute("DELETE FROM a_finir WHERE cle = %s", (cle,))
     conn.commit()
     return trouve
@@ -800,7 +804,20 @@ def enregistrer_repas(conn, r):
         if r["issue"] == "fait" and r["plats"]:
             cur.execute("""UPDATE plats SET statut = 'carnet', maj_le = now()
                            WHERE id = ANY(%s) AND statut = 'a-tester'""", (list(r["plats"]),))
+            _sortir_la_viande(cur, r["plats"])
     conn.commit()
+
+
+def _sortir_la_viande(cur, ids_plats):
+    """Un repas fait : la viande et le poisson de ses plats (rayon boucherie), au frigo en stock, sont cuisinés en
+    entier : plus en stock, plus de date corrigée. Fromages, crème… ne sortent pas seuls."""
+    from courses import normaliser, deviner_rayon
+    cur.execute("SELECT ingredients FROM plats WHERE id = ANY(%s)", (list(ids_plats),))
+    cles = {normaliser(i) for (ingr,) in cur.fetchall() for i in (ingr or []) if deviner_rayon(i) == "boucherie"}
+    if cles:
+        cur.execute("""UPDATE placard SET en_stock = false, bientot = false, maj_le = now()
+                       WHERE cle = ANY(%s) AND zone = 'frigo' AND en_stock""", (list(cles),))
+        cur.execute("DELETE FROM a_finir WHERE cle = ANY(%s)", (list(cles),))
 
 
 def lire_repas(conn, debut, fin):
@@ -994,7 +1011,7 @@ def dater_frigo(conn, nom_reprise, jour, connus):
         for nom, (achete_le, jusqu_au) in connus.items():
             cle = normaliser(nom)
             cur.execute("""INSERT INTO placard (cle, nom, zone, en_stock) VALUES (%s, %s, 'frigo', true)
-                           ON CONFLICT (cle) DO UPDATE SET en_stock = true, bientot = false""", (cle, nom))
+                           ON CONFLICT (cle) DO UPDATE SET en_stock = true, bientot = false, zone = 'frigo'""", (cle, nom))
             dates[cle] = jusqu_au or achete_le + timedelta(days=duree(nom))
         frais = lire_frais(conn)
         en_stock = {p["cle"] for p in frais["placard"] if p["en_stock"]}

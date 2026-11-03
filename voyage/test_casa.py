@@ -157,4 +157,5 @@ def test_bloc_a_finir():
 def test_page_aujourd_hui_avec_a_finir():
     html = aujourdhui_en_html([], AUJOURD_HUI, a_finir=[alerte("salade", AUJOURD_HUI)])
     assert '<div class="bloc-a-finir">' in html and "api/a-finir/" in html
+    assert "si_libre: true" in html and "Ce soir-là est déjà pris : recharge la page." in html
     assert '<div class="bloc-a-finir">' not in aujourdhui_en_html([], AUJOURD_HUI)   # le CSS, lui, contient toujours le nom

@@ -170,14 +170,20 @@ def creer_app(nom_base="valise", secret=None):
 
     @routes.post("/api/repas")
     def enregistrer_un_repas():
+        corps = request.get_json(silent=True)
         try:
-            repas = valider_repas(request.get_json(silent=True), aujourd_hui_paris())
+            repas = valider_repas(corps, aujourd_hui_paris())
         except ValueError as e:
             return jsonify({"erreur": str(e)}), 400
         conn = emprunter(app.config["NOM_BASE"])
         try:
             if not all(plat_existe(conn, i) for i in repas["plats"]):
                 return jsonify({"erreur": "plat inconnu"}), 400
+            if corps.get("si_libre") is True:           # le bouton d'À finir (page peut-être en cache) n'écrase rien
+                pris = lire_repas(conn, repas["jour"], repas["jour"])
+                if repas["jour"] < aujourd_hui_paris() or any(
+                        r["moment"] == repas["moment"] and (r["plats"] or r["issue"]) for r in pris):
+                    return jsonify({"erreur": "soir déjà pris"}), 409
             enregistrer_repas(conn, repas)
         finally:
             conn.close()

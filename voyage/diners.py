@@ -153,8 +153,10 @@ def avec_achats_recents(courses, noms):
 
 def disponibles(placard, courses=()):
     """Les clés de ce qu'on a : le placard en stock (bientôt fini compris) et le frais habituel rangé
-    ou déjà dans le panier (un habituel sur la liste à prendre, c'est qu'il en manque)."""
-    return ({p["cle"] for p in placard if p["en_stock"]}
+    ou déjà dans le panier (un habituel sur la liste à prendre, c'est qu'il en manque). Tout ce qui est sur la liste
+    à prendre manque, même si le placard le croit en stock (un frais acheté, puis à racheter)."""
+    manque = {normaliser(a["nom"]) for a in courses if a["actif"] and not a["pris"]}
+    return ({p["cle"] for p in placard if p["en_stock"]} - manque
             | {normaliser(a["nom"]) for a in courses if a["recurrent"] and (not a["actif"] or a["pris"])})
 
 
