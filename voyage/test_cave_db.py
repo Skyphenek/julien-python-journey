@@ -89,3 +89,33 @@ def test_routes_cave(client, conn):
     assert client.post("/api/cave", json={"id": "vin-y", "nom": "", "couleur": "rouge"}).status_code == 400
     assert client.delete("/api/cave/vin-x").status_code == 200
     assert client.delete("/api/cave/vin-x").status_code == 404
+
+
+from db import enregistrer_plat, enregistrer_repas
+from casa import aujourd_hui_paris
+
+
+@pytest.fixture
+def client_diner(client, conn):
+    with conn.cursor() as cur:
+        cur.execute("TRUNCATE repas, plats")
+    conn.commit()
+    enregistrer_plat(conn, {"id": "plat-test-boeuf", "nom": "Steak", "genre": "plat", "minutes": 15,
+                            "ingredients": ["pièce du boucher", "beurre"], "recette": "", "lien": "", "note": "",
+                            "statut": "carnet", "archive": False, "pour": "nous"})
+    return client
+
+
+def test_aujourd_hui_propose_un_vin(client_diner, conn):
+    enregistrer_bouteille(conn, bouteille("vin-boeuf", nom="Plan de Dieu", accords=["boeuf"], prix_haut=12))
+    enregistrer_bouteille(conn, bouteille("vin-poisson", nom="Cheverny", accords=["poisson"], prix_haut=10))
+    assert '<div class="bloc-vin">' not in client_diner.get("/").get_data(as_text=True)   # rien de prévu
+    enregistrer_repas(conn, {"jour": aujourd_hui_paris(), "moment": "diner", "plats": ["plat-test-boeuf"], "issue": None})
+    html = client_diner.get("/").get_data(as_text=True)
+    assert '<div class="bloc-vin">' in html and "Plan de Dieu" in html and "Cheverny" not in html
+
+
+def test_aujourd_hui_sans_vin_qui_colle(client_diner, conn):
+    enregistrer_bouteille(conn, bouteille("vin-poisson", nom="Cheverny", accords=["poisson"], prix_haut=10))
+    enregistrer_repas(conn, {"jour": aujourd_hui_paris(), "moment": "diner", "plats": ["plat-test-boeuf"], "issue": None})
+    assert '<div class="bloc-vin">' not in client_diner.get("/").get_data(as_text=True)

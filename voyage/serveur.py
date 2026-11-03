@@ -37,6 +37,7 @@ from a_voir import valider_a_voir, suggestions_depuis_wikitext
 from souvenirs import valider_proche, valider_souvenir
 from vocabulaire import LANGUES
 from casa import aujourdhui_en_html, aujourd_hui_paris
+from accords_vins import profils_du_repas, suggerer
 from budget import semaines_budget, moyenne_precedentes, lundi, budget_en_html, SEMAINES
 from cave import valider_bouteille, cave_en_html
 from courses import valider_article, valider_placard, courses_en_html, normaliser
@@ -98,9 +99,18 @@ def creer_app(nom_base="valise", secret=None):
                 cette_semaine = semaines_budget([a for a in achats if a["jour"] >= lundi(jour)], repas, plats, jour, n=1)[0]
                 articles = articles_et_achats_recents(conn, lu["articles"], jour, achats)
                 _, a_finir = alertes_du_frigo(conn, jour, list(plats.values()), lu, articles)
+                soir = diners.get(jour)
+                vins, belle = [], None
+                if soir and soir["plats"] and not soir["issue"]:          # un dîner prévu, pas encore passé
+                    cave = lire_cave(conn)
+                    principal, secondaires = profils_du_repas(ce_soir)
+                    vins = suggerer(cave, principal, secondaires, jour)
+                    belles = [b for b in suggerer(cave, principal, secondaires, jour, belle=True)
+                              if b["id"] not in {v["id"] for v in vins}]
+                    belle = belles[0] if belles else None
                 html = aujourdhui_en_html(lister_voyages(conn), jour,
                                           a_acheter_aujourd_hui(du_jour, lu["placard"], articles),
-                                          ce_soir, hier, compteur(repas, jour), cette_semaine, a_finir)
+                                          ce_soir, hier, compteur(repas, jour), cette_semaine, a_finir, vins, belle)
             finally:
                 conn.close()
             return Response(html, mimetype="text/html")
