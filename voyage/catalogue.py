@@ -44,9 +44,9 @@ _GROUPES = [
         camembert, brie, coulommiers, munster, maroilles, saint-nectaire, morbier, mont d'or, roquefort,
         bleu d'Auvergne, fourme d'Ambert, gorgonzola, chèvre, bûche de chèvre, crottin de chavignol, feta,
         halloumi, mozzarella, mozzarella di bufala, burrata, stracciatella, ricotta, mascarpone, scamorza,
-        provolone, taleggio, fromage frais, Saint Môret, Boursin, fromage râpé, emmental râpé, kiri, vache qui rit"""),
+        provolone, taleggio, fromage frais, Saint Môret, Boursin, fromage râpé, emmental râpé, mozzarella râpée, kiri, vache qui rit"""),
     ("frais", "frigo", """jambon, jambon blanc, jambon cru, jambon de Bayonne, jambon de Parme, prosciutto,
-        speck, coppa, bresaola, lardons, lardons fumés, allumettes de bacon, guanciale ou pancetta,
+        speck, coppa, bresaola, lardons, lardons fumés, bacon, allumettes de bacon, guanciale ou pancetta,
         guanciale, pancetta, chorizo, saucisson, saucisson sec, rosette, salami, mortadelle, nduja, pâté de campagne,
         rillettes, terrine, blanc de dinde, knacks, saucisses de Strasbourg,
         saucisses de Francfort"""),
@@ -56,7 +56,7 @@ _GROUPES = [
         levure boulangère fraîche, galettes de sarrasin, crêpes, blinis"""),
 
     # --- Boucherie, volaille, poissonnerie ----------------------------------------------------
-    ("boucherie", "frigo", """bœuf, bœuf haché, steak, pièce du boucher, entrecôte, faux-filet,
+    ("boucherie", "frigo", """bœuf, bœuf haché, steak, steaks hachés, pièce du boucher, entrecôte, faux-filet,
         bavette, onglet, rumsteck, côte de bœuf, rôti de bœuf, paleron, joue de bœuf, paleron ou joue de bœuf,
         bœuf à bourguignon, plat de côtes, queue de bœuf, carpaccio, tartare, veau, escalopes de veau,
         blanquette de veau, osso buco de veau, tendron de veau, rôti de veau, côtes de veau, porc, porc haché,
@@ -72,15 +72,10 @@ _GROUPES = [
         lotte, raie, Saint-Jacques, crevettes, crevettes crues, gambas, moules, palourdes, coques, huîtres,
         calamars, encornets, poulpe, seiche, crabe, homard, langoustines, bulots, morue salée"""),
 
-    # --- Chez eux, au congélateur (placard v2) ----------------------------------------------
-    ("boulangerie", "congelateur", "demi-baguettes, pains burger"),
-    ("boucherie", "congelateur", "steaks hachés"),
-    ("frais", "congelateur", "bacon, mozzarella râpée"),
-
     # --- Boulangerie --------------------------------------------------------------------------
     ("boulangerie", "placard-sec", """pain, baguettes, pain de campagne, pain complet,
         pain aux céréales, pain de seigle, pain de mie, pain de mie complet, pain brioché, brioche, croissants,
-        pains au chocolat, pains hot-dog, pains pita, naan, focaccia,
+        pains au chocolat, demi-baguettes, pains burger, pains hot-dog, pains à hot dog, pains pita, naan, focaccia,
         ciabatta, bagels, muffins anglais, pain polaire, biscottes, pain grillé, gressins, crackers"""),
 
     # --- Épicerie salée -----------------------------------------------------------------------
@@ -143,7 +138,7 @@ _GROUPES = [
         ail surgelé, poivrons surgelés, frites surgelées"""),
 
     # --- Boissons -----------------------------------------------------------------------------
-    ("boissons", "cave", """eau, eau plate, eau gazeuse, eau pétillante, eau Volvic citron, Volvic, Evian, Badoit,
+    ("boissons", "cave", """eau, pack d'eau, eau plate, eau gazeuse, eau pétillante, eau Volvic citron, Volvic, Evian, Badoit,
         Perrier, San Pellegrino, jus d'orange, jus de pomme, jus de raisin, jus de fruits, smoothie, limonade,
         soda, Coca-Cola, Coca zéro, Orangina, Schweppes, tonic, ginger beer, ice tea, thé glacé, kombucha,
         sirop, vin, vin rouge, vin blanc, vin rosé, champagne, crémant, prosecco, bières, cidre, porto,

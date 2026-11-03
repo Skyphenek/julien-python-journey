@@ -405,6 +405,7 @@ brioche | 1 pièce (400 g) | 2.90
 croissants | 4 pièces | 4.40
 pains au chocolat | 4 pièces | 4.80
 pains hot-dog | sachet de 6 | 2.20
+pains à hot dog | sachet de 6 | 2.20
 pains pita | sachet de 6 | 1.90
 naan | sachet de 2 | 2.20
 focaccia | 1 pièce (300 g) | 3.50
@@ -755,6 +756,7 @@ ail surgelé | pot de 50 g | 2.20
 poivrons surgelés | sachet de 750 g | 2.90
 frites surgelées | sachet de 1 kg | 2.90
 eau | pack de 6 × 1,5 L | 3.50
+pack d'eau | pack de 6 × 1,5 L | 3.50
 eau plate | pack de 6 × 1,5 L | 3.50
 eau gazeuse | pack de 6 × 1 L | 4.50
 eau pétillante | pack de 6 × 1 L | 4.50

@@ -51,8 +51,9 @@ PLACARD = [
     # Congélateur
     ("petits pois surgelés", "congelateur", "samedi"), ("épinards surgelés", "congelateur", "samedi"),
     ("herbes surgelées", "congelateur", "samedi"), ("citronnelle", "congelateur", "epiceries"),
-    ("demi-baguettes", "congelateur", None), ("pains burger", "congelateur", None),
-    ("steaks hachés", "congelateur", None), ("bacon", "congelateur", None), ("mozzarella râpée", "congelateur", None),
+    # rangés depuis ailleurs chez eux (03/11/2026) : la reprise est passée, la zone suit le catalogue
+    ("demi-baguettes", "placard-sec", None), ("pains burger", "placard-sec", None),
+    ("steaks hachés", "frigo", None), ("bacon", "frigo", None), ("mozzarella râpée", "frigo", None),
     # Cave
     ("vin blanc", "cave", "stock"), ("vin rouge", "cave", "stock"),
 ]

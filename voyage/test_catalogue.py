@@ -25,7 +25,7 @@ def test_tout_ce_qui_existe_deja_est_au_catalogue():
     recettes = {i for p in CARNET_DEPART + A_TESTER + AIR_FRYER + LEGUMES for i in p["ingredients"]}
     placard = {n for n, _, _ in PLACARD} | {n for n, _ in HABITUELS} | set(PLACARD_DEPART)
     assert sorted(n for n in recettes | placard if not chercher(n)) == []
-    # et dans la zone où ils l'ont rangé (le congélateur pour les demi-baguettes, etc.)
+    # et dans la zone où ils l'ont rangé
     assert [(n, z) for n, z, _ in PLACARD if chercher(n)[1] != z] == []
 
 
@@ -38,8 +38,15 @@ def test_tout_ce_qui_existe_deja_est_au_catalogue():
     ("magret de canard", "boucherie", "frigo"),
     ("tablettes lave-vaisselle", "hygiene-maison", "placard-sec"),
     ("croquettes pour chat", "hygiene-maison", "placard-sec"),
-    ("demi-baguettes", "boulangerie", "congelateur"),
+    # rangés comme chez eux en prod (03/11/2026) : plus rien d'acheté frais ne va d'office au congélateur
+    ("demi-baguettes", "boulangerie", "placard-sec"),
+    ("pains burger", "boulangerie", "placard-sec"),
+    ("pains à hot dog", "boulangerie", "placard-sec"),     # le nom du carnet
+    ("steaks hachés", "boucherie", "frigo"),
+    ("bacon", "frais", "frigo"),
+    ("mozzarella râpée", "frais", "frigo"),
     ("gyoza", "surgeles", "congelateur"),
+    ("pack d'eau", "boissons", "cave"),
 ])
 def test_range_d_office(nom, rayon, zone):
     assert deviner_rayon(nom) == rayon and deviner_zone(nom) == zone
