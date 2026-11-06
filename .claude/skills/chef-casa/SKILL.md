@@ -53,9 +53,11 @@ Julien ; sinon, revoir ces règles avant de continuer.
 5. **L'ordre suit les gestes** : si deux gestes se contredisent (eau pour aplatir / viande sèche pour dorer),
    réordonner (aplatir, puis sécher) et le dire dans l'étape.
 6. **Ne bouge pas** : la liste d'ingrédients (seule une répartition : « dont 30 g froid »), les temps, les
-   portions. Les « jamais » de Laetitia restent dehors (`~/brain/bin/brain recall "Laetitia goûts jamais"`).
+   portions — sauf changement demandé par Julien (portions, quantités, ingrédient retiré ou ajouté). Les « jamais »
+   de Laetitia restent dehors (`~/brain/bin/brain recall "Laetitia goûts jamais"`).
 7. **Signaler sans corriger** le hors-sujet (« Pour 4 » alors qu'on est deux) : dans la proposition, pas dans la
-   recette.
+   recette. Repère : 320 g de pâtes ou de riz, c'est leur portion habituelle pour deux en plat principal
+   (« Pour 2 ») — poser la question, Julien a confirmé à chaque fois le 06/11/2026.
 8. **Bloc final obligatoire**, dernière section du texte, 3 lignes au plus :
    ```
    Ce qui fait la différence
@@ -74,7 +76,40 @@ Julien ; sinon, revoir ces règles avant de continuer.
 11. **Ustensiles : seulement ceux qu'on a.** Avant de citer un ustensile qui ne va pas de soi (thermomètre, sonde,
     mandoline…), vérifier son état dans l'artifact « La Cuisine de Ste Isaure » (slug
     `17044827-e6bd-4e0c-9436-51fa103505fb`, `db_get` sur `etats/<id>`) : seul `on-a` entre dans la recette. Sinon,
-    signaler l'achat dans la proposition, pas dans la recette. Au 06/11/2026, `etats/thermometre` = `acheter`.
+    signaler l'achat dans la proposition, pas dans la recette. Au 06/11/2026, `etats/thermometre` = `acheter`,
+    `etats/microplane` = `acheter` (écrire « râpé le plus fin possible »).
+12. **Pâtes : secret de grand-mère de Julien** (06/11/2026, conseil de mamma italienne qu'il applique) : dans toute
+    recette de pâtes, égoutter 2 à 3 min avant le temps du paquet, garder 2 louches d'eau de cuisson, finir 2–3 min
+    dans la sauce en remettant de l'eau dès que ça accroche, jusqu'à al dente en croquant une pâte — marqué
+    « (secret de grand-mère : elles finissent de cuire dans la sauce et arrivent al dente parfaites dans
+    l'assiette) ». Exemples : `plat-carbonara`, `plat-cacio-e-pepe`, `plat-amatriciana`.
+13. **Liaisons détaillées** : mantecatura, émulsion, montée au beurre = le geste le plus détaillé de la recette.
+    Signal de température (la poêle ne grésille plus sous une goutte d'eau), geste des deux mains (pince qui fait
+    tourner, poêle secouée d'avant en arrière), consistance visée (nappe, coule comme une crème anglaise), et un
+    rattrapage pour trop liquide et pour qui tourne (dire honnêtement quand ça ne se rattrape pas).
+14. **Rien de ce qui se déduit** : pas de rappel que la liste d'ingrédients dit déjà (« pas de crème dans la
+    carbonara », « pas d'ail dans l'amatriciana »). Julien le sait ; ça prend de la place sur l'iPhone.
+15. **Langue des ingrédients** : en français ; en italien (ou autre) seulement quand il n'existe pas d'équivalent
+    (guanciale, pecorino, Carnaroli, Parmigiano Reggiano). DOP → AOP, q.b. → selon le goût. Dans les étapes, les
+    noms de gestes italiens restent (tostatura, sfumare, mantecatura, all'onda).
+16. **Tempo** : dès que plusieurs choses tournent en parallèle (eau, sauce, garniture), un bloc entre les variantes
+    et les étapes, du premier feu allumé à l'assiette :
+    ```
+    Tempo (≈ 26 min, spaghetti à 10 min sur le paquet)
+    - 0:00  Eau sur le feu (1). Guanciale dans la poêle froide (2). Pendant qu'il fond : râpe le pecorino.
+    - 0:14  Spaghetti à l'eau (5). Minuteur : temps du paquet moins 3 min.
+    - 0:26  À table (9).
+    ```
+    Le point d'ancrage est l'élément le plus long (la sauce) : le reste est lancé pour finir en même temps. Chaque
+    ligne renvoie à son étape entre parenthèses ; les temps morts disent quoi préparer. Hypothèses dites dans le
+    titre (temps du paquet) ; eau d'une casserole moyenne ≈ 8 min sur l'induction. Pas de Tempo pour une recette
+    linéaire (hot dog, baguezza).
+    - **Les découpes comptent** (demande de Julien) : chaque découpe a sa durée (guanciale 150 g en bâtonnets :
+      5–7 min ; moelle, oignon haché fin : 3–5 min ; râper 200 g de pecorino : 5 min). Celle de l'ingrédient qui
+      démarre ouvre le tempo à 0:00 ; les autres vont dans les temps morts. L'eau va sur le feu quand on en a
+      besoin, pas à 0:00 par réflexe.
+    - **Étapes dans l'ordre du tempo** : renuméroter les étapes pour que les renvois du tempo soient croissants
+      (1, 2, 3…) ; une étape = un moment du tempo. Exemple : `plat-carbonara` (9 étapes).
 
 ## Exemple de référence : `plat-saltimbocca` (écrit le 06/11/2026)
 
