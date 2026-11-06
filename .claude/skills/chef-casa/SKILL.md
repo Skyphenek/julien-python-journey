@@ -108,6 +108,8 @@ Julien ; sinon, revoir ces règles avant de continuer.
       5–7 min ; moelle, oignon haché fin : 3–5 min ; râper 200 g de pecorino : 5 min). Celle de l'ingrédient qui
       démarre ouvre le tempo à 0:00 ; les autres vont dans les temps morts. L'eau va sur le feu quand on en a
       besoin, pas à 0:00 par réflexe.
+    - **Un renvoi par parenthèse** : « (4) … (5) », jamais « (4, 5) » — la fiche magazine (`fiche_recette.py`) ne lit
+      que les numéros seuls entre parenthèses.
     - **Étapes dans l'ordre du tempo** : renuméroter les étapes pour que les renvois du tempo soient croissants
       (1, 2, 3…) ; une étape = un moment du tempo. Exemple : `plat-carbonara` (9 étapes).
 
