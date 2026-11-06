@@ -57,6 +57,9 @@ def test_api_diners(client):
     assert d["aujourd_hui"] == J.isoformat() and len(d["semaine"]) == 7
     assert len(d["secours"]["faisables"]) == 7 and "plat-carbonara" in d["secours"]["faisables"]
     assert d["compteur"] == {"semaine": 0, "moyenne": 0, "renseignes": 0}
+    carbo = next(p for p in d["plats"] if p["id"] == "plat-carbonara")
+    assert carbo["fiche"]["structuree"] is True and carbo["fiche"]["etapes"]
+    assert all("fiche" in p for p in d["plats"])
 
 
 def test_planifier_et_courses_de_la_semaine(client):
