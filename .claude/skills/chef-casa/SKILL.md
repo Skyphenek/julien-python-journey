@@ -112,6 +112,11 @@ Julien ; sinon, revoir ces règles avant de continuer.
       que les numéros seuls entre parenthèses.
     - **Étapes dans l'ordre du tempo** : renuméroter les étapes pour que les renvois du tempo soient croissants
       (1, 2, 3…) ; une étape = un moment du tempo. Exemple : `plat-carbonara` (9 étapes).
+17. **Le petit truc d'abord** (demande de Julien, 07/11/2026 : « donne-moi toujours comment avoir le petit
+    truc ») : chaque proposition s'ouvre sur les 2-3 marqueurs qui signent le plat — ce qui fait passer de « très
+    bon » à « c'est ça » — et comment les obtenir (geste, signal, ingrédient à valider). Exemples :
+    `plat-blanquette-veau` (oignons glacés à blanc, bouillon réduit, muscade + citron), `plat-boeuf-bourguignon`
+    (vin réduit avant de mouiller, saisie dans le gras des lardons, carré de chocolat).
 
 ## Exemple de référence : `plat-saltimbocca` (écrit le 06/11/2026)
 
