@@ -145,7 +145,7 @@ def test_cli_ecrire(conn, capsys, tmp_path):
     assert main(argv) == 0
     assert capsys.readouterr().out.strip().endswith("-s.json")
     assert lire(conn, "s")["recette"] == NEUVE                       # retour à la ligne final retiré
-    assert main(argv) == 2                                           # même maj : la recette a bougé depuis
+    assert main(argv) == 3                                           # même maj : la recette a bougé depuis
 
 
 def test_cli_ecrire_id_inconnu(conn, tmp_path):
@@ -153,3 +153,23 @@ def test_cli_ecrire_id_inconnu(conn, tmp_path):
     texte.write_text(NEUVE)
     assert main(["--base", "valise_test", "ecrire", "x", str(texte), "--maj", "2026-11-06T00:00:00+00:00",
                  "--dossier", str(tmp_path)]) == 1
+
+
+def test_cli_maj_sans_fuseau_refusee(conn, capsys, tmp_path):
+    enregistrer_plat(conn, plat("s"))
+    texte = tmp_path / "s.txt"
+    texte.write_text(NEUVE)
+    with pytest.raises(SystemExit) as sortie:                        # argparse : usage erroné, code 2
+        main(["--base", "valise_test", "ecrire", "s", str(texte), "--maj", "2026-11-05T23:45:10",
+              "--dossier", str(tmp_path / "sauv")])
+    assert sortie.value.code == 2
+    assert "fuseau" in capsys.readouterr().err
+    assert lire(conn, "s")["recette"] == "Pour 2"
+    assert not (tmp_path / "sauv").exists()
+
+
+def test_cli_ecrire_fichier_absent(conn, tmp_path):
+    enregistrer_plat(conn, plat("s"))
+    assert main(["--base", "valise_test", "ecrire", "s", str(tmp_path / "absent.txt"), "--maj",
+                 "2026-11-06T00:00:00+00:00", "--dossier", str(tmp_path)]) == 1
+    assert lire(conn, "s")["recette"] == "Pour 2"

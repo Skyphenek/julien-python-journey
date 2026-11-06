@@ -79,6 +79,17 @@ def ecrire(conn, id_, texte, maj_lu, dossier):
     return chemin
 
 
+def _maj(valeur):
+    """Un --maj ISO avec fuseau : sans fuseau, la comparaison avec maj_le (aware) échouerait en silence."""
+    try:
+        date_maj = datetime.fromisoformat(valeur)
+    except ValueError:
+        raise argparse.ArgumentTypeError("date ISO avec fuseau attendue, ex. 2026-11-05T23:45:10.321566+00:00")
+    if date_maj.tzinfo is None:
+        raise argparse.ArgumentTypeError("date ISO avec fuseau attendue, ex. 2026-11-05T23:45:10.321566+00:00")
+    return date_maj
+
+
 def main(argv=None):
     arguments = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     arguments.add_argument("--base", default="valise")
@@ -88,7 +99,7 @@ def main(argv=None):
     e = commandes.add_parser("ecrire")
     e.add_argument("id")
     e.add_argument("fichier", type=Path)
-    e.add_argument("--maj", required=True, type=datetime.fromisoformat)
+    e.add_argument("--maj", required=True, type=_maj)
     e.add_argument("--dossier", type=Path, default=SAUVEGARDES)
     options = arguments.parse_args(argv)
 
@@ -104,13 +115,13 @@ def main(argv=None):
                 return 1
             print(json.dumps(r | {"maj_le": r["maj_le"].isoformat()}, ensure_ascii=False, indent=1))
         else:
-            texte = options.fichier.read_text().rstrip("\n")
             try:
+                texte = options.fichier.read_text(encoding="utf-8").rstrip("\n")
                 print(ecrire(conn, options.id, texte, options.maj, options.dossier))
             except RecetteModifiee as erreur:
                 print(f"modifiée entre-temps, relire : {erreur}", file=sys.stderr)
-                return 2
-            except (KeyError, ValueError) as erreur:
+                return 3
+            except (KeyError, ValueError, OSError) as erreur:
                 print(f"refusé : {erreur}", file=sys.stderr)
                 return 1
         return 0
