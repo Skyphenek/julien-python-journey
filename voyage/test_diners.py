@@ -148,6 +148,11 @@ def test_page_diners():
     assert "api/repas" in html and "api/soirs" not in html and "d.soirs" not in html                  # repas composés
     for f in ("function ajouterPlat", "function retirerPlat", "function ranges", "function carteRepas"):
         assert f in html
+    for marqueur in ("function uneFiche", "function bandeauCourses", "function ingredientsFiche",     # fiche magazine
+                     "function tempoFiche", "function etapesFiche", "function phraseFiche",
+                     "div.une-fiche", "details.courses-fiche", "ol.etapes-fiche", "div.tempo-fiche"):
+        assert marqueur in html, marqueur
+    assert "innerHTML" not in html.split("function phraseFiche")[1].split("function ouvrirAccords")[0]
     assert "+ déjeuner ou brunch" in html and "+ accompagnement" in html and "'brunch'" in html
     assert "'au menu'" in html and "déjà 8 plats" in html                                              # feuille de choix
     assert "function accordsDe" in html and "function ouvrirAccords" in html                          # accords

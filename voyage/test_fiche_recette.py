@@ -125,3 +125,8 @@ def test_carbonara_etapes_decoupees():
     assert e8["action"] == "Mantecatura."
     assert e8["si"][0]["action"].startswith("Encore liquide après 1 min")
     assert "texte" not in e8
+
+
+def test_version_page_montee():
+    from valise import VERSION_PAGE
+    assert VERSION_PAGE >= 46

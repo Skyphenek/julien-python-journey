@@ -453,6 +453,43 @@ form.edition input, form.edition select, form.edition textarea { font-family: in
        border-radius: 14px; border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte); width: 100%; }
 form.edition textarea { min-height: 220px; resize: vertical; }
 form.edition .deux { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+/* Fiche recette « magazine » (06/11/2026) */
+div.une-fiche { background: var(--diners); color: #fff; border-radius: 28px; padding: 20px 18px; }
+div.une-fiche .meta { color: rgba(255,255,255,.85); }
+div.une-fiche h2 { font-size: 36px; color: #fff; margin: 4px 0 0; }
+div.une-fiche .haut button { background: rgba(255,255,255,.2); color: #fff; }
+div.une-fiche ul { list-style: none; margin: 14px 0 0; padding: 12px 0 0; border-top: 1px solid rgba(255,255,255,.35); }
+div.une-fiche li { font-size: 16px; line-height: 1.45; margin: 6px 0; }
+details.courses-fiche { background: var(--carte); border-radius: 18px; padding: 12px 16px; }
+details.courses-fiche summary { font-weight: 800; cursor: pointer; }
+details.courses-fiche[open] summary { margin-bottom: 10px; }
+h3.titre-fiche { font-size: 13px; font-weight: 800; color: var(--doux); text-transform: uppercase; letter-spacing: .08em; margin: 18px 0 8px; }
+ul.ing-fiche { list-style: none; padding: 0; margin: 0; columns: 2; column-gap: 18px; }
+ul.ing-fiche li { break-inside: avoid; padding: 7px 0; border-bottom: 1px dashed var(--ligne); font-size: 15px; line-height: 1.35;
+                  display: flex; gap: 8px; align-items: flex-start; }
+ul.ing-fiche input { width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--courses); flex: none; }
+ul.ing-fiche b { display: block; font-size: 16px; }
+ul.ing-fiche li.coche { color: var(--doux); text-decoration: line-through; }
+p.para-fiche { font-size: 16px; line-height: 1.5; margin: 6px 0; }
+div.tempo-fiche { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x mandatory; }
+div.tempo-fiche button { flex: none; width: 72%; max-width: 260px; text-align: left; border: none; background: var(--carte);
+                         color: var(--texte); border-radius: 18px; padding: 12px 14px; scroll-snap-align: start;
+                         font-family: inherit; font-size: 15px; line-height: 1.4; }
+div.tempo-fiche b { display: block; font-family: 'DM Mono', ui-monospace, monospace; font-size: 22px; color: var(--diners); }
+ol.etapes-fiche { list-style: none; padding: 0; margin: 0; }
+ol.etapes-fiche > li { position: relative; padding: 16px 0 16px 54px; border-top: 1px solid var(--ligne); font-size: 17.5px;
+                       line-height: 1.55; scroll-margin-top: 16px; transition: background .4s; border-radius: 12px; }
+ol.etapes-fiche > li.vise { background: var(--diners-doux); }
+ol.etapes-fiche span.num { position: absolute; left: 0; top: 10px; font-size: 42px; font-weight: 800; color: var(--diners);
+                           line-height: 1; letter-spacing: -0.04em; }
+ol.etapes-fiche strong { font-weight: 800; }
+ol.etapes-fiche em { color: var(--doux); }
+ol.etapes-fiche div.secret { margin-top: 10px; padding-left: 12px; border-left: 4px solid var(--or, #b7791f); font-size: 16px; }
+ol.etapes-fiche div.secret b { color: var(--or, #b7791f); }
+ol.etapes-fiche div.secret.mamma { border-color: var(--courses); }
+ol.etapes-fiche div.secret.mamma b { color: var(--courses); }
+ol.etapes-fiche ul { padding-left: 18px; margin: 8px 0 0; }
+ol.etapes-fiche ul li { font-size: 16px; margin-top: 6px; }
 """
 
 SCRIPT_DINERS = """
@@ -911,17 +948,33 @@ SCRIPT_DINERS = """
         document.getElementById('panneau').hidden = true;
         afficher();
     }
-    function ouvrirFiche(id) {
-        const p = plat(id); if (!p) return;
-        ouverte = { id: id, edition: false };
-        const c = document.querySelector('#panneau .contenu'); c.replaceChildren();
-        const haut = el('div', 'haut');
-        haut.append(el('span', 'meta', NOMS_GENRE[p.genre] + ' · ' + duree(p.minutes)), bouton('Fermer', 'petit', fermer));
-        c.append(haut, el('h2', '', p.nom));
-        if (p.lien) { const m = el('p', 'meta'); const a = el('a', '', 'Recette d\\'origine'); a.href = p.lien; a.target = '_blank'; a.rel = 'noopener'; m.append(a); c.append(m); }
-        const groupes = [['ok', 'Au placard', p.ingredients.filter(enStock)],
-                         ['liste', 'Déjà sur la liste', p.ingredients.filter(function (i) { return !enStock(i) && surLaListe(i); })],
-                         ['manque', 'À acheter', p.ingredients.filter(function (i) { return !enStock(i) && !surLaListe(i); })]];
+    // --- Fiche « magazine » : affiche p.fiche (découpée en Python, fiche_recette.py) ---
+    function phraseFiche(x, parent) {
+        if (x.action) parent.append(el('strong', '', x.action));
+        x.morceaux.forEach(function (m) { parent.append(m.genre === 'pourquoi' ? el('em', '', ' ' + m.texte) : document.createTextNode(m.texte)); });
+        x.secrets.forEach(function (s) {
+            const b = el('div', 'secret' + (s.qui === 'mamma' ? ' mamma' : ''));
+            b.append(el('b', '', s.qui === 'mamma' ? 'Secret de mamma' : 'Secret de grand-mère'), document.createTextNode(' · ' + s.texte));
+            parent.append(b);
+        });
+    }
+    function uneFiche(p) {
+        const f = p.fiche, une = el('div', 'une-fiche'), haut = el('div', 'haut');
+        haut.append(el('span', 'meta', NOMS_GENRE[p.genre] + ' · ' + duree(p.minutes) + (f.pour ? ' · ' + f.pour : '')), bouton('Fermer', 'petit', fermer));
+        une.append(haut, el('h2', '', p.nom));
+        if (f.difference.length) {
+            const ul = el('ul');
+            f.difference.forEach(function (x) { ul.append(el('li', '', '« ' + x + ' »')); });
+            une.append(ul);
+        }
+        return une;
+    }
+    function groupesIngredients(p) {
+        return [['ok', 'Au placard', p.ingredients.filter(enStock)],
+                ['liste', 'Déjà sur la liste', p.ingredients.filter(function (i) { return !enStock(i) && surLaListe(i); })],
+                ['manque', 'À acheter', p.ingredients.filter(function (i) { return !enStock(i) && !surLaListe(i); })]];
+    }
+    function pastilles(groupes, parent) {
         groupes.forEach(function (g) {
             if (!g[2].length) return;
             const sec = el('section', 'groupe-ing'), ing = el('div', 'ingredients');
@@ -931,10 +984,99 @@ SCRIPT_DINERS = """
                 ing.append(t);
             });
             sec.append(el('h3', '', g[1] + ' · ' + g[2].length), ing);
-            c.append(sec);
+            parent.append(sec);
         });
-        if (p.cout) c.append(el('p', 'meta', '≈ ' + euros(p.cout) + ' le repas pour deux (part utilisée de chaque produit) · en livraison ≈ ' + euros(d.livraison)));
-        c.append(el('pre', 'recette', p.recette || 'Recette à écrire : demande à Claude, ou écris la tienne avec « Modifier ».'));
+    }
+    function bandeauCourses(p, groupes) {
+        const manque = groupes[2][2], det = el('details', 'courses-fiche');
+        const total = manque.reduce(function (t, i) { const pr = prixDe(i); return t + (pr ? pr[1] : 0); }, 0);
+        det.append(el('summary', '', manque.length ? manque.length + ' à acheter' + (total ? ' · ≈ ' + euros(total) : '') : 'Tout est au placard'));
+        pastilles(groupes, det);
+        if (p.cout) det.append(el('p', 'meta', '≈ ' + euros(p.cout) + ' le repas pour deux · en livraison ≈ ' + euros(d.livraison)));
+        return det;
+    }
+    function ingredientsFiche(f) {
+        const frag = document.createDocumentFragment();
+        function liste(lignes) {
+            const ul = el('ul', 'ing-fiche');
+            lignes.forEach(function (x) {
+                const li = el('li'), c = el('input'), t = el('span');
+                c.type = 'checkbox';
+                c.addEventListener('change', function () { li.classList.toggle('coche', c.checked); });
+                t.append(el('b', '', x.nom));
+                if (x.quantite) t.append(document.createTextNode(x.quantite));
+                li.append(c, t); ul.append(li);
+            });
+            return ul;
+        }
+        if (f.ingredients.length) frag.append(el('h3', 'titre-fiche', 'Ingrédients'), liste(f.ingredients));
+        f.sections.forEach(function (s) {
+            if (!s.lignes.length) { frag.append(el('p', 'para-fiche', s.titre)); return; }
+            frag.append(el('h3', 'titre-fiche', s.titre),
+                        liste(s.lignes.map(function (l) { return { nom: l, quantite: '' }; })));
+        });
+        return frag;
+    }
+    function tempoFiche(f) {
+        const frag = document.createDocumentFragment();
+        if (!f.tempo || !f.tempo.lignes.length) return frag;
+        const bande = el('div', 'tempo-fiche');
+        f.tempo.lignes.forEach(function (l) {
+            const b = el('button');
+            b.type = 'button';
+            b.append(el('b', '', l.heure), document.createTextNode(l.texte));
+            if (l.etapes.length) b.addEventListener('click', function () {
+                const cible = document.getElementById('etape-' + l.etapes[0]);
+                if (!cible) return;
+                cible.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                cible.classList.add('vise');
+                setTimeout(function () { cible.classList.remove('vise'); }, 2000);
+            });
+            bande.append(b);
+        });
+        frag.append(el('h3', 'titre-fiche', f.tempo.titre), bande);
+        return frag;
+    }
+    function etapesFiche(f) {
+        const ol = el('ol', 'etapes-fiche');
+        f.etapes.forEach(function (e) {
+            const li = el('li');
+            li.id = 'etape-' + e.n;
+            li.append(el('span', 'num', String(e.n)));
+            phraseFiche(e, li);
+            if (e.si.length) {
+                const ul = el('ul');
+                e.si.forEach(function (s) { const x = el('li'); phraseFiche(s, x); ul.append(x); });
+                li.append(ul);
+            }
+            ol.append(li);
+        });
+        const frag = document.createDocumentFragment();
+        frag.append(el('h3', 'titre-fiche', 'Étapes'), ol);
+        return frag;
+    }
+    function lienOrigine(p, c) {
+        if (!p.lien) return;
+        const m = el('p', 'meta'), a = el('a', '', 'Recette d\\'origine');
+        a.href = p.lien; a.target = '_blank'; a.rel = 'noopener'; m.append(a); c.append(m);
+    }
+    function ouvrirFiche(id) {
+        const p = plat(id); if (!p) return;
+        ouverte = { id: id, edition: false };
+        const c = document.querySelector('#panneau .contenu'); c.replaceChildren();
+        const groupes = groupesIngredients(p);
+        if (p.fiche && p.fiche.structuree) {
+            c.append(uneFiche(p), bandeauCourses(p, groupes), ingredientsFiche(p.fiche), tempoFiche(p.fiche), etapesFiche(p.fiche));
+            lienOrigine(p, c);
+        } else {
+            const haut = el('div', 'haut');
+            haut.append(el('span', 'meta', NOMS_GENRE[p.genre] + ' · ' + duree(p.minutes)), bouton('Fermer', 'petit', fermer));
+            c.append(haut, el('h2', '', p.nom));
+            lienOrigine(p, c);
+            pastilles(groupes, c);
+            if (p.cout) c.append(el('p', 'meta', '≈ ' + euros(p.cout) + ' le repas pour deux (part utilisée de chaque produit) · en livraison ≈ ' + euros(d.livraison)));
+            c.append(el('pre', 'recette', p.recette || 'Recette à écrire : demande à Claude, ou écris la tienne avec « Modifier ».'));
+        }
         if (p.note) c.append(el('p', 'meta', p.note));
         if (p.genre === 'plat') {
             const va = el('section', 'groupe-ing accords'), liste = el('div', 'ingredients');
