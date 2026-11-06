@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from fiche_recette import decouper
+from fiche_recette import decouper, decouper_phrase
 
 EX = Path(__file__).parent / "exemples_fiches"
 
@@ -73,3 +73,55 @@ def test_textes_non_structures():
         f = decouper(t)
         assert f["structuree"] is False and f["etapes"] == []
     assert decouper(None)["structuree"] is False
+
+
+def test_action_coupee_au_premier_point_de_phrase():
+    d = decouper_phrase("Râpe le pecorino le plus fin possible — en gros copeaux, il fait des grumeaux au lieu de fondre.")
+    assert d["action"] == "Râpe le pecorino le plus fin possible"
+    assert d["morceaux"] == [{"genre": "pourquoi", "texte": "— en gros copeaux, il fait des grumeaux au lieu de fondre."}]
+
+
+def test_abreviations_ne_coupent_pas():
+    d = decouper_phrase("Ajoute l’eau 1 c. à s. à la fois. Puis mélange.")
+    assert d["action"] == "Ajoute l’eau 1 c. à s. à la fois."
+    assert d["morceaux"] == [{"genre": "texte", "texte": " Puis mélange."}]
+
+
+def test_action_avec_deux_points():
+    d = decouper_phrase("Bouillon : mets-le dans une casserole à côté.")
+    assert d["action"] == "Bouillon :"
+    assert d["morceaux"][0] == {"genre": "texte", "texte": " mets-le dans une casserole à côté."}
+
+
+def test_secrets_retires_du_texte():
+    d = decouper_phrase("Puis les oignons (secret de grand-mère : une bonne pincée d’oignons crispy dessus) en tout dernier.")
+    assert d["secrets"] == [{"qui": "grand-mere", "texte": "une bonne pincée d’oignons crispy dessus"}]
+    assert "secret" not in d["action"] + "".join(m["texte"] for m in d["morceaux"])
+    assert "oignons en tout dernier" in d["action"] + "".join(m["texte"] for m in d["morceaux"])
+
+
+def test_secret_de_mamma_avec_guillemets():
+    d = decouper_phrase("Mélange (secret de mamma : remue fort, la sauce doit « enrober » la pasta).")
+    assert d["secrets"] == [{"qui": "mamma", "texte": "remue fort, la sauce doit « enrober » la pasta"}]
+
+
+def test_pourquoi_au_milieu():
+    d = decouper_phrase("Pose les boulettes, espacées de 2 cm — serrées, elles bouillent au lieu de dorer. N’y touche pas.")
+    genres = [m["genre"] for m in d["morceaux"]]
+    assert genres == ["pourquoi", "texte"]
+    assert d["morceaux"][0]["texte"] == "— serrées, elles bouillent au lieu de dorer."
+
+
+def test_phrase_sans_coupure():
+    assert decouper_phrase("Four à 220 °C, grill.") == {"action": "Four à 220 °C, grill.", "morceaux": [], "secrets": []}
+
+
+def test_carbonara_etapes_decoupees():
+    f = decouper(lire("plat-carbonara"))
+    e7 = f["etapes"][6]
+    assert e7["n"] == 7 and e7["action"].startswith("Au minuteur")
+    assert e7["secrets"][0]["qui"] == "grand-mere"
+    e8 = f["etapes"][7]
+    assert e8["action"] == "Mantecatura."
+    assert e8["si"][0]["action"].startswith("Encore liquide après 1 min")
+    assert "texte" not in e8
