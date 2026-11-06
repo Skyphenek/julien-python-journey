@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 import pytest
 from db import connecter, enregistrer_plat, enregistrer_repas
-from chef import MARQUEUR, RecetteModifiee, file_de_passage, lire, ecrire
+from chef import MARQUEUR, RecetteModifiee, file_de_passage, lire, ecrire, main
 
 
 def plat(id_, **champs):
@@ -124,3 +124,32 @@ def test_deux_passes_le_meme_jour_ne_s_ecrasent_pas(conn, tmp_path):
     assert premiere != seconde and seconde.name.endswith("-s-2.json")
     assert json.loads(premiere.read_text())["recette"] == "v1"
     assert json.loads(seconde.read_text())["recette"] == NEUVE
+
+
+def test_cli_file_et_lire(conn, capsys):
+    enregistrer_plat(conn, plat("saltimbocca", recette="Pour 4"))
+    faire(conn, 1, "saltimbocca")
+    assert main(["--base", "valise_test", "file"]) == 0
+    assert capsys.readouterr().out == "1\tsaltimbocca\tSaltimbocca\tcarnet\n"
+    assert main(["--base", "valise_test", "lire", "saltimbocca"]) == 0
+    sortie = json.loads(capsys.readouterr().out)
+    assert sortie["recette"] == "Pour 4" and sortie["maj_le"] == lire(conn, "saltimbocca")["maj_le"].isoformat()
+
+
+def test_cli_ecrire(conn, capsys, tmp_path):
+    enregistrer_plat(conn, plat("s"))
+    maj = lire(conn, "s")["maj_le"].isoformat()
+    texte = tmp_path / "s.txt"
+    texte.write_text(NEUVE + "\n")
+    argv = ["--base", "valise_test", "ecrire", "s", str(texte), "--maj", maj, "--dossier", str(tmp_path / "sauv")]
+    assert main(argv) == 0
+    assert capsys.readouterr().out.strip().endswith("-s.json")
+    assert lire(conn, "s")["recette"] == NEUVE                       # retour à la ligne final retiré
+    assert main(argv) == 2                                           # même maj : la recette a bougé depuis
+
+
+def test_cli_ecrire_id_inconnu(conn, tmp_path):
+    texte = tmp_path / "x.txt"
+    texte.write_text(NEUVE)
+    assert main(["--base", "valise_test", "ecrire", "x", str(texte), "--maj", "2026-11-06T00:00:00+00:00",
+                 "--dossier", str(tmp_path)]) == 1

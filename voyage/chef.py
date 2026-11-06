@@ -1,12 +1,24 @@
 """Le chef de la Casa : la file des recettes à améliorer, la lecture et l'écriture sans risque (06/11/2026).
 
+    .venv/bin/python chef.py file [--n 5]
+    .venv/bin/python chef.py lire plat-saltimbocca
+    .venv/bin/python chef.py ecrire plat-saltimbocca nouvelle.txt --maj 2026-11-05T23:45:10.321566+00:00
+
 La rédaction (trucs, gestes, secrets de Julien) vit dans le skill chef-casa ; ici, seulement les données.
 Neon fait foi : on lit la version du jour, on sauvegarde l'ancienne, on n'écrase pas une correction faite dans l'app.
 """
+import argparse
 import json
+import sys
 from datetime import datetime
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from dotenv import load_dotenv
+
+from db import connecter
+
+SAUVEGARDES = Path.home() / "Claude/Work/perso/casa-sauvegardes"
 MARQUEUR = "Ce qui fait la différence"     # le bloc final : sa présence veut dire « déjà passée »
 _ORDRE_GENRES = ["plat", "accompagnement", "entree", "dessert"]
 
@@ -65,3 +77,47 @@ def ecrire(conn, id_, texte, maj_lu, dossier):
         cur.execute("UPDATE plats SET recette = %s, maj_le = now() WHERE id = %s", (texte, id_))
     conn.commit()
     return chemin
+
+
+def main(argv=None):
+    arguments = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    arguments.add_argument("--base", default="valise")
+    commandes = arguments.add_subparsers(dest="commande", required=True)
+    commandes.add_parser("file").add_argument("--n", type=int, default=5)
+    commandes.add_parser("lire").add_argument("id")
+    e = commandes.add_parser("ecrire")
+    e.add_argument("id")
+    e.add_argument("fichier", type=Path)
+    e.add_argument("--maj", required=True, type=datetime.fromisoformat)
+    e.add_argument("--dossier", type=Path, default=SAUVEGARDES)
+    options = arguments.parse_args(argv)
+
+    conn = connecter(options.base)
+    try:
+        if options.commande == "file":
+            for p in file_de_passage(conn, options.n):
+                print(f"{p['faits']}\t{p['id']}\t{p['nom']}\t{p['statut']}")
+        elif options.commande == "lire":
+            r = lire(conn, options.id)
+            if r is None:
+                print(f"inconnue : {options.id}", file=sys.stderr)
+                return 1
+            print(json.dumps(r | {"maj_le": r["maj_le"].isoformat()}, ensure_ascii=False, indent=1))
+        else:
+            texte = options.fichier.read_text().rstrip("\n")
+            try:
+                print(ecrire(conn, options.id, texte, options.maj, options.dossier))
+            except RecetteModifiee as erreur:
+                print(f"modifiée entre-temps, relire : {erreur}", file=sys.stderr)
+                return 2
+            except (KeyError, ValueError) as erreur:
+                print(f"refusé : {erreur}", file=sys.stderr)
+                return 1
+        return 0
+    finally:
+        conn.close()
+
+
+if __name__ == "__main__":
+    load_dotenv(Path(__file__).parent / ".env")     # en local : DATABASE_URL de voyage/.env -> Neon
+    sys.exit(main())
