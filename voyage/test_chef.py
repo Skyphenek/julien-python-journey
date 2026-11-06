@@ -1,4 +1,5 @@
 """Tests du chef de la Casa (chef.py) : file de passage, lecture, écriture sauvegardée, ligne de commande."""
+import json
 import sys
 from datetime import date
 from pathlib import Path
@@ -6,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 import pytest
 from db import connecter, enregistrer_plat, enregistrer_repas
-from chef import MARQUEUR, file_de_passage, lire
+from chef import MARQUEUR, RecetteModifiee, file_de_passage, lire, ecrire
 
 
 def plat(id_, **champs):
@@ -70,3 +71,56 @@ def test_lire(conn):
         "id": "saltimbocca", "nom": "Saltimbocca", "genre": "plat", "pour": "nous", "recette": "Pour 4\n1. Saisir."}
     assert r["maj_le"] is not None
     assert lire(conn, "inconnu") is None
+
+
+NEUVE = f"Pour 4\n1. Saisir, sans toucher, jusqu'aux bords dorés.\n\n{MARQUEUR}\n- Beurre froid hors du feu."
+
+
+def test_ecrire_sauvegarde_puis_remplace(conn, tmp_path):
+    enregistrer_plat(conn, plat("saltimbocca", recette="Pour 4\n1. Saisir.", note="La mamma"))
+    avant = lire(conn, "saltimbocca")
+    chemin = ecrire(conn, "saltimbocca", NEUVE, avant["maj_le"], tmp_path / "sauv")
+    assert chemin.parent == tmp_path / "sauv" and chemin.name.endswith("-saltimbocca.json")
+    sauve = json.loads(chemin.read_text())
+    assert sauve["recette"] == "Pour 4\n1. Saisir." and sauve["note"] == "La mamma"
+    apres = lire(conn, "saltimbocca")
+    assert apres["recette"] == NEUVE and apres["maj_le"] > avant["maj_le"]
+
+
+def test_ecrire_ne_touche_qu_a_la_recette(conn, tmp_path):
+    enregistrer_plat(conn, plat("s", minutes=25, ingredients=["sauge"], accords=["acc-polenta"], pour="julien"))
+    ecrire(conn, "s", NEUVE, lire(conn, "s")["maj_le"], tmp_path)
+    with conn.cursor() as cur:
+        cur.execute("SELECT minutes, ingredients, accords, pour, statut FROM plats WHERE id = 's'")
+        assert cur.fetchone() == (25, ["sauge"], ["acc-polenta"], "julien", "carnet")
+
+
+def test_ecrire_refuse_si_modifiee_entre_temps(conn, tmp_path):
+    enregistrer_plat(conn, plat("s"))
+    lu = lire(conn, "s")["maj_le"]
+    enregistrer_plat(conn, plat("s", recette="Corrigée dans l'app"))     # Laetitia corrige sur l'iPhone
+    with pytest.raises(RecetteModifiee):
+        ecrire(conn, "s", NEUVE, lu, tmp_path)
+    assert lire(conn, "s")["recette"] == "Corrigée dans l'app"
+    assert list(tmp_path.iterdir()) == []                              # pas de sauvegarde pour rien
+
+
+def test_ecrire_refuse_sans_bloc_final(conn, tmp_path):
+    enregistrer_plat(conn, plat("s"))
+    with pytest.raises(ValueError):
+        ecrire(conn, "s", "Pour 4\n1. Saisir.", lire(conn, "s")["maj_le"], tmp_path)
+    assert lire(conn, "s")["recette"] == "Pour 2"
+
+
+def test_ecrire_id_inconnu(conn, tmp_path):
+    with pytest.raises(KeyError):
+        ecrire(conn, "inconnu", NEUVE, None, tmp_path)
+
+
+def test_deux_passes_le_meme_jour_ne_s_ecrasent_pas(conn, tmp_path):
+    enregistrer_plat(conn, plat("s", recette="v1"))
+    premiere = ecrire(conn, "s", NEUVE, lire(conn, "s")["maj_le"], tmp_path)
+    seconde = ecrire(conn, "s", NEUVE + "\n- Sel à la fin.", lire(conn, "s")["maj_le"], tmp_path)
+    assert premiere != seconde and seconde.name.endswith("-s-2.json")
+    assert json.loads(premiere.read_text())["recette"] == "v1"
+    assert json.loads(seconde.read_text())["recette"] == NEUVE
