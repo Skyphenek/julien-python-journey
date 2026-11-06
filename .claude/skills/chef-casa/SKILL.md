@@ -64,6 +64,17 @@ Julien ; sinon, revoir ces règles avant de continuer.
    Un ancien bloc « Erreurs fréquentes » est absorbé par les étapes et ce bloc.
 9. **Ton** : tutoiement, phrases courtes, comme les recettes existantes. Format conservé : « Pour N », liste
    d'ingrédients en tirets, étapes numérotées.
+10. **Contrôle de cuisson** (demande de Julien, 06/11/2026 : « savoir quand c'est cuit » est son premier besoin) :
+    toute recette avec viande, volaille ou poisson a une étape de contrôle à l'endroit le plus lent à cuire (près
+    de l'os, au centre du plus épais), avec deux signaux sans outil (jus, toucher, articulation, couleur à
+    l'entaille) et la conduite si un signal manque (« 5 min de plus, puis tu revérifies »). Quand la viande s'y
+    prête (bœuf, canard, agneau), donner les degrés bleu → bien cuit avec leurs signaux ; dire la règle de
+    sécurité quand il y en a une (haché, volaille, porc). Aussi pour les cuissons où rater coûte cher (riz,
+    œufs) ; pas pour pâtes ni légumes rôtis. Exemples : `af-cuisses`, `plat-bacon-cheese-burger`.
+11. **Ustensiles : seulement ceux qu'on a.** Avant de citer un ustensile qui ne va pas de soi (thermomètre, sonde,
+    mandoline…), vérifier son état dans l'artifact « La Cuisine de Ste Isaure » (slug
+    `17044827-e6bd-4e0c-9436-51fa103505fb`, `db_get` sur `etats/<id>`) : seul `on-a` entre dans la recette. Sinon,
+    signaler l'achat dans la proposition, pas dans la recette. Au 06/11/2026, `etats/thermometre` = `acheter`.
 
 ## Exemple de référence : `plat-saltimbocca` (écrit le 06/11/2026)
 
