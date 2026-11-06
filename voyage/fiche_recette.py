@@ -6,7 +6,7 @@ import re
 
 ETAPE = re.compile(r"^(\d+)[.)]\s+(.*)$")
 SOUS_PUCE = re.compile(r"^\s+-\s+(.*)$")
-LIGNE_TEMPO = re.compile(r"^-\s+(\d+:\d\d)\s+(.*)$")
+LIGNE_TEMPO = re.compile(r"^-\s+(\d+:\d\d|Veille|La veille)\s+(.*)$")   # « Veille » : marinade, salage
 RENVOI = re.compile(r"\((\d+)\)")
 COUPE_INGREDIENT = re.compile(r"\s+(?::|—)\s+")
 SECRET = re.compile(r"\s*\(secret de (grand-mère|mamma)\s*:\s*((?:[^()]|\([^()]*\))*)\)", re.IGNORECASE)
@@ -93,6 +93,9 @@ def _lire_lignes(texte):
             continue
         if zone == "etapes" and SOUS_PUCE.match(ligne):
             etape["si"].append(SOUS_PUCE.match(ligne).group(1).strip())
+            continue
+        if zone == "etapes" and ligne[:1].isspace():         # phrase indentée après les sous-puces : même étape
+            etape["si"].append(ligne.strip())
             continue
         if zone == "tempo":
             t = LIGNE_TEMPO.match(ligne)

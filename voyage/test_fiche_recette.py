@@ -130,3 +130,19 @@ def test_carbonara_etapes_decoupees():
 def test_version_page_montee():
     from valise import VERSION_PAGE
     assert VERSION_PAGE >= 46
+
+
+def test_phrase_indentee_rattachee_a_son_etape():
+    f = decouper(lire("plat-cote-de-boeuf"))
+    assert len(f["etapes"]) == 8
+    assert not any(s["titre"].startswith("Contrôle") for s in f["sections"])
+    e6 = f["etapes"][5]
+    assert len(e6["si"]) == 3 and e6["si"][2]["action"].startswith("Contrôle")
+    burger = decouper(lire("plat-bacon-cheese-burger"))
+    assert not any(s["titre"].startswith("Bleu et saignant") for s in burger["sections"])
+    assert burger["etapes"][3]["si"][-1]["action"].startswith("Bleu et saignant")
+
+
+def test_tempo_ligne_veille():
+    f = decouper(lire("plat-cote-de-boeuf"))
+    assert f["tempo"]["lignes"][0] == {"heure": "Veille", "texte": "Côte salée, au frigo à découvert (1).", "etapes": [1]}
