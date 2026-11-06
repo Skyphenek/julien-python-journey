@@ -42,6 +42,7 @@ from budget import semaines_budget, moyenne_precedentes, lundi, budget_en_html, 
 from cave import valider_bouteille, cave_en_html
 from courses import valider_article, valider_placard, courses_en_html, normaliser
 from prix_paris import cout_repas
+from fiche_recette import decouper
 from diners import (avec_achats_recents, FRAIS_JOURS, disponibles, a_acheter_aujourd_hui, valider_plat, valider_repas, secours, a_acheter, compteur, semaine, diners_en_html,
                     proposer, accompagner, cout_semaine, repas_prevus, ranger, nettoyer_accords, LIVRAISON_DEUX, FENETRE_PASSE, FENETRE_FUTUR)
 from a_finir import suivis, alertes, plats_qui_utilisent, ENCORE_BON_JOURS
@@ -155,7 +156,8 @@ def creer_app(nom_base="valise", secret=None):
         prevus = repas_prevus(repas, par_id, jours)
         return jsonify({
             "aujourd_hui": jour.isoformat(), "semaine": [j.isoformat() for j in jours],
-            "plats": [{**p, "cout": cout_repas(p["ingredients"], p["recette"])} for p in plats],
+            "plats": [{**p, "cout": cout_repas(p["ingredients"], p["recette"]), "fiche": decouper(p["recette"])}
+                      for p in plats],
             "repas": [{**r, "jour": r["jour"].isoformat()} for r in repas],
             "liste": sorted({normaliser(a["nom"]) for a in lu["articles"] if a["actif"] and not a["pris"]}),
             "livraison": LIVRAISON_DEUX, "cout_semaine": cout_semaine(prevus, lu["placard"], articles),
