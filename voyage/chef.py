@@ -70,11 +70,15 @@ def ecrire(conn, id_, texte, maj_lu, dossier):
         if maj_le != maj_lu:
             conn.rollback()
             raise RecetteModifiee(f"{id_} modifiée le {maj_le.isoformat()}, lue le {maj_lu}")
-        dossier.mkdir(parents=True, exist_ok=True)
-        chemin = _chemin_libre(dossier, id_)
-        chemin.write_text(json.dumps({"id": id_, "nom": nom, "recette": recette, "note": note,
-                                      "maj_le": maj_le.isoformat()}, ensure_ascii=False, indent=1))
-        cur.execute("UPDATE plats SET recette = %s, maj_le = now() WHERE id = %s", (texte, id_))
+        try:
+            dossier.mkdir(parents=True, exist_ok=True)
+            chemin = _chemin_libre(dossier, id_)
+            chemin.write_text(json.dumps({"id": id_, "nom": nom, "recette": recette, "note": note,
+                                          "maj_le": maj_le.isoformat()}, ensure_ascii=False, indent=1))
+            cur.execute("UPDATE plats SET recette = %s, maj_le = now() WHERE id = %s", (texte, id_))
+        except Exception:
+            conn.rollback()                          # ne jamais laisser le verrou FOR UPDATE ouvert
+            raise
     conn.commit()
     return chemin
 

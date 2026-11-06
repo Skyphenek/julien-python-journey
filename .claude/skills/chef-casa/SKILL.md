@@ -6,20 +6,22 @@ description: Améliore en place les recettes du hub Casa Binomerie (table plats 
 # Chef de la Casa
 
 But : le « petit truc qui fait la différence », écrit dans la recette elle-même, lisible sur l'iPhone en cuisine.
-Spec : `docs/superpowers/specs/2026-11-06-casa-chef-design.md`. Toutes les commandes se lancent depuis `voyage/`.
+Commande (depuis n'importe quel dossier) : CHEF = `~/Claude/Work/perso/python/julien-python-journey/voyage/.venv/bin/python ~/Claude/Work/perso/python/julien-python-journey/voyage/chef.py`
+Spec : `~/Claude/Work/perso/python/julien-python-journey/docs/superpowers/specs/2026-11-06-casa-chef-design.md`.
 
 ## Déroulé d'une session (5 recettes au plus)
 
-1. `.venv/bin/python chef.py file` : montre les 5 prochaines (colonne 1 = fois cuisinée). Julien garde, retire, ou
-   impose une recette (`chef.py lire <id>` directement).
+1. `~/Claude/Work/perso/python/julien-python-journey/voyage/.venv/bin/python ~/Claude/Work/perso/python/julien-python-journey/voyage/chef.py file` : montre les 5 prochaines (colonne 1 = fois cuisinée). Julien garde, retire, ou
+   impose une recette (`~/Claude/Work/perso/python/julien-python-journey/voyage/.venv/bin/python ~/Claude/Work/perso/python/julien-python-journey/voyage/chef.py lire <id>` directement).
 2. Pour chaque recette, une à la fois :
-   a. `.venv/bin/python chef.py lire <id>` ; garder `maj_le`.
+   a. `~/Claude/Work/perso/python/julien-python-journey/voyage/.venv/bin/python ~/Claude/Work/perso/python/julien-python-journey/voyage/chef.py lire <id>` ; garder `maj_le`.
    b. Demander : « Tu as un truc à toi sur ce plat ? » — attendre la réponse avant de rédiger.
-   c. Rédiger la nouvelle version selon les règles ci-dessous. Montrer : la recette complète (bloc de code), puis
-      « Ce que j'ai changé et pourquoi » (puces courtes), puis ce qui est signalé sans être corrigé.
+   c. Rédiger la nouvelle version selon les règles ci-dessous. Montrer : l'ancienne version des étapes touchées, puis la
+      recette complète proposée (bloc de code), puis « Ce que j'ai changé et pourquoi » (puces courtes), puis ce qui
+      est signalé sans être corrigé.
    d. Attendre un OK explicite. Une correction de Julien → nouvelle version complète, nouvel OK.
    e. Écrire le texte validé dans un fichier du scratchpad, puis
-      `.venv/bin/python chef.py ecrire <id> <fichier> --maj <maj_le>`. Code 3 : la recette a bougé dans l'app →
+      `~/Claude/Work/perso/python/julien-python-journey/voyage/.venv/bin/python ~/Claude/Work/perso/python/julien-python-journey/voyage/chef.py ecrire <id> <fichier> --maj <maj_le>`. Code 3 : la recette a bougé dans l'app →
       relire, refaire la proposition sur la nouvelle version. Jamais de SQL à la main.
       Code 1 ou 2 : erreur (id, fichier, bloc final, `--maj` sans fuseau) → la montrer à Julien, ne pas relire en boucle.
 3. En fin de session : ajouter dans `~/Claude/TASKS.md` une tâche « Cuisiner <recettes> version chef et dire ce qui
@@ -27,8 +29,11 @@ Spec : `docs/superpowers/specs/2026-11-06-casa-chef-design.md`. Toutes les comma
 
 ## Retour après cuisson
 
-Julien dit ce qui a marché ou non → `chef.py lire <id>`, retirer le geste inutile, renforcer celui qui a marché,
+Julien dit ce qui a marché ou non → `~/Claude/Work/perso/python/julien-python-journey/voyage/.venv/bin/python ~/Claude/Work/perso/python/julien-python-journey/voyage/chef.py lire <id>`, retirer le geste inutile, renforcer celui qui a marché,
 même circuit (proposition, OK, `ecrire`). Un truc de Julien découvert en cuisinant entre en *secret de grand-mère*.
+
+Mesure du succès : sur les 5 premières recettes passées et cuisinées, au moins 4 ont « fait la différence » selon
+Julien ; sinon, revoir ces règles avant de continuer.
 
 ## Règles de rédaction
 
@@ -73,9 +78,13 @@ piqué droit, il fait basculer l'escalope dans la poêle ; à plat, elle reste c
 Secret de grand-mère de Julien (étape 1) : quelques gouttes d'eau sur le veau entre les films avant d'aplatir —
 l'eau fait roulement à billes, la viande s'étale au lieu de se déchirer ; puis sécher avant de saler.
 
-Version complète : `.venv/bin/python chef.py lire plat-saltimbocca`.
+Version complète : `~/Claude/Work/perso/python/julien-python-journey/voyage/.venv/bin/python ~/Claude/Work/perso/python/julien-python-journey/voyage/chef.py lire plat-saltimbocca`.
 
 ## Limites à dire
 
 Les trucs de Claude sont de la technique classique, pas des secrets de famille vérifiés : le retour de Julien après
 cuisson décide. Si le skill ne connaît pas un plat (régional, familial), il le dit et pose plus de questions.
+
+L'app n'a pas de verrou : une fiche restée ouverte sur un téléphone avec l'ancien texte, enregistrée après le passage
+du chef, écrase la version chef sans prévenir. Garder le texte validé dans le scratchpad jusqu'à la fin de la session ;
+prévenir Laetitia de recharger la recette.

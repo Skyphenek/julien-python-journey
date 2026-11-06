@@ -5,6 +5,7 @@ from datetime import date
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
+import psycopg2.extensions
 import pytest
 from db import connecter, enregistrer_plat, enregistrer_repas
 from chef import MARQUEUR, RecetteModifiee, file_de_passage, lire, ecrire, main
@@ -47,7 +48,8 @@ def test_file_carnet_avant_a_tester_puis_genre_puis_nom(conn):
     enregistrer_plat(conn, plat("y-dessert", genre="dessert"))
     enregistrer_plat(conn, plat("x-plat"))
     enregistrer_plat(conn, plat("w-acc", genre="accompagnement"))
-    assert [p["id"] for p in file_de_passage(conn)] == ["x-plat", "w-acc", "y-dessert", "z-tester"]
+    enregistrer_plat(conn, plat("v-entree", genre="entree"))
+    assert [p["id"] for p in file_de_passage(conn)] == ["x-plat", "w-acc", "v-entree", "y-dessert", "z-tester"]
 
 
 def test_file_exclut_archives_et_deja_passes(conn):
@@ -112,6 +114,16 @@ def test_ecrire_refuse_sans_bloc_final(conn, tmp_path):
     assert lire(conn, "s")["recette"] == "Pour 2"
 
 
+def test_ecrire_annule_si_sauvegarde_impossible(conn, tmp_path):
+    enregistrer_plat(conn, plat("s"))
+    dossier = tmp_path / "fichier"
+    dossier.write_text("x")                                            # un fichier : mkdir échoue
+    with pytest.raises(OSError):
+        ecrire(conn, "s", NEUVE, lire(conn, "s")["maj_le"], dossier)
+    assert conn.get_transaction_status() == psycopg2.extensions.TRANSACTION_STATUS_IDLE
+    assert lire(conn, "s")["recette"] == "Pour 2"
+
+
 def test_ecrire_id_inconnu(conn, tmp_path):
     with pytest.raises(KeyError):
         ecrire(conn, "inconnu", NEUVE, None, tmp_path)
@@ -172,4 +184,17 @@ def test_cli_ecrire_fichier_absent(conn, tmp_path):
     enregistrer_plat(conn, plat("s"))
     assert main(["--base", "valise_test", "ecrire", "s", str(tmp_path / "absent.txt"), "--maj",
                  "2026-11-06T00:00:00+00:00", "--dossier", str(tmp_path)]) == 1
+    assert lire(conn, "s")["recette"] == "Pour 2"
+
+
+def test_cli_lire_inconnu(conn):
+    assert main(["--base", "valise_test", "lire", "inconnu"]) == 1
+
+
+def test_cli_ecrire_sans_bloc_final(conn, tmp_path):
+    enregistrer_plat(conn, plat("s"))
+    texte = tmp_path / "s.txt"
+    texte.write_text("Pour 4\n1. Saisir.")
+    maj = lire(conn, "s")["maj_le"].isoformat()
+    assert main(["--base", "valise_test", "ecrire", "s", str(texte), "--maj", maj, "--dossier", str(tmp_path / "sauv")]) == 1
     assert lire(conn, "s")["recette"] == "Pour 2"
