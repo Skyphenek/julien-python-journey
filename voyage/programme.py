@@ -7,6 +7,7 @@ import hashlib
 import json
 import re
 from datetime import date, timedelta
+from decimal import Decimal, InvalidOperation
 
 TYPES_RESERVATION = {"vol": "Vol", "hotel": "Hôtel", "transport": "Transport",
                      "activite": "Activité", "resto": "Resto", "autre": "Autre"}
@@ -74,7 +75,32 @@ def valider_reservation(corps):
         raise ValueError("fin avant le début")
     if r["lien"] and not re.match(r"https?://", r["lien"], re.IGNORECASE):
         raise ValueError("lien : http(s) seulement")
-    return r
+    return {**r, **_prix(corps)}
+
+
+def _montant(valeur, cle, minimum, maximum):
+    try:
+        montant = Decimal(str(valeur)).quantize(Decimal("0.01"))
+    except (InvalidOperation, ValueError):
+        raise ValueError(f"{cle} invalide") from None
+    if not (minimum <= montant < maximum):
+        raise ValueError(f"{cle} invalide")
+    return montant
+
+
+def _prix(corps):
+    """Prix facultatif ; donné, il faut la devise, le prix en euros et qui a payé."""
+    if corps.get("prix") in (None, ""):
+        return {"prix": None, "devise": None, "prix_eur": None, "paye_par": None}
+    devise, payeur = corps.get("devise"), corps.get("paye_par")
+    if not isinstance(devise, str) or not re.fullmatch(r"[A-Z]{3}", devise):
+        raise ValueError("devise invalide")
+    if not isinstance(payeur, str) or not payeur:
+        raise ValueError("payeur invalide")
+    if corps.get("prix_eur") in (None, ""):
+        raise ValueError("prix en euros manquant")
+    return {"prix": _montant(corps["prix"], "prix", Decimal("0.01"), 10**12), "devise": devise,
+            "prix_eur": _montant(corps["prix_eur"], "prix en euros", 0, 10**9), "paye_par": payeur}
 
 
 # --- Reprise des anciennes fiches d'étapes (infos_etape) en réservations « Hôtel » -------------
@@ -104,11 +130,15 @@ def hotels_depuis_infos(code, itineraire, depart, infos):
 
 # --- Page : le bloc (rempli par le script) ----------------------------------------------------
 
-def bloc_programme(etapes):
-    """Le carnet ; les étapes (JSON) servent à titrer chaque jour (« ven. 15/01 · Hanoï »)."""
+def bloc_programme(etapes, personnes=(), devises=()):
+    """Le carnet ; les étapes (JSON) servent à titrer chaque jour (« ven. 15/01 · Hanoï ») ; les
+    voyageurs et les devises, au prix facultatif (« payé par »)."""
     donnees = json.dumps([{"destination": e["destination"], "du": e["du"].isoformat(), "au": e["au"].isoformat()}
                           for e in etapes], ensure_ascii=False).replace("</", "<\\/")
+    paiement = json.dumps({"personnes": list(personnes), "devises": ["EUR", *(d for d in devises if d != "EUR")]},
+                          ensure_ascii=False).replace("</", "<\\/")
     return (f'<div class="programme"><script type="application/json" class="etapes-programme">{donnees}</script>'
+            f'<script type="application/json" class="paiement-programme">{paiement}</script>'
             '<button type="button" class="ctrl-btn ajouter-resa">+ Ajouter</button>'
             '<div class="form-zone"></div><div class="jours"></div></div>')
 
@@ -129,6 +159,7 @@ div.programme li.resa:first-child { border-top: none; }
 div.programme li.resa p { margin: .15rem 0; font-size: .9rem; overflow-wrap: anywhere; }
 div.programme li.resa p.titre-resa { font-size: 1rem; }
 div.programme li.resa.compacte p { color: var(--doux); }
+div.programme li.resa.nuit p { color: var(--texte); }
 div.programme li.resa .actions { display: flex; gap: .4rem; margin-top: .3rem; }
 div.programme li.resa .actions button { font-size: .8rem; }
 div.programme .vide-programme { color: var(--doux); }
@@ -150,6 +181,9 @@ SCRIPT_PROGRAMME = """
     const bloc = document.querySelector('div.programme');
     if (!bloc) return;
     const ETAPES = JSON.parse(bloc.querySelector('.etapes-programme').textContent);
+    const PAIEMENT = JSON.parse(bloc.querySelector('.paiement-programme').textContent);
+    const EUROS = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
+    const NOMBRE = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 });
     // Icône de chaque type (tracés fixes, jamais de texte saisi) et son libellé
     const TYPES = { vol: ['<path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z" fill="currentColor" stroke="none"/>', 'Vol'],
                     hotel: ['<path d="M3 18V7M3 14h18v4M21 14v-2a3 3 0 0 0-3-3h-7v5"/>', 'Hôtel'],
@@ -255,14 +289,20 @@ SCRIPT_PROGRAMME = """
     function fiche(entree, attente) {
         const r = entree.r, li = document.createElement('li');
         li.className = 'resa';
-        if (entree.role !== 'debut') {                         // ligne courte : nuit d'hôtel, départ, arrivée
+        if (r.type === 'hotel' && entree.role === 'nuit') {     // chaque nuit d'hôtel : où l'on dort, bien visible
+            li.classList.add('nuit');
+            const tete = document.createElement('div'); tete.className = 'tete-resa';
+            tete.append(icone('hotel'), para('Nuit ' + entree.n + '/' + entree.total + ' · ' + r.titre, 'titre-resa'));
+            li.append(tete);
+            const l = ligneLieu(r); if (l) li.append(l);
+            return li;
+        }
+        if (entree.role !== 'debut') {                         // ligne courte : départ, arrivée
             li.classList.add('compacte');
             let texte;
-            if (r.type === 'hotel' && entree.role === 'nuit') texte = r.titre + ' · nuit ' + entree.n + '/' + entree.total;
-            else if (r.type === 'hotel') texte = 'Départ' + (r.heure_fin ? ' ' + r.heure_fin : '') + ' · ' + r.titre;
+            if (r.type === 'hotel') texte = 'Départ' + (r.heure_fin ? ' ' + r.heure_fin : '') + ' · ' + r.titre;
             else texte = (r.type === 'autre' ? 'Fin' : 'Arrivée') + (r.heure_fin ? ' ' + r.heure_fin : '') + ' · ' + r.titre;
             li.append(para(texte));
-            if (r.type === 'hotel' && entree.role === 'nuit') { const l = ligneLieu(r); if (l) li.append(l); }
             return li;
         }
         let titre = (r.heure ? r.heure + ' · ' : '') + r.titre;
@@ -273,12 +313,19 @@ SCRIPT_PROGRAMME = """
         li.append(tete);
         if (r.type === 'hotel') {
             const nuits = ecart(r.jour, r.jour_fin);
-            li.append(para('' + nuits + (nuits > 1 ? ' nuits' : ' nuit') + ', départ ' + enClair(r.jour_fin)
+            li.append(para((nuits > 1 ? 'Nuit 1/' + nuits + ' · départ ' : '1 nuit, départ ') + enClair(r.jour_fin)
                            + (r.heure_fin ? ' à ' + r.heure_fin : '')));
         } else if (r.jour_fin && r.jour_fin > r.jour) {
             li.append(para('↘ Arrivée ' + enClair(r.jour_fin) + (r.heure_fin ? ' à ' + r.heure_fin : '')));
         }
         const l = ligneLieu(r); if (l) li.append(l);
+        if (r.prix) {
+            let t = NOMBRE.format(Number(r.prix)) + ' ' + r.devise;
+            if (r.devise === 'EUR') t = EUROS.format(Number(r.prix));
+            else if (r.prix_eur) t += ' ≈ ' + EUROS.format(Number(r.prix_eur));
+            if (PAIEMENT.personnes.length > 1 && r.paye_par) t += ' · payé par ' + r.paye_par;
+            li.append(para(t));
+        }
         if (r.reference) li.append(para('Réf. ' + r.reference));
         if (r.telephone) { const p = para(''); p.append(lien(r.telephone, 'tel:' + r.telephone.replace(/[^0-9+]/g, ''))); li.append(p); }
         if (r.lien && /^https?:\\/\\//i.test(r.lien)) { const p = para(''); p.append(lien('Ouvrir le lien', r.lien)); li.append(p); }
@@ -374,6 +421,39 @@ SCRIPT_PROGRAMME = """
         }
         choix.addEventListener('change', adapter);
         adapter();
+        // Fin jamais avant le début ; hôtel : départ le lendemain de l'arrivée par défaut. Un champ
+        // de fin vide s'ouvre sur le mois du début (sinon le calendrier part du mois en cours).
+        const debut = form.elements.jour, fin = form.elements.jour_fin;
+        function caler() {
+            if (!debut.value) { fin.min = ''; return; }
+            const hotel = choix.value === 'hotel';
+            fin.min = hotel ? decaler(debut.value, 1) : debut.value;
+            if (hotel && (!fin.value || fin.value <= debut.value)) fin.value = decaler(debut.value, 1);
+            else if (fin.value && fin.value < debut.value) fin.value = '';
+        }
+        debut.addEventListener('change', caler);
+        choix.addEventListener('change', caler);
+        fin.addEventListener('focus', function () { if (!fin.value && debut.value) fin.value = fin.min; });
+        caler();
+        // Prix facultatif : donné, il devient une dépense partagée (rubrique Sur place)
+        function liste(libelle, options, valeur) {
+            const label = document.createElement('label'), texte = document.createElement('span'), select = document.createElement('select');
+            texte.textContent = libelle;
+            options.forEach(function (o) { const opt = document.createElement('option'); opt.value = o; opt.textContent = o; select.append(opt); });
+            select.value = valeur;
+            label.append(texte, select); form.append(label);
+            return { label: label, select: select };
+        }
+        const labelPrix = document.createElement('label'), textePrix = document.createElement('span'), prix = document.createElement('input');
+        textePrix.textContent = 'Prix (facultatif)';
+        prix.type = 'number'; prix.name = 'prix'; prix.min = '0.01'; prix.step = '0.01'; prix.inputMode = 'decimal';
+        prix.value = valeurs.prix ? String(Number(valeurs.prix)) : '';
+        labelPrix.append(textePrix, prix); form.append(labelPrix);
+        const devise = liste('Devise', PAIEMENT.devises, valeurs.devise || 'EUR');
+        if (PAIEMENT.devises.length < 2) devise.label.hidden = true;
+        const payeur = liste('Payé par', PAIEMENT.personnes, valeurs.paye_par || PAIEMENT.personnes[0]);
+        if (PAIEMENT.personnes.length < 2) payeur.label.hidden = true;
+        if (!PAIEMENT.personnes.length) labelPrix.hidden = devise.label.hidden = payeur.label.hidden = true;
         const message = para('', 'message-resa');
         const actions = document.createElement('div'); actions.className = 'actions';
         const ok = document.createElement('button'); ok.type = 'submit'; ok.className = 'ctrl-btn'; ok.textContent = 'Enregistrer';
@@ -392,6 +472,19 @@ SCRIPT_PROGRAMME = """
             }
             if (corps.jour_fin && corps.jour_fin < corps.jour) { message.textContent = 'La fin est avant le début.'; return; }
             if (corps.lien && !/^https?:\\/\\//i.test(corps.lien)) { message.textContent = 'Le lien doit commencer par https://'; return; }
+            Object.assign(corps, { prix: null, devise: null, prix_eur: null, paye_par: null });
+            if (prix.value.trim()) {
+                const montant = Number(prix.value), code = devise.select.value;
+                if (!(montant > 0)) { message.textContent = 'Le prix doit être positif.'; return; }
+                let enEuros = montant;
+                if (code !== 'EUR') {
+                    const taux = typeof lireTauxGardes === 'function' ? lireTauxGardes() : null, t = taux && taux.eur[code.toLowerCase()];
+                    if (!t) { message.textContent = 'Pas de taux pour ' + code + ' : saisis le prix en euros.'; return; }
+                    enEuros = montant / t;
+                }
+                Object.assign(corps, { prix: montant.toFixed(2), devise: code, prix_eur: enEuros.toFixed(2),
+                                       paye_par: PAIEMENT.personnes.length ? payeur.select.value : null });
+            }
             ok.disabled = true; ok.textContent = '…';
             envoyerOuGarder({ url: 'api/reservations', methode: 'POST', corps: corps, cle: 'resa:' + corps.id })
                 .then(function () {

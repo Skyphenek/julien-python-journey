@@ -596,9 +596,12 @@ def creer_app(nom_base="valise", secret=None):
             return jsonify({"erreur": str(erreur)}), 400
         conn = emprunter(app.config["NOM_BASE"])
         try:
-            if lire_voyage(conn, r["voyage"]) is None:
+            v = lire_voyage(conn, r["voyage"])
+            if v is None:
                 return jsonify({"erreur": "voyage inconnu"}), 404
-            enregistrer_reservation(conn, r)
+            if r["prix"] is not None and r["paye_par"] not in v["personnes"]:
+                return jsonify({"erreur": "payeur inconnu"}), 400
+            enregistrer_reservation(conn, r, v["personnes"])
         finally:
             conn.close()
         return jsonify({"ok": True})

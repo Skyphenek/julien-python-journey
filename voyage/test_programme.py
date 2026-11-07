@@ -5,11 +5,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 import pytest
+from decimal import Decimal
 from db import (connecter, enregistrer_voyage, enregistrer_infos_etape, remplacer_voyage,
-                enregistrer_reservation, lire_reservations, supprimer_reservation)
+                enregistrer_reservation, lire_reservations, supprimer_reservation, lire_depenses,
+                supprimer_depense)
 from serveur import creer_app
 from valise import construire, rendre_page, RUBRIQUES, VERSION_PAGE
-from programme import TYPES_RESERVATION, valider_reservation, hotels_depuis_infos, SCRIPT_PROGRAMME
+from programme import (TYPES_RESERVATION, valider_reservation, hotels_depuis_infos, SCRIPT_PROGRAMME,
+                       bloc_programme)
 from pwa import SCRIPT_PRECHARGEMENT
 
 CODE = "2027-01-15 Hanoï"
@@ -60,6 +63,30 @@ def test_hotel_et_lien_valides():
     r = valider_reservation(resa(type="hotel", titre="Hanoi Pearl", jour_fin="2027-01-18",
                                  lien="https://booking.com/x", lieu="6 Bảo Khánh, Hoàn Kiếm"))
     assert r["jour_fin"] == date(2027, 1, 18) and r["lien"] == "https://booking.com/x"
+
+
+def test_prix_facultatif():
+    r = valider_reservation(resa())
+    assert (r["prix"], r["devise"], r["prix_eur"], r["paye_par"]) == (None, None, None, None)
+    assert valider_reservation(resa(prix="", devise="EUR", paye_par="Julien"))["prix"] is None   # prix vide : rien
+
+
+def test_prix_avec_payeur():
+    r = valider_reservation(resa(type="activite", titre="Quad", prix="350", devise="MAD", prix_eur="32.41",
+                                 paye_par="Julien"))
+    assert (r["prix"], r["devise"], r["prix_eur"], r["paye_par"]) == (Decimal("350.00"), "MAD", Decimal("32.41"), "Julien")
+
+
+@pytest.mark.parametrize("champs", [
+    {"prix": "-5", "devise": "EUR", "prix_eur": "5", "paye_par": "Julien"},
+    {"prix": "abc", "devise": "EUR", "prix_eur": "5", "paye_par": "Julien"},
+    {"prix": "5", "devise": "euro", "prix_eur": "5", "paye_par": "Julien"},
+    {"prix": "5", "devise": "EUR", "prix_eur": "5", "paye_par": ""},           # un prix : il faut le payeur
+    {"prix": "5", "devise": "MAD", "paye_par": "Julien"},                    # … et le prix en euros
+])
+def test_prix_invalide(champs):
+    with pytest.raises(ValueError):
+        valider_reservation(resa(**champs))
 
 
 # --- Reprise des anciennes fiches d'étapes en réservations « Hôtel » ---
@@ -124,6 +151,48 @@ def test_reservations_suivent_un_voyage_modifie(conn):
     assert lire_reservations(conn, "2027-01-16 Hanoï")[0]["titre"] == "AF 198"
 
 
+def payee(**champs):
+    return valider_reservation(resa(**{"type": "hotel", "titre": "Agafay camp", "jour_fin": "2027-01-17", "prix": "400",
+                                       "devise": "EUR", "prix_eur": "400", "paye_par": "Laetitia", **champs}))
+
+
+def test_prix_cree_la_depense_partagee(conn):
+    enregistrer_reservation(conn, payee(), ["Julien", "Laetitia"])
+    (d,) = lire_depenses(conn, CODE)
+    assert (d["libelle"], d["montant"], d["paye_par"], d["pour"], d["jour"]) == \
+        ("Hôtel : Agafay camp", Decimal("400.00"), "Laetitia", ["Julien", "Laetitia"], date(2027, 1, 15))
+    assert lire_reservations(conn, CODE)[0]["prix"] == Decimal("400.00")
+
+
+def test_prix_modifie_puis_retire(conn):
+    enregistrer_reservation(conn, payee(), ["Julien", "Laetitia"])
+    enregistrer_reservation(conn, payee(prix="450", prix_eur="450"), ["Julien", "Laetitia"])
+    assert [d["montant"] for d in lire_depenses(conn, CODE)] == [Decimal("450.00")]      # modifiée, pas doublée
+    enregistrer_reservation(conn, valider_reservation(resa(type="hotel", titre="Agafay camp", jour_fin="2027-01-17")),
+                            ["Julien", "Laetitia"])
+    assert lire_depenses(conn, CODE) == []                                              # prix effacé : dépense retirée
+
+
+def test_depense_retiree_a_la_main_pas_recreee(conn):
+    enregistrer_reservation(conn, payee(), ["Julien", "Laetitia"])
+    supprimer_depense(conn, CODE, lire_depenses(conn, CODE)[0]["id"])
+    enregistrer_reservation(conn, payee(notes="code 1234"), ["Julien", "Laetitia"])
+    assert lire_depenses(conn, CODE) == []
+
+
+def test_reservation_supprimee_retire_sa_depense(conn):
+    enregistrer_reservation(conn, payee(), ["Julien", "Laetitia"])
+    supprimer_reservation(conn, CODE, "a1b2c3d4-0001")
+    assert lire_depenses(conn, CODE) == []
+
+
+def test_reservation_payee_d_un_autre_voyage_sans_depense(conn):
+    enregistrer_voyage(conn, "2027-05-01 Rome", "Rome", date(2027, 5, 1), ["Julien"], [], {})
+    enregistrer_reservation(conn, valider_reservation(resa()), ["Julien", "Laetitia"])
+    enregistrer_reservation(conn, payee(voyage="2027-05-01 Rome"), ["Julien"])
+    assert lire_depenses(conn, "2027-05-01 Rome") == [] and lire_depenses(conn, CODE) == []
+
+
 # --- API ---
 
 @pytest.fixture
@@ -139,6 +208,15 @@ def test_api_reservations(client):
     assert client.post("/api/reservations", json=resa(voyage="inconnu")).status_code == 404
     assert client.delete(f"/api/reservations/{CODE}/a1b2c3d4-0001").status_code == 200
     assert client.get(f"/api/reservations/{CODE}").get_json() == []
+
+
+def test_api_reservation_payee(client):
+    corps = resa(type="activite", titre="Quad", prix="350", devise="MAD", prix_eur="32.41")
+    assert client.post("/api/reservations", json={**corps, "paye_par": "Inconnu"}).status_code == 400
+    assert client.post("/api/reservations", json={**corps, "paye_par": "Julien"}).status_code == 200
+    r = client.get(f"/api/reservations/{CODE}").get_json()[0]
+    assert (r["prix"], r["devise"], r["paye_par"]) == ("350.00", "MAD", "Julien")
+    assert client.get(f"/api/depenses/{CODE}").get_json()["depenses"][0]["libelle"] == "Activité : Quad"
 
 
 # --- Page ---
@@ -169,6 +247,17 @@ def test_script_programme():
                     "tel:", "file-videe", "X-Valise-Vite"):
         assert morceau in SCRIPT_PROGRAMME
     assert "innerHTML" not in SCRIPT_PROGRAMME                         # texte saisi : jamais en HTML
+
+
+def test_programme_porte_voyageurs_et_devises():
+    html = bloc_programme([], ["Julien", "Laetitia"], ["MAD", "EUR"])
+    assert '{"personnes": ["Julien", "Laetitia"], "devises": ["EUR", "MAD"]}' in html
+
+
+def test_script_programme_nuits_dates_prix():
+    for morceau in ("'Nuit ' + entree.n", "fin.min", "decaler(debut.value, 1)", "lireTauxGardes", "payé par",
+                    "prix_eur"):
+        assert morceau in SCRIPT_PROGRAMME
 
 
 def test_script_programme_syntaxiquement_valide(tmp_path):
