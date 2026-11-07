@@ -7,6 +7,8 @@ import psycopg2
 from psycopg2.extras import Json
 from psycopg2.pool import ThreadedConnectionPool
 
+from programme import TYPES_RESERVATION
+
 
 def connecter(nom_base="valise"):
     """Ouvre une connexion Postgres.
@@ -425,30 +427,62 @@ CHAMPS_RESERVATION = ("type", "titre", "jour", "heure", "jour_fin", "heure_fin",
                       "telephone", "lien", "notes")
 
 
-def enregistrer_reservation(conn, r):
-    """Crée ou met à jour (même id) une réservation déjà validée ; jamais celle d'un autre voyage."""
+CHAMPS_PRIX = ("prix", "devise", "prix_eur", "paye_par")
+
+
+def enregistrer_reservation(conn, r, personnes=()):
+    """Crée ou met à jour (même id) une réservation déjà validée ; jamais celle d'un autre voyage.
+    Avec un prix, tient sa dépense partagée (pour tous les voyageurs) à jour, comme un souvenir
+    acheté : prix effacé -> dépense retirée ; dépense retirée à la main -> pas recréée tant que
+    le prix reste."""
     with conn.cursor() as cur:
+        cur.execute("SELECT voyage, prix, depense FROM reservations WHERE id = %s FOR UPDATE", (r["id"],))
+        avant = cur.fetchone()
+        if avant and avant[0] != r["voyage"]:
+            conn.rollback()
+            return
+        depense = avant[2] if avant else None
+        if r.get("prix") is not None and personnes:
+            libelle = f"{TYPES_RESERVATION[r['type']]} : {r['titre']}"[:120]
+            valeurs = (libelle, r["prix"], r["devise"], r["prix_eur"], r["paye_par"], list(personnes), r["jour"])
+            if depense is not None:
+                cur.execute("""UPDATE depenses SET libelle = %s, montant = %s, devise = %s, montant_eur = %s,
+                                                   paye_par = %s, pour = %s, jour = %s WHERE id = %s""",
+                            (*valeurs, depense))
+            elif not (avant and avant[1] is not None):
+                cur.execute("""INSERT INTO depenses (voyage, libelle, montant, devise, montant_eur, paye_par, pour, jour)
+                               VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id""", (r["voyage"], *valeurs))
+                depense = cur.fetchone()[0]
+        elif depense is not None:
+            cur.execute("DELETE FROM depenses WHERE id = %s", (depense,))
+            depense = None
+        champs = CHAMPS_RESERVATION + CHAMPS_PRIX
         cur.execute(
-            f"""INSERT INTO reservations (id, voyage, {", ".join(CHAMPS_RESERVATION)})
-                VALUES (%s, %s, {", ".join(["%s"] * len(CHAMPS_RESERVATION))})
+            f"""INSERT INTO reservations (id, voyage, {", ".join(champs)}, depense)
+                VALUES (%s, %s, {", ".join(["%s"] * len(champs))}, %s)
                 ON CONFLICT (id) DO UPDATE SET
-                {", ".join(f"{c} = EXCLUDED.{c}" for c in CHAMPS_RESERVATION)}, maj_le = now()
+                {", ".join(f"{c} = EXCLUDED.{c}" for c in champs)}, depense = EXCLUDED.depense, maj_le = now()
                 WHERE reservations.voyage = EXCLUDED.voyage""",
-            (r["id"], r["voyage"], *(r[c] for c in CHAMPS_RESERVATION)))
+            (r["id"], r["voyage"], *(r[c] for c in CHAMPS_RESERVATION), *(r.get(c) for c in CHAMPS_PRIX), depense))
     conn.commit()
 
 
 def lire_reservations(conn, voyage):
     """Dans l'ordre du voyage : par jour, puis par heure (sans heure : en fin de journée)."""
+    champs = ("id", *CHAMPS_RESERVATION, *CHAMPS_PRIX)
     with conn.cursor() as cur:
-        cur.execute(f"""SELECT id, {", ".join(CHAMPS_RESERVATION)} FROM reservations WHERE voyage = %s
+        cur.execute(f"""SELECT {", ".join(champs)} FROM reservations WHERE voyage = %s
                         ORDER BY jour, heure = '', heure, titre""", (voyage,))
-        return [dict(zip(("id", *CHAMPS_RESERVATION), ligne)) for ligne in cur.fetchall()]
+        return [dict(zip(champs, ligne)) for ligne in cur.fetchall()]
 
 
 def supprimer_reservation(conn, voyage, identifiant):
+    """Retire une réservation et sa dépense."""
     with conn.cursor() as cur:
-        cur.execute("DELETE FROM reservations WHERE voyage = %s AND id = %s", (voyage, identifiant))
+        cur.execute("DELETE FROM reservations WHERE voyage = %s AND id = %s RETURNING depense", (voyage, identifiant))
+        ligne = cur.fetchone()
+        if ligne and ligne[0] is not None:
+            cur.execute("DELETE FROM depenses WHERE id = %s", (ligne[0],))
     conn.commit()
 
 

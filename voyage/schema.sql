@@ -149,6 +149,13 @@ CREATE TABLE IF NOT EXISTS reservations (
     maj_le      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS reservations_voyage ON reservations (voyage, jour);
+-- Prix facultatif d'une réservation (07/11/2026) : comme un souvenir acheté, il a sa dépense
+-- partagée (depense), créée et tenue à jour par le serveur ; prix effacé -> dépense retirée.
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS prix     NUMERIC(14,2) CHECK (prix > 0);
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS devise   TEXT;
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS prix_eur NUMERIC(12,2) CHECK (prix_eur >= 0);
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS paye_par TEXT;
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS depense  INTEGER REFERENCES depenses(id) ON DELETE SET NULL;
 
 -- « 💡 À voir » (rubrique Programme) : les envies de chaque étape (destination + rang, comme les
 -- anciennes fiches d'étapes). id choisi par le téléphone (hors ligne sans doublon) ; prevu : le

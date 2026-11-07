@@ -1646,7 +1646,7 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # 28 = adresse de l'icône versionnée (?v=vadrouille) : sinon iOS et Safari gardent l'ancienne.
 # 29 = Casa Binomerie (Aujourd'hui, Courses, Dîners) : jette les copies d'avant le hub.
 # 30 = Placard v2 (zones, bientôt fini, frais en habituels).
-VERSION_PAGE = 46
+VERSION_PAGE = 47
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
 RUBRIQUES = [("valise", "Valise"), ("avant", "Avant"), ("programme", "Programme"), ("sur-place", "Sur place"),
@@ -2051,7 +2051,8 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
                   f'{rayon_taches("Fermer la maison", "", "Fermer la maison", maison, cle_voyage) if maison else ""}'
                   f'</section>' if taches or maison
                   else '<p class="vide">Rien à préparer pour ce voyage : la carte d\'identité suffit.</p>'),
-        "programme": bloc_programme(etapes or []) + bloc_a_voir(a_voir or []),
+        "programme": (bloc_programme(etapes or [], personnes or [], [d["devise"] for d in devises or []])
+                      + bloc_a_voir(a_voir or [])),
         **{r: f'<p class="vide">{texte}</p>' for r, texte in A_VENIR.items()},
     }
     tuiles = ((bloc_decalage(fuseaux, jour or date.today()) if fuseaux else "")
