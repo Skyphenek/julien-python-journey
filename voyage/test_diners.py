@@ -134,8 +134,16 @@ def test_page_diners():
     html = diners_en_html()
     assert "<title>Dîners · Casa Binomerie</title>" in html
     assert 'data-hub="diners" class="actif"' in html
-    for vue in ("ce-soir", "semaine", "carnet", "a-tester"):
+    for vue in ("ce-soir", "semaine", "recettes"):
         assert f'data-vue="{vue}"' in html
+    assert 'data-vue="carnet"' not in html and 'data-vue="a-tester"' not in html
+    assert "function vueRecettes" in html and "function ordreRecettes" in html
+    assert "function vueCarnet" not in html and "function vueATester" not in html
+    assert "'nouvelles'" in html and "'Nouvelles'" in html and "'Nouvelle'" in html and "'×'" in html
+    assert "On l\\'a déjà faite" in html and "'Archiver'" in html and "'Désarchiver'" in html
+    assert "au carnet" not in html and "Retirer du carnet" not in html
+    assert "'recette à écrire'" in html
+    assert "carnet: 'recettes', 'a-tester': 'recettes'" in html                       # anciens liens
     assert "function envoyerOuGarder" in html and "wakeLock" in html
     assert "api/diners/proposer" in html and "Proposer ma semaine" in html and "Reproposer" in html   # A
     assert "function ouvrirChoix" in html and "function barreEtiquettes" in html                       # B
@@ -437,3 +445,8 @@ def test_proposer_a_finir_respecte_reproposer_et_la_cible():
     assert list(q) == [jour]                                         # Reproposer ne touche qu'au jour demandé
     plein = [diner(LUN + timedelta(days=i), f"plat-carnet-{i:02d}") for i in range(4)]
     assert proposer(plats, plein, SEMAINE, LUN, a_finir=[("cuisses de poulet", LUN + timedelta(days=5))]) == {}
+
+
+def test_version_page_recettes():
+    from valise import VERSION_PAGE
+    assert VERSION_PAGE >= 48
