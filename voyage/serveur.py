@@ -24,7 +24,7 @@ from db import (emprunter, ajouter_depense, lire_depenses, supprimer_depense, ob
                 lire_souvenirs, supprimer_souvenir, enregistrer_coche, lister_voyages, lire_voyage, archiver_voyage,
                 VERDICTS, enregistrer_retour, supprimer_retour, lire_retours,
                 enregistrer_article, lire_courses, supprimer_article, vider_pris, lire_achats,
-                enregistrer_placard, retirer_du_placard, enregistrer_plat, lire_plats, plat_existe, enregistrer_repas, lire_repas,
+                enregistrer_placard, retirer_du_placard, enregistrer_plat, lire_plats, plat_existe, enregistrer_repas, lire_repas, compter_faits,
                 lire_frais, finir, corriger_a_finir,
                 lire_cave, enregistrer_bouteille, boire, retirer_bouteille)
 from valise import (solde_depenses, actualiser_meteo, fenetres_du_voyage, page_du_voyage, accueil_en_html,
@@ -143,6 +143,7 @@ def creer_app(nom_base="valise", secret=None):
         conn = emprunter(app.config["NOM_BASE"])
         try:
             plats = lire_plats(conn)
+            faits = compter_faits(conn)
             repas = lire_repas(conn, jour - timedelta(days=FENETRE_PASSE), jour + timedelta(days=FENETRE_FUTUR))
             lu = lire_courses(conn)
             articles = articles_et_achats_recents(conn, lu["articles"], jour)
@@ -156,8 +157,8 @@ def creer_app(nom_base="valise", secret=None):
         prevus = repas_prevus(repas, par_id, jours)
         return jsonify({
             "aujourd_hui": jour.isoformat(), "semaine": [j.isoformat() for j in jours],
-            "plats": [{**p, "cout": cout_repas(p["ingredients"], p["recette"]), "fiche": decouper(p["recette"])}
-                      for p in plats],
+            "plats": [{**p, "cout": cout_repas(p["ingredients"], p["recette"]), "fiche": decouper(p["recette"]),
+                       "faits": faits.get(p["id"], 0)} for p in plats],
             "repas": [{**r, "jour": r["jour"].isoformat()} for r in repas],
             "liste": sorted({normaliser(a["nom"]) for a in lu["articles"] if a["actif"] and not a["pris"]}),
             "livraison": LIVRAISON_DEUX, "cout_semaine": cout_semaine(prevus, lu["placard"], articles),

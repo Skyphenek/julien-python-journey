@@ -861,6 +861,14 @@ def lire_repas(conn, debut, fin):
         return [dict(zip(("jour", "moment", "plats", "issue"), ligne)) for ligne in cur.fetchall()]
 
 
+def compter_faits(conn):
+    """{id de plat : nombre de repas « fait maison » qui le contiennent} — tout l'historique, pas la fenêtre."""
+    with conn.cursor() as cur:
+        cur.execute("""SELECT id, count(*) FROM repas, jsonb_array_elements_text(plats) AS id
+                       WHERE issue = 'fait' GROUP BY id""")
+        return dict(cur.fetchall())
+
+
 def semer_carnet(conn, carnet, a_tester):
     """Remplit le carnet de départ s'il est vide ; renvoie le nombre de recettes ajoutées.
     Jamais sur un carnet déjà utilisé : une recette retirée ne revient pas."""
