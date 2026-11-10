@@ -139,7 +139,12 @@ def test_page_diners():
     assert 'data-vue="carnet"' not in html and 'data-vue="a-tester"' not in html
     assert "function vueRecettes" in html and "function ordreRecettes" in html
     assert "function vueCarnet" not in html and "function vueATester" not in html
-    assert "'nouvelles'" in html and "'Nouvelles'" in html and "'Nouvelle'" in html and "'×'" in html
+    assert "'nouvelles'" in html and "'Nouvelles'" in html
+    assert "function icone" in html and "function points" in html and "aria-label" in html
+    for signe in ("'✦'", "'⚡'", "'⏳'", "'Ⓙ'", "'Ⓛ'", "'●'", "'○'"):
+        assert signe in html, signe
+    assert "faite souvent" in html and "'faisable ce soir'" in html and "'finit un produit'" in html
+    assert "el('span', 'badge', 'secours')" not in html and "badge julien" not in html
     assert "On l\\'a déjà faite" in html and "'Archiver'" in html and "'Désarchiver'" in html
     assert "au carnet" not in html and "Retirer du carnet" not in html
     assert "'recette à écrire'" in html
@@ -149,7 +154,7 @@ def test_page_diners():
     assert "function ouvrirChoix" in html and "function barreEtiquettes" in html                       # B
     for e in ("rapide", "nous", "julien", "air-fryer", "poisson", "legumes"):
         assert f"'{e}'" in html
-    assert "badge julien" in html and "pour: pour.value" in html                                        # D
+    assert "pour: pour.value" in html                                                                   # D
     assert '<script type="application/json" id="prix">' in html and "function compteurDiners" in html     # C
     assert "Déjà sur la liste" in html and "À acheter" in html and "manquants aux courses" in html      # E
     assert "Au hasard parmi" in html and "'laetitia'" in html and "Laetitia seule" in html

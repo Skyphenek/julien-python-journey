@@ -383,6 +383,11 @@ button.plein { border: none; background: var(--diners); color: #ffffff; border-r
                font-family: inherit; font-weight: 800; font-size: 15px; }
 span.badge { font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--diners);
              background: var(--diners-doux); border-radius: 999px; padding: 2px 8px; margin-left: 6px; }
+span.repere { margin-left: 6px; font-size: 14px; line-height: 1; white-space: nowrap; }
+span.repere.nouvelle { color: #d4a017; font-size: 16px; }
+span.repere.points { color: var(--diners); font-size: 10px; letter-spacing: 1px; vertical-align: 2px; }
+span.repere.qui { color: var(--doux); font-size: 16px; }
+p.legende-reperes { font-size: 12px; color: var(--doux); margin: 10px 4px 0; line-height: 1.5; }
 input.recherche { width: 100%; font-family: inherit; font-size: 17px; padding: 12px 16px; border-radius: 999px;
                   border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte); }
 div.filtres { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -405,7 +410,6 @@ div.ingredients span.ok::before { content: "✓ "; color: var(--courses); font-w
 div.ingredients span.liste { background: var(--courses-doux); color: var(--courses); }
 div.ingredients span small { opacity: .75; margin-left: 4px; }
 div.filtres.etiquettes button span { font-weight: 600; opacity: .7; margin-left: 4px; }
-span.badge.julien { color: var(--doux); background: var(--carte); border: 1px solid var(--ligne); }
 div.jour-repas { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-top: 1px solid var(--ligne); }
 div.jour-repas:first-of-type { border-top: none; }
 div.jour-repas .quand { font-weight: 800; font-size: 15px; }
@@ -639,16 +643,23 @@ SCRIPT_DINERS = """
     function ordreRecettes(a, b) {
         return rangRecette(a) - rangRecette(b) || (b.faits || 0) - (a.faits || 0) || a.nom.localeCompare(b.nom, 'fr');
     }
+    // Les repères d'une recette en icônes ; le mot reste pour le lecteur d'écran et au survol
+    function icone(signe, mot, classe) {
+        const s = el('span', 'repere' + (classe ? ' ' + classe : ''), signe);
+        s.setAttribute('aria-label', mot); s.title = mot;
+        return s;
+    }
+    function points(n) { const k = n >= 5 ? 4 : n >= 3 ? 3 : n; return '●'.repeat(k) + '○'.repeat(4 - k); }
     function lignePlat(p, extra) {
         const li = el('li');
         const o = bouton('', 'ouvrir', function () { ouvrirFiche(p.id); });
         const nom = el('span', 'nom', p.nom);
-        if (d.secours.faisables.indexOf(p.id) >= 0) nom.append(el('span', 'badge', 'secours'));
-        if ((d.a_finir || []).indexOf(p.id) >= 0) nom.append(el('span', 'badge', 'à finir'));
-        if (p.statut === 'a-tester') nom.append(el('span', 'badge', 'Nouvelle'));
-        else if (p.faits) nom.append(el('span', 'badge', p.faits + '×'));
-        if (p.pour === 'julien') nom.append(el('span', 'badge julien', 'Julien'));
-        if (p.pour === 'laetitia') nom.append(el('span', 'badge julien', 'Laetitia'));
+        if (p.statut === 'a-tester') nom.append(icone('✦', 'nouvelle', 'nouvelle'));
+        else if (p.faits) nom.append(icone(points(p.faits), 'faite ' + p.faits + ' fois', 'points'));
+        if (d.secours.faisables.indexOf(p.id) >= 0) nom.append(icone('⚡', 'faisable ce soir'));
+        if ((d.a_finir || []).indexOf(p.id) >= 0) nom.append(icone('⏳', 'finit un produit'));
+        if (p.pour === 'julien') nom.append(icone('Ⓙ', 'pour Julien', 'qui'));
+        if (p.pour === 'laetitia') nom.append(icone('Ⓛ', 'pour Laetitia', 'qui'));
         const meta = el('span', 'meta', NOMS_GENRE[p.genre] + ' · ' + duree(p.minutes) + (p.cout ? ' · ≈ ' + euros(p.cout) : ''));
         if (extra) { meta.append(' · '); meta.append(extra); }
         o.append(nom, meta);
@@ -850,7 +861,8 @@ SCRIPT_DINERS = """
         }
         r.addEventListener('input', function () { recherche = r.value; remplir(); });
         remplir();
-        const e = el('div', 'encart'); e.append(ul);
+        const e = el('div', 'encart');
+        e.append(ul, el('p', 'legende-reperes', '✦ nouvelle · ●●● faite souvent · ⚡ faisable ce soir · ⏳ finit un produit · Ⓙ Ⓛ pour Julien / Laetitia'));
         zone.append(r, f, zoneEtiquettes, bouton('+ Nouvelle recette', 'plein', function () { ouvrirEdition(null); }), e);
     }
 
