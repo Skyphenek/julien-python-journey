@@ -4,6 +4,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from datetime import date
+from zoneinfo import ZoneInfo
 
 import pytest
 from db import connecter
@@ -114,3 +115,32 @@ def test_api_sorties(client):
 def test_api_sorties_corps_invalide(client):
     assert client.post("/api/sorties", data="pas du json").status_code == 400
     assert client.post("/api/sorties", json=["liste"]).status_code == 400
+
+
+def test_sorties_depart_valides_sans_doublon_ni_cadeau():
+    from sorties_depart import SORTIES_DEPART
+    from sortir import doublon
+    vues = []
+    for s in SORTIES_DEPART:
+        v = valider_sortie(s, J)
+        assert v["titre"], s
+        titre = s["titre"].lower()
+        # « soin massage duo » au spa = une sortie à deux (autorisée) ; un « soin » seul serait un cadeau
+        assert not any(mot in titre for mot in ("bon cadeau", "spa day")), s["titre"]
+        assert "soin " not in titre or "duo" in titre, s["titre"]
+        assert doublon(v, vues) is None, s["titre"]
+        vues.append({"id": len(vues), **v})
+    assert len(SORTIES_DEPART) == 100
+
+
+def test_poser_sorties_garde_les_dates_d_origine(conn):
+    from db import poser_sorties, lire_sorties
+    lot = [{"titre": "Vieille idée", "source": "routine", "propose_le": "2026-03-01"},
+           {"titre": "Idée récente", "source": "routine", "propose_le": "2026-10-20"},
+           {"titre": "Idée du milieu", "source": "routine", "propose_le": "2026-06-15"}]
+    assert poser_sorties(conn, "sorties-test", lot) == 3
+    conn.commit()
+    lues = lire_sorties(conn)
+    assert [s["titre"] for s in lues] == ["Idée récente", "Idée du milieu", "Vieille idée"]
+    assert [s["cree_le"].astimezone(ZoneInfo("Europe/Paris")).date().isoformat() for s in lues] \
+        == ["2026-10-20", "2026-06-15", "2026-03-01"]

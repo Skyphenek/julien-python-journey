@@ -1144,8 +1144,9 @@ def lire_sorties(conn):
         return [dict(zip(("id", *CHAMPS_SORTIE, "cree_le"), l)) for l in cur.fetchall()]
 
 
-def _inserer_sortie(conn, s):
-    """Sans commit. Une idée validée (sortir.valider_sortie) ; déjà là (sortir.doublon, tout état) : (id existant, False)."""
+def _inserer_sortie(conn, s, cree_le=None):
+    """Sans commit. Une idée validée (sortir.valider_sortie) ; déjà là (sortir.doublon, tout état) : (id existant, False).
+    cree_le (datetime avec fuseau) : la date d'origine d'une reprise ; sinon now()."""
     from sortir import doublon
     import uuid
     existant = doublon(s, lire_sorties(conn))
@@ -1153,9 +1154,12 @@ def _inserer_sortie(conn, s):
         return existant, False
     identifiant = "sortie-" + uuid.uuid4().hex[:12]
     champs = [c for c in CHAMPS_SORTIE if c in s]
+    valeurs = [s[c] for c in champs]
+    if cree_le is not None:
+        champs, valeurs = champs + ["cree_le"], valeurs + [cree_le]
     with conn.cursor() as cur:
         cur.execute(f"INSERT INTO sorties (id, {', '.join(champs)}) VALUES (%s, {', '.join(['%s'] * len(champs))})",
-                    (identifiant, *[s[c] for c in champs]))
+                    (identifiant, *valeurs))
     return identifiant, True
 
 
@@ -1219,14 +1223,26 @@ def maj_sortie(conn, identifiant, champs):
 
 def poser_sorties(conn, nom_reprise, sorties):
     """Les sorties de départ (sorties_depart.py), une seule fois (table reprises) ; renvoie le nombre ajouté, ou None
-    si la reprise est déjà passée. Les doublons sont ignorés. Sans commit : l'appelant valide ou annule (à blanc)."""
+    si la reprise est déjà passée. Les doublons sont ignorés. propose_le (ISO) fixe cree_le : l'ordre d'origine est gardé. Sans commit : l'appelant valide ou annule (à blanc)."""
     from sortir import valider_sortie
     from casa import aujourd_hui_paris
     with conn.cursor() as cur:
         cur.execute("SELECT EXISTS (SELECT 1 FROM reprises WHERE nom = %s)", (nom_reprise,))
         if cur.fetchone()[0]:
             return None
-    n = sum(_inserer_sortie(conn, valider_sortie(s, aujourd_hui_paris()))[1] for s in sorties)
+    from datetime import datetime, time, timedelta
+    from zoneinfo import ZoneInfo
+    paris = ZoneInfo("Europe/Paris")
+
+    def date_origine(i, s):
+        """propose_le à 12:00 (Paris), moins i secondes : à date égale, l'ordre de la liste est gardé."""
+        if not s.get("propose_le"):
+            return None
+        jour = datetime.fromisoformat(s["propose_le"]).date()
+        return datetime.combine(jour, time(12), tzinfo=paris) - timedelta(seconds=i)
+
+    n = sum(_inserer_sortie(conn, valider_sortie(s, aujourd_hui_paris()), date_origine(i, s))[1]
+            for i, s in enumerate(sorties))
     with conn.cursor() as cur:
         cur.execute("INSERT INTO reprises (nom) VALUES (%s)", (nom_reprise,))
     return n

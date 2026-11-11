@@ -274,7 +274,7 @@ SCRIPT_SORTIR = """(function () {
         const jour = aujourdhui();
         function passee(s) { return s.fin && s.fin < jour ? 1 : 0; }
         const pile = d.sorties.filter(function (s) { return s.etat === 'a-trier' && !s['avis_' + qui]; })
-                              .sort(function (a, b) { return passee(a) - passee(b) || String(a.cree_le || '').localeCompare(String(b.cree_le || '')); });
+                              .sort(function (a, b) { return passee(a) - passee(b) || String(b.cree_le || '').localeCompare(String(a.cree_le || '')); });
         if (!pile.length) { zone.append(el('p', 'vide', 'Rien à trier.')); return; }
         const s = pile[0], c = carte(s);
         const b = el('div', 'boutons gros');
