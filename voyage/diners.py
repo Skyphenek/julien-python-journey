@@ -412,7 +412,15 @@ div.ingredients span small { opacity: .75; margin-left: 4px; }
 div.filtres.etiquettes button span { font-weight: 600; opacity: .7; margin-left: 4px; }
 div.filtres.etiquettes { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -20px; padding: 0 20px; }
 div.filtres.etiquettes::-webkit-scrollbar { display: none; }
-div.filtres.etiquettes button { flex: 0 0 auto; }
+div.filtres.etiquettes button { flex: 0 0 auto; border-width: 1.5px; background: transparent; font-weight: 600; font-size: 13px;
+                                padding: 5px 11px; }
+div.filtres.etiquettes button.actif { background: var(--diners); border-color: var(--diners); color: #ffffff; }
+div.filtres.etiquettes button span { font-size: 11px; opacity: .6; }
+div.segments { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; background: var(--carte);
+               border-radius: 14px; padding: 3px; }
+div.segments button { border: none; background: none; border-radius: 11px; padding: 7px 2px; font-family: inherit;
+                      font-weight: 700; font-size: 13px; color: var(--doux); white-space: nowrap; }
+div.segments button.actif { background: var(--fond); color: var(--diners); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
 div.jour-repas { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-top: 1px solid var(--ligne); }
 div.jour-repas:first-of-type { border-top: none; }
 div.jour-repas .quand { font-weight: 800; font-size: 15px; }
@@ -590,9 +598,11 @@ SCRIPT_DINERS = """
     function barreEtiquettes(contexte, liste, rafraichir) {
         const f = el('div', 'filtres etiquettes');
         ETIQUETTES.forEach(function (e) {
+            if (e[0] === 'tout') return;                       // pas de pastille « Tout » : un 2e appui sur l'active la retire
             const n = liste.filter(function (p) { return aEtiquette(p, e[0]); }).length;
-            if (!n && e[0] !== 'tout' && etiquette[contexte] !== e[0]) return;
-            const b = bouton(e[1], etiquette[contexte] === e[0] ? 'actif' : '', function () { etiquette[contexte] = e[0]; rafraichir(); });
+            if (!n && etiquette[contexte] !== e[0]) return;
+            const b = bouton(e[1], etiquette[contexte] === e[0] ? 'actif' : '', function () {
+                etiquette[contexte] = etiquette[contexte] === e[0] ? 'tout' : e[0]; rafraichir(); });
             b.setAttribute('aria-pressed', String(etiquette[contexte] === e[0]));
             b.append(el('span', '', String(n)));
             f.append(b);
@@ -849,9 +859,11 @@ SCRIPT_DINERS = """
     function vueRecettes(zone) {
         const r = el('input', 'recherche'); r.type = 'search'; r.placeholder = 'Chercher un plat ou un ingrédient';
         r.value = recherche; r.setAttribute('aria-label', 'Chercher');
-        const f = el('div', 'filtres');
+        const f = el('div', 'segments');                       // le genre : une barre segmentée, comme les onglets
         [['tout', 'Tout']].concat(GENRES).forEach(function (g) {
-            f.append(bouton(g[1], filtre === g[0] ? 'actif' : '', function () { filtre = g[0]; afficher(); }));
+            const b = bouton(g[0] === 'accompagnement' ? 'Accomp.' : g[1], filtre === g[0] ? 'actif' : '', function () { filtre = g[0]; afficher(); });
+            b.setAttribute('aria-pressed', String(filtre === g[0]));
+            f.append(b);
         });
         const ul = el('ul', 'plats');
         const toutes = d.plats.filter(function (p) { return !p.archive; });

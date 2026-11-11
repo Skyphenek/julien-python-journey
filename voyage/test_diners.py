@@ -140,6 +140,7 @@ def test_page_diners():
     assert "function vueRecettes" in html and "function ordreRecettes" in html
     assert "nav.vues { display: grid; grid-template-columns: repeat(3, 1fr)" in html            # 3 onglets, sans trou
     assert "div.filtres.etiquettes { flex-wrap: nowrap; overflow-x: auto;" in html            # étiquettes sur une ligne
+    assert "el('div', 'segments')" in html and "'Accomp.'" in html and "if (e[0] === 'tout') return;" in html
     assert "function vueCarnet" not in html and "function vueATester" not in html
     assert "'nouvelles'" in html and "'Nouvelles'" in html
     assert "function icone" in html and "function points" in html and "aria-label" in html
