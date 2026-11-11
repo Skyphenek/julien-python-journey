@@ -5,7 +5,7 @@ import unicodedata
 from datetime import date, timedelta
 from urllib.parse import urlsplit
 import json
-from design import STYLE_D, STYLE_NAV_HUB, STYLE_HORS_LIGNE, TETE_POLICE, nav_hub
+from design import STYLE_D, STYLE_NAV_HUB, STYLE_HORS_LIGNE, TETE_POLICE, nav_hub, sombre
 from pwa import SCRIPT_FILE, TETE_PWA
 
 TYPES = [("cine", "Ciné"), ("theatre", "Théâtre"), ("concert", "Concert"), ("expo", "Expo"),
@@ -169,6 +169,32 @@ body.sortir .filtres button { flex: 0 0 auto; min-height: 36px; border-radius: 9
 body.sortir .filtres button[aria-pressed=true] { border-color: var(--sortir); background: var(--sortir-doux); color: var(--sortir); }
 body.sortir details.attente summary { font-weight: 800; font-size: 16px; padding: 10px 0; min-height: 44px; box-sizing: border-box; cursor: pointer; color: var(--doux); }
 body.sortir details.attente > div { display: flex; flex-direction: column; gap: 12px; }
+body.sortir .tas { position: relative; }
+body.sortir .carte-tri { position: relative; z-index: 2; padding: 0; gap: 0; overflow: hidden; touch-action: pan-y;
+                  user-select: none; -webkit-user-select: none; transition: transform .2s ease-out; }
+body.sortir .carte-tri.tire { transition: none; }
+body.sortir .carte-tri.derriere { position: absolute; inset: 0; z-index: 1; transform: scale(.95) translateY(12px); opacity: .55;
+                  pointer-events: none; }
+body.sortir .bande { display: flex; justify-content: space-between; align-items: center; min-height: 44px; box-sizing: border-box;
+                  padding: 0 8px 0 18px; background: var(--t, var(--sortir)); color: var(--fond);
+                  font-weight: 800; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+body.sortir .bande a.ouvrir { color: var(--fond); min-width: 44px; justify-content: center; font-size: 20px; text-decoration: none; }
+body.sortir .carte-tri .corps { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 8px; }
+body.sortir .reperes { margin: 0; color: var(--doux); font-weight: 700; font-size: 14px; }
+body.sortir .infos.coupe { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+body.sortir .carte-tri .lien-discret { align-self: flex-start; padding: 0; min-height: 32px; }
+body.sortir .tampon { position: absolute; top: 58px; padding: 4px 10px; border: 3px solid currentColor; border-radius: 10px;
+                  font-weight: 900; font-size: 18px; text-transform: uppercase; pointer-events: none; background: var(--carte); }
+body.sortir .tampon.oui { left: 14px; color: var(--sortir); transform: rotate(-12deg); opacity: var(--oui, 0); }
+body.sortir .tampon.non { right: 14px; color: var(--doux); transform: rotate(12deg); opacity: var(--non, 0); }
+body.sortir .indice { display: flex; justify-content: space-between; color: var(--doux); font-size: 13px; margin: 4px 6px -4px; }
+body.sortir .t-cine { --t: #374151; } body.sortir .t-theatre { --t: #9b2c4f; } body.sortir .t-concert { --t: #6d28d9; }
+body.sortir .t-expo { --t: #0b7a87; } body.sortir .t-resto-bar { --t: #c2410c; } body.sortir .t-balade { --t: #2f7d32; }
+body.sortir .t-atelier { --t: #8a5a00; } body.sortir .t-escapade { --t: #1d4ed8; }
+@media (prefers-reduced-motion: reduce) { body.sortir .carte-tri { transition: none; } }
+""" + sombre("""body.sortir .t-cine { --t: #cbd5e1; } body.sortir .t-theatre { --t: #f08aa8; } body.sortir .t-concert { --t: #b794f6; }
+body.sortir .t-expo { --t: #4cc3d1; } body.sortir .t-resto-bar { --t: #ff8f5a; } body.sortir .t-balade { --t: #7bc67e; }
+body.sortir .t-atelier { --t: #f0c24b; } body.sortir .t-escapade { --t: #8fb3ff; }""") + """
 """
 
 SCRIPT_SORTIR = """(function () {
@@ -296,6 +322,80 @@ SCRIPT_SORTIR = """(function () {
         return filtreType ? liste.filter(function (s) { return s.type === filtreType; }) : liste;
     }
 
+    // --- À trier : une carte à glisser (droite : ça me tente, gauche : bof), la suivante derrière ---
+    function carteTri(s) {
+        const c = el('div', 'carte-sortie carte-tri');
+        const bande = el('div', 'bande t-' + (s.type || 'aucun'), libelle('types', s.type) || 'Sortie');
+        if (s.lien) {
+            const a = el('a', 'ouvrir', '\u2197'); a.href = s.lien; a.target = '_blank'; a.rel = 'noopener';
+            a.setAttribute('aria-label', 'Voir le site'); bande.append(a);
+        }
+        const corps = el('div', 'corps');
+        corps.append(el('h3', '', s.titre));
+        const jour = aujourdhui(), reperes = [libelle('budgets', s.budget), libelle('reservations', s.reservation)];
+        if (s.fin) reperes.push((s.fin < jour ? 'terminé le ' : 'jusqu\\'au ') + jjmm(s.fin));
+        else if (s.debut && s.debut > jour) reperes.push('à partir du ' + jjmm(s.debut));
+        const r = reperes.filter(Boolean).join(' · ');
+        if (r) corps.append(el('p', 'reperes', r));
+        if (s.infos) {
+            const t = el('p', 'infos coupe', s.infos);
+            corps.append(t);
+            if (s.infos.length > 140) {
+                const plus = bouton('Lire la suite', 'lien-discret', function () {
+                    t.classList.toggle('coupe'); plus.textContent = t.classList.contains('coupe') ? 'Lire la suite' : 'Réduire'; });
+                corps.append(plus);
+            }
+        }
+        c.append(bande, corps, el('span', 'tampon oui', 'Ça me tente'), el('span', 'tampon non', 'Bof'));
+        return c;
+    }
+    function partir(c, avis, fin) {
+        if (c.dataset.parti) return;
+        c.dataset.parti = '1';
+        let calme = false;
+        try { calme = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+        if (calme) { fin(avis); return; }
+        const sens = avis === 'oui' ? 1 : -1;
+        c.style.setProperty(avis === 'oui' ? '--oui' : '--non', 1);
+        c.style.transition = 'transform .25s ease-in, opacity .25s ease-in';
+        c.style.transform = 'translateX(' + sens * (window.innerWidth + 100) + 'px) rotate(' + sens * 18 + 'deg)';
+        c.style.opacity = '0';
+        setTimeout(function () { fin(avis); }, 230);
+    }
+    function glisser(c, fin) {
+        let x0 = null, y0 = 0, dx = 0, actif = false, id = null;
+        function poser(x) {
+            c.style.transform = x ? 'translateX(' + x + 'px) rotate(' + x / 20 + 'deg)' : '';
+            c.style.setProperty('--oui', Math.max(0, Math.min(1, x / 100)));
+            c.style.setProperty('--non', Math.max(0, Math.min(1, -x / 100)));
+        }
+        c.addEventListener('pointerdown', function (e) {
+            if (e.target.closest('a, button') || c.dataset.parti) return;
+            x0 = e.clientX; y0 = e.clientY; dx = 0; actif = false; id = e.pointerId;
+        });
+        c.addEventListener('pointermove', function (e) {
+            if (x0 === null || e.pointerId !== id) return;
+            const mx = e.clientX - x0, my = e.clientY - y0;
+            if (!actif) {
+                if (Math.abs(mx) < 8 && Math.abs(my) < 8) return;
+                if (Math.abs(my) > Math.abs(mx)) { x0 = null; return; }   // geste vertical : on laisse défiler
+                actif = true; c.classList.add('tire');
+                try { c.setPointerCapture(id); } catch (err) {}
+            }
+            dx = mx; poser(dx);
+        });
+        function lacher() {
+            if (x0 === null) return;
+            x0 = null; c.classList.remove('tire');
+            if (!actif) return;
+            actif = false;
+            if (Math.abs(dx) > Math.min(110, c.offsetWidth * 0.3)) partir(c, dx > 0 ? 'oui' : 'non', fin);
+            else poser(0);
+        }
+        c.addEventListener('pointerup', lacher);
+        c.addEventListener('pointercancel', lacher);
+    }
+
     // --- À trier ---
     function vueATrier(zone) {
         const jour = aujourdhui();
@@ -303,12 +403,16 @@ SCRIPT_SORTIR = """(function () {
         const pile = filtrer(d.sorties.filter(function (s) { return s.etat === 'a-trier' && !s['avis_' + qui]; }), zone)
                               .sort(function (a, b) { return passee(a) - passee(b) || String(b.cree_le || '').localeCompare(String(a.cree_le || '')); });
         if (!pile.length) { zone.append(el('p', 'vide', 'Rien à trier.')); return; }
-        const s = pile[0], c = carte(s);
+        const s = pile[0], c = carteTri(s), tas = el('div', 'tas');
+        function fin(avis) { donnerAvis(s, avis); }
+        if (pile[1]) { const der = carteTri(pile[1]); der.classList.add('derriere'); der.setAttribute('aria-hidden', 'true'); tas.append(der); }
+        tas.append(c); glisser(c, fin);
+        const indice = el('div', 'indice');
+        indice.append(el('span', '', '\u2190 Bof'), el('span', '', 'Ça me tente \u2192'));
         const b = el('div', 'boutons gros');
-        b.append(bouton('Bof', '', function () { donnerAvis(s, 'non'); }));
-        b.append(bouton('Ça me tente', 'principal', function () { donnerAvis(s, 'oui'); }));
-        c.append(b);
-        zone.append(c);
+        b.append(bouton('Bof', '', function () { partir(c, 'non', fin); }));
+        b.append(bouton('Ça me tente', 'principal', function () { partir(c, 'oui', fin); }));
+        zone.append(tas, indice, b);
         if (pile.length > 1) zone.append(el('p', 'message', (pile.length - 1) + ' autre(s) derrière.'));
     }
 
