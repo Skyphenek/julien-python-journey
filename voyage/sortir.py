@@ -75,19 +75,20 @@ def cle_lien(lien):
 def doublon(nouvelle, existantes):
     """L'id d'une idée déjà en base (tout état) au même titre ou au même lien, sinon None."""
     t, l = cle_titre(nouvelle["titre"]), cle_lien(nouvelle.get("lien", ""))
-    for e in existantes:
-        if cle_titre(e["titre"]) == t or (l and cle_lien(e.get("lien", "")) == l):
+    for e in existantes:  # lien : pas de domaine nu (« wecandoo.fr » seul), titre : pas de clé vide
+        if (t and cle_titre(e["titre"]) == t) or ("/" in l and cle_lien(e.get("lien", "")) == l):
             return e["id"]
     return None
 
 
 def apres_avis(s, qui, avis):
-    """L'idée après l'avis de qui : un « non » l'écarte, deux « oui » en font une Envie."""
+    """L'idée après l'avis de qui : un « non » écarte une idée à trier, deux « oui » en font une Envie."""
     if qui not in QUI or avis not in ("oui", "non"):
         raise ValueError("avis invalide")
     s = {**s, f"avis_{qui}": avis}
     if avis == "non":
-        s["etat"] = "ecartee"
+        if s["etat"] == "a-trier":
+            s["etat"] = "ecartee"
     elif s["etat"] == "a-trier" and s["avis_julien"] == "oui" and s["avis_laetitia"] == "oui":
         s["etat"] = "envie"
     return s
@@ -105,7 +106,7 @@ def tirer_weekend(sorties, jour, hasard):
     for s in proches + reste:
         if len(choix) == 3:
             break
-        if s["type"] in {c["type"] for c in choix}:
+        if s["type"] is not None and s["type"] in {c["type"] for c in choix}:
             continue
         if s["budget"] == "premium" and any(c["budget"] == "premium" for c in choix):
             continue

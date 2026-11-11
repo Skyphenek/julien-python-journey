@@ -40,6 +40,13 @@ def test_cles_de_doublon():
     assert doublon({"titre": "Autre", "lien": ""}, existantes) is None
 
 
+def test_doublon_domaine_nu_et_titres_vides():
+    nus = [s("w", "Atelier poterie", lien="https://wecandoo.fr/")]
+    assert doublon({"titre": "Escape game", "lien": "https://wecandoo.fr/"}, nus) is None
+    assert doublon({"titre": "Atelier poterie", "lien": ""}, nus) == "w"
+    assert doublon({"titre": "Le la les !", "lien": ""}, [s("v", "De du")]) is None
+
+
 def test_avis():
     x = s("a", etat="a-trier", avis_julien="oui", avis_laetitia=None)
     assert apres_avis(x, "laetitia", "oui")["etat"] == "envie"
@@ -47,6 +54,12 @@ def test_avis():
     assert apres_avis(s("b", etat="a-trier", avis_julien=None, avis_laetitia=None), "julien", "oui")["etat"] == "a-trier"
     with pytest.raises(ValueError):
         apres_avis(x, "gaia", "oui")
+
+
+@pytest.mark.parametrize("etat", ["envie", "faite"])
+def test_bof_tardif_n_ecarte_pas(etat):
+    s_ = apres_avis(s("a", etat=etat, avis_julien="oui", avis_laetitia="oui"), "julien", "non")
+    assert s_["etat"] == etat and s_["avis_julien"] == "non"
 
 
 def test_tirage_priorite_fin_proche_une_premium_types_varies():
@@ -59,6 +72,11 @@ def test_tirage_priorite_fin_proche_une_premium_types_varies():
         assert 2 <= len(t) <= 3 and ids[0] == "fin" and "faite" not in ids
         assert sum(x["budget"] == "premium" for x in t) <= 1
         assert len({x["type"] for x in t}) == len(t)
+
+
+def test_tirage_types_absents_ne_se_bloquent_pas():
+    sans_type = [s(f"n{i}", type_=None) for i in range(3)]
+    assert len(tirer_weekend(sans_type, J, Random(1))) == 3
 
 
 def test_tirage_ignore_fin_passee_et_rend_ce_qu_il_peut():
