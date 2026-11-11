@@ -3,9 +3,10 @@
 # ACCES_SECRET est généré par Render (code aléatoire).
 services:
   - type: web
-    name: valise
+    name: valise-fr
     runtime: python
     plan: free
+    region: frankfurt       # à côté de la base Neon (eu-central-1) : ~0,1 s par appel au lieu de ~1,5 s depuis l'Oregon
     rootDir: voyage
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn serveur:app
