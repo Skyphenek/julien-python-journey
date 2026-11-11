@@ -120,6 +120,9 @@ def test_page_sortir():
     assert "function glisser" in html and "touch-action: pan-y" in html and "Lire la suite" in html
     assert "prefers-reduced-motion" in html and ".t-expo" in html and "function phrases" in html and "ul.details" in html
     assert "function filtrer" in html and "filtrer(enviesTriees(), zone)" in html and "function enAttente" in html
+    # Annuler : un bouton fixe entre Bof et Ça me tente, plus de lien éphémère dans le message
+    assert "function annulerDernier" in html and "Annuler mon dernier choix" in html
+    assert "bouton('Annuler', 'lien-discret', annuler)" not in html and "button.annuler-dernier:disabled" in html
     assert "filtrer(pileATrier(d.sorties, qui, aujourdhui()), zone)" in html
     assert html.index("function pileATrier") < html.index("const LIB = JSON.parse")      # règles chargées avant la page
     from sortir import FIN_PROCHE

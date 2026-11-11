@@ -205,6 +205,9 @@ body.sortir .tampon { position: absolute; top: 16px; padding: 4px 10px; border: 
                   font-weight: 900; font-size: 18px; text-transform: uppercase; pointer-events: none; background: var(--carte); }
 body.sortir .tampon.oui { left: 14px; color: var(--sortir); transform: rotate(-12deg); opacity: var(--oui, 0); }
 body.sortir .tampon.non { right: 14px; color: var(--doux); transform: rotate(12deg); opacity: var(--non, 0); }
+body.sortir .boutons button.annuler-dernier { flex: 0 0 56px; width: 56px; padding: 0; font-size: 26px; line-height: 1;
+                  border: 2px solid var(--ligne); background: var(--carte); color: var(--texte); }
+body.sortir .boutons button.annuler-dernier:disabled { opacity: .35; }
 body.sortir .indice { display: flex; justify-content: space-between; color: var(--doux); font-size: 13px; margin: 6px 0 -4px; padding: 0 6px; }
 body.sortir .t-cine { --t: #374151; } body.sortir .t-theatre { --t: #9b2c4f; } body.sortir .t-concert { --t: #6d28d9; }
 body.sortir .t-expo { --t: #0b7a87; } body.sortir .t-resto-bar { --t: #c2410c; } body.sortir .t-balade { --t: #2f7d32; }
@@ -276,10 +279,9 @@ SCRIPT_SORTIR = """(function () {
     function jjmm(iso) { return iso.slice(8, 10) + '/' + iso.slice(5, 7); }
     function aujourdhui() { return d ? d.aujourd_hui : new Date().toISOString().slice(0, 10); }
     function message(texte) { clearTimeout(minuteurMessage); document.getElementById('message-sortir').textContent = texte || ''; }
-    function annonce(texte, annuler) {
+    function annonce(texte) {
         message(texte);
-        if (annuler) document.getElementById('message-sortir').append(' ', bouton('Annuler', 'lien-discret', annuler));
-        minuteurMessage = setTimeout(function () { message(''); }, annuler ? 4000 : 2500);
+        minuteurMessage = setTimeout(function () { message(''); }, 2500);
     }
     function autre() { return qui === 'julien' ? 'Laetitia' : 'Julien'; }
     function sortie(id) { return d.sorties.filter(function (s) { return s.id === id; })[0]; }
@@ -309,13 +311,31 @@ SCRIPT_SORTIR = """(function () {
     function envoyerAvis(s, avis) {
         envoyer({ url: 'api/sorties/' + s.id + '/avis', methode: 'POST', corps: { qui: qui, avis: avis }, cle: 'avis:' + s.id + ':' + qui }).then(relire, refuse);
     }
-    function donnerAvis(s, avis) {
-        const premier = !s['avis_' + qui];     // « Annuler » seulement sur un premier avis : il le retire
+    // Le dernier choix de la pile (un premier avis) : le bouton ↶ le retire, l'idée revient en haut de la pile
+    let dernier = null;
+    function donnerAvis(s, avis, depuisPile) {
         Object.assign(s, apresAvis(s, qui, avis));
-        annonce(avis === 'non' ? 'Écartée.' : s.etat === 'envie' ? 'Envie ! Partants tous les deux.' : 'En attente de ' + autre() + '.',
-                premier ? function () { Object.assign(s, apresAvis(s, qui, null)); message(''); garder(); afficher(); envoyerAvis(s, null); } : null);
+        dernier = depuisPile ? { id: s.id, qui: qui } : null;
+        annonce(avis === 'non' ? 'Écartée.' : s.etat === 'envie' ? 'Envie ! Partants tous les deux.' : 'En attente de ' + autre() + '.');
         garder(); afficher();
         envoyerAvis(s, avis);
+    }
+    function annulerDernier() {
+        const s = dernier && dernier.qui === qui ? sortie(dernier.id) : null;
+        dernier = null;
+        if (!s) { afficher(); return; }
+        Object.assign(s, apresAvis(s, qui, null));
+        annonce('Choix annulé.');
+        garder(); afficher();
+        envoyerAvis(s, null);
+    }
+    function boutonAnnuler() {
+        const b = bouton('\u21b6', 'annuler-dernier', annulerDernier);
+        const possible = !!(dernier && dernier.qui === qui);
+        b.disabled = !possible;
+        b.setAttribute('aria-label', 'Annuler mon dernier choix');
+        b.title = 'Annuler mon dernier choix';
+        return b;
     }
 
     // --- Qui es-tu ? ---
@@ -465,15 +485,20 @@ SCRIPT_SORTIR = """(function () {
     // --- À trier ---
     function vueATrier(zone) {
         const pile = filtrer(pileATrier(d.sorties, qui, aujourdhui()), zone);
-        if (!pile.length) { zone.append(el('p', 'vide', 'Rien à trier.')); return; }
+        if (!pile.length) {
+            zone.append(el('p', 'vide', 'Rien à trier.'));
+            if (dernier && dernier.qui === qui) { const b = el('div', 'boutons gros'); b.append(boutonAnnuler()); zone.append(b); }
+            return;
+        }
         const s = pile[0], c = carteTri(s), tas = el('div', 'tas');
-        function fin(avis) { donnerAvis(s, avis); }
+        function fin(avis) { donnerAvis(s, avis, true); }
         if (pile[1]) { const der = carteTri(pile[1]); der.classList.add('derriere'); der.setAttribute('aria-hidden', 'true'); tas.append(der); }
         tas.append(c); glisser(c, fin);
         const indice = el('div', 'indice');
         indice.append(el('span', '', '\u2190 Bof'), el('span', '', 'Ça me tente \u2192'));
         const b = el('div', 'boutons gros');
         b.append(bouton('Bof', '', function () { partir(c, 'non', fin); }));
+        b.append(boutonAnnuler());
         b.append(bouton('Ça me tente', 'principal', function () { partir(c, 'oui', fin); }));
         zone.append(tas, indice, b);
         if (pile.length > 1) zone.append(el('p', 'message', (pile.length - 1) + ' autre(s) derrière.'));

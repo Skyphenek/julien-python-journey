@@ -254,6 +254,21 @@ ICONE_HABITUEL = ('<svg width="18" height="18" viewBox="0 0 24 24" fill="none" s
                   'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/>'
                   '<path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/></svg>')
 
+# Envois en vol et relecture : une liste lue pendant qu'une coche part encore rend l'ancien état (l'article se
+# décoche puis se recoche). On ne relit qu'une fois tout envoyé, et on jette une lecture qu'une coche a doublée.
+SCRIPT_RELECTURE = r"""
+function suiviEnvois() {
+    let enVol = 0, modifs = 0;
+    return {
+        debut: function () { enVol++; modifs++; },
+        fin: function () { enVol--; },
+        peutLire: function () { return enVol === 0; },
+        jeton: function () { return modifs; },
+        fraiche: function (jeton) { return enVol === 0 && jeton === modifs; }
+    };
+}
+"""
+
 SCRIPT_COURSES = """
 (function () {
     const ICONE_HABITUEL = '""" + ICONE_HABITUEL + """';
@@ -335,11 +350,13 @@ SCRIPT_COURSES = """
     }
     function garder() { try { localStorage.setItem(CLE_COPIE, JSON.stringify({ articles: articles, placard: placard })); } catch (e) {} }
     function appliquer(lu) { const r = avecAttente(lu); articles = r.articles; placard = r.placard; garder(); afficher(); }
+    const suivi = suiviEnvois();
     function charger() {
-        if (ouvert || placardOuvert) return;
+        if (ouvert || placardOuvert || !suivi.peutLire()) return;     // le dernier envoi relira
+        const jeton = suivi.jeton();
         fetch('api/courses', { headers: { 'X-Valise-Vite': '1' } })
             .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-            .then(appliquer)
+            .then(function (lu) { if (suivi.fraiche(jeton)) appliquer(lu); else relire(); })   // doublée par une coche
             .catch(function () {
                 try { appliquer(JSON.parse(localStorage.getItem(CLE_COPIE) || '{"articles":[],"placard":[]}')); } catch (e) {}
             });
@@ -349,7 +366,9 @@ SCRIPT_COURSES = """
     // le serveur n'a que 4 connexions à la base.
     let chaine = Promise.resolve(), minuteurRelire = null;
     function envoyer(envoi) {
+        suivi.debut();
         const p = chaine.then(function () { return envoyerOuGarder(envoi); });
+        p.then(suivi.fin, suivi.fin);                     // avant le relire() de l'appelant
         chaine = p.catch(function () {});
         return p;
     }
@@ -678,6 +697,7 @@ window.addEventListener('offline', majHorsLigne);
 majHorsLigne();
 viderFile();
 </script>
+<script>{SCRIPT_RELECTURE}</script>
 <script>{SCRIPT_COURSES}</script>
 </body>
 </html>"""

@@ -132,3 +132,41 @@ def test_un_envoi_a_la_fois():
     # « lait, œufs, pain » d'un coup : des envois en parallèle épuisaient les 4 connexions du serveur
     from courses import SCRIPT_COURSES
     assert SCRIPT_COURSES.count("envoyerOuGarder(") == 1 and "chaine.then" in SCRIPT_COURSES
+
+
+def _node_relecture(code):
+    """Exécute SCRIPT_RELECTURE puis code (qui fait console.log) ; rend la sortie JSON."""
+    import json, shutil, subprocess
+    if not shutil.which("node"):
+        pytest.skip("node absent")
+    from courses import SCRIPT_RELECTURE
+    sortie = subprocess.run(["node", "-e", SCRIPT_RELECTURE + "\n" + code], capture_output=True, text=True, check=True).stdout
+    return json.loads(sortie)
+
+
+def test_js_relecture_n_ecrase_pas_les_coches_en_vol():
+    # Trois coches d'affilée : une relecture partie avant la fin des envois rendait l'ancien état (décoché)
+    r = _node_relecture("""
+        const s = suiviEnvois(), vus = [];
+        s.debut(); s.debut(); s.debut();                 // lait, œufs, pain envoyés l'un après l'autre
+        vus.push(s.peutLire());                          // pendant les envois : on ne relit pas
+        s.fin();
+        vus.push(s.peutLire());
+        s.fin(); s.fin();
+        vus.push(s.peutLire());                          // tout est arrivé : on relit
+        const j = s.jeton();
+        vus.push(s.fraiche(j));                          // rien n'a bougé pendant la lecture
+        s.debut();                                       // une coche pendant la lecture
+        vus.push(s.fraiche(j));
+        s.fin();
+        vus.push(s.fraiche(j));                          // lue avant cette coche : toujours périmée
+        vus.push(s.fraiche(s.jeton()));
+        console.log(JSON.stringify(vus));""")
+    assert r == [False, False, True, True, False, False, True]
+
+
+def test_page_courses_relit_seulement_quand_tout_est_envoye():
+    html = courses_en_html()
+    assert html.index("function suiviEnvois") < html.index("const CLE_COPIE")
+    from courses import SCRIPT_COURSES
+    assert "suivi.peutLire()" in SCRIPT_COURSES and "suivi.fraiche(jeton)" in SCRIPT_COURSES
