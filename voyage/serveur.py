@@ -43,6 +43,7 @@ from casa import aujourdhui_en_html, aujourd_hui_paris
 from accords_vins import profils_du_repas, suggerer
 from budget import semaines_budget, moyenne_precedentes, lundi, budget_en_html, SEMAINES
 from cave import valider_bouteille, cave_en_html
+from sortir import sortir_en_html
 from courses import valider_article, valider_placard, courses_en_html, normaliser
 from prix_paris import cout_repas
 from fiche_recette import decouper
@@ -371,6 +372,10 @@ def creer_app(nom_base="valise", secret=None):
         """Une sortie prête pour le JSON : dates en ISO."""
         return {c: (v.isoformat() if c in ("debut", "fin", "le", "cree_le") and v is not None else v)
                 for c, v in s.items()}
+
+    @routes.get("/sortir")
+    def page_sortir():
+        return Response(sortir_en_html(), mimetype="text/html")
 
     @routes.get("/api/sorties")
     def lire_les_sorties():

@@ -4,6 +4,9 @@ import re
 import unicodedata
 from datetime import date, timedelta
 from urllib.parse import urlsplit
+import json
+from design import STYLE_D, STYLE_NAV_HUB, STYLE_HORS_LIGNE, TETE_POLICE, nav_hub
+from pwa import SCRIPT_FILE, TETE_PWA
 
 TYPES = [("cine", "Ciné"), ("theatre", "Théâtre"), ("concert", "Concert"), ("expo", "Expo"),
          ("resto-bar", "Resto / bar"), ("balade", "Balade"), ("atelier", "Atelier"), ("escapade", "Escapade")]
@@ -123,3 +126,335 @@ def rappels(sorties, jour):
     prevues = sorted((s for s in sorties if s["etat"] == "prevue" and s.get("le") and jour <= s["le"] <= limite),
                      key=lambda s: s["le"])
     return {"finissent": finissent, "prevues": prevues, "weekend": jour.weekday() in (4, 5)}
+
+
+# --- La page ------------------------------------------------------------------------------------
+
+STYLE_SORTIR = """
+body.sortir { --rubrique: var(--sortir); --rubrique-doux: var(--sortir-doux); }
+body.sortir nav.vues { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: var(--carte); border-radius: 18px;
+           padding: 4px; margin: 0 0 18px; position: sticky; top: 0; z-index: 5; }
+body.sortir nav.vues button { border: none; background: none; border-radius: 14px; padding: 10px 4px; min-height: 44px;
+                  font-family: inherit; font-weight: 700; font-size: 14px; color: var(--doux); }
+body.sortir nav.vues button.actif { background: var(--fond); color: var(--sortir); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+body.sortir .message { min-height: 1.2em; color: var(--doux); margin: 0 0 8px; }
+body.sortir .lien-discret { border: none; background: none; padding: 10px 0; min-height: 44px; font-family: inherit;
+                            font-size: 14px; color: var(--doux); text-decoration: underline; }
+body.sortir .vue { display: flex; flex-direction: column; gap: 12px; }
+body.sortir .carte-sortie { background: var(--carte); border-radius: 24px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+body.sortir .carte-sortie h3 { margin: 0; font-size: 22px; line-height: 1.15; }
+body.sortir .carte-sortie.prevue { border: 2px solid var(--sortir); }
+body.sortir .puces { display: flex; flex-wrap: wrap; gap: 6px; }
+body.sortir .puce { background: var(--sortir-doux); color: var(--sortir); border-radius: 999px; padding: 4px 10px; font-size: 13px; font-weight: 700; }
+body.sortir .infos { margin: 0; color: var(--texte); }
+body.sortir .carte-sortie a { color: var(--sortir); font-weight: 700; min-height: 44px; display: inline-flex; align-items: center; }
+body.sortir .boutons { display: flex; flex-wrap: wrap; gap: 8px; }
+body.sortir .boutons button, body.sortir form button { flex: 1 1 auto; min-height: 44px; border-radius: 999px; padding: 10px 16px;
+                  font-family: inherit; font-weight: 800; font-size: 15px; border: 2px solid var(--sortir); background: transparent; color: var(--sortir); }
+body.sortir .boutons button.principal, body.sortir form button[type=submit] { background: var(--sortir); color: var(--fond); }
+body.sortir .boutons.gros button { min-height: 56px; font-size: 17px; }
+body.sortir button[aria-pressed=true] { background: var(--sortir); color: var(--fond); }
+body.sortir input, body.sortir select, body.sortir textarea { font-family: inherit; font-size: 16px; min-height: 44px; border-radius: 14px;
+                  border: 1px solid var(--ligne); padding: 8px 12px; background: var(--fond); color: var(--texte); width: 100%; box-sizing: border-box; }
+body.sortir form { display: flex; flex-direction: column; gap: 8px; background: var(--carte); border-radius: 24px; padding: 18px; }
+body.sortir .ligne-date { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+body.sortir .ligne-date input { width: auto; flex: 1 1 140px; }
+body.sortir .vide { text-align: center; color: var(--doux); padding: 28px 0; font-size: 18px; }
+body.sortir h2 { font-size: 18px; margin: 4px 0 0; }
+body.sortir .qui { display: flex; flex-direction: column; gap: 12px; align-items: stretch; }
+"""
+
+SCRIPT_SORTIR = """(function () {
+    const LIB = JSON.parse(document.getElementById('libelles').textContent);
+    const CLE_COPIE = 'casa-sortir-copie';
+    let d = null, vue = 'a-trier', qui = null, tirageCartes = null, tirageMessage = '', dateOuverte = null, formulaireOuvert = false;
+    try { qui = localStorage.getItem('casa-qui'); } catch (e) {}
+    if (qui !== 'julien' && qui !== 'laetitia') qui = null;
+
+    function el(balise, classe, texte) {
+        const e = document.createElement(balise);
+        if (classe) e.className = classe;
+        if (texte !== undefined) e.textContent = texte;
+        return e;
+    }
+    function bouton(texte, classe, action) { const b = el('button', classe, texte); b.type = 'button'; b.addEventListener('click', action); return b; }
+    function libelle(liste, cle) { const t = (LIB[liste] || []).filter(function (x) { return x[0] === cle; })[0]; return t ? t[1] : null; }
+    function jjmm(iso) { return iso.slice(8, 10) + '/' + iso.slice(5, 7); }
+    function aujourdhui() { return d ? d.aujourd_hui : new Date().toISOString().slice(0, 10); }
+    function message(texte) { document.getElementById('message-sortir').textContent = texte || ''; }
+    function sortie(id) { return d.sorties.filter(function (s) { return s.id === id; })[0]; }
+
+    // --- Données : lecture, copie hors ligne, envois ---
+    let chaine = Promise.resolve(), minuteur = null;
+    function envoyer(envoi) { const p = chaine.then(function () { return envoyerOuGarder(envoi); }); chaine = p.catch(function () {}); return p; }
+    function relire() { clearTimeout(minuteur); minuteur = setTimeout(charger, 400); }
+    function garder() { try { localStorage.setItem(CLE_COPIE, JSON.stringify(d)); } catch (e) {} }
+    function charger() {
+        fetch('api/sorties', { headers: { 'X-Valise-Vite': '1' } })
+            .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+            .then(function (lu) { d = lu; garder(); afficher(); })
+            .catch(function () {
+                try { d = d || JSON.parse(localStorage.getItem(CLE_COPIE)); } catch (e) {}
+                if (d && !d.sorties) d = null;
+                if (d) afficher();
+                else document.getElementById('vue').replaceChildren(el('p', 'vide', 'Pas de connexion et rien en copie.'));
+            });
+    }
+    // Un changement : appliqué ici tout de suite, envoyé par la file (il part au retour du réseau sinon)
+    function modifier(s, champs, cle) {
+        Object.assign(s, champs); garder(); afficher();
+        envoyer({ url: 'api/sorties/' + s.id, methode: 'POST', corps: champs, cle: 'sortie:' + s.id + ':' + cle }).then(relire, relire);
+    }
+    function donnerAvis(s, avis) {
+        s['avis_' + qui] = avis;
+        if (avis === 'non') { if (s.etat === 'a-trier') s.etat = 'ecartee'; }
+        else if (s.etat === 'a-trier' && s.avis_julien === 'oui' && s.avis_laetitia === 'oui') s.etat = 'envie';
+        garder(); afficher();
+        envoyer({ url: 'api/sorties/' + s.id + '/avis', methode: 'POST', corps: { qui: qui, avis: avis }, cle: 'avis:' + s.id + ':' + qui }).then(relire, relire);
+    }
+
+    // --- Qui es-tu ? ---
+    function quiSuisJe(zone) {
+        if (qui) return true;
+        const c = el('div', 'carte-sortie qui');
+        c.append(el('h3', '', 'Qui es-tu ?'), el('p', 'infos', 'Chacun son avis : on garde ça sur ce téléphone.'));
+        const b = el('div', 'boutons gros');
+        [['julien', 'Julien'], ['laetitia', 'Laetitia']].forEach(function (p) {
+            b.append(bouton(p[1], 'principal', function () {
+                qui = p[0]; try { localStorage.setItem('casa-qui', qui); } catch (e) {} afficher(); }));
+        });
+        c.append(b); zone.append(c);
+        return false;
+    }
+
+    // --- Cartes ---
+    function carte(s) {
+        const c = el('div', 'carte-sortie' + (s.etat === 'prevue' ? ' prevue' : ''));
+        c.append(el('h3', '', s.titre));
+        const p = el('div', 'puces');
+        [libelle('types', s.type), libelle('budgets', s.budget), libelle('reservations', s.reservation)].forEach(function (t) { if (t) p.append(el('span', 'puce', t)); });
+        if (s.etat === 'prevue' && s.le) p.append(el('span', 'puce', 'Prévu le ' + jjmm(s.le)));
+        if (s.fin) p.append(el('span', 'puce', (s.fin < aujourdhui() ? 'Terminé le ' : 'Jusqu\\'au ') + jjmm(s.fin)));
+        else if (s.debut && s.debut > aujourdhui()) p.append(el('span', 'puce', 'À partir du ' + jjmm(s.debut)));
+        if (p.children.length) c.append(p);
+        if (s.infos) c.append(el('p', 'infos', s.infos));
+        if (s.lien) { const a = el('a', '', 'Voir'); a.href = s.lien; a.target = '_blank'; a.rel = 'noopener'; c.append(a); }
+        return c;
+    }
+    function actionsEnvie(s) {
+        const b = el('div', 'boutons');
+        b.append(bouton('On y va', 'principal', function () { dateOuverte = dateOuverte === s.id ? null : s.id; afficher(); }));
+        b.append(bouton('Fait', '', function () { modifier(s, { etat: 'faite', le: s.le || aujourdhui() }, 'etat'); vue = 'faites'; afficher(); }));
+        b.append(bouton('Plus envie', '', function () { modifier(s, { etat: 'ecartee' }, 'etat'); }));
+        return b;
+    }
+    function ligneDate(s) {
+        const l = el('div', 'ligne-date');
+        const champ = el('input'); champ.type = 'date'; champ.min = aujourdhui(); champ.value = s.le || ''; champ.setAttribute('aria-label', 'Date prévue');
+        l.append(champ, bouton('Valider', 'principal', function () {
+            if (!champ.value) return;
+            dateOuverte = null; modifier(s, { etat: 'prevue', le: champ.value }, 'etat'); }));
+        return l;
+    }
+    function carteEnvie(s) {
+        const c = carte(s);
+        if (s.etat === 'prevue') c.append(bouton('Fait', 'lien-discret', function () { modifier(s, { etat: 'faite' }, 'etat'); vue = 'faites'; afficher(); }));
+        else c.append(actionsEnvie(s));
+        if (dateOuverte === s.id) c.append(ligneDate(s));
+        return c;
+    }
+
+    // --- À trier ---
+    function vueATrier(zone) {
+        const pile = d.sorties.filter(function (s) { return s.etat === 'a-trier' && !s['avis_' + qui]; })
+                              .sort(function (a, b) { return String(a.cree_le || '').localeCompare(String(b.cree_le || '')); });
+        if (!pile.length) { zone.append(el('p', 'vide', 'Rien à trier.')); return; }
+        const s = pile[0], c = carte(s);
+        const b = el('div', 'boutons gros');
+        b.append(bouton('Bof', '', function () { donnerAvis(s, 'non'); }));
+        b.append(bouton('Ça me tente', 'principal', function () { donnerAvis(s, 'oui'); }));
+        c.append(b);
+        zone.append(c);
+        if (pile.length > 1) zone.append(el('p', 'message', (pile.length - 1) + ' autre(s) derrière.'));
+    }
+
+    // --- Envies ---
+    function enviesTriees() {
+        const jour = aujourdhui();
+        const liste = d.sorties.filter(function (s) { return s.etat === 'envie' || (s.etat === 'prevue' && !(s.le && s.le < jour)); });
+        function rang(s) { return s.etat === 'prevue' ? 0 : (s.fin ? 1 : 2); }
+        return liste.sort(function (a, b) {
+            if (rang(a) !== rang(b)) return rang(a) - rang(b);
+            if (rang(a) === 0) return String(a.le || '9').localeCompare(String(b.le || '9'));
+            if (rang(a) === 1) return a.fin.localeCompare(b.fin);
+            return String(b.cree_le || '').localeCompare(String(a.cree_le || ''));
+        });
+    }
+    function tirage() {
+        tirageMessage = 'Tirage en cours…'; tirageCartes = []; afficher();
+        fetch('api/sorties/weekend', { headers: { 'X-Valise-Vite': '1' } })
+            .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+            .then(function (j) {
+                tirageCartes = (j.tirage || []).map(function (t) { return t.id; });
+                tirageMessage = tirageCartes.length ? '' : 'Pas assez d\\'Envies pour un tirage';
+                afficher();
+            })
+            .catch(function () { tirageCartes = []; tirageMessage = 'Tirage impossible hors ligne.'; afficher(); });
+    }
+    function blocTirage(zone) {
+        if (tirageCartes === null) return;
+        const h = el('div', 'boutons');
+        zone.append(el('h2', '', 'Ce week-end'));
+        const vivantes = tirageCartes.map(sortie).filter(function (s) { return s && s.etat === 'envie'; });
+        if (!vivantes.length) zone.append(el('p', 'message', tirageMessage || 'Plus rien dans le tirage.'));
+        vivantes.forEach(function (s) { zone.append(carteEnvie(s)); });
+        h.append(bouton('Retirer', '', tirage), bouton('Fermer le tirage', 'lien-discret', function () { tirageCartes = null; afficher(); }));
+        zone.append(h);
+    }
+    function ajouterIdee(zone) {
+        if (!formulaireOuvert) { zone.append(bouton('+ Ajouter une idée', '', function () { formulaireOuvert = true; afficher(); })); return; }
+        const f = el('form'); f.autocomplete = 'off';
+        const titre = el('input'); titre.placeholder = 'Titre'; titre.required = true; titre.maxLength = 200; titre.setAttribute('aria-label', 'Titre');
+        function liste(nom, cle) {
+            const s = el('select'); s.setAttribute('aria-label', nom);
+            const o = el('option', '', nom); o.value = ''; s.append(o);
+            LIB[cle].forEach(function (x) { const p = el('option', '', x[1]); p.value = x[0]; s.append(p); });
+            return s;
+        }
+        const type = liste('Type', 'types'), budget = liste('Budget', 'budgets');
+        const fin = el('input'); fin.type = 'date'; fin.setAttribute('aria-label', 'Jusqu\\'au (facultatif)'); fin.title = 'Jusqu\\'au (facultatif)';
+        const lien = el('input'); lien.type = 'url'; lien.placeholder = 'Lien (facultatif)'; lien.setAttribute('aria-label', 'Lien');
+        const b = el('div', 'boutons');
+        const ok = el('button', '', 'Ajouter'); ok.type = 'submit';
+        b.append(ok, bouton('Annuler', '', function () { formulaireOuvert = false; afficher(); }));
+        f.append(titre, type, budget, el('label', 'message', 'Jusqu\\'au (facultatif)'), fin, lien, b);
+        f.addEventListener('submit', function (ev) {
+            ev.preventDefault();
+            const nom = titre.value.trim(); if (!nom) return;
+            const corps = { titre: nom, source: qui };
+            if (type.value) corps.type = type.value;
+            if (budget.value) corps.budget = budget.value;
+            if (fin.value) corps.fin = fin.value;
+            if (lien.value.trim()) corps.lien = lien.value.trim();
+            ok.disabled = true;
+            envoyer({ url: 'api/sorties', methode: 'POST', corps: corps, cle: 'idee:' + nom }).then(function (etat) {
+                formulaireOuvert = false;
+                message(etat === 'attente' ? 'Gardée sur le téléphone : partira au retour du réseau' : 'Ajoutée.');
+                relire(); afficher();
+            }, function (e) {
+                ok.disabled = false;
+                message(String(e.message) === '409' ? 'Déjà dans la liste' : 'Refusé par le serveur : vérifie le titre et le lien.');
+            });
+        });
+        zone.append(f);
+    }
+    function vueEnvies(zone) {
+        const haut = el('div', 'boutons');
+        haut.append(bouton('Ce week-end ?', 'principal', tirage));
+        zone.append(haut);
+        blocTirage(zone);
+        ajouterIdee(zone);
+        const liste = enviesTriees();
+        if (!liste.length) zone.append(el('p', 'vide', 'Aucune Envie pour l\\'instant.'));
+        liste.forEach(function (s) { zone.append(carteEnvie(s)); });
+    }
+
+    // --- Faites ---
+    function pouces(s) {
+        const b = el('div', 'boutons');
+        [['haut', 'J\\'ai aimé'], ['bas', 'Pas terrible']].forEach(function (p) {
+            const x = bouton(p[1], '', function () { modifier(s, { pouce: s.pouce === p[0] ? null : p[0] }, 'pouce'); });
+            x.setAttribute('aria-pressed', String(s.pouce === p[0])); b.append(x);
+        });
+        return b;
+    }
+    function champRetour(s) {
+        const l = el('div', 'ligne-date');
+        const t = el('input'); t.value = s.retour || ''; t.maxLength = 500; t.placeholder = 'Un mot pour s\\'en souvenir'; t.setAttribute('aria-label', 'Retour');
+        l.append(t, bouton('Noter', '', function () { modifier(s, { retour: t.value.trim() }, 'retour'); }));
+        return l;
+    }
+    function vueFaites(zone) {
+        const jour = aujourdhui();
+        const passees = d.sorties.filter(function (s) { return s.etat === 'prevue' && s.le && s.le < jour; })
+                                 .sort(function (a, b) { return a.le.localeCompare(b.le); });
+        const faites = d.sorties.filter(function (s) { return s.etat === 'faite'; })
+                                .sort(function (a, b) { return String(b.le || b.cree_le || '').localeCompare(String(a.le || a.cree_le || '')); });
+        passees.forEach(function (s) {
+            const c = carte(s); c.append(el('h2', '', "Alors, c'était comment ?"));
+            const b = el('div', 'boutons');
+            b.append(bouton('J\\'ai aimé', 'principal', function () { modifier(s, { etat: 'faite', pouce: 'haut' }, 'etat'); }));
+            b.append(bouton('Pas terrible', '', function () { modifier(s, { etat: 'faite', pouce: 'bas' }, 'etat'); }));
+            b.append(bouton('Pas fait', 'lien-discret', function () { modifier(s, { etat: 'envie', le: null }, 'etat'); }));
+            c.append(b); zone.append(c);
+        });
+        faites.forEach(function (s) {
+            const c = carte(s);
+            const puces = c.querySelector('.puces');
+            if (s.le && puces) puces.prepend(el('span', 'puce', 'Le ' + jjmm(s.le)));
+            c.append(pouces(s), champRetour(s)); zone.append(c);
+        });
+        if (!passees.length && !faites.length) zone.append(el('p', 'vide', 'Rien de fait pour l\\'instant.'));
+    }
+
+    function afficher() {
+        if (!d) return;
+        const zone = document.getElementById('vue'); zone.replaceChildren();
+        document.querySelectorAll('nav.vues button').forEach(function (b) { b.classList.toggle('actif', b.dataset.vue === vue); });
+        const lien = document.getElementById('changer'); lien.hidden = !qui;
+        if (!quiSuisJe(zone)) { document.getElementById('compte').textContent = ''; return; }
+        const n = d.sorties.filter(function (s) { return s.etat === 'a-trier' && !s['avis_' + qui]; }).length;
+        document.getElementById('compte').textContent = n ? ' (' + n + ')' : '';
+        ({ 'a-trier': vueATrier, 'envies': vueEnvies, 'faites': vueFaites })[vue](zone);
+    }
+    document.querySelectorAll('nav.vues button').forEach(function (b) {
+        b.addEventListener('click', function () { vue = b.dataset.vue; afficher(); try { history.replaceState(null, '', '#' + vue); } catch (e) {} });
+    });
+    document.getElementById('changer').addEventListener('click', function () {
+        qui = null; try { localStorage.removeItem('casa-qui'); } catch (e) {} afficher();
+    });
+    const h = location.hash.slice(1);
+    if (h === 'a-trier' || h === 'envies' || h === 'faites') vue = h;
+    if (h === 'tirage') { vue = 'envies'; }
+    document.addEventListener('file-videe', charger);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) charger(); });
+    charger();
+    if (h === 'tirage') tirage();
+})();"""
+
+
+def sortir_en_html():
+    """La page Sortir : une coquille, remplie par le script depuis api/sorties (copie gardée hors ligne)."""
+    libelles = json.dumps({"types": TYPES, "budgets": BUDGETS, "reservations": RESERVATIONS}, ensure_ascii=False)
+    return f"""<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sortir · Casa Binomerie</title>
+{TETE_PWA}
+{TETE_POLICE}
+<style>{STYLE_D}{STYLE_NAV_HUB}{STYLE_HORS_LIGNE}{STYLE_SORTIR}</style>
+</head>
+<body class="accueil hub-page sortir">
+<h1>Sortir</h1>
+<button type="button" class="lien-discret" id="changer" hidden>Changer</button>
+<nav class="vues" aria-label="Sortir">
+<button type="button" data-vue="a-trier">À trier<span id="compte"></span></button>
+<button type="button" data-vue="envies">Envies</button>
+<button type="button" data-vue="faites">Faites</button>
+</nav>
+<p class="message" id="message-sortir" aria-live="polite"></p>
+<div id="hors-ligne" hidden></div>
+<div id="vue" class="vue"></div>
+{nav_hub("sortir")}
+<script type="application/json" id="libelles">{libelles}</script>
+<script>{SCRIPT_FILE}
+window.addEventListener('online', function () {{ majHorsLigne(); viderFile(); }});
+window.addEventListener('offline', majHorsLigne);
+majHorsLigne();
+viderFile();
+</script>
+<script>{SCRIPT_SORTIR}</script>
+</body>
+</html>"""

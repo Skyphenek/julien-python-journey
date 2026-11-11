@@ -57,7 +57,9 @@ def page_complete():
 
 def test_aucun_emoji_dans_les_pages():
     from diners import diners_en_html
-    for html in (page_complete(), accueil_en_html([], date(2026, 10, 28)), formulaire_en_html(), diners_en_html()):
+    from sortir import sortir_en_html
+    for html in (page_complete(), accueil_en_html([], date(2026, 10, 28)), formulaire_en_html(), diners_en_html(),
+                 sortir_en_html()):
         assert EMOJI.findall(html) == []
 
 

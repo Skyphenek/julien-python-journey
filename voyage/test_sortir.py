@@ -90,3 +90,19 @@ def test_rappels():
     r = rappels(sorties, J)
     assert [x["id"] for x in r["finissent"]] == ["fin"] and [x["id"] for x in r["prevues"]] == ["prevue"]
     assert r["weekend"] is True and rappels(sorties, J - timedelta(days=4))["weekend"] is False
+
+
+def test_page_sortir():
+    from sortir import sortir_en_html
+    html = sortir_en_html()
+    assert "<title>Sortir · Casa Binomerie</title>" in html and 'data-hub="sortir" class="actif"' in html
+    for v in ("a-trier", "envies", "faites"):
+        assert f'data-vue="{v}"' in html
+    for f in ("function vueATrier", "function vueEnvies", "function vueFaites", "function tirage", "function quiSuisJe",
+              "function ajouterIdee", "api/sorties", "casa-qui"):
+        assert f in html, f
+    for mot in ("Bof", "Ça me tente", "Ce week-end ?", "On y va", "Plus envie", "+ Ajouter une idée",
+                "Alors, c'était comment ?", "Rien à trier."):
+        assert mot in html, mot
+    assert "innerHTML" not in html
+    assert "<h1>Sortir</h1>" in html and 'class="popote"' not in html
