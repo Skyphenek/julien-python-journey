@@ -1129,3 +1129,93 @@ def poser_cave(conn, nom_reprise, references):
             n += cur.rowcount
         cur.execute("INSERT INTO reprises (nom) VALUES (%s)", (nom_reprise,))
     return n
+
+
+# --- Casa Binomerie : Sortir --------------------------------------------------------------------
+
+CHAMPS_SORTIE = ("titre", "type", "budget", "reservation", "debut", "fin", "lien", "infos", "source", "avis_julien",
+                 "avis_laetitia", "etat", "le", "pouce", "retour")
+
+
+def lire_sorties(conn):
+    """Toutes les idées de sorties, les plus récentes d'abord (la page trie)."""
+    with conn.cursor() as cur:
+        cur.execute(f"SELECT id, {', '.join(CHAMPS_SORTIE)}, cree_le FROM sorties ORDER BY cree_le DESC, id")
+        return [dict(zip(("id", *CHAMPS_SORTIE, "cree_le"), l)) for l in cur.fetchall()]
+
+
+def creer_sortie(conn, s):
+    """Une idée validée (sortir.valider_sortie). Déjà là (sortir.doublon, tout état) : (id existant, False)."""
+    from sortir import doublon
+    import uuid
+    existant = doublon(s, lire_sorties(conn))
+    if existant:
+        return existant, False
+    identifiant = "sortie-" + uuid.uuid4().hex[:12]
+    champs = [c for c in CHAMPS_SORTIE if c in s]
+    with conn.cursor() as cur:
+        cur.execute(f"INSERT INTO sorties (id, {', '.join(champs)}) VALUES (%s, {', '.join(['%s'] * len(champs))})",
+                    (identifiant, *[s[c] for c in champs]))
+    conn.commit()
+    return identifiant, True
+
+
+def _une_sortie(conn, identifiant):
+    return next((s for s in lire_sorties(conn) if s["id"] == identifiant), None)
+
+
+def donner_avis(conn, identifiant, qui, avis):
+    """L'avis de qui (sortir.apres_avis) ; None si l'idée n'existe pas."""
+    from sortir import apres_avis
+    s = _une_sortie(conn, identifiant)
+    if s is None:
+        return None
+    n = apres_avis(s, qui, avis)
+    with conn.cursor() as cur:
+        cur.execute(f"UPDATE sorties SET avis_{qui} = %s, etat = %s, maj_le = now() WHERE id = %s",
+                    (n[f"avis_{qui}"], n["etat"], identifiant))
+    conn.commit()
+    return _une_sortie(conn, identifiant)
+
+
+def maj_sortie(conn, identifiant, champs):
+    """État, date prévue, pouce, retour. ValueError sur une valeur invalide ; None si l'idée n'existe pas."""
+    from sortir import ETATS
+    from datetime import date as _d
+    permis = {}
+    if "etat" in champs:
+        if champs["etat"] not in ETATS:
+            raise ValueError("état invalide")
+        permis["etat"] = champs["etat"]
+    if "le" in champs:
+        permis["le"] = _d.fromisoformat(champs["le"]) if champs["le"] else None
+    if "pouce" in champs:
+        if champs["pouce"] not in (None, "haut", "bas"):
+            raise ValueError("pouce invalide")
+        permis["pouce"] = champs["pouce"]
+    if "retour" in champs:
+        permis["retour"] = str(champs["retour"] or "").strip()[:500]
+    if _une_sortie(conn, identifiant) is None:
+        return None
+    if permis:
+        with conn.cursor() as cur:
+            cur.execute(f"UPDATE sorties SET {', '.join(f'{c} = %s' for c in permis)}, maj_le = now() WHERE id = %s",
+                        (*permis.values(), identifiant))
+        conn.commit()
+    return _une_sortie(conn, identifiant)
+
+
+def poser_sorties(conn, nom_reprise, sorties):
+    """Les sorties de départ (sorties_depart.py), une seule fois (table reprises) ; renvoie le nombre ajouté, ou None
+    si la reprise est déjà passée. Les doublons sont ignorés."""
+    from sortir import valider_sortie
+    from casa import aujourd_hui_paris
+    with conn.cursor() as cur:
+        cur.execute("SELECT EXISTS (SELECT 1 FROM reprises WHERE nom = %s)", (nom_reprise,))
+        if cur.fetchone()[0]:
+            return None
+    n = sum(creer_sortie(conn, valider_sortie(s, aujourd_hui_paris()))[1] for s in sorties)
+    with conn.cursor() as cur:
+        cur.execute("INSERT INTO reprises (nom) VALUES (%s)", (nom_reprise,))
+    conn.commit()
+    return n
