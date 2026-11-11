@@ -26,7 +26,10 @@ from db import (emprunter, ajouter_depense, lire_depenses, supprimer_depense, ob
                 enregistrer_article, lire_courses, supprimer_article, vider_pris, lire_achats,
                 enregistrer_placard, retirer_du_placard, enregistrer_plat, lire_plats, plat_existe, enregistrer_repas, lire_repas, compter_faits,
                 lire_frais, finir, corriger_a_finir,
-                lire_cave, enregistrer_bouteille, boire, retirer_bouteille)
+                lire_cave, enregistrer_bouteille, boire, retirer_bouteille,
+                lire_sorties, creer_sortie, donner_avis, maj_sortie)
+from sortir import valider_sortie, tirer_weekend
+import random
 from valise import (solde_depenses, actualiser_meteo, fenetres_du_voyage, page_du_voyage, accueil_en_html,
                     lieux_depuis_reponse, normales_ou_url, normales_depuis_historique,
                     formulaire_en_html, creer_voyage, VERSION_PAGE)
@@ -362,6 +365,80 @@ def creer_app(nom_base="valise", secret=None):
         if not retiree:
             return jsonify({"erreur": "bouteille inconnue"}), 404
         return jsonify({"ok": True})
+
+    # ---------- Sortir : idées de sorties du couple ----------
+    def _iso(s):
+        """Une sortie prête pour le JSON : dates en ISO."""
+        return {c: (v.isoformat() if c in ("debut", "fin", "le", "cree_le") and v is not None else v)
+                for c, v in s.items()}
+
+    @routes.get("/api/sorties")
+    def lire_les_sorties():
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            return jsonify({"sorties": [_iso(s) for s in lire_sorties(conn)],
+                            "aujourd_hui": aujourd_hui_paris().isoformat()})
+        finally:
+            conn.close()
+
+    @routes.post("/api/sorties")
+    def creer_une_sortie():
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            try:
+                sortie = valider_sortie(request.get_json(silent=True), aujourd_hui_paris())
+                identifiant, cree = creer_sortie(conn, sortie)
+            except (ValueError, TypeError) as e:
+                conn.rollback()
+                return jsonify({"erreur": str(e)}), 400
+        finally:
+            conn.close()
+        if not cree:
+            return jsonify({"id": identifiant, "doublon": True}), 409
+        return jsonify({"id": identifiant}), 201
+
+    @routes.post("/api/sorties/<identifiant>/avis")
+    def avis_sur_une_sortie(identifiant):
+        corps = request.get_json(silent=True)
+        corps = corps if isinstance(corps, dict) else {}
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            try:
+                sortie = donner_avis(conn, identifiant, corps.get("qui"), corps.get("avis"))
+            except (ValueError, TypeError) as e:
+                conn.rollback()
+                return jsonify({"erreur": str(e)}), 400
+        finally:
+            conn.close()
+        if sortie is None:
+            return jsonify({"erreur": "sortie inconnue"}), 404
+        return jsonify(_iso(sortie))
+
+    @routes.post("/api/sorties/<identifiant>")
+    def maj_une_sortie(identifiant):
+        corps = request.get_json(silent=True)
+        corps = corps if isinstance(corps, dict) else {}
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            try:
+                sortie = maj_sortie(conn, identifiant, corps)
+            except (ValueError, TypeError) as e:
+                conn.rollback()
+                return jsonify({"erreur": str(e)}), 400
+        finally:
+            conn.close()
+        if sortie is None:
+            return jsonify({"erreur": "sortie inconnue"}), 404
+        return jsonify(_iso(sortie))
+
+    @routes.get("/api/sorties/weekend")
+    def tirage_du_weekend():
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            tirage = tirer_weekend(lire_sorties(conn), aujourd_hui_paris(), random.Random())
+        finally:
+            conn.close()
+        return jsonify({"tirage": [_iso(s) for s in tirage]})
 
     @routes.post("/api/a-finir/<path:cle>")
     def corriger_un_produit(cle):

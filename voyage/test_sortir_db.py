@@ -86,3 +86,26 @@ def test_une_sortie_par_id(conn):
     creer_sortie(conn, valider_sortie({"titre": "Expo Bob", "source": "laetitia"}, J))
     assert _une_sortie(conn, i) == next(s for s in lire_sorties(conn) if s["id"] == i)
     assert _une_sortie(conn, "inconnue") is None
+
+
+@pytest.fixture
+def client(conn):
+    from serveur import creer_app
+    return creer_app("valise_test", secret="").test_client()
+
+
+def test_api_sorties(client):
+    r = client.post("/api/sorties", json={"titre": "Refuge des Fondus", "source": "routine", "type": "resto-bar"})
+    assert r.status_code == 201 and r.get_json()["id"].startswith("sortie-")
+    i = r.get_json()["id"]
+    r2 = client.post("/api/sorties", json={"titre": "refuge des fondus", "source": "julien"})
+    assert r2.status_code == 409 and r2.get_json() == {"id": i, "doublon": True}
+    assert client.post("/api/sorties", json={"titre": "", "source": "julien"}).status_code == 400
+    assert client.post(f"/api/sorties/{i}/avis", json={"qui": "julien", "avis": "oui"}).get_json()["etat"] == "a-trier"
+    assert client.post(f"/api/sorties/{i}/avis", json={"qui": "laetitia", "avis": "oui"}).get_json()["etat"] == "envie"
+    assert client.post(f"/api/sorties/{i}", json={"etat": "prevue", "le": "2026-11-21"}).get_json()["le"] == "2026-11-21"
+    assert client.post("/api/sorties/inconnue/avis", json={"qui": "julien", "avis": "oui"}).status_code == 404
+    assert client.post(f"/api/sorties/{i}", json={"etat": "volee"}).status_code == 400
+    d = client.get("/api/sorties").get_json()
+    assert [x["id"] for x in d["sorties"]] == [i] and "aujourd_hui" in d
+    assert client.get("/api/sorties/weekend").status_code == 200
