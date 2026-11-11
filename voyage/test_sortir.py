@@ -56,6 +56,13 @@ def test_avis():
         apres_avis(x, "gaia", "oui")
 
 
+def test_annuler_son_avis():
+    x = s("a", etat="a-trier", avis_julien="oui", avis_laetitia=None)
+    assert apres_avis(apres_avis(x, "laetitia", "oui"), "laetitia", None)["etat"] == "a-trier"
+    assert apres_avis(apres_avis(x, "laetitia", "non"), "laetitia", None) == {**x, "avis_laetitia": None}
+    assert apres_avis(s("p", etat="prevue"), "julien", None)["etat"] == "prevue"
+
+
 @pytest.mark.parametrize("etat", ["envie", "faite"])
 def test_bof_tardif_n_ecarte_pas(etat):
     s_ = apres_avis(s("a", etat=etat, avis_julien="oui", avis_laetitia="oui"), "julien", "non")
@@ -113,7 +120,58 @@ def test_page_sortir():
     assert "function glisser" in html and "touch-action: pan-y" in html and "Lire la suite" in html
     assert "prefers-reduced-motion" in html and ".t-expo" in html and "function phrases" in html and "ul.details" in html
     assert "function filtrer" in html and "filtrer(enviesTriees(), zone)" in html and "function enAttente" in html
-    assert "filtrer(d.sorties.filter(function (s) { return s.etat === 'a-trier'" in html
+    assert "filtrer(pileATrier(d.sorties, qui, aujourdhui()), zone)" in html
+    assert html.index("function pileATrier") < html.index("const LIB = JSON.parse")      # règles chargées avant la page
     from sortir import FIN_PROCHE
     assert f'"fin_proche": {FIN_PROCHE}' in html and "const FIN_PROCHE = JSON.parse" in html
     assert "<h1>Sortir</h1>" in html and 'class="popote"' not in html
+
+
+# --- Les règles de la page, exécutées avec node (mêmes cas que les règles Python) ------------------------------
+
+def _node(appels):
+    """Exécute SCRIPT_REGLES_SORTIR puis chaque appel (expression JS) ; rend la liste des résultats."""
+    import json, shutil, subprocess
+    if not shutil.which("node"):
+        pytest.skip("node absent")
+    from sortir import SCRIPT_REGLES_SORTIR
+    code = SCRIPT_REGLES_SORTIR + "\nconsole.log(JSON.stringify([" + ",".join(appels) + "]));"
+    sortie = subprocess.run(["node", "-e", code], capture_output=True, text=True, check=True).stdout
+    return json.loads(sortie)
+
+
+def test_js_apres_avis_comme_python():
+    import json
+    cas = [(s("a", etat=e, avis_julien=aj, avis_laetitia=al), qui, avis)
+           for e in ("a-trier", "envie", "ecartee", "prevue", "faite")
+           for aj in (None, "oui", "non") for al in (None, "oui")
+           for qui in ("julien", "laetitia") for avis in ("oui", "non", None)]
+    js = _node([f"apresAvis({json.dumps(x)}, {json.dumps(q)}, {json.dumps(a)})" for x, q, a in cas])
+    assert js == [apres_avis(x, q, a) for x, q, a in cas]
+
+
+def test_js_pile_et_envies():
+    import json
+    jour = "2026-11-13"
+    pile = [s("vieille", etat="a-trier", avis_julien=None, cree_le="2026-10-01"),
+            s("recente", etat="a-trier", avis_julien=None, cree_le="2026-11-10"),
+            s("finie", etat="a-trier", avis_julien=None, fin="2026-11-12", cree_le="2026-11-11"),
+            s("jugee", etat="a-trier", avis_julien="oui", cree_le="2026-11-12"),
+            s("envie", cree_le="2026-11-12")]
+    envies = [s("loin", cree_le="2026-10-01"), s("neuve", cree_le="2026-11-10"),
+              s("bientot", fin="2026-11-20"), s("tres-bientot", fin="2026-11-15"), s("passee", fin="2026-11-01"),
+              s("prevue", etat="prevue", le="2026-11-21"), s("prevue-passee", etat="prevue", le="2026-11-01"),
+              s("a-trier", etat="a-trier")]
+    p, e = _node([f"pileATrier({json.dumps(pile)}, 'julien', '{jour}').map(function (x) {{ return x.id; }})",
+                  f"enviesOrdonnees({json.dumps(envies)}, '{jour}', 15).map(function (x) {{ return x.id; }})"])
+    assert p == ["recente", "vieille"]
+    assert e == ["prevue", "tres-bientot", "bientot", "neuve", "loin", "passee"]
+
+
+def test_js_phrases_et_glisse():
+    r = _node(["phrases(\"Ouverture le 22/11 (jusqu'au 4 janvier). 180 chalets. ~25€/pers. Accès M1 Franklin-D.-Roosevelt. Fin\")",
+               "phrases('Une seule phrase sans point')",
+               "[sensGlisse(80, 400), sensGlisse(120, 400), sensGlisse(-120, 400), sensGlisse(100, 300), sensGlisse(-91, 300)]"])
+    assert r[0] == ["Ouverture le 22/11 (jusqu'au 4 janvier)", "180 chalets", "~25€/pers", "Accès M1 Franklin-D.-Roosevelt", "Fin"]
+    assert r[1] == ["Une seule phrase sans point"]
+    assert r[2] == [None, "oui", "non", "oui", "non"]

@@ -85,11 +85,15 @@ def doublon(nouvelle, existantes):
 
 
 def apres_avis(s, qui, avis):
-    """L'idée après l'avis de qui : un « non » écarte une idée à trier, deux « oui » en font une Envie."""
-    if qui not in QUI or avis not in ("oui", "non"):
+    """L'idée après l'avis de qui : un « non » écarte une idée à trier, deux « oui » en font une Envie. `avis` None
+    retire l'avis (« Annuler » juste après un vote) : une idée écartée ou devenue Envie revient à trier."""
+    if qui not in QUI or avis not in ("oui", "non", None):
         raise ValueError("avis invalide")
     s = {**s, f"avis_{qui}": avis}
-    if avis == "non":
+    if avis is None:
+        if s["etat"] in ("ecartee", "envie"):
+            s["etat"] = "a-trier"
+    elif avis == "non":
         if s["etat"] == "a-trier":
             s["etat"] = "ecartee"
     elif s["etat"] == "a-trier" and s["avis_julien"] == "oui" and s["avis_laetitia"] == "oui":
@@ -211,6 +215,48 @@ body.sortir .t-expo { --t: #4cc3d1; } body.sortir .t-resto-bar { --t: #ff8f5a; }
 body.sortir .t-atelier { --t: #f0c24b; } body.sortir .t-escapade { --t: #8fb3ff; }""") + """
 """
 
+# Les règles de la page sans DOM : testées telles quelles avec node (test_sortir.py), utilisées par SCRIPT_SORTIR.
+SCRIPT_REGLES_SORTIR = r"""
+function apresAvis(s, qui, avis) {
+    const n = Object.assign({}, s); n['avis_' + qui] = avis;
+    if (avis === null) { if (n.etat === 'ecartee' || n.etat === 'envie') n.etat = 'a-trier'; }
+    else if (avis === 'non') { if (n.etat === 'a-trier') n.etat = 'ecartee'; }
+    else if (n.etat === 'a-trier' && n.avis_julien === 'oui' && n.avis_laetitia === 'oui') n.etat = 'envie';
+    return n;
+}
+// Ma pile : à trier, pas encore jugée par moi, pas terminée ; plus récentes d'abord
+function pileATrier(sorties, qui, jour) {
+    return sorties.filter(function (s) { return s.etat === 'a-trier' && !s['avis_' + qui] && !(s.fin && s.fin < jour); })
+                  .sort(function (a, b) { return String(b.cree_le || '').localeCompare(String(a.cree_le || '')); });
+}
+// Envies : prévues (date à venir), puis finissent bientôt, puis récentes, puis terminées
+function enviesOrdonnees(sorties, jour, finProche) {
+    const liste = sorties.filter(function (s) { return s.etat === 'envie' || (s.etat === 'prevue' && !(s.le && s.le < jour)); });
+    const limite = new Date(Date.parse(jour + 'T00:00:00Z') + finProche * 86400000).toISOString().slice(0, 10);
+    function rang(s) {
+        if (s.etat === 'prevue') return 0;
+        if (s.fin && s.fin < jour) return 3;
+        if (s.fin && s.fin <= limite) return 1;
+        return 2;
+    }
+    return liste.sort(function (a, b) {
+        if (rang(a) !== rang(b)) return rang(a) - rang(b);
+        if (rang(a) === 0) return String(a.le || '9').localeCompare(String(b.le || '9'));
+        if (rang(a) === 1) return a.fin.localeCompare(b.fin);
+        return String(b.cree_le || '').localeCompare(String(a.cree_le || ''));
+    });
+}
+// Le texte de l'idée en phrases courtes, une par ligne
+function phrases(texte) {
+    return texte.split(/(?<=[.!?])\s+(?=[A-ZÀ-ÖØ-Þ~0-9(])/).map(function (p) { return p.trim().replace(/\.$/, ''); }).filter(Boolean);
+}
+// Carte lâchée après un glissement de dx pixels : 'oui' (droite), 'non' (gauche) ou null (elle revient)
+function sensGlisse(dx, largeur) {
+    if (Math.abs(dx) <= Math.min(110, largeur * 0.3)) return null;
+    return dx > 0 ? 'oui' : 'non';
+}
+"""
+
 SCRIPT_SORTIR = """(function () {
     const LIB = JSON.parse(document.getElementById('libelles').textContent);
     const FIN_PROCHE = JSON.parse(document.getElementById('reglages').textContent).fin_proche;
@@ -230,7 +276,11 @@ SCRIPT_SORTIR = """(function () {
     function jjmm(iso) { return iso.slice(8, 10) + '/' + iso.slice(5, 7); }
     function aujourdhui() { return d ? d.aujourd_hui : new Date().toISOString().slice(0, 10); }
     function message(texte) { clearTimeout(minuteurMessage); document.getElementById('message-sortir').textContent = texte || ''; }
-    function annonce(texte) { message(texte); minuteurMessage = setTimeout(function () { message(''); }, 2500); }
+    function annonce(texte, annuler) {
+        message(texte);
+        if (annuler) document.getElementById('message-sortir').append(' ', bouton('Annuler', 'lien-discret', annuler));
+        minuteurMessage = setTimeout(function () { message(''); }, annuler ? 4000 : 2500);
+    }
     function autre() { return qui === 'julien' ? 'Laetitia' : 'Julien'; }
     function sortie(id) { return d.sorties.filter(function (s) { return s.id === id; })[0]; }
 
@@ -256,13 +306,16 @@ SCRIPT_SORTIR = """(function () {
         Object.assign(s, champs); garder(); afficher();
         envoyer({ url: 'api/sorties/' + s.id, methode: 'POST', corps: champs, cle: 'sortie:' + s.id + ':' + cle }).then(relire, refuse);
     }
-    function donnerAvis(s, avis) {
-        s['avis_' + qui] = avis;
-        if (avis === 'non') { if (s.etat === 'a-trier') s.etat = 'ecartee'; }
-        else if (s.etat === 'a-trier' && s.avis_julien === 'oui' && s.avis_laetitia === 'oui') s.etat = 'envie';
-        annonce(avis === 'non' ? 'Écartée.' : s.etat === 'envie' ? 'Envie ! Partants tous les deux.' : 'En attente de ' + autre() + '.');
-        garder(); afficher();
+    function envoyerAvis(s, avis) {
         envoyer({ url: 'api/sorties/' + s.id + '/avis', methode: 'POST', corps: { qui: qui, avis: avis }, cle: 'avis:' + s.id + ':' + qui }).then(relire, refuse);
+    }
+    function donnerAvis(s, avis) {
+        const premier = !s['avis_' + qui];     // « Annuler » seulement sur un premier avis : il le retire
+        Object.assign(s, apresAvis(s, qui, avis));
+        annonce(avis === 'non' ? 'Écartée.' : s.etat === 'envie' ? 'Envie ! Partants tous les deux.' : 'En attente de ' + autre() + '.',
+                premier ? function () { Object.assign(s, apresAvis(s, qui, null)); message(''); garder(); afficher(); envoyerAvis(s, null); } : null);
+        garder(); afficher();
+        envoyerAvis(s, avis);
     }
 
     // --- Qui es-tu ? ---
@@ -280,10 +333,6 @@ SCRIPT_SORTIR = """(function () {
     }
 
     // --- Cartes ---
-    // Le texte de l'idée en phrases courtes, une par ligne : plus lisible qu'un bloc
-    function phrases(texte) {
-        return texte.split(/(?<=[.!?])\\s+(?=[A-ZÀ-ÖØ-Þ~0-9(])/).map(function (p) { return p.trim().replace(/\\.$/, ''); }).filter(Boolean);
-    }
     function carte(s) {
         const c = el('div', 'carte-sortie fiche t-' + (s.type || 'aucun') + (s.etat === 'prevue' ? ' prevue' : ''));
         const tete = el('div', 'tete-tri');
@@ -405,7 +454,8 @@ SCRIPT_SORTIR = """(function () {
             x0 = null; c.classList.remove('tire');
             if (!actif) return;
             actif = false;
-            if (Math.abs(dx) > Math.min(110, c.offsetWidth * 0.3)) partir(c, dx > 0 ? 'oui' : 'non', fin);
+            const sens = sensGlisse(dx, c.offsetWidth);
+            if (sens) partir(c, sens, fin);
             else poser(0);
         }
         c.addEventListener('pointerup', lacher);
@@ -414,10 +464,7 @@ SCRIPT_SORTIR = """(function () {
 
     // --- À trier ---
     function vueATrier(zone) {
-        const jour = aujourdhui();
-        function passee(s) { return s.fin && s.fin < jour ? 1 : 0; }
-        const pile = filtrer(d.sorties.filter(function (s) { return s.etat === 'a-trier' && !s['avis_' + qui]; }), zone)
-                              .sort(function (a, b) { return passee(a) - passee(b) || String(b.cree_le || '').localeCompare(String(a.cree_le || '')); });
+        const pile = filtrer(pileATrier(d.sorties, qui, aujourdhui()), zone);
         if (!pile.length) { zone.append(el('p', 'vide', 'Rien à trier.')); return; }
         const s = pile[0], c = carteTri(s), tas = el('div', 'tas');
         function fin(avis) { donnerAvis(s, avis); }
@@ -433,23 +480,7 @@ SCRIPT_SORTIR = """(function () {
     }
 
     // --- Envies ---
-    function enviesTriees() {
-        const jour = aujourdhui();
-        const liste = d.sorties.filter(function (s) { return s.etat === 'envie' || (s.etat === 'prevue' && !(s.le && s.le < jour)); });
-        const limite = new Date(Date.parse(jour + 'T00:00:00Z') + FIN_PROCHE * 86400000).toISOString().slice(0, 10);
-        function rang(s) {
-            if (s.etat === 'prevue') return 0;
-            if (s.fin && s.fin < jour) return 3;
-            if (s.fin && s.fin <= limite) return 1;
-            return 2;
-        }
-        return liste.sort(function (a, b) {
-            if (rang(a) !== rang(b)) return rang(a) - rang(b);
-            if (rang(a) === 0) return String(a.le || '9').localeCompare(String(b.le || '9'));
-            if (rang(a) === 1) return a.fin.localeCompare(b.fin);
-            return String(b.cree_le || '').localeCompare(String(a.cree_le || ''));
-        });
-    }
+    function enviesTriees() { return enviesOrdonnees(d.sorties, aujourdhui(), FIN_PROCHE); }
     function tirage() {
         tirageMessage = 'Tirage en cours…'; tirageCartes = []; afficher();
         fetch('api/sorties/weekend')
@@ -596,7 +627,7 @@ SCRIPT_SORTIR = """(function () {
         document.querySelectorAll('nav.vues button').forEach(function (b) { b.classList.toggle('actif', b.dataset.vue === vue); });
         const lien = document.getElementById('changer'); lien.hidden = !qui;
         if (!quiSuisJe(zone)) { document.getElementById('compte').textContent = ''; return; }
-        const n = d.sorties.filter(function (s) { return s.etat === 'a-trier' && !s['avis_' + qui]; }).length;
+        const n = pileATrier(d.sorties, qui, aujourdhui()).length;
         document.getElementById('compte').textContent = n ? ' (' + n + ')' : '';
         ({ 'a-trier': vueATrier, 'envies': vueEnvies, 'faites': vueFaites })[vue](zone);
     }
@@ -650,6 +681,7 @@ window.addEventListener('offline', majHorsLigne);
 majHorsLigne();
 viderFile();
 </script>
+<script>{SCRIPT_REGLES_SORTIR}</script>
 <script>{SCRIPT_SORTIR}</script>
 </body>
 </html>"""

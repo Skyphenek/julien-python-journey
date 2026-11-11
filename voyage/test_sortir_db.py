@@ -104,6 +104,11 @@ def test_api_sorties(client):
     assert client.post("/api/sorties", json={"titre": "", "source": "julien"}).status_code == 400
     assert client.post(f"/api/sorties/{i}/avis", json={"qui": "julien", "avis": "oui"}).get_json()["etat"] == "a-trier"
     assert client.post(f"/api/sorties/{i}/avis", json={"qui": "laetitia", "avis": "oui"}).get_json()["etat"] == "envie"
+    # « Annuler » juste après le vote : avis null, l'Envie revient à trier ; un avis absent est refusé
+    r3 = client.post(f"/api/sorties/{i}/avis", json={"qui": "laetitia", "avis": None}).get_json()
+    assert r3["etat"] == "a-trier" and r3["avis_laetitia"] is None
+    assert client.post(f"/api/sorties/{i}/avis", json={"qui": "laetitia"}).status_code == 400
+    assert client.post(f"/api/sorties/{i}/avis", json={"qui": "laetitia", "avis": "oui"}).get_json()["etat"] == "envie"
     assert client.post(f"/api/sorties/{i}", json={"etat": "prevue", "le": "2026-11-21"}).get_json()["le"] == "2026-11-21"
     assert client.post("/api/sorties/inconnue/avis", json={"qui": "julien", "avis": "oui"}).status_code == 404
     assert client.post(f"/api/sorties/{i}", json={"etat": "volee"}).status_code == 400

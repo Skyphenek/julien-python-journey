@@ -416,7 +416,9 @@ def creer_app(nom_base="valise", secret=None):
         conn = emprunter(app.config["NOM_BASE"])
         try:
             try:
-                sortie = donner_avis(conn, identifiant, corps.get("qui"), corps.get("avis"))
+                if "avis" not in corps:      # avis null = retirer son avis ; absent = requête incomplète
+                    raise ValueError("avis manquant")
+                sortie = donner_avis(conn, identifiant, corps.get("qui"), corps["avis"])
             except (ValueError, TypeError) as e:
                 conn.rollback()
                 return jsonify({"erreur": str(e)}), 400
