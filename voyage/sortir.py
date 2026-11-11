@@ -169,25 +169,32 @@ body.sortir .filtres button { flex: 0 0 auto; min-height: 36px; border-radius: 9
 body.sortir .filtres button[aria-pressed=true] { border-color: var(--sortir); background: var(--sortir-doux); color: var(--sortir); }
 body.sortir details.attente summary { font-weight: 800; font-size: 16px; padding: 10px 0; min-height: 44px; box-sizing: border-box; cursor: pointer; color: var(--doux); }
 body.sortir details.attente > div { display: flex; flex-direction: column; gap: 12px; }
+body.sortir .tas, body.sortir .indice, body.sortir .boutons.gros { width: 100%; max-width: 520px; box-sizing: border-box; }
 body.sortir .tas { position: relative; }
-body.sortir .carte-tri { position: relative; z-index: 2; padding: 0; gap: 0; overflow: hidden; touch-action: pan-y;
+body.sortir .carte-tri { position: relative; z-index: 2; padding: 18px 18px 20px; gap: 10px; overflow: hidden; touch-action: pan-y;
+                  border-top: 5px solid var(--t, var(--sortir)); box-shadow: 0 6px 20px rgba(0,0,0,.08);
                   user-select: none; -webkit-user-select: none; transition: transform .2s ease-out; }
 body.sortir .carte-tri.tire { transition: none; }
-body.sortir .carte-tri.derriere { position: absolute; inset: 0; z-index: 1; transform: scale(.95) translateY(12px); opacity: .55;
+body.sortir .carte-tri.derriere { position: absolute; inset: 0; z-index: 1; transform: translateY(18px) scale(.94); opacity: .5;
                   pointer-events: none; }
-body.sortir .bande { display: flex; justify-content: space-between; align-items: center; min-height: 44px; box-sizing: border-box;
-                  padding: 0 8px 0 18px; background: var(--t, var(--sortir)); color: var(--fond);
-                  font-weight: 800; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
-body.sortir .bande a.ouvrir { color: var(--fond); min-width: 44px; justify-content: center; font-size: 20px; text-decoration: none; }
-body.sortir .carte-tri .corps { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 8px; }
-body.sortir .reperes { margin: 0; color: var(--doux); font-weight: 700; font-size: 14px; }
+body.sortir .tete-tri { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: -4px 0 0; }
+body.sortir .type-tri { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 10px 4px 8px;
+                  background: color-mix(in srgb, var(--t, var(--sortir)) 16%, transparent); color: var(--t, var(--sortir));
+                  font-weight: 800; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+body.sortir .type-tri::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+body.sortir .carte-tri a.ouvrir { width: 40px; height: 40px; min-height: 40px; border-radius: 50%; justify-content: center;
+                  background: var(--sortir-doux); color: var(--sortir); font-size: 18px; text-decoration: none; }
+body.sortir .carte-tri h3 { font-size: 21px; line-height: 1.2; }
+body.sortir .reperes { margin: -2px 0 0; color: var(--doux); font-weight: 700; font-size: 14px; }
+body.sortir .carte-tri .infos { color: var(--doux); font-size: 15px; line-height: 1.45; }
 body.sortir .infos.coupe { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-body.sortir .carte-tri .lien-discret { align-self: flex-start; padding: 0; min-height: 32px; }
-body.sortir .tampon { position: absolute; top: 58px; padding: 4px 10px; border: 3px solid currentColor; border-radius: 10px;
+body.sortir .carte-tri .lien-discret { align-self: flex-start; padding: 0; min-height: 32px; margin-top: -4px; text-decoration: none;
+                  color: var(--sortir); font-weight: 700; }
+body.sortir .tampon { position: absolute; top: 16px; padding: 4px 10px; border: 3px solid currentColor; border-radius: 10px;
                   font-weight: 900; font-size: 18px; text-transform: uppercase; pointer-events: none; background: var(--carte); }
 body.sortir .tampon.oui { left: 14px; color: var(--sortir); transform: rotate(-12deg); opacity: var(--oui, 0); }
 body.sortir .tampon.non { right: 14px; color: var(--doux); transform: rotate(12deg); opacity: var(--non, 0); }
-body.sortir .indice { display: flex; justify-content: space-between; color: var(--doux); font-size: 13px; margin: 4px 6px -4px; }
+body.sortir .indice { display: flex; justify-content: space-between; color: var(--doux); font-size: 13px; margin: 6px 0 -4px; padding: 0 6px; }
 body.sortir .t-cine { --t: #374151; } body.sortir .t-theatre { --t: #9b2c4f; } body.sortir .t-concert { --t: #6d28d9; }
 body.sortir .t-expo { --t: #0b7a87; } body.sortir .t-resto-bar { --t: #c2410c; } body.sortir .t-balade { --t: #2f7d32; }
 body.sortir .t-atelier { --t: #8a5a00; } body.sortir .t-escapade { --t: #1d4ed8; }
@@ -325,28 +332,29 @@ SCRIPT_SORTIR = """(function () {
     // --- À trier : une carte à glisser (droite : ça me tente, gauche : bof), la suivante derrière ---
     function carteTri(s) {
         const c = el('div', 'carte-sortie carte-tri');
-        const bande = el('div', 'bande t-' + (s.type || 'aucun'), libelle('types', s.type) || 'Sortie');
+        c.classList.add('t-' + (s.type || 'aucun'));
+        const tete = el('div', 'tete-tri');
+        tete.append(el('span', 'type-tri', libelle('types', s.type) || 'Sortie'));
         if (s.lien) {
             const a = el('a', 'ouvrir', '\u2197'); a.href = s.lien; a.target = '_blank'; a.rel = 'noopener';
-            a.setAttribute('aria-label', 'Voir le site'); bande.append(a);
+            a.setAttribute('aria-label', 'Voir le site'); tete.append(a);
         }
-        const corps = el('div', 'corps');
-        corps.append(el('h3', '', s.titre));
+        c.append(tete, el('h3', '', s.titre));
         const jour = aujourdhui(), reperes = [libelle('budgets', s.budget), libelle('reservations', s.reservation)];
         if (s.fin) reperes.push((s.fin < jour ? 'terminé le ' : 'jusqu\\'au ') + jjmm(s.fin));
         else if (s.debut && s.debut > jour) reperes.push('à partir du ' + jjmm(s.debut));
         const r = reperes.filter(Boolean).join(' · ');
-        if (r) corps.append(el('p', 'reperes', r));
+        if (r) c.append(el('p', 'reperes', r));
         if (s.infos) {
             const t = el('p', 'infos coupe', s.infos);
-            corps.append(t);
+            c.append(t);
             if (s.infos.length > 140) {
                 const plus = bouton('Lire la suite', 'lien-discret', function () {
                     t.classList.toggle('coupe'); plus.textContent = t.classList.contains('coupe') ? 'Lire la suite' : 'Réduire'; });
-                corps.append(plus);
+                c.append(plus);
             }
         }
-        c.append(bande, corps, el('span', 'tampon oui', 'Ça me tente'), el('span', 'tampon non', 'Bof'));
+        c.append(el('span', 'tampon oui', 'Ça me tente'), el('span', 'tampon non', 'Bof'));
         return c;
     }
     function partir(c, avis, fin) {
