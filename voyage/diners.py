@@ -353,7 +353,7 @@ def compteur(repas, aujourd_hui):
 
 STYLE_DINERS = """
 body.diners { --rubrique: var(--diners); --rubrique-doux: var(--diners-doux); }
-nav.vues { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: var(--carte); border-radius: 18px;
+nav.vues { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: var(--carte); border-radius: 18px;
            padding: 4px; margin: 0 0 18px; position: sticky; top: 0; z-index: 5; }
 nav.vues button { border: none; background: none; border-radius: 14px; padding: 10px 4px; font-family: inherit; font-weight: 700;
                   font-size: 14px; color: var(--doux); }

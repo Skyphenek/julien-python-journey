@@ -138,6 +138,7 @@ def test_page_diners():
         assert f'data-vue="{vue}"' in html
     assert 'data-vue="carnet"' not in html and 'data-vue="a-tester"' not in html
     assert "function vueRecettes" in html and "function ordreRecettes" in html
+    assert "nav.vues { display: grid; grid-template-columns: repeat(3, 1fr)" in html            # 3 onglets, sans trou
     assert "function vueCarnet" not in html and "function vueATester" not in html
     assert "'nouvelles'" in html and "'Nouvelles'" in html
     assert "function icone" in html and "function points" in html and "aria-label" in html
