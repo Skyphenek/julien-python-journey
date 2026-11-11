@@ -53,6 +53,7 @@ ICONES_RUBRIQUE = {
 HUB = [
     ("aujourdhui", "Aujourd'hui", "./"),
     ("popote", "Popote", "diners"),                     # Dîners · Courses · Cave, onglets en haut des pages
+    ("sortir", "Sortir", "sortir"),
     ("budget", "Budget", "budget"),
     ("vadrouille", "Vadrouille", "vadrouille"),          # court : tient dans la barre du bas sur iPhone
 ]
@@ -64,6 +65,7 @@ ICONES_HUB = {
                              '<path d="M2 3h3l2.7 12.4a1 1 0 0 0 1 .8h9.6a1 1 0 0 0 1-.8L21 7H6"/>'),
     "cave": _TRAIT.format('<path d="M8 3h8l-.6 6.2a3.4 3.4 0 0 1-6.8 0z"/><path d="M12 12.6V20M8.5 20h7"/>'),
     "popote": _TRAIT.format('<path d="M7 3v7a2 2 0 0 0 4 0V3M9 10v11M17 3c-1.7 0-3 2-3 5s1.3 4 3 4v9"/>'),
+    "sortir": _TRAIT.format('<path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4z"/><path d="M14 6v12" stroke-dasharray="2 2"/>'),
     "budget": _TRAIT.format('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
     "vadrouille": ICONES_RUBRIQUE["valise"],
 }
@@ -131,9 +133,10 @@ def onglets_popote(actif):
 
 
 STYLE_NAV_HUB = """
-:root { --cave: #9b2c4f; --cave-doux: #fbe6ec; --courses: #0b7a87; --courses-doux: #e0f3f5; --diners: #c2410c; --diners-doux: #ffede3; --dore: #a67c00; }
+:root { --cave: #9b2c4f; --cave-doux: #fbe6ec; --courses: #0b7a87; --courses-doux: #e0f3f5; --diners: #c2410c; --diners-doux: #ffede3; --dore: #a67c00;
+         --sortir: #6d28d9; --sortir-doux: #f1eafe; }
 """ + sombre(""" :root { --cave: #f08aa8; --cave-doux: #3d1824; --courses: #4cc3d1; --courses-doux: #10343a;
-                                              --diners: #ff8f5a; --diners-doux: #3b1d0f; --dore: #f0c24b; } """) + """nav.hub { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; justify-content: center;
+                                              --diners: #ff8f5a; --diners-doux: #3b1d0f; --dore: #f0c24b; --sortir: #b794f6; --sortir-doux: #2a1a47; } """) + """nav.hub { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; justify-content: center;
           gap: 4px; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); background: var(--fond);
           border-top: 1px solid var(--ligne); }
 nav.hub a { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px;
@@ -143,6 +146,7 @@ nav.hub a.actif { color: var(--texte); font-weight: 800; }
 nav.hub a.actif .icone-hub { background: var(--c-doux); }
 nav.hub a[data-hub="aujourdhui"] { --c: var(--texte); --c-doux: var(--carte); }
 nav.hub a[data-hub="popote"] { --c: var(--diners); --c-doux: var(--diners-doux); }
+nav.hub a[data-hub="sortir"] { --c: var(--sortir); --c-doux: var(--sortir-doux); }
 nav.hub a[data-hub="budget"] { --c: var(--courses); --c-doux: var(--courses-doux); }
 nav.hub a[data-hub="vadrouille"] { --c: var(--valise); --c-doux: var(--valise-doux); }
 body.hub-page { position: relative; display: block; max-width: 720px; margin: 0 auto; padding: 28px 20px 110px; }   /* place pour la barre */

@@ -309,3 +309,26 @@ CREATE TABLE IF NOT EXISTS cave (
 );
 -- Le pays d'une bouteille étrangère (ajouté le 03/11/2026, avant la mise en ligne)
 ALTER TABLE cave ADD COLUMN IF NOT EXISTS pays TEXT NOT NULL DEFAULT 'France';
+
+-- Sortir : les envies du couple (ajouté le 11/11/2026)
+CREATE TABLE IF NOT EXISTS sorties (
+    id            TEXT        PRIMARY KEY,
+    titre         TEXT        NOT NULL,
+    type          TEXT,
+    budget        TEXT,
+    reservation   TEXT,
+    debut         DATE,
+    fin           DATE,
+    lien          TEXT        NOT NULL DEFAULT '',
+    infos         TEXT        NOT NULL DEFAULT '',
+    source        TEXT        NOT NULL,
+    avis_julien   TEXT        CHECK (avis_julien IN ('oui', 'non')),
+    avis_laetitia TEXT        CHECK (avis_laetitia IN ('oui', 'non')),
+    etat          TEXT        NOT NULL DEFAULT 'a-trier'
+                              CHECK (etat IN ('a-trier', 'envie', 'prevue', 'faite', 'ecartee')),
+    le            DATE,
+    pouce         TEXT        CHECK (pouce IN ('haut', 'bas')),
+    retour        TEXT        NOT NULL DEFAULT '',
+    cree_le       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    maj_le        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
