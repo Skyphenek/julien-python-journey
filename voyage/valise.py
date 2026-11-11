@@ -36,7 +36,7 @@ from vocabulaire import langues_du_voyage, bloc_vocabulaire, STYLE_VOCABULAIRE, 
 from a_voir import bloc_a_voir, STYLE_A_VOIR, SCRIPT_A_VOIR
 from souvenirs import bloc_souvenirs, idees_du_voyage, STYLE_SOUVENIRS, SCRIPT_SOUVENIRS
 from compte_a_rebours import compte_en_html, STYLE_COMPTE, SCRIPT_COMPTE
-from design import STYLE_D, STYLE_EPURE, TETE_POLICE, ICONES_RUBRIQUE, STYLE_NAV_HUB, nav_hub
+from design import STYLE_D, STYLE_EPURE, TETE_POLICE, ICONES_RUBRIQUE, STYLE_NAV_HUB, nav_hub, sombre
 
 # Fuseaux horaires : toujours la base du paquet tzdata (version figée dans requirements.txt),
 # jamais celle de la machine : celle de macOS ignorait encore le passage du Maroc à GMT
@@ -51,13 +51,12 @@ HTML_STYLE = """
     --fond: #f4f4f5; --carte: #ffffff; --texte: #18181b; --doux: #71717a; --ligne: #e4e4e7;
     --accent: #4f46e5; --accent-doux: #eef2ff; --ok: #16a34a;
 }
-@media (prefers-color-scheme: dark) {
+""" + sombre("""
     :root {
         --fond: #18181b; --carte: #27272a; --texte: #f4f4f5; --doux: #a1a1aa; --ligne: #3f3f46;
         --accent: #818cf8; --accent-doux: #312e81; --ok: #22c55e;
     }
-}
-* { box-sizing: border-box; }
+""") + """* { box-sizing: border-box; }
 body {
     font-family: -apple-system, system-ui, sans-serif;
     max-width: 640px; margin: 0 auto; padding: 1rem 1rem 3rem;
@@ -1646,7 +1645,7 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # 28 = adresse de l'icône versionnée (?v=vadrouille) : sinon iOS et Safari gardent l'ancienne.
 # 29 = Casa Binomerie (Aujourd'hui, Courses, Dîners) : jette les copies d'avant le hub.
 # 30 = Placard v2 (zones, bientôt fini, frais en habituels).
-VERSION_PAGE = 47
+VERSION_PAGE = 48
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
 RUBRIQUES = [("valise", "Valise"), ("avant", "Avant"), ("programme", "Programme"), ("sur-place", "Sur place"),
@@ -2497,10 +2496,9 @@ div.compteurs strong { color: var(--texte); }
 #carte { height: 240px; border-radius: 14px; margin-bottom: .4rem; z-index: 0; }
 p.legende { font-size: .75rem; color: var(--doux); margin: 0 0 .6rem; }
 p.legende .avenir { color: var(--accent); } p.legende .passe { color: #9ca3af; }
-@media (prefers-color-scheme: dark) {     /* fond de carte sombre, comme le reste de l'app */
+""" + sombre("""     /* fond de carte sombre, comme le reste de l'app */
   #carte .leaflet-tile { filter: invert(1) hue-rotate(180deg) brightness(.95) contrast(.9); }
-}
-"""
+""")
 
 SCRIPT_CARTE = """
 (function () {

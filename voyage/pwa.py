@@ -25,8 +25,18 @@ def manifeste():
     }
 
 
+# Le thème choisi (bouton de la navigation), appliqué avant l'affichage : pas d'éclair de l'autre couleur
+TETE_THEME = """<script>(function () { try {
+    const t = localStorage.getItem('casa-theme');
+    if (t === 'clair' || t === 'sombre') {
+        document.documentElement.dataset.theme = t === 'clair' ? 'light' : 'dark';
+        document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
+    }
+} catch (e) {} })();</script>"""
+
 # Injectée dans le <head> de chaque page (Aujourd'hui, voyages, voyage, formulaire)
-TETE_PWA = f"""<link rel="manifest" href="manifest.webmanifest">
+TETE_PWA = f"""{TETE_THEME}
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icone-180.png?v={VERSION_ICONE}">
 <link rel="icon" type="image/png" href="icone-192.png?v={VERSION_ICONE}">
 <meta name="theme-color" content="{COULEUR}">

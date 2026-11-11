@@ -134,14 +134,35 @@ def test_page_diners():
     html = diners_en_html()
     assert "<title>Dîners · Casa Binomerie</title>" in html
     assert 'data-hub="diners" class="actif"' in html
-    for vue in ("ce-soir", "semaine", "carnet", "a-tester"):
+    for vue in ("ce-soir", "semaine", "recettes"):
         assert f'data-vue="{vue}"' in html
+    assert 'data-vue="carnet"' not in html and 'data-vue="a-tester"' not in html
+    assert "function vueRecettes" in html and "function ordreRecettes" in html
+    assert "nav.vues { display: grid; grid-template-columns: repeat(3, 1fr)" in html            # 3 onglets, sans trou
+    assert "div.filtres.etiquettes { flex-wrap: nowrap; overflow-x: auto;" in html            # étiquettes sur une ligne
+    assert "el('div', 'segments')" in html and "'Accomp.'" in html and "if (e[0] === 'tout') return;" in html
+    assert "function vueCarnet" not in html and "function vueATester" not in html
+    assert "'nouvelles'" in html and "'Nouvelles'" in html
+    assert "function icone" in html and "function points" in html and "aria-label" in html
+    assert '<template id="reperes">' in html and "setAttribute('role', 'img')" in html
+    for signe in ("✦", "⚡", "⏳"):
+        assert signe not in html, signe
+    for signe in ("'Ⓙ'", "'Ⓛ'", "'●'", "'○'"):
+        assert signe in html, signe
+    for cle in ("nouvelle", "eclair", "sablier"):
+        assert f'data-icone="{cle}"' in html
+    assert "faite souvent" in html and "'faisable ce soir'" in html and "'finit un produit'" in html
+    assert "el('span', 'badge', 'secours')" not in html and "badge julien" not in html
+    assert "On l\\'a déjà faite" in html and "'Archiver'" in html and "'Désarchiver'" in html
+    assert "au carnet" not in html and "Retirer du carnet" not in html
+    assert "'recette à écrire'" in html
+    assert "carnet: 'recettes', 'a-tester': 'recettes'" in html                       # anciens liens
     assert "function envoyerOuGarder" in html and "wakeLock" in html
     assert "api/diners/proposer" in html and "Proposer ma semaine" in html and "Reproposer" in html   # A
     assert "function ouvrirChoix" in html and "function barreEtiquettes" in html                       # B
     for e in ("rapide", "nous", "julien", "air-fryer", "poisson", "legumes"):
         assert f"'{e}'" in html
-    assert "badge julien" in html and "pour: pour.value" in html                                        # D
+    assert "pour: pour.value" in html                                                                   # D
     assert '<script type="application/json" id="prix">' in html and "function compteurDiners" in html     # C
     assert "Déjà sur la liste" in html and "À acheter" in html and "manquants aux courses" in html      # E
     assert "Au hasard parmi" in html and "'laetitia'" in html and "Laetitia seule" in html
@@ -437,3 +458,8 @@ def test_proposer_a_finir_respecte_reproposer_et_la_cible():
     assert list(q) == [jour]                                         # Reproposer ne touche qu'au jour demandé
     plein = [diner(LUN + timedelta(days=i), f"plat-carnet-{i:02d}") for i in range(4)]
     assert proposer(plats, plein, SEMAINE, LUN, a_finir=[("cuisses de poulet", LUN + timedelta(days=5))]) == {}
+
+
+def test_version_page_recettes():
+    from valise import VERSION_PAGE
+    assert VERSION_PAGE >= 48

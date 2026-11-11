@@ -1,7 +1,7 @@
 """Casa Binomerie — Dîners : le carnet de recettes, la semaine, le secours et le compteur Deliveroo.
 
-- plats : le carnet (statut 'carnet') et les envies du Match des Recettes ('a-tester'). Un plat à
-  tester passe au carnet quand un repas où on l'a prévu est marqué « fait maison » (db.enregistrer_repas).
+- plats : les recettes ; `statut` 'carnet' = connue, 'a-tester' = nouvelle (badge), passe à 'carnet' quand un
+  repas où on l'a prévue est marqué « fait maison » (db.enregistrer_repas).
 - repas : un dîner par jour, un déjeuner ou un brunch à la demande — plusieurs plats, et ce qui s'est vraiment
   passé (fait, commandé, dehors, autre). Le dîner est la mesure du succès : ≤ 1 commande par semaine
   (départ : 3, le 28/10/2026).
@@ -12,7 +12,7 @@ import re
 from datetime import date, timedelta
 
 from courses import normaliser, STYLE_COURSES
-from design import STYLE_D, STYLE_NAV_HUB, TETE_POLICE, nav_hub
+from design import STYLE_D, STYLE_NAV_HUB, TETE_POLICE, nav_hub, ICONES_REPERE
 from pwa import TETE_PWA, SCRIPT_FILE
 
 _ID = re.compile(r"[A-Za-z0-9-]{8,64}")
@@ -353,7 +353,7 @@ def compteur(repas, aujourd_hui):
 
 STYLE_DINERS = """
 body.diners { --rubrique: var(--diners); --rubrique-doux: var(--diners-doux); }
-nav.vues { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: var(--carte); border-radius: 18px;
+nav.vues { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: var(--carte); border-radius: 18px;
            padding: 4px; margin: 0 0 18px; position: sticky; top: 0; z-index: 5; }
 nav.vues button { border: none; background: none; border-radius: 14px; padding: 10px 4px; font-family: inherit; font-weight: 700;
                   font-size: 14px; color: var(--doux); }
@@ -383,6 +383,11 @@ button.plein { border: none; background: var(--diners); color: #ffffff; border-r
                font-family: inherit; font-weight: 800; font-size: 15px; }
 span.badge { font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--diners);
              background: var(--diners-doux); border-radius: 999px; padding: 2px 8px; margin-left: 6px; }
+span.repere { margin-left: 6px; font-size: 14px; line-height: 1; white-space: nowrap; }
+span.repere.nouvelle { color: var(--dore); font-size: 16px; }
+span.repere.points { color: var(--diners); font-size: 10px; letter-spacing: 1px; vertical-align: 2px; }
+span.repere.qui { color: var(--doux); font-size: 16px; }
+p.legende-reperes { font-size: 12px; color: var(--doux); margin: 10px 4px 0; line-height: 1.5; }
 input.recherche { width: 100%; font-family: inherit; font-size: 17px; padding: 12px 16px; border-radius: 999px;
                   border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte); }
 div.filtres { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -405,7 +410,17 @@ div.ingredients span.ok::before { content: "✓ "; color: var(--courses); font-w
 div.ingredients span.liste { background: var(--courses-doux); color: var(--courses); }
 div.ingredients span small { opacity: .75; margin-left: 4px; }
 div.filtres.etiquettes button span { font-weight: 600; opacity: .7; margin-left: 4px; }
-span.badge.julien { color: var(--doux); background: var(--carte); border: 1px solid var(--ligne); }
+div.filtres.etiquettes { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -20px; padding: 0 20px; }
+div.filtres.etiquettes::-webkit-scrollbar { display: none; }
+div.filtres.etiquettes button { flex: 0 0 auto; border-width: 1.5px; background: transparent; font-weight: 600; font-size: 13px;
+                                padding: 5px 11px; }
+div.filtres.etiquettes button.actif { background: var(--diners); border-color: var(--diners); color: #ffffff; }
+div.filtres.etiquettes button span { font-size: 11px; opacity: .6; }
+div.segments { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; background: var(--carte);
+               border-radius: 14px; padding: 3px; }
+div.segments button { border: none; background: none; border-radius: 11px; padding: 7px 2px; font-family: inherit;
+                      font-weight: 700; font-size: 13px; color: var(--doux); white-space: nowrap; }
+div.segments button.actif { background: var(--fond); color: var(--diners); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
 div.jour-repas { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-top: 1px solid var(--ligne); }
 div.jour-repas:first-of-type { border-top: none; }
 div.jour-repas .quand { font-weight: 800; font-size: 15px; }
@@ -503,10 +518,10 @@ SCRIPT_DINERS = """
     const CLE_COPIE = 'diners:copie';
     let d = null;                                         // ce que renvoie api/diners
     let vue = 'ce-soir', filtre = 'tout', recherche = '';
-    const etiquette = { carnet: 'tout', 'a-tester': 'tout', choix: 'nous' };   // un filtre par liste ; un soir : à deux
+    const etiquette = { recettes: 'tout', choix: 'nous' };   // un filtre par liste ; un soir : à deux
     let derniereProposition = {};                         // {jour: 'plat accompagnement'} : ce que « Reproposer » peut changer
     let messageSemaine = '';
-    const ETIQUETTES = [['tout', 'Tout'], ['rapide', 'Rapide'], ['nous', 'Nous deux'], ['julien', 'Julien'], ['laetitia', 'Laetitia'],
+    const ETIQUETTES = [['tout', 'Tout'], ['nouvelles', 'Nouvelles'], ['rapide', 'Rapide'], ['nous', 'Nous deux'], ['julien', 'Julien'], ['laetitia', 'Laetitia'],
                         ['air-fryer', 'Air fryer'], ['poisson', 'Poisson'], ['legumes', 'Légumes'], ['brunch', 'Brunch']];
     // Brunch : les recettes « brunch- » et celles du carnet qui s'y prêtent
     const BRUNCH = ['plat-oeufs-brouilles', 'plat-oeuf-coque', 'plat-oeuf-cocotte', 'tester-pancakes', 'tester-shakshuka', 'mer-bagel-saumon'];
@@ -566,6 +581,7 @@ SCRIPT_DINERS = """
     }
     function aEtiquette(p, e) {
         if (e === 'tout') return true;
+        if (e === 'nouvelles') return p.statut === 'a-tester';
         if (e === 'rapide') return p.minutes <= 20;
         if (e === 'nous' || e === 'julien' || e === 'laetitia') return (p.pour || 'nous') === e;
         if (e === 'air-fryer') return /air fryer/i.test(p.nom);
@@ -582,9 +598,11 @@ SCRIPT_DINERS = """
     function barreEtiquettes(contexte, liste, rafraichir) {
         const f = el('div', 'filtres etiquettes');
         ETIQUETTES.forEach(function (e) {
+            if (e[0] === 'tout') return;                       // pas de pastille « Tout » : un 2e appui sur l'active la retire
             const n = liste.filter(function (p) { return aEtiquette(p, e[0]); }).length;
-            if (!n && e[0] !== 'tout' && etiquette[contexte] !== e[0]) return;
-            const b = bouton(e[1], etiquette[contexte] === e[0] ? 'actif' : '', function () { etiquette[contexte] = e[0]; rafraichir(); });
+            if (!n && etiquette[contexte] !== e[0]) return;
+            const b = bouton(e[1], etiquette[contexte] === e[0] ? 'actif' : '', function () {
+                etiquette[contexte] = etiquette[contexte] === e[0] ? 'tout' : e[0]; rafraichir(); });
             b.setAttribute('aria-pressed', String(etiquette[contexte] === e[0]));
             b.append(el('span', '', String(n)));
             f.append(b);
@@ -633,14 +651,32 @@ SCRIPT_DINERS = """
     }
 
     // --- Vues ---
+    // Recettes : les plus faites, puis les connues (A → Z), puis les nouvelles, recette écrite d'abord
+    function rangRecette(p) { return p.statut === 'a-tester' ? (p.recette ? 2 : 3) : (p.faits ? 0 : 1); }
+    function ordreRecettes(a, b) {
+        return rangRecette(a) - rangRecette(b) || (b.faits || 0) - (a.faits || 0) || a.nom.localeCompare(b.nom, 'fr');
+    }
+    // Les repères d'une recette en icônes ; le mot reste pour le lecteur d'écran et au survol
+    // `signe` : une clé du <template id="reperes"> (icône SVG), sinon du texte
+    const CLES_REPERES = ['nouvelle', 'eclair', 'sablier'];
+    function clone(cle) { return document.getElementById('reperes').content.querySelector('[data-icone="' + cle + '"]').cloneNode(true); }
+    function icone(signe, mot, classe) {
+        const s = el('span', 'repere' + (classe ? ' ' + classe : ''));
+        if (CLES_REPERES.indexOf(signe) >= 0) s.append(clone(signe)); else s.append(signe);
+        s.setAttribute('role', 'img'); s.setAttribute('aria-label', mot); s.title = mot;
+        return s;
+    }
+    function points(n) { const k = n >= 5 ? 4 : n >= 3 ? 3 : n; return '●'.repeat(k) + '○'.repeat(4 - k); }
     function lignePlat(p, extra) {
         const li = el('li');
         const o = bouton('', 'ouvrir', function () { ouvrirFiche(p.id); });
         const nom = el('span', 'nom', p.nom);
-        if (d.secours.faisables.indexOf(p.id) >= 0) nom.append(el('span', 'badge', 'secours'));
-        if ((d.a_finir || []).indexOf(p.id) >= 0) nom.append(el('span', 'badge', 'à finir'));
-        if (p.pour === 'julien') nom.append(el('span', 'badge julien', 'Julien'));
-        if (p.pour === 'laetitia') nom.append(el('span', 'badge julien', 'Laetitia'));
+        if (p.statut === 'a-tester') nom.append(icone('nouvelle', 'nouvelle', 'nouvelle'));
+        else if (p.faits) nom.append(icone(points(p.faits), 'faite ' + p.faits + ' fois', 'points'));
+        if (d.secours.faisables.indexOf(p.id) >= 0) nom.append(icone('eclair', 'faisable ce soir'));
+        if ((d.a_finir || []).indexOf(p.id) >= 0) nom.append(icone('sablier', 'finit un produit'));
+        if (p.pour === 'julien') nom.append(icone('Ⓙ', 'pour Julien', 'qui'));
+        if (p.pour === 'laetitia') nom.append(icone('Ⓛ', 'pour Laetitia', 'qui'));
         const meta = el('span', 'meta', NOMS_GENRE[p.genre] + ' · ' + duree(p.minutes) + (p.cout ? ' · ≈ ' + euros(p.cout) : ''));
         if (extra) { meta.append(' · '); meta.append(extra); }
         o.append(nom, meta);
@@ -820,62 +856,39 @@ SCRIPT_DINERS = """
                 }, function () { msg.textContent = 'Pas de réseau : réessaie une fois connecté.'; });
         }), msg);
     }
-    function vueCarnet(zone) {
+    function vueRecettes(zone) {
         const r = el('input', 'recherche'); r.type = 'search'; r.placeholder = 'Chercher un plat ou un ingrédient';
         r.value = recherche; r.setAttribute('aria-label', 'Chercher');
-        const f = el('div', 'filtres');
+        const f = el('div', 'segments');                       // le genre : une barre segmentée, comme les onglets
         [['tout', 'Tout']].concat(GENRES).forEach(function (g) {
-            const b = bouton(g[1], filtre === g[0] ? 'actif' : '', function () { filtre = g[0]; afficher(); });
+            const b = bouton(g[0] === 'accompagnement' ? 'Accomp.' : g[1], filtre === g[0] ? 'actif' : '', function () { filtre = g[0]; afficher(); });
+            b.setAttribute('aria-pressed', String(filtre === g[0]));
             f.append(b);
         });
         const ul = el('ul', 'plats');
-        const carnet = d.plats.filter(function (p) { return p.statut === 'carnet' && !p.archive; });
+        const toutes = d.plats.filter(function (p) { return !p.archive; });
         const zoneEtiquettes = el('div');
         function remplir() {
             ul.replaceChildren();
             const q = normaliser(recherche);
-            const parGenre = carnet.filter(function (p) { return (filtre === 'tout' || p.genre === filtre) && correspond(p, q); });
-            zoneEtiquettes.replaceChildren(barreEtiquettes('carnet', parGenre, remplir));
-            parGenre.filter(function (p) { return aEtiquette(p, etiquette.carnet); })
-              .sort(function (a, b) { return a.nom.localeCompare(b.nom, 'fr'); })
-              .forEach(function (p) { ul.append(lignePlat(p)); });
+            const parGenre = toutes.filter(function (p) { return (filtre === 'tout' || p.genre === filtre) && correspond(p, q); });
+            zoneEtiquettes.replaceChildren(barreEtiquettes('recettes', parGenre, remplir));
+            parGenre.filter(function (p) { return aEtiquette(p, etiquette.recettes); })
+                .sort(ordreRecettes)
+                .forEach(function (p) { ul.append(lignePlat(p, p.statut === 'a-tester' && !p.recette ? 'recette à écrire' : undefined)); });
             if (!ul.children.length) ul.append(el('li', 'meta', 'Aucune recette ne correspond.'));
         }
         r.addEventListener('input', function () { recherche = r.value; remplir(); });
         remplir();
-        const e = el('div', 'encart'); e.append(ul);
+        const e = el('div', 'encart');
+        const legende = el('p', 'legende-reperes');
+        legende.append(clone('nouvelle'), ' nouvelle · ●●● faite souvent · ', clone('eclair'), ' faisable ce soir · ',
+                       clone('sablier'), ' finit un produit · Ⓙ Ⓛ pour Julien / Laetitia');
+        e.append(ul, legende);
         zone.append(r, f, zoneEtiquettes, bouton('+ Nouvelle recette', 'plein', function () { ouvrirEdition(null); }), e);
     }
-    function vueATester(zone) {
-        const tous = d.plats.filter(function (p) { return p.statut === 'a-tester' && !p.archive; });
-        const r = el('input', 'recherche'); r.type = 'search'; r.placeholder = 'Chercher un plat ou un ingrédient';
-        r.value = recherche; r.setAttribute('aria-label', 'Chercher');
-        const f = el('div', 'filtres');
-        [['tout', 'Tout']].concat(GENRES).forEach(function (g) {
-            f.append(bouton(g[1], filtre === g[0] ? 'actif' : '', function () { filtre = g[0]; afficher(); }));
-        });
-        const e = el('div', 'encart');
-        e.append(el('h2', '', 'À tester'),
-                 el('p', 'aide', 'Prévoyez-en un dans la semaine : une fois fait maison, il rejoint le carnet.'));
-        const zoneEtiquettes = el('div');
-        const ul = el('ul', 'plats');
-        function remplir() {
-            ul.replaceChildren();
-            const q = normaliser(recherche);
-            const parGenre = tous.filter(function (p) { return (filtre === 'tout' || p.genre === filtre) && correspond(p, q); });
-            zoneEtiquettes.replaceChildren(barreEtiquettes('a-tester', parGenre, remplir));
-            parGenre.filter(function (p) { return aEtiquette(p, etiquette['a-tester']); })
-                .sort(function (a, b) { return (b.recette ? 1 : 0) - (a.recette ? 1 : 0) || a.nom.localeCompare(b.nom, 'fr'); })
-                .forEach(function (p) { ul.append(lignePlat(p, p.recette ? undefined : 'recette à écrire')); });
-            if (!ul.children.length) ul.append(el('li', 'meta', 'Aucune recette ne correspond.'));
-        }
-        r.addEventListener('input', function () { recherche = r.value; remplir(); });
-        remplir();
-        e.append(ul);
-        zone.append(r, f, zoneEtiquettes, e);
-    }
 
-    // Ajouter un plat d'un genre à un repas : la même recherche et les mêmes étiquettes, carnet d'abord
+    // Ajouter un plat d'un genre à un repas : la même recherche et les mêmes étiquettes, dans l'ordre des Recettes
     function ouvrirChoix(iso, moment, genre) {
         ouverte = { id: null, edition: false };
         const c = document.querySelector('#panneau .contenu'); c.replaceChildren();
@@ -907,24 +920,19 @@ SCRIPT_DINERS = """
             hasard.textContent = 'Au hasard parmi ' + affiches.length;
             zoneEtiquettes.replaceChildren(barreEtiquettes('choix', trouves, remplir));
             listes.replaceChildren();
-            [['carnet', 'Carnet'], ['a-tester', 'À tester']].forEach(function (g) {
-                const ul = el('ul', 'plats');
-                trouves.filter(function (p) { return p.statut === g[0] && aEtiquette(p, etiquette.choix); })
-                    .sort(function (a, b) { return a.nom.localeCompare(b.nom, 'fr'); })
-                    .forEach(function (p) {
-                        const li = lignePlat(p);
-                        li.querySelector('button.ouvrir').replaceWith(li.querySelector('button.ouvrir').cloneNode(true));
-                        if (plein || dansRepas.indexOf(p.id) >= 0) {
-                            li.querySelector('button.ouvrir').disabled = true;
-                            if (dansRepas.indexOf(p.id) >= 0) li.querySelector('.nom').append(el('span', 'badge', 'au menu'));
-                        } else {
-                            li.querySelector('button.ouvrir').addEventListener('click', function () { ajouterPlat(iso, moment, p.id); fermer(); });
-                        }
-                        ul.append(li);
-                    });
-                if (!ul.children.length) return;
-                const e = el('div', 'encart'); e.append(el('h2', '', g[1]), ul); listes.append(e);
+            const ul = el('ul', 'plats');
+            affiches.slice().sort(ordreRecettes).forEach(function (p) {
+                const li = lignePlat(p);
+                li.querySelector('button.ouvrir').replaceWith(li.querySelector('button.ouvrir').cloneNode(true));
+                if (plein || dansRepas.indexOf(p.id) >= 0) {
+                    li.querySelector('button.ouvrir').disabled = true;
+                    if (dansRepas.indexOf(p.id) >= 0) li.querySelector('.nom').append(el('span', 'badge', 'au menu'));
+                } else {
+                    li.querySelector('button.ouvrir').addEventListener('click', function () { ajouterPlat(iso, moment, p.id); fermer(); });
+                }
+                ul.append(li);
             });
+            if (ul.children.length) listes.append(ul);
             if (!listes.children.length) listes.append(el('p', 'aide', 'Aucune recette ne correspond.'));
         }
         r.addEventListener('input', function () { q = r.value; remplir(); });
@@ -1094,7 +1102,7 @@ SCRIPT_DINERS = """
             ajouterAuxCourses(manquants, 'plat:' + p.id);
             d.liste = (d.liste || []).concat(manquants.map(normaliser)); garder();
             ev.target.textContent = 'Ajouté aux courses'; ev.target.disabled = true; }));
-        if (p.statut === 'a-tester') act.append(bouton('On l\\'a fait : au carnet', 'petit', function () {
+        if (p.statut === 'a-tester') act.append(bouton('On l\\'a déjà faite', 'petit', function () {
             enregistrerPlat(Object.assign({}, p, { statut: 'carnet' })); fermer(); }));
         c.append(act);
         document.getElementById('panneau').hidden = false;
@@ -1168,7 +1176,7 @@ SCRIPT_DINERS = """
         const act = el('div', 'actions');
         const ok = el('button', 'plein', 'Enregistrer'); ok.type = 'submit';
         act.append(ok);
-        if (id) act.append(bouton(p.archive ? 'Remettre au carnet' : 'Retirer du carnet', 'petit', function () {
+        if (id) act.append(bouton(p.archive ? 'Désarchiver' : 'Archiver', 'petit', function () {
             enregistrerPlat(Object.assign({}, p, { archive: !p.archive })); fermer(); }));
         f.append(act);
         f.addEventListener('submit', function (ev) {
@@ -1187,16 +1195,16 @@ SCRIPT_DINERS = """
         if (!d) return;
         document.querySelectorAll('nav.vues button').forEach(function (b) { b.classList.toggle('actif', b.dataset.vue === vue); });
         const zone = document.getElementById('vue'); zone.replaceChildren();
-        ({ 'ce-soir': vueCeSoir, 'semaine': vueSemaine, 'carnet': vueCarnet, 'a-tester': vueATester })[vue](zone);
+        ({ 'ce-soir': vueCeSoir, 'semaine': vueSemaine, 'recettes': vueRecettes })[vue](zone);
     }
     document.querySelectorAll('nav.vues button').forEach(function (b) {
         b.addEventListener('click', function () { vue = b.dataset.vue; afficher(); try { history.replaceState(null, '', '#' + vue); } catch (e) {} });
     });
-    const VUES = ['ce-soir', 'semaine', 'carnet', 'a-tester'];
-    if (VUES.indexOf(location.hash.slice(1)) >= 0) vue = location.hash.slice(1);
-    window.addEventListener('hashchange', function () {
-        if (VUES.indexOf(location.hash.slice(1)) >= 0) { vue = location.hash.slice(1); afficher(); }
-    });
+    const VUES = ['ce-soir', 'semaine', 'recettes'];
+    const ANCIENNES = { carnet: 'recettes', 'a-tester': 'recettes' };           // liens et favoris d'avant la fusion
+    function vueDuLien() { const h = location.hash.slice(1); return ANCIENNES[h] || (VUES.indexOf(h) >= 0 ? h : null); }
+    if (vueDuLien()) vue = vueDuLien();
+    window.addEventListener('hashchange', function () { if (vueDuLien()) { vue = vueDuLien(); afficher(); } });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && ouverte) fermer(); });
     document.addEventListener('visibilitychange', function () {
         if (document.hidden) return;
@@ -1215,8 +1223,9 @@ def diners_en_html():
     from prix_paris import PRIX
     genres = json.dumps(GENRES, ensure_ascii=False)
     prix = json.dumps(PRIX, ensure_ascii=False)
+    reperes = "".join(svg.replace("<svg ", f'<svg data-icone="{cle}" ', 1) for cle, svg in ICONES_REPERE.items())
     vues = "".join(f'<button type="button" data-vue="{v}">{t}</button>'
-                   for v, t in [("ce-soir", "Ce soir"), ("semaine", "Semaine"), ("carnet", "Carnet"), ("a-tester", "À tester")])
+                   for v, t in [("ce-soir", "Ce soir"), ("semaine", "Semaine"), ("recettes", "Recettes")])
     return f"""<!doctype html>
 <html lang="fr">
 <head>
@@ -1231,9 +1240,10 @@ def diners_en_html():
 <h1>Dîners</h1>
 <div id="hors-ligne" hidden></div>
 <nav class="vues">{vues}</nav>
-<div id="vue" class="vue"><p class="vide-courses">Chargement du carnet…</p></div>
+<div id="vue" class="vue"><p class="vide-courses">Chargement des recettes…</p></div>
 <div class="panneau" id="panneau" hidden><div class="contenu"></div></div>
 {nav_hub("diners")}
+<template id="reperes">{reperes}</template>
 <script type="application/json" id="genres">{genres}</script>
 <script type="application/json" id="prix">{prix}</script>
 <script>{SCRIPT_FILE}

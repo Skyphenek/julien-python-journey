@@ -199,3 +199,18 @@ def test_page_budget(client):
     html = client.get("/budget").get_data(as_text=True)
     assert "<h1>Budget</h1>" in html and 'data-hub="budget" class="actif"' in html
     assert '<a class="bloc-budget" href="budget">' in client.get("/").get_data(as_text=True)
+
+
+def test_compter_faits(conn):
+    from db import compter_faits
+    enregistrer_repas(conn, {"jour": J - timedelta(days=2), "moment": "diner", "plats": ["plat-carbonara"], "issue": "fait"})
+    enregistrer_repas(conn, {"jour": J - timedelta(days=1), "moment": "diner", "plats": ["plat-carbonara"], "issue": "fait"})
+    enregistrer_repas(conn, {"jour": J, "moment": "diner", "plats": ["plat-carbonara"], "issue": None})      # pas fait
+    assert compter_faits(conn) == {"plat-carbonara": 2}
+
+
+def test_api_diners_faits(client, conn):
+    enregistrer_repas(conn, {"jour": J - timedelta(days=1), "moment": "diner", "plats": ["plat-carbonara"], "issue": "fait"})
+    plats = {p["id"]: p for p in client.get("/api/diners").get_json()["plats"]}
+    assert plats["plat-carbonara"]["faits"] == 1
+    assert all(p["faits"] == 0 for i, p in plats.items() if i != "plat-carbonara")

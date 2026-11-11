@@ -100,7 +100,7 @@ def test_reprise_de_depart():
 from cave import cave_en_html
 import re
 
-EMOJI = re.compile("[\U0001F300-\U0001FAFF☀-➿]")
+EMOJI = re.compile("[\U0001F300-\U0001FAFF⌚⌛⏩-⏺☀-➿]")
 
 
 def test_page_cave():

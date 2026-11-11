@@ -25,7 +25,7 @@ def test_le_hub_commence_par_aujourd_hui_et_finit_par_la_vadrouille():
 
 def test_nav_marque_l_entree_active():
     nav = nav_hub("vadrouille")
-    assert nav.startswith('<nav class="hub">')
+    assert '<nav class="hub">' in nav and nav.startswith('<button type="button" class="theme"')
     assert '<a href="vadrouille" data-hub="vadrouille" class="actif" aria-current="page">' in nav
     assert '<a href="./" data-hub="aujourdhui">' in nav
 

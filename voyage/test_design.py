@@ -43,7 +43,7 @@ def test_accueil_au_design_d():
 # --- Sans emojis, Sur place épuré (maquette D) ---
 import re
 from valise import formulaire_en_html
-EMOJI = re.compile("[\U0001F300-\U0001FAFF☀-⛿⬀-⯿✀-✒✔✖-➿]")
+EMOJI = re.compile("[\U0001F300-\U0001FAFF⌚⌛⏩-⏺☀-⛿⬀-⯿✀-✒✔✖-➿]")
 
 
 def page_complete():
@@ -56,7 +56,8 @@ def page_complete():
 
 
 def test_aucun_emoji_dans_les_pages():
-    for html in (page_complete(), accueil_en_html([], date(2026, 10, 28)), formulaire_en_html()):
+    from diners import diners_en_html
+    for html in (page_complete(), accueil_en_html([], date(2026, 10, 28)), formulaire_en_html(), diners_en_html()):
         assert EMOJI.findall(html) == []
 
 
@@ -80,3 +81,32 @@ def test_nom_en_vadrouille():
     assert manifeste()["name"] == "Casa Binomerie" and manifeste()["short_name"] == "Binomerie"   # le hub
     assert "<h1>En Vadrouille</h1>" in accueil_en_html([], date(2026, 10, 28))
     assert "· En Vadrouille</title>" in page() and "Nos valises" not in page()
+
+
+def test_sombre_double_chaque_regle():
+    from design import sombre
+    css = sombre(":root { --a: 1; } div.x, p { color: red; }")
+    assert css.startswith("@media (prefers-color-scheme: dark) {")
+    assert ':root:not([data-theme="light"]) { --a: 1; }' in css
+    assert ':root:not([data-theme="light"]) div.x, :root:not([data-theme="light"]) p { color: red; }' in css
+    assert ':root[data-theme="dark"] { --a: 1; }' in css
+    assert ':root[data-theme="dark"] div.x, :root[data-theme="dark"] p { color: red; }' in css
+
+
+def test_plus_aucun_mode_sombre_qui_ignore_le_choix():
+    import design, valise
+    styles = [v for k, v in vars(design).items() if k.startswith("STYLE_") and isinstance(v, str)]
+    styles += [valise.HTML_STYLE] + [v for k, v in vars(valise).items() if k.endswith("_STYLE") and isinstance(v, str)]
+    for s in styles:
+        assert s.count("@media (prefers-color-scheme: dark)") == s.count('@media (prefers-color-scheme: dark) { :root:not([data-theme="light"])')
+        assert s.count(':root[data-theme="dark"]') >= s.count("@media (prefers-color-scheme: dark)")
+
+
+def test_bouton_theme_dans_la_navigation():
+    from design import nav_hub, STYLE_NAV_HUB
+    html = nav_hub("diners")
+    assert '<button type="button" class="theme"' in html and "casa-theme" in html
+    for icone in ("auto", "clair", "sombre"):
+        assert f'data-theme-icone="{icone}"' in html
+    assert "button.theme" in STYLE_NAV_HUB and "nav.hub button.theme" not in STYLE_NAV_HUB
+    assert html.index('class="theme"') < html.index('<nav class="hub">')   # hors du nav fixe : absolute serait relatif à lui
