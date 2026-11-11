@@ -166,6 +166,7 @@ body.sortir .qui { display: flex; flex-direction: column; gap: 12px; align-items
 
 SCRIPT_SORTIR = """(function () {
     const LIB = JSON.parse(document.getElementById('libelles').textContent);
+    const FIN_PROCHE = JSON.parse(document.getElementById('reglages').textContent).fin_proche;
     const CLE_COPIE = 'casa-sortir-copie';
     let d = null, vue = 'a-trier', qui = null, tirageCartes = null, tirageMessage = '', dateOuverte = null, formulaireOuvert = false;
     try { qui = localStorage.getItem('casa-qui'); } catch (e) {}
@@ -188,6 +189,7 @@ SCRIPT_SORTIR = """(function () {
     let chaine = Promise.resolve(), minuteur = null;
     function envoyer(envoi) { const p = chaine.then(function () { return envoyerOuGarder(envoi); }); chaine = p.catch(function () {}); return p; }
     function relire() { clearTimeout(minuteur); minuteur = setTimeout(charger, 400); }
+    function refuse() { message('Refusé par le serveur, la page a été remise à jour.'); relire(); }
     function garder() { try { localStorage.setItem(CLE_COPIE, JSON.stringify(d)); } catch (e) {} }
     function charger() {
         fetch('api/sorties', { headers: { 'X-Valise-Vite': '1' } })
@@ -203,14 +205,14 @@ SCRIPT_SORTIR = """(function () {
     // Un changement : appliqué ici tout de suite, envoyé par la file (il part au retour du réseau sinon)
     function modifier(s, champs, cle) {
         Object.assign(s, champs); garder(); afficher();
-        envoyer({ url: 'api/sorties/' + s.id, methode: 'POST', corps: champs, cle: 'sortie:' + s.id + ':' + cle }).then(relire, relire);
+        envoyer({ url: 'api/sorties/' + s.id, methode: 'POST', corps: champs, cle: 'sortie:' + s.id + ':' + cle }).then(relire, refuse);
     }
     function donnerAvis(s, avis) {
         s['avis_' + qui] = avis;
         if (avis === 'non') { if (s.etat === 'a-trier') s.etat = 'ecartee'; }
         else if (s.etat === 'a-trier' && s.avis_julien === 'oui' && s.avis_laetitia === 'oui') s.etat = 'envie';
         garder(); afficher();
-        envoyer({ url: 'api/sorties/' + s.id + '/avis', methode: 'POST', corps: { qui: qui, avis: avis }, cle: 'avis:' + s.id + ':' + qui }).then(relire, relire);
+        envoyer({ url: 'api/sorties/' + s.id + '/avis', methode: 'POST', corps: { qui: qui, avis: avis }, cle: 'avis:' + s.id + ':' + qui }).then(relire, refuse);
     }
 
     // --- Qui es-tu ? ---
@@ -258,7 +260,10 @@ SCRIPT_SORTIR = """(function () {
     }
     function carteEnvie(s) {
         const c = carte(s);
-        if (s.etat === 'prevue') c.append(bouton('Fait', 'lien-discret', function () { modifier(s, { etat: 'faite' }, 'etat'); vue = 'faites'; afficher(); }));
+        if (s.etat === 'prevue') {
+            c.append(bouton('Fait', 'lien-discret', function () { modifier(s, { etat: 'faite' }, 'etat'); vue = 'faites'; afficher(); }));
+            c.append(bouton('Annuler', 'lien-discret', function () { modifier(s, { etat: 'envie', le: null }, 'etat'); }));
+        }
         else c.append(actionsEnvie(s));
         if (dateOuverte === s.id) c.append(ligneDate(s));
         return c;
@@ -266,8 +271,10 @@ SCRIPT_SORTIR = """(function () {
 
     // --- À trier ---
     function vueATrier(zone) {
+        const jour = aujourdhui();
+        function passee(s) { return s.fin && s.fin < jour ? 1 : 0; }
         const pile = d.sorties.filter(function (s) { return s.etat === 'a-trier' && !s['avis_' + qui]; })
-                              .sort(function (a, b) { return String(a.cree_le || '').localeCompare(String(b.cree_le || '')); });
+                              .sort(function (a, b) { return passee(a) - passee(b) || String(a.cree_le || '').localeCompare(String(b.cree_le || '')); });
         if (!pile.length) { zone.append(el('p', 'vide', 'Rien à trier.')); return; }
         const s = pile[0], c = carte(s);
         const b = el('div', 'boutons gros');
@@ -282,7 +289,13 @@ SCRIPT_SORTIR = """(function () {
     function enviesTriees() {
         const jour = aujourdhui();
         const liste = d.sorties.filter(function (s) { return s.etat === 'envie' || (s.etat === 'prevue' && !(s.le && s.le < jour)); });
-        function rang(s) { return s.etat === 'prevue' ? 0 : (s.fin ? 1 : 2); }
+        const limite = new Date(Date.parse(jour + 'T00:00:00Z') + FIN_PROCHE * 86400000).toISOString().slice(0, 10);
+        function rang(s) {
+            if (s.etat === 'prevue') return 0;
+            if (s.fin && s.fin < jour) return 3;
+            if (s.fin && s.fin <= limite) return 1;
+            return 2;
+        }
         return liste.sort(function (a, b) {
             if (rang(a) !== rang(b)) return rang(a) - rang(b);
             if (rang(a) === 0) return String(a.le || '9').localeCompare(String(b.le || '9'));
@@ -337,6 +350,24 @@ SCRIPT_SORTIR = """(function () {
             if (fin.value) corps.fin = fin.value;
             if (lien.value.trim()) corps.lien = lien.value.trim();
             ok.disabled = true;
+            if (navigator.onLine) {
+                fetch('api/sorties', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) })
+                    .then(function (r) {
+                        if (r.status === 201) {
+                            return r.json().catch(function () { return null; }).then(function (nouvelle) {
+                                if (nouvelle && nouvelle.id && d && d.sorties) { d.sorties.push(nouvelle); garder(); }
+                                formulaireOuvert = false; message('Ajoutée'); relire(); afficher();
+                            });
+                        }
+                        ok.disabled = false;
+                        if (r.status === 409) { message('Déjà dans la liste'); return; }
+                        return r.json().catch(function () { return {}; }).then(function (j) {
+                            message(j && j.erreur ? j.erreur : 'Refusé par le serveur : vérifie le titre et le lien.');
+                        });
+                    })
+                    .catch(function () { ok.disabled = false; message('Envoi impossible, réessaie.'); });
+                return;
+            }
             envoyer({ url: 'api/sorties', methode: 'POST', corps: corps, cle: 'idee:' + nom }).then(function (etat) {
                 formulaireOuvert = false;
                 message(etat === 'attente' ? 'Gardée sur le téléphone : partira au retour du réseau' : 'Ajoutée.');
@@ -426,6 +457,7 @@ SCRIPT_SORTIR = """(function () {
 def sortir_en_html():
     """La page Sortir : une coquille, remplie par le script depuis api/sorties (copie gardée hors ligne)."""
     libelles = json.dumps({"types": TYPES, "budgets": BUDGETS, "reservations": RESERVATIONS}, ensure_ascii=False)
+    reglages = json.dumps({"fin_proche": FIN_PROCHE})
     return f"""<!doctype html>
 <html lang="fr">
 <head>
@@ -449,6 +481,7 @@ def sortir_en_html():
 <div id="vue" class="vue"></div>
 {nav_hub("sortir")}
 <script type="application/json" id="libelles">{libelles}</script>
+<script type="application/json" id="reglages">{reglages}</script>
 <script>{SCRIPT_FILE}
 window.addEventListener('online', function () {{ majHorsLigne(); viderFile(); }});
 window.addEventListener('offline', majHorsLigne);

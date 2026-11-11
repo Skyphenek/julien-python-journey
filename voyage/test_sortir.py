@@ -102,7 +102,10 @@ def test_page_sortir():
               "function ajouterIdee", "api/sorties", "casa-qui"):
         assert f in html, f
     for mot in ("Bof", "Ça me tente", "Ce week-end ?", "On y va", "Plus envie", "+ Ajouter une idée",
-                "Alors, c'était comment ?", "Rien à trier."):
+                "Alors, c'était comment ?", "Rien à trier.", "Annuler", "Ajoutée",
+                "Refusé par le serveur, la page a été remise à jour.", "Déjà dans la liste"):
         assert mot in html, mot
     assert "innerHTML" not in html
+    from sortir import FIN_PROCHE
+    assert f'"fin_proche": {FIN_PROCHE}' in html and "const FIN_PROCHE = JSON.parse" in html
     assert "<h1>Sortir</h1>" in html and 'class="popote"' not in html
