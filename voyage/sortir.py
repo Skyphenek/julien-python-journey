@@ -354,10 +354,7 @@ SCRIPT_SORTIR = """(function () {
                 fetch('api/sorties', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) })
                     .then(function (r) {
                         if (r.status === 201) {
-                            return r.json().catch(function () { return null; }).then(function (nouvelle) {
-                                if (nouvelle && nouvelle.id && d && d.sorties) { d.sorties.push(nouvelle); garder(); }
-                                formulaireOuvert = false; message('Ajoutée'); relire(); afficher();
-                            });
+                            formulaireOuvert = false; message('Ajoutée'); relire(); afficher();   // l'API ne rend que l'id : on relit
                         }
                         ok.disabled = false;
                         if (r.status === 409) { message('Déjà dans la liste'); return; }
