@@ -113,10 +113,15 @@ def creer_app(nom_base="valise", secret=None):
                     belles = [b for b in suggerer(cave, principal, secondaires, jour, belle=True)
                               if b["id"] not in {v["id"] for v in vins}]
                     belle = belles[0] if belles else None
+                try:
+                    sortir = rappels(lire_sorties(conn), jour)
+                except psycopg2.errors.UndefinedTable:      # table pas encore créée (appliquer_schema pas passé)
+                    conn.rollback()
+                    sortir = None
                 html = aujourdhui_en_html(lister_voyages(conn), jour,
                                           a_acheter_aujourd_hui(du_jour, lu["placard"], articles),
                                           ce_soir, hier, compteur(repas, jour), cette_semaine, a_finir, vins, belle,
-                                          sortir=rappels(lire_sorties(conn), jour))
+                                          sortir=sortir)
             finally:
                 conn.close()
             return Response(html, mimetype="text/html")

@@ -305,7 +305,7 @@ SCRIPT_SORTIR = """(function () {
     }
     function tirage() {
         tirageMessage = 'Tirage en cours…'; tirageCartes = []; afficher();
-        fetch('api/sorties/weekend', { headers: { 'X-Valise-Vite': '1' } })
+        fetch('api/sorties/weekend')
             .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
             .then(function (j) {
                 tirageCartes = (j.tirage || []).map(function (t) { return t.id; });
@@ -355,6 +355,7 @@ SCRIPT_SORTIR = """(function () {
                     .then(function (r) {
                         if (r.status === 201) {
                             formulaireOuvert = false; message('Ajoutée'); relire(); afficher();   // l'API ne rend que l'id : on relit
+                            return;
                         }
                         ok.disabled = false;
                         if (r.status === 409) { message('Déjà dans la liste'); return; }

@@ -101,6 +101,9 @@ def test_page_sortir():
     for f in ("function vueATrier", "function vueEnvies", "function vueFaites", "function tirage", "function quiSuisJe",
               "function ajouterIdee", "api/sorties", "casa-qui"):
         assert f in html, f
+    marque = "afficher();   // l'API ne rend que l'id : on relit"
+    assert marque in html and html.split(marque, 1)[1][:80].strip().startswith("return;")
+    assert "X-Valise-Vite" not in html.split("function tirage()", 1)[1].split("function blocTirage", 1)[0]
     for mot in ("Bof", "Ça me tente", "Ce week-end ?", "On y va", "Plus envie", "+ Ajouter une idée",
                 "Alors, c'était comment ?", "Rien à trier.", "Annuler", "Ajoutée",
                 "Refusé par le serveur, la page a été remise à jour.", "Déjà dans la liste"):

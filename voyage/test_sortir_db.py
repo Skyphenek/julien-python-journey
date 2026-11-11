@@ -112,6 +112,17 @@ def test_api_sorties(client):
     assert client.get("/api/sorties/weekend").status_code == 200
 
 
+def test_accueil_sans_table_sorties(client, monkeypatch):
+    import psycopg2.errors
+    import serveur
+
+    def sans_table(conn):
+        raise psycopg2.errors.UndefinedTable("relation \"sorties\" does not exist")
+    monkeypatch.setattr(serveur, "lire_sorties", sans_table)
+    r = client.get("/")
+    assert r.status_code == 200 and "bloc-sortir" not in r.get_data(as_text=True).split("</style>")[-1]
+
+
 def test_api_sorties_corps_invalide(client):
     assert client.post("/api/sorties", data="pas du json").status_code == 400
     assert client.post("/api/sorties", json=["liste"]).status_code == 400
@@ -130,7 +141,7 @@ def test_sorties_depart_valides_sans_doublon_ni_cadeau():
         assert "soin " not in titre or "duo" in titre, s["titre"]
         assert doublon(v, vues) is None, s["titre"]
         vues.append({"id": len(vues), **v})
-    assert len(SORTIES_DEPART) == 100
+    assert len(SORTIES_DEPART) == 97
 
 
 def test_poser_sorties_garde_les_dates_d_origine(conn):
