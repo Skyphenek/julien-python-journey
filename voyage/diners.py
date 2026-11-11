@@ -410,6 +410,9 @@ div.ingredients span.ok::before { content: "✓ "; color: var(--courses); font-w
 div.ingredients span.liste { background: var(--courses-doux); color: var(--courses); }
 div.ingredients span small { opacity: .75; margin-left: 4px; }
 div.filtres.etiquettes button span { font-weight: 600; opacity: .7; margin-left: 4px; }
+div.filtres.etiquettes { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -20px; padding: 0 20px; }
+div.filtres.etiquettes::-webkit-scrollbar { display: none; }
+div.filtres.etiquettes button { flex: 0 0 auto; }
 div.jour-repas { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-top: 1px solid var(--ligne); }
 div.jour-repas:first-of-type { border-top: none; }
 div.jour-repas .quand { font-weight: 800; font-size: 15px; }
