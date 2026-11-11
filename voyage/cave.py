@@ -106,7 +106,6 @@ body.cave button { border-radius: 14px; border: 2px solid var(--ligne); backgrou
 body.cave button#ajouter { background: var(--cave); border-color: var(--cave); color: var(--blanc); }
 form#ajout-vin button[type="submit"] { background: var(--cave); border-color: var(--cave); color: var(--blanc); }
 article.vin .ligne > button:not(.nom) { flex: none; border-color: var(--cave); color: var(--cave); }
-body.cave h1 { margin-bottom: 4px; }
 p.resume { color: var(--doux); margin: 0 0 14px; }
 p.message { color: var(--doux); margin: 0 0 14px; }
 p.message:empty { display: none; }

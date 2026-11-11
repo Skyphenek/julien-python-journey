@@ -183,7 +183,6 @@ def valider_placard(corps):
 
 STYLE_COURSES = """
 body.courses { --rubrique: var(--courses); --rubrique-doux: var(--courses-doux); }
-body.courses h1 { margin-bottom: 4px; }
 p.resume { color: var(--doux); font-weight: 700; margin: 0 0 16px; }
 form#ajout-course { display: flex; gap: 8px; margin: 0 0 18px; position: sticky; top: 0; z-index: 5;
                     background: var(--fond); padding: 8px 0; }
