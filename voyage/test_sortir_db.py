@@ -54,4 +54,35 @@ def test_poser_sorties_une_seule_fois(conn):
     from db import poser_sorties, lire_sorties
     depart = [{"titre": "Balade Campagne à Paris", "source": "routine", "type": "balade", "budget": "gratuit"}]
     assert poser_sorties(conn, "sorties-test", depart) == 1
+    conn.commit()
     assert poser_sorties(conn, "sorties-test", depart) is None and len(lire_sorties(conn)) == 1
+
+
+def test_poser_sorties_a_blanc_sans_commit(conn):
+    from db import poser_sorties, lire_sorties
+    depart = [{"titre": "Balade Campagne à Paris", "source": "routine", "type": "balade", "budget": "gratuit"}]
+    assert poser_sorties(conn, "sorties-test", depart) == 1
+    conn.rollback()                                  # à blanc : l'appelant annule
+    assert lire_sorties(conn) == []
+    assert poser_sorties(conn, "sorties-test", depart) == 1   # la reprise n'a pas été notée
+
+
+def test_poser_sorties_doublons_dans_le_lot(conn):
+    from db import poser_sorties, lire_sorties
+    lot = [{"titre": "Catch Impro", "source": "routine"}, {"titre": "catch impro", "source": "routine"}]
+    assert poser_sorties(conn, "sorties-test", lot) == 1
+    assert len(lire_sorties(conn)) == 1
+
+
+def test_donner_avis_garde_sur_qui():
+    from db import donner_avis
+    with pytest.raises(ValueError, match="avis invalide"):   # avant tout SQL : pas de conn
+        donner_avis(None, "sortie-x", "tiers", "oui")
+
+
+def test_une_sortie_par_id(conn):
+    from db import creer_sortie, lire_sorties, _une_sortie
+    i, _ = creer_sortie(conn, valider_sortie({"titre": "Catch Impro", "source": "julien"}, J))
+    creer_sortie(conn, valider_sortie({"titre": "Expo Bob", "source": "laetitia"}, J))
+    assert _une_sortie(conn, i) == next(s for s in lire_sorties(conn) if s["id"] == i)
+    assert _une_sortie(conn, "inconnue") is None
