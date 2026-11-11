@@ -143,7 +143,7 @@ body.sortir .lien-discret { border: none; background: none; padding: 10px 0; min
 body.sortir .vue { display: flex; flex-direction: column; gap: 12px; }
 body.sortir .carte-sortie { background: var(--carte); border-radius: 24px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
 body.sortir .carte-sortie h3 { margin: 0; font-size: 22px; line-height: 1.15; }
-body.sortir .carte-sortie.prevue { border: 2px solid var(--sortir); }
+body.sortir .carte-sortie.prevue { outline: 2px solid var(--sortir); outline-offset: -2px; }
 body.sortir .puces { display: flex; flex-wrap: wrap; gap: 6px; }
 body.sortir .puce { background: var(--sortir-doux); color: var(--sortir); border-radius: 999px; padding: 4px 10px; font-size: 13px; font-weight: 700; }
 body.sortir .infos { margin: 0; color: var(--texte); }
@@ -171,8 +171,9 @@ body.sortir details.attente summary { font-weight: 800; font-size: 16px; padding
 body.sortir details.attente > div { display: flex; flex-direction: column; gap: 12px; }
 body.sortir .tas, body.sortir .indice, body.sortir .boutons.gros { width: 100%; max-width: 520px; box-sizing: border-box; }
 body.sortir .tas { position: relative; }
-body.sortir .carte-tri { position: relative; z-index: 2; padding: 18px 18px 20px; gap: 10px; overflow: hidden; touch-action: pan-y;
-                  border-top: 5px solid var(--t, var(--sortir)); box-shadow: 0 6px 20px rgba(0,0,0,.08);
+body.sortir .fiche { position: relative; padding: 18px 18px 20px; gap: 10px; overflow: hidden; max-width: 520px; box-sizing: border-box;
+                  border-top: 5px solid var(--t, var(--sortir)); }
+body.sortir .carte-tri { z-index: 2; touch-action: pan-y; box-shadow: 0 6px 20px rgba(0,0,0,.08);
                   user-select: none; -webkit-user-select: none; transition: transform .2s ease-out; }
 body.sortir .carte-tri.tire { transition: none; }
 body.sortir .carte-tri.derriere { position: absolute; inset: 0; z-index: 1; transform: translateY(18px) scale(.94); opacity: .5;
@@ -182,13 +183,19 @@ body.sortir .type-tri { display: inline-flex; align-items: center; gap: 6px; bor
                   background: color-mix(in srgb, var(--t, var(--sortir)) 16%, transparent); color: var(--t, var(--sortir));
                   font-weight: 800; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
 body.sortir .type-tri::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
-body.sortir .carte-tri a.ouvrir { width: 40px; height: 40px; min-height: 40px; border-radius: 50%; justify-content: center;
+body.sortir .fiche a.ouvrir { width: 40px; height: 40px; min-height: 40px; border-radius: 50%; justify-content: center;
                   background: var(--sortir-doux); color: var(--sortir); font-size: 18px; text-decoration: none; }
-body.sortir .carte-tri h3 { font-size: 21px; line-height: 1.2; }
+body.sortir .fiche h3 { font-size: 21px; line-height: 1.2; }
 body.sortir .reperes { margin: -2px 0 0; color: var(--doux); font-weight: 700; font-size: 14px; }
-body.sortir .carte-tri .infos { color: var(--doux); font-size: 15px; line-height: 1.45; }
-body.sortir .infos.coupe { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-body.sortir .carte-tri .lien-discret { align-self: flex-start; padding: 0; min-height: 32px; margin-top: -4px; text-decoration: none;
+body.sortir .fiche ul.details { margin: 2px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px;
+                  font-size: 15px; line-height: 1.4; color: var(--texte); }
+body.sortir .fiche ul.details li { position: relative; padding-left: 16px; }
+body.sortir .fiche ul.details li::before { content: ""; position: absolute; left: 3px; top: .55em; width: 6px; height: 6px;
+                  border-radius: 50%; background: var(--t, var(--sortir)); }
+body.sortir .fiche ul.details li.cache { display: none; }
+body.sortir .fiche .reperes strong { color: var(--sortir); }
+body.sortir .fiche > .lien-discret:not(.plus) { align-self: flex-start; padding: 0; min-height: 36px; }
+body.sortir .fiche .plus { align-self: flex-start; padding: 0; min-height: 32px; margin-top: -4px; text-decoration: none;
                   color: var(--sortir); font-weight: 700; }
 body.sortir .tampon { position: absolute; top: 16px; padding: 4px 10px; border: 3px solid currentColor; border-radius: 10px;
                   font-weight: 900; font-size: 18px; text-transform: uppercase; pointer-events: none; background: var(--carte); }
@@ -273,17 +280,39 @@ SCRIPT_SORTIR = """(function () {
     }
 
     // --- Cartes ---
+    // Le texte de l'idée en phrases courtes, une par ligne : plus lisible qu'un bloc
+    function phrases(texte) {
+        return texte.split(/(?<=[.!?])\\s+(?=[A-ZÀ-ÖØ-Þ~0-9(])/).map(function (p) { return p.trim().replace(/\\.$/, ''); }).filter(Boolean);
+    }
     function carte(s) {
-        const c = el('div', 'carte-sortie' + (s.etat === 'prevue' ? ' prevue' : ''));
-        c.append(el('h3', '', s.titre));
-        const p = el('div', 'puces');
-        [libelle('types', s.type), libelle('budgets', s.budget), libelle('reservations', s.reservation)].forEach(function (t) { if (t) p.append(el('span', 'puce', t)); });
-        if (s.etat === 'prevue' && s.le) p.append(el('span', 'puce', 'Prévu le ' + jjmm(s.le)));
-        if (s.fin) p.append(el('span', 'puce', (s.fin < aujourdhui() ? 'Terminé le ' : 'Jusqu\\'au ') + jjmm(s.fin)));
-        else if (s.debut && s.debut > aujourdhui()) p.append(el('span', 'puce', 'À partir du ' + jjmm(s.debut)));
-        if (p.children.length) c.append(p);
-        if (s.infos) c.append(el('p', 'infos', s.infos));
-        if (s.lien) { const a = el('a', '', 'Voir'); a.href = s.lien; a.target = '_blank'; a.rel = 'noopener'; c.append(a); }
+        const c = el('div', 'carte-sortie fiche t-' + (s.type || 'aucun') + (s.etat === 'prevue' ? ' prevue' : ''));
+        const tete = el('div', 'tete-tri');
+        tete.append(el('span', 'type-tri', libelle('types', s.type) || 'Sortie'));
+        if (s.lien) {
+            const a = el('a', 'ouvrir', '\u2197'); a.href = s.lien; a.target = '_blank'; a.rel = 'noopener';
+            a.setAttribute('aria-label', 'Voir le site'); tete.append(a);
+        }
+        c.append(tete, el('h3', '', s.titre));
+        const jour = aujourdhui(), reperes = [libelle('budgets', s.budget), libelle('reservations', s.reservation)];
+        if (s.fin) reperes.push((s.fin < jour ? 'terminé le ' : 'jusqu\\'au ') + jjmm(s.fin));
+        else if (s.debut && s.debut > jour) reperes.push('à partir du ' + jjmm(s.debut));
+        const r = el('p', 'reperes');
+        if (s.etat === 'prevue' && s.le) r.append(el('strong', '', 'Prévu le ' + jjmm(s.le)), reperes.some(Boolean) ? ' · ' : '');
+        r.append(reperes.filter(Boolean).join(' · '));
+        if (r.textContent) c.append(r);
+        if (s.infos) {
+            const liste = phrases(s.infos), ul = el('ul', 'details'), visibles = liste.length > 4 ? 3 : liste.length;
+            liste.forEach(function (p, i) { const li = el('li', i < visibles ? '' : 'cache', p); ul.append(li); });
+            c.append(ul);
+            if (visibles < liste.length) {
+                const plus = bouton('Lire la suite (' + (liste.length - visibles) + ')', 'lien-discret plus', function () {
+                    const ouvert = plus.textContent === 'Réduire';
+                    ul.querySelectorAll('li').forEach(function (li, i) { li.classList.toggle('cache', ouvert && i >= visibles); });
+                    plus.textContent = ouvert ? 'Lire la suite (' + (liste.length - visibles) + ')' : 'Réduire';
+                });
+                c.append(plus);
+            }
+        }
         return c;
     }
     function actionsEnvie(s) {
@@ -331,29 +360,8 @@ SCRIPT_SORTIR = """(function () {
 
     // --- À trier : une carte à glisser (droite : ça me tente, gauche : bof), la suivante derrière ---
     function carteTri(s) {
-        const c = el('div', 'carte-sortie carte-tri');
-        c.classList.add('t-' + (s.type || 'aucun'));
-        const tete = el('div', 'tete-tri');
-        tete.append(el('span', 'type-tri', libelle('types', s.type) || 'Sortie'));
-        if (s.lien) {
-            const a = el('a', 'ouvrir', '\u2197'); a.href = s.lien; a.target = '_blank'; a.rel = 'noopener';
-            a.setAttribute('aria-label', 'Voir le site'); tete.append(a);
-        }
-        c.append(tete, el('h3', '', s.titre));
-        const jour = aujourdhui(), reperes = [libelle('budgets', s.budget), libelle('reservations', s.reservation)];
-        if (s.fin) reperes.push((s.fin < jour ? 'terminé le ' : 'jusqu\\'au ') + jjmm(s.fin));
-        else if (s.debut && s.debut > jour) reperes.push('à partir du ' + jjmm(s.debut));
-        const r = reperes.filter(Boolean).join(' · ');
-        if (r) c.append(el('p', 'reperes', r));
-        if (s.infos) {
-            const t = el('p', 'infos coupe', s.infos);
-            c.append(t);
-            if (s.infos.length > 140) {
-                const plus = bouton('Lire la suite', 'lien-discret', function () {
-                    t.classList.toggle('coupe'); plus.textContent = t.classList.contains('coupe') ? 'Lire la suite' : 'Réduire'; });
-                c.append(plus);
-            }
-        }
+        const c = carte(s);
+        c.classList.add('carte-tri');
         c.append(el('span', 'tampon oui', 'Ça me tente'), el('span', 'tampon non', 'Bof'));
         return c;
     }

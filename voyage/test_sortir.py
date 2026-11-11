@@ -111,7 +111,7 @@ def test_page_sortir():
         assert mot in html, mot
     assert "innerHTML" not in html
     assert "function glisser" in html and "touch-action: pan-y" in html and "Lire la suite" in html
-    assert "prefers-reduced-motion" in html and ".t-expo" in html
+    assert "prefers-reduced-motion" in html and ".t-expo" in html and "function phrases" in html and "ul.details" in html
     assert "function filtrer" in html and "filtrer(enviesTriees(), zone)" in html and "function enAttente" in html
     assert "filtrer(d.sorties.filter(function (s) { return s.etat === 'a-trier'" in html
     from sortir import FIN_PROCHE
