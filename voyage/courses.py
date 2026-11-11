@@ -12,7 +12,7 @@ import json
 import re
 import unicodedata
 
-from design import STYLE_D, STYLE_NAV_HUB, STYLE_ANNEXE, STYLE_HORS_LIGNE, TETE_POLICE, nav_hub
+from design import STYLE_D, STYLE_NAV_HUB, STYLE_ANNEXE, STYLE_HORS_LIGNE, TETE_POLICE, nav_hub, onglets_popote
 from pwa import TETE_PWA, SCRIPT_FILE
 
 _ID = re.compile(r"[A-Za-z0-9-]{8,64}")
@@ -638,7 +638,7 @@ def courses_en_html():
 <style>{STYLE_D}{STYLE_NAV_HUB}{STYLE_COURSES}</style>
 </head>
 <body class="accueil hub-page courses">
-<h1>Courses</h1>
+{onglets_popote("courses")}
 <p class="resume" id="resume">Chargement…</p>
 <nav id="magasins" aria-label="Où je fais les courses"></nav>
 <div class="progression" aria-hidden="true"><div></div></div>

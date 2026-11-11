@@ -161,7 +161,7 @@ def test_semer_placard_seulement_s_il_est_vide(conn):
 
 def test_page_courses(client):
     html = client.get("/courses").get_data(as_text=True)
-    assert "<h1>Courses</h1>" in html
+    assert "<h1>Courses</h1>" not in html and 'data-popote="courses" class="actif"' in html
 
 
 def test_api_courses(client):
