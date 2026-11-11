@@ -112,7 +112,8 @@ def test_page_cave():
     assert '<script type="application/json" id="couleurs">' in html
     assert '<script type="application/json" id="profils">' in html
     assert "envoyerOuGarder" in html                                   # la file hors ligne de Courses
-    assert EMOJI.findall(html) == []
+    from design import SCRIPT_THEME                                    # signes du bouton thème, pas des emojis de contenu
+    assert EMOJI.findall(html.replace(SCRIPT_THEME, "")) == []
 
 
 def test_page_cave_a_la_tete_des_autres_onglets():

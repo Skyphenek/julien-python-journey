@@ -116,3 +116,8 @@ def test_icone_en_vadrouille():
     for taille in (180, 192, 512):
         png = (dossier / f"icone-{taille}.png").read_bytes()
         assert png[:8] == b"\x89PNG\r\n\x1a\n" and int.from_bytes(png[16:20], "big") == taille
+
+
+def test_theme_applique_dans_la_tete():
+    from pwa import TETE_PWA
+    assert "casa-theme" in TETE_PWA and "dataset.theme" in TETE_PWA and "try" in TETE_PWA

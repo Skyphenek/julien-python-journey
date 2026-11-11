@@ -10,6 +10,24 @@ couleurs et la mise en page sans toucher aux classes dont dépendent les scripts
   contenu large, Sur place et Programme sur deux colonnes.
 """
 
+import re
+
+_AUTO = ':root:not([data-theme="light"])'      # l'appareil est en sombre et on n'a pas choisi Clair
+_FORCE = ':root[data-theme="dark"]'             # on a choisi Sombre
+
+
+def sombre(css):
+    """Les règles du mode sombre, écrites deux fois : quand l'appareil est en sombre (sauf choix Clair) et quand on a
+    choisi Sombre (bouton du thème). `css` : des règles simples « sélecteurs { déclarations } », sans @media imbriqué."""
+    def prefixer(prefixe, selecteurs):
+        return ", ".join(s.replace(":root", prefixe, 1) if s.startswith(":root") else f"{prefixe} {s}"
+                         for s in (x.strip() for x in selecteurs.split(",")))
+    regles = re.findall(r"([^{}]+)\{([^{}]*)\}", re.sub(r"/\*.*?\*/", "", css, flags=re.S))
+    def ecrire(prefixe):
+        return " ".join(f"{prefixer(prefixe, sel)} {{ {corps.strip()} }}" for sel, corps in regles)
+    return f"@media (prefers-color-scheme: dark) {{ {ecrire(_AUTO)} }}\n{ecrire(_FORCE)}\n"
+
+
 POLICE = "https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=swap"
 TETE_POLICE = (f'<link rel="preconnect" href="https://fonts.googleapis.com">'
                f'<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
@@ -49,6 +67,27 @@ ICONES_HUB = {
 }
 
 
+SCRIPT_THEME = """<script>(function () {
+    const b = document.querySelector('nav.hub button.theme'); if (!b) return;
+    const ORDRE = ['auto', 'clair', 'sombre'], SIGNE = { auto: '◐', clair: '☀', sombre: '☾' },
+          MOT = { auto: 'automatique', clair: 'clair', sombre: 'sombre' };
+    let courant = 'auto';
+    try { courant = localStorage.getItem('casa-theme') || 'auto'; } catch (e) {}
+    function appliquer() {
+        const h = document.documentElement;
+        if (courant === 'auto') { delete h.dataset.theme; h.style.colorScheme = ''; }
+        else { h.dataset.theme = courant === 'clair' ? 'light' : 'dark'; h.style.colorScheme = h.dataset.theme; }
+        b.textContent = SIGNE[courant]; b.setAttribute('aria-label', 'Thème ' + MOT[courant] + ', appuyer pour changer');
+    }
+    b.addEventListener('click', function () {
+        courant = ORDRE[(ORDRE.indexOf(courant) + 1) % ORDRE.length];
+        try { if (courant === 'auto') localStorage.removeItem('casa-theme'); else localStorage.setItem('casa-theme', courant); } catch (e) {}
+        appliquer();
+    });
+    appliquer();
+})();</script>"""
+
+
 def nav_hub(actif):
     """La navigation du hub (en bas sur téléphone, à gauche sur ordinateur), l'entrée actif en surbrillance."""
     liens = "".join(
@@ -56,14 +95,13 @@ def nav_hub(actif):
         + (' class="actif" aria-current="page">' if cle == actif else ">")
         + f'<span class="icone-hub">{ICONES_HUB[cle]}</span><span>{libelle}</span></a>'
         for cle, libelle, adresse in HUB)
-    return f'<nav class="hub">{liens}</nav>'
+    return f'<nav class="hub">{liens}<button type="button" class="theme" aria-label="Thème">◐</button></nav>{SCRIPT_THEME}'
 
 
 STYLE_NAV_HUB = """
 :root { --cave: #9b2c4f; --cave-doux: #fbe6ec; --courses: #0b7a87; --courses-doux: #e0f3f5; --diners: #c2410c; --diners-doux: #ffede3; }
-@media (prefers-color-scheme: dark) { :root { --cave: #f08aa8; --cave-doux: #3d1824; --courses: #4cc3d1; --courses-doux: #10343a;
-                                              --diners: #ff8f5a; --diners-doux: #3b1d0f; } }
-nav.hub { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; justify-content: center;
+""" + sombre(""" :root { --cave: #f08aa8; --cave-doux: #3d1824; --courses: #4cc3d1; --courses-doux: #10343a;
+                                              --diners: #ff8f5a; --diners-doux: #3b1d0f; } """) + """nav.hub { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; justify-content: center;
           gap: 4px; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); background: var(--fond);
           border-top: 1px solid var(--ligne); }
 nav.hub a { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px;
@@ -78,7 +116,11 @@ nav.hub a[data-hub="cave"] { --c: var(--cave); --c-doux: var(--cave-doux); }
 nav.hub a[data-hub="budget"] { --c: var(--courses); --c-doux: var(--courses-doux); }
 nav.hub a[data-hub="vadrouille"] { --c: var(--valise); --c-doux: var(--valise-doux); }
 body.hub-page { display: block; max-width: 720px; margin: 0 auto; padding: 28px 20px 110px; }   /* place pour la barre */
+nav.hub button.theme { position: fixed; top: calc(10px + env(safe-area-inset-top)); right: 12px; z-index: 21;
+                       width: 44px; height: 44px; border-radius: 999px; border: 1px solid var(--ligne);
+                       background: var(--carte); color: var(--texte); font-size: 20px; line-height: 1; }
 @media (min-width: 900px) {
+    nav.hub button.theme { position: static; margin-top: auto; align-self: flex-start; }
     nav.hub { top: 0; right: auto; width: 232px; flex-direction: column; justify-content: flex-start;
               padding: 28px 14px; border-top: none; border-right: 1px solid var(--ligne); }
     nav.hub a { flex: 0 0 auto; flex-direction: row; gap: 10px; font-size: 16px; padding: 6px;
@@ -99,7 +141,7 @@ STYLE_D = """
     --rubrique: var(--valise); --rubrique-doux: var(--valise-doux);
     --accent: var(--rubrique); --accent-doux: var(--rubrique-doux); --ok: var(--rubrique);
 }
-@media (prefers-color-scheme: dark) {
+""" + sombre("""
     :root {
         --fond: #12121c; --carte: #1e1e2c; --texte: #f2f2f7; --doux: #a3a3b8; --ligne: #2e2e40; --blanc: #26263a;
         --valise: #8097ff; --valise-doux: #1f2856;
@@ -108,8 +150,7 @@ STYLE_D = """
         --sur-place: #3cc68f; --sur-place-doux: #12382b;
         --souvenirs: #f27ab3; --souvenirs-doux: #40172b;
     }
-}
-body[data-rubrique="avant"] { --rubrique: var(--avant); --rubrique-doux: var(--avant-doux); }
+""") + """body[data-rubrique="avant"] { --rubrique: var(--avant); --rubrique-doux: var(--avant-doux); }
 body[data-rubrique="programme"] { --rubrique: var(--programme); --rubrique-doux: var(--programme-doux); }
 body[data-rubrique="sur-place"] { --rubrique: var(--sur-place); --rubrique-doux: var(--sur-place-doux); }
 body[data-rubrique="souvenirs"] { --rubrique: var(--souvenirs); --rubrique-doux: var(--souvenirs-doux); }
@@ -237,10 +278,9 @@ a.pastille-urgence span { font-size: 12px; font-weight: 600; }
 .appel-ambassade span { display: flex; flex-direction: column; font-size: 13px; color: var(--doux); }
 .appel-ambassade strong { font-size: 15px; color: var(--texte); }
 .appel-ambassade em { font-style: normal; font-weight: 800; color: var(--rubrique); white-space: nowrap; font-size: 14px; }
-@media (prefers-color-scheme: dark) {
+""" + sombre("""
     a.pastille-urgence { background: #47191b; color: #ffb4ab; }
-}
-
+""") + """
 /* Avant de partir : une carte par tâche, l'échéance en pastille (maquette D) */
 details.rayon.avant { background: transparent; }
 details.rayon.avant > summary { padding: 4px 2px 10px; min-height: 0; font-size: 21px; }
@@ -338,10 +378,9 @@ div.depenses .liste-depenses .combien { font-size: 16px; font-weight: 800; white
 div.depenses .liste-depenses button.suppr { min-width: 36px; min-height: 36px; border: none; border-radius: 12px;
                                             background: transparent; color: var(--doux); font: inherit; cursor: pointer; }
 div.depenses .liste-depenses button.suppr[data-confirmer] { background: #ffe3e3; color: #a3150d; font-size: 13px; font-weight: 700; }
-@media (prefers-color-scheme: dark) {
+""" + sombre("""
     div.resume-depenses { background: #2a2a44; }
-}
-
+""") + """
 /* Cases rondes à la place des emojis (À voir : fait ; Souvenirs : acheté) */
 div.a-voir li.envie .fait-btn, div.souvenirs li.souvenir .achat-btn {
     flex-shrink: 0; min-width: 28px; height: 28px; padding: 0 6px; border: 2px solid #c9c9d6; border-radius: 999px;
@@ -382,5 +421,4 @@ details.annexe p.aide { color: var(--doux); font-size: 14px; margin: 8px 0; }
 
 STYLE_HORS_LIGNE = """div#hors-ligne { background: #fff4d6; color: #6b4e00; border-radius: 16px; padding: 10px 14px; margin: 0 0 12px;
                  font-weight: 600; font-size: 14px; }
-@media (prefers-color-scheme: dark) { div#hors-ligne { background: #3d3214; color: #ffe08a; } }
-"""
+""" + sombre(""" div#hors-ligne { background: #3d3214; color: #ffe08a; } """) + """"""
