@@ -106,9 +106,12 @@ def test_page_sortir():
     assert "X-Valise-Vite" not in html.split("function tirage()", 1)[1].split("function blocTirage", 1)[0]
     for mot in ("Bof", "Ça me tente", "Ce week-end ?", "On y va", "Plus envie", "+ Ajouter une idée",
                 "Alors, c'était comment ?", "Rien à trier.", "Annuler", "Ajoutée",
-                "Refusé par le serveur, la page a été remise à jour.", "Déjà dans la liste"):
+                "Refusé par le serveur, la page a été remise à jour.", "Déjà dans la liste",
+                "En attente de ", "Envie ! Partants tous les deux.", "Écartée.", "Finalement bof", "Tous"):
         assert mot in html, mot
     assert "innerHTML" not in html
+    assert "function filtrer" in html and "filtrer(enviesTriees(), zone)" in html and "function enAttente" in html
+    assert "filtrer(d.sorties.filter(function (s) { return s.etat === 'a-trier'" in html
     from sortir import FIN_PROCHE
     assert f'"fin_proche": {FIN_PROCHE}' in html and "const FIN_PROCHE = JSON.parse" in html
     assert "<h1>Sortir</h1>" in html and 'class="popote"' not in html

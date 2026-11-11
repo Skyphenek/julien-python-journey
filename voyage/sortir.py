@@ -162,13 +162,20 @@ body.sortir .ligne-date input { width: auto; flex: 1 1 140px; }
 body.sortir .vide { text-align: center; color: var(--doux); padding: 28px 0; font-size: 18px; }
 body.sortir h2 { font-size: 18px; margin: 4px 0 0; }
 body.sortir .qui { display: flex; flex-direction: column; gap: 12px; align-items: stretch; }
+body.sortir .filtres { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px 2px; }
+body.sortir .filtres::-webkit-scrollbar { display: none; }
+body.sortir .filtres button { flex: 0 0 auto; min-height: 36px; border-radius: 999px; padding: 6px 12px; font-family: inherit;
+                  font-weight: 700; font-size: 14px; border: 1px solid var(--ligne); background: transparent; color: var(--doux); }
+body.sortir .filtres button[aria-pressed=true] { border-color: var(--sortir); background: var(--sortir-doux); color: var(--sortir); }
+body.sortir details.attente summary { font-weight: 800; font-size: 16px; padding: 10px 0; min-height: 44px; box-sizing: border-box; cursor: pointer; color: var(--doux); }
+body.sortir details.attente > div { display: flex; flex-direction: column; gap: 12px; }
 """
 
 SCRIPT_SORTIR = """(function () {
     const LIB = JSON.parse(document.getElementById('libelles').textContent);
     const FIN_PROCHE = JSON.parse(document.getElementById('reglages').textContent).fin_proche;
     const CLE_COPIE = 'casa-sortir-copie';
-    let d = null, vue = 'a-trier', qui = null, tirageCartes = null, tirageMessage = '', dateOuverte = null, formulaireOuvert = false;
+    let d = null, vue = 'a-trier', qui = null, tirageCartes = null, tirageMessage = '', dateOuverte = null, formulaireOuvert = false, filtreType = null, minuteurMessage = null, attenteOuverte = false;
     try { qui = localStorage.getItem('casa-qui'); } catch (e) {}
     if (qui !== 'julien' && qui !== 'laetitia') qui = null;
 
@@ -182,7 +189,9 @@ SCRIPT_SORTIR = """(function () {
     function libelle(liste, cle) { const t = (LIB[liste] || []).filter(function (x) { return x[0] === cle; })[0]; return t ? t[1] : null; }
     function jjmm(iso) { return iso.slice(8, 10) + '/' + iso.slice(5, 7); }
     function aujourdhui() { return d ? d.aujourd_hui : new Date().toISOString().slice(0, 10); }
-    function message(texte) { document.getElementById('message-sortir').textContent = texte || ''; }
+    function message(texte) { clearTimeout(minuteurMessage); document.getElementById('message-sortir').textContent = texte || ''; }
+    function annonce(texte) { message(texte); minuteurMessage = setTimeout(function () { message(''); }, 2500); }
+    function autre() { return qui === 'julien' ? 'Laetitia' : 'Julien'; }
     function sortie(id) { return d.sorties.filter(function (s) { return s.id === id; })[0]; }
 
     // --- Données : lecture, copie hors ligne, envois ---
@@ -211,6 +220,7 @@ SCRIPT_SORTIR = """(function () {
         s['avis_' + qui] = avis;
         if (avis === 'non') { if (s.etat === 'a-trier') s.etat = 'ecartee'; }
         else if (s.etat === 'a-trier' && s.avis_julien === 'oui' && s.avis_laetitia === 'oui') s.etat = 'envie';
+        annonce(avis === 'non' ? 'Écartée.' : s.etat === 'envie' ? 'Envie ! Partants tous les deux.' : 'En attente de ' + autre() + '.');
         garder(); afficher();
         envoyer({ url: 'api/sorties/' + s.id + '/avis', methode: 'POST', corps: { qui: qui, avis: avis }, cle: 'avis:' + s.id + ':' + qui }).then(relire, refuse);
     }
@@ -269,11 +279,28 @@ SCRIPT_SORTIR = """(function () {
         return c;
     }
 
+    // --- Filtre par type (À trier et Envies) ---
+    function filtrer(liste, zone) {
+        const presents = LIB.types.filter(function (t) { return liste.some(function (s) { return s.type === t[0]; }); });
+        if (filtreType && !presents.some(function (t) { return t[0] === filtreType; })) filtreType = null;
+        if (presents.length > 1) {
+            const f = el('div', 'filtres'); f.setAttribute('role', 'group'); f.setAttribute('aria-label', 'Type');
+            [[null, 'Tous']].concat(presents).forEach(function (t) {
+                const n = t[0] ? liste.filter(function (s) { return s.type === t[0]; }).length : liste.length;
+                const b = bouton(t[1] + ' ' + n, '', function () { filtreType = t[0]; afficher(); });
+                b.setAttribute('aria-pressed', String(filtreType === t[0]));
+                f.append(b);
+            });
+            zone.append(f);
+        }
+        return filtreType ? liste.filter(function (s) { return s.type === filtreType; }) : liste;
+    }
+
     // --- À trier ---
     function vueATrier(zone) {
         const jour = aujourdhui();
         function passee(s) { return s.fin && s.fin < jour ? 1 : 0; }
-        const pile = d.sorties.filter(function (s) { return s.etat === 'a-trier' && !s['avis_' + qui]; })
+        const pile = filtrer(d.sorties.filter(function (s) { return s.etat === 'a-trier' && !s['avis_' + qui]; }), zone)
                               .sort(function (a, b) { return passee(a) - passee(b) || String(b.cree_le || '').localeCompare(String(a.cree_le || '')); });
         if (!pile.length) { zone.append(el('p', 'vide', 'Rien à trier.')); return; }
         const s = pile[0], c = carte(s);
@@ -383,9 +410,26 @@ SCRIPT_SORTIR = """(function () {
         zone.append(haut);
         blocTirage(zone);
         ajouterIdee(zone);
-        const liste = enviesTriees();
+        const liste = filtrer(enviesTriees(), zone);
         if (!liste.length) zone.append(el('p', 'vide', 'Aucune Envie pour l\\'instant.'));
         liste.forEach(function (s) { zone.append(carteEnvie(s)); });
+        enAttente(zone);
+    }
+    // Mes « ça me tente » que l'autre n'a pas encore jugés
+    function enAttente(zone) {
+        const autreCle = 'avis_' + (qui === 'julien' ? 'laetitia' : 'julien');
+        const liste = d.sorties.filter(function (s) { return s.etat === 'a-trier' && s['avis_' + qui] === 'oui' && !s[autreCle]; })
+                               .sort(function (a, b) { return String(b.cree_le || '').localeCompare(String(a.cree_le || '')); });
+        if (!liste.length) return;
+        const det = el('details', 'attente'), corps = el('div');
+        det.open = attenteOuverte; det.addEventListener('toggle', function () { attenteOuverte = det.open; });
+        det.append(el('summary', '', 'En attente de ' + autre() + ' (' + liste.length + ')'));
+        liste.forEach(function (s) {
+            const c = carte(s);
+            c.append(bouton('Finalement bof', 'lien-discret', function () { donnerAvis(s, 'non'); }));
+            corps.append(c);
+        });
+        det.append(corps); zone.append(det);
     }
 
     // --- Faites ---
