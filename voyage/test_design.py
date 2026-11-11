@@ -43,8 +43,7 @@ def test_accueil_au_design_d():
 # --- Sans emojis, Sur place épuré (maquette D) ---
 import re
 from valise import formulaire_en_html
-from design import SCRIPT_THEME
-EMOJI = re.compile("[\U0001F300-\U0001FAFF☀-⛿⬀-⯿✀-✒✔✖-➿]")
+EMOJI = re.compile("[\U0001F300-\U0001FAFF⌚⌛⏩-⏺☀-⛿⬀-⯿✀-✒✔✖-➿]")
 
 
 def page_complete():
@@ -57,9 +56,9 @@ def page_complete():
 
 
 def test_aucun_emoji_dans_les_pages():
-    for html in (page_complete(), accueil_en_html([], date(2026, 10, 28)), formulaire_en_html()):
-        # le bouton du thème garde ses signes ☀ ☾ (script de design.SCRIPT_THEME), ce ne sont pas des emojis de contenu
-        assert EMOJI.findall(html.replace(SCRIPT_THEME, "")) == []
+    from diners import diners_en_html
+    for html in (page_complete(), accueil_en_html([], date(2026, 10, 28)), formulaire_en_html(), diners_en_html()):
+        assert EMOJI.findall(html) == []
 
 
 def test_sur_place_tuiles_et_carte_depenses():
@@ -100,10 +99,14 @@ def test_plus_aucun_mode_sombre_qui_ignore_le_choix():
     styles += [valise.HTML_STYLE] + [v for k, v in vars(valise).items() if k.endswith("_STYLE") and isinstance(v, str)]
     for s in styles:
         assert s.count("@media (prefers-color-scheme: dark)") == s.count('@media (prefers-color-scheme: dark) { :root:not([data-theme="light"])')
+        assert s.count(':root[data-theme="dark"]') >= s.count("@media (prefers-color-scheme: dark)")
 
 
 def test_bouton_theme_dans_la_navigation():
     from design import nav_hub, STYLE_NAV_HUB
     html = nav_hub("diners")
     assert '<button type="button" class="theme"' in html and "casa-theme" in html
-    assert "nav.hub button.theme" in STYLE_NAV_HUB
+    for icone in ("auto", "clair", "sombre"):
+        assert f'data-theme-icone="{icone}"' in html
+    assert "button.theme" in STYLE_NAV_HUB and "nav.hub button.theme" not in STYLE_NAV_HUB
+    assert html.index('class="theme"') < html.index('<nav class="hub">')   # hors du nav fixe : absolute serait relatif à lui

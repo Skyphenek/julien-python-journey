@@ -141,8 +141,13 @@ def test_page_diners():
     assert "function vueCarnet" not in html and "function vueATester" not in html
     assert "'nouvelles'" in html and "'Nouvelles'" in html
     assert "function icone" in html and "function points" in html and "aria-label" in html
-    for signe in ("'✦'", "'⚡'", "'⏳'", "'Ⓙ'", "'Ⓛ'", "'●'", "'○'"):
+    assert '<template id="reperes">' in html and "setAttribute('role', 'img')" in html
+    for signe in ("✦", "⚡", "⏳"):
+        assert signe not in html, signe
+    for signe in ("'Ⓙ'", "'Ⓛ'", "'●'", "'○'"):
         assert signe in html, signe
+    for cle in ("nouvelle", "eclair", "sablier"):
+        assert f'data-icone="{cle}"' in html
     assert "faite souvent" in html and "'faisable ce soir'" in html and "'finit un produit'" in html
     assert "el('span', 'badge', 'secours')" not in html and "badge julien" not in html
     assert "On l\\'a déjà faite" in html and "'Archiver'" in html and "'Désarchiver'" in html

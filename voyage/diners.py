@@ -12,7 +12,7 @@ import re
 from datetime import date, timedelta
 
 from courses import normaliser, STYLE_COURSES
-from design import STYLE_D, STYLE_NAV_HUB, TETE_POLICE, nav_hub
+from design import STYLE_D, STYLE_NAV_HUB, TETE_POLICE, nav_hub, ICONES_REPERE
 from pwa import TETE_PWA, SCRIPT_FILE
 
 _ID = re.compile(r"[A-Za-z0-9-]{8,64}")
@@ -384,7 +384,7 @@ button.plein { border: none; background: var(--diners); color: #ffffff; border-r
 span.badge { font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--diners);
              background: var(--diners-doux); border-radius: 999px; padding: 2px 8px; margin-left: 6px; }
 span.repere { margin-left: 6px; font-size: 14px; line-height: 1; white-space: nowrap; }
-span.repere.nouvelle { color: #d4a017; font-size: 16px; }
+span.repere.nouvelle { color: var(--dore); font-size: 16px; }
 span.repere.points { color: var(--diners); font-size: 10px; letter-spacing: 1px; vertical-align: 2px; }
 span.repere.qui { color: var(--doux); font-size: 16px; }
 p.legende-reperes { font-size: 12px; color: var(--doux); margin: 10px 4px 0; line-height: 1.5; }
@@ -644,9 +644,13 @@ SCRIPT_DINERS = """
         return rangRecette(a) - rangRecette(b) || (b.faits || 0) - (a.faits || 0) || a.nom.localeCompare(b.nom, 'fr');
     }
     // Les repères d'une recette en icônes ; le mot reste pour le lecteur d'écran et au survol
+    // `signe` : une clé du <template id="reperes"> (icône SVG), sinon du texte
+    const CLES_REPERES = ['nouvelle', 'eclair', 'sablier'];
+    function clone(cle) { return document.getElementById('reperes').content.querySelector('[data-icone="' + cle + '"]').cloneNode(true); }
     function icone(signe, mot, classe) {
-        const s = el('span', 'repere' + (classe ? ' ' + classe : ''), signe);
-        s.setAttribute('aria-label', mot); s.title = mot;
+        const s = el('span', 'repere' + (classe ? ' ' + classe : ''));
+        if (CLES_REPERES.indexOf(signe) >= 0) s.append(clone(signe)); else s.append(signe);
+        s.setAttribute('role', 'img'); s.setAttribute('aria-label', mot); s.title = mot;
         return s;
     }
     function points(n) { const k = n >= 5 ? 4 : n >= 3 ? 3 : n; return '●'.repeat(k) + '○'.repeat(4 - k); }
@@ -654,10 +658,10 @@ SCRIPT_DINERS = """
         const li = el('li');
         const o = bouton('', 'ouvrir', function () { ouvrirFiche(p.id); });
         const nom = el('span', 'nom', p.nom);
-        if (p.statut === 'a-tester') nom.append(icone('✦', 'nouvelle', 'nouvelle'));
+        if (p.statut === 'a-tester') nom.append(icone('nouvelle', 'nouvelle', 'nouvelle'));
         else if (p.faits) nom.append(icone(points(p.faits), 'faite ' + p.faits + ' fois', 'points'));
-        if (d.secours.faisables.indexOf(p.id) >= 0) nom.append(icone('⚡', 'faisable ce soir'));
-        if ((d.a_finir || []).indexOf(p.id) >= 0) nom.append(icone('⏳', 'finit un produit'));
+        if (d.secours.faisables.indexOf(p.id) >= 0) nom.append(icone('eclair', 'faisable ce soir'));
+        if ((d.a_finir || []).indexOf(p.id) >= 0) nom.append(icone('sablier', 'finit un produit'));
         if (p.pour === 'julien') nom.append(icone('Ⓙ', 'pour Julien', 'qui'));
         if (p.pour === 'laetitia') nom.append(icone('Ⓛ', 'pour Laetitia', 'qui'));
         const meta = el('span', 'meta', NOMS_GENRE[p.genre] + ' · ' + duree(p.minutes) + (p.cout ? ' · ≈ ' + euros(p.cout) : ''));
@@ -862,7 +866,10 @@ SCRIPT_DINERS = """
         r.addEventListener('input', function () { recherche = r.value; remplir(); });
         remplir();
         const e = el('div', 'encart');
-        e.append(ul, el('p', 'legende-reperes', '✦ nouvelle · ●●● faite souvent · ⚡ faisable ce soir · ⏳ finit un produit · Ⓙ Ⓛ pour Julien / Laetitia'));
+        const legende = el('p', 'legende-reperes');
+        legende.append(clone('nouvelle'), ' nouvelle · ●●● faite souvent · ', clone('eclair'), ' faisable ce soir · ',
+                       clone('sablier'), ' finit un produit · Ⓙ Ⓛ pour Julien / Laetitia');
+        e.append(ul, legende);
         zone.append(r, f, zoneEtiquettes, bouton('+ Nouvelle recette', 'plein', function () { ouvrirEdition(null); }), e);
     }
 
@@ -1201,6 +1208,7 @@ def diners_en_html():
     from prix_paris import PRIX
     genres = json.dumps(GENRES, ensure_ascii=False)
     prix = json.dumps(PRIX, ensure_ascii=False)
+    reperes = "".join(svg.replace("<svg ", f'<svg data-icone="{cle}" ', 1) for cle, svg in ICONES_REPERE.items())
     vues = "".join(f'<button type="button" data-vue="{v}">{t}</button>'
                    for v, t in [("ce-soir", "Ce soir"), ("semaine", "Semaine"), ("recettes", "Recettes")])
     return f"""<!doctype html>
@@ -1220,6 +1228,7 @@ def diners_en_html():
 <div id="vue" class="vue"><p class="vide-courses">Chargement des recettes…</p></div>
 <div class="panneau" id="panneau" hidden><div class="contenu"></div></div>
 {nav_hub("diners")}
+<template id="reperes">{reperes}</template>
 <script type="application/json" id="genres">{genres}</script>
 <script type="application/json" id="prix">{prix}</script>
 <script>{SCRIPT_FILE}

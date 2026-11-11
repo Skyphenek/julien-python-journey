@@ -22,7 +22,9 @@ def sombre(css):
     def prefixer(prefixe, selecteurs):
         return ", ".join(s.replace(":root", prefixe, 1) if s.startswith(":root") else f"{prefixe} {s}"
                          for s in (x.strip() for x in selecteurs.split(",")))
-    regles = re.findall(r"([^{}]+)\{([^{}]*)\}", re.sub(r"/\*.*?\*/", "", css, flags=re.S))
+    css_sans_commentaires = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    assert "@" not in css_sans_commentaires, "sombre() : pas de @media ni @supports imbriqué"
+    regles = re.findall(r"([^{}]+)\{([^{}]*)\}", css_sans_commentaires)
     def ecrire(prefixe):
         return " ".join(f"{prefixer(prefixe, sel)} {{ {corps.strip()} }}" for sel, corps in regles)
     return f"@media (prefers-color-scheme: dark) {{ {ecrire(_AUTO)} }}\n{ecrire(_FORCE)}\n"
@@ -67,9 +69,23 @@ ICONES_HUB = {
 }
 
 
+# Repères des recettes (page Dîners) et signes du bouton thème : mêmes traits que les icônes du hub, jamais d'emoji
+ICONES_REPERE = {
+    "nouvelle": _TRAIT.format('<path fill="currentColor" d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/>'),
+    "eclair": _TRAIT.format('<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>'),
+    "sablier": _TRAIT.format('<path d="M6 3h12M6 21h12M7 3c0 5 5 6 5 9s-5 4-5 9M17 3c0 5-5 6-5 9s5 4 5 9"/>'),
+}
+ICONES_THEME = {
+    "auto": _TRAIT.format('<circle cx="12" cy="12" r="9"/><path fill="currentColor" d="M12 3a9 9 0 0 1 0 18z"/>'),
+    "clair": _TRAIT.format('<circle cx="12" cy="12" r="4"/>'
+                           '<path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),
+    "sombre": _TRAIT.format('<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5z"/>'),
+}
+
+
 SCRIPT_THEME = """<script>(function () {
-    const b = document.querySelector('nav.hub button.theme'); if (!b) return;
-    const ORDRE = ['auto', 'clair', 'sombre'], SIGNE = { auto: '◐', clair: '☀', sombre: '☾' },
+    const b = document.querySelector('button.theme'); if (!b) return;
+    const ORDRE = ['auto', 'clair', 'sombre'],
           MOT = { auto: 'automatique', clair: 'clair', sombre: 'sombre' };
     let courant = 'auto';
     try { courant = localStorage.getItem('casa-theme') || 'auto'; } catch (e) {}
@@ -77,7 +93,8 @@ SCRIPT_THEME = """<script>(function () {
         const h = document.documentElement;
         if (courant === 'auto') { delete h.dataset.theme; h.style.colorScheme = ''; }
         else { h.dataset.theme = courant === 'clair' ? 'light' : 'dark'; h.style.colorScheme = h.dataset.theme; }
-        b.textContent = SIGNE[courant]; b.setAttribute('aria-label', 'Thème ' + MOT[courant] + ', appuyer pour changer');
+        b.querySelectorAll('[data-theme-icone]').forEach(function (svg) { svg.toggleAttribute('hidden', svg.dataset.themeIcone !== courant); });
+        b.setAttribute('aria-label', 'Thème ' + MOT[courant] + ', appuyer pour changer');
     }
     b.addEventListener('click', function () {
         courant = ORDRE[(ORDRE.indexOf(courant) + 1) % ORDRE.length];
@@ -95,13 +112,17 @@ def nav_hub(actif):
         + (' class="actif" aria-current="page">' if cle == actif else ">")
         + f'<span class="icone-hub">{ICONES_HUB[cle]}</span><span>{libelle}</span></a>'
         for cle, libelle, adresse in HUB)
-    return f'<nav class="hub">{liens}<button type="button" class="theme" aria-label="Thème">◐</button></nav>{SCRIPT_THEME}'
+    # le bouton est AVANT le nav : le nav est en position fixed, un enfant absolute serait relatif à lui (donc en bas)
+    signes = "".join(svg.replace("<svg ", f'<svg data-theme-icone="{cle}"' + ("" if cle == "auto" else " hidden") + " ", 1)
+                     for cle, svg in ICONES_THEME.items())
+    bouton = f'<button type="button" class="theme" aria-label="Thème automatique, appuyer pour changer">{signes}</button>'
+    return f'{bouton}<nav class="hub">{liens}</nav>{SCRIPT_THEME}'
 
 
 STYLE_NAV_HUB = """
-:root { --cave: #9b2c4f; --cave-doux: #fbe6ec; --courses: #0b7a87; --courses-doux: #e0f3f5; --diners: #c2410c; --diners-doux: #ffede3; }
+:root { --cave: #9b2c4f; --cave-doux: #fbe6ec; --courses: #0b7a87; --courses-doux: #e0f3f5; --diners: #c2410c; --diners-doux: #ffede3; --dore: #a67c00; }
 """ + sombre(""" :root { --cave: #f08aa8; --cave-doux: #3d1824; --courses: #4cc3d1; --courses-doux: #10343a;
-                                              --diners: #ff8f5a; --diners-doux: #3b1d0f; } """) + """nav.hub { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; justify-content: center;
+                                              --diners: #ff8f5a; --diners-doux: #3b1d0f; --dore: #f0c24b; } """) + """nav.hub { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; justify-content: center;
           gap: 4px; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); background: var(--fond);
           border-top: 1px solid var(--ligne); }
 nav.hub a { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px;
@@ -115,12 +136,18 @@ nav.hub a[data-hub="courses"] { --c: var(--courses); --c-doux: var(--courses-dou
 nav.hub a[data-hub="cave"] { --c: var(--cave); --c-doux: var(--cave-doux); }
 nav.hub a[data-hub="budget"] { --c: var(--courses); --c-doux: var(--courses-doux); }
 nav.hub a[data-hub="vadrouille"] { --c: var(--valise); --c-doux: var(--valise-doux); }
-body.hub-page { display: block; max-width: 720px; margin: 0 auto; padding: 28px 20px 110px; }   /* place pour la barre */
-nav.hub button.theme { position: fixed; top: calc(10px + env(safe-area-inset-top)); right: 12px; z-index: 21;
-                       width: 44px; height: 44px; border-radius: 999px; border: 1px solid var(--ligne);
-                       background: var(--carte); color: var(--texte); font-size: 20px; line-height: 1; }
+body.hub-page { position: relative; display: block; max-width: 720px; margin: 0 auto; padding: 28px 20px 110px; }   /* place pour la barre */
+/* Téléphone : en haut à droite de la page, elle défile avec elle (ne recouvre pas les barres collantes) */
+button.theme { position: absolute; top: calc(10px + env(safe-area-inset-top)); right: 12px; z-index: 21;
+               width: 44px; height: 44px; border-radius: 999px; border: 1px solid var(--ligne); padding: 0;
+               background: var(--carte); color: var(--texte); display: flex; align-items: center; justify-content: center;
+               font-size: 20px; line-height: 1; }
+span.repere svg, button.theme svg { width: 1em; height: 1em; vertical-align: -0.15em; }
+button.theme svg[hidden] { display: none; }   /* [hidden] n'agit pas tout seul sur un svg */
+span.repere.nouvelle { color: var(--dore); }
+@media (max-width: 899px) { body.hub-page h1 { padding-right: 52px; } }
 @media (min-width: 900px) {
-    nav.hub button.theme { position: static; margin-top: auto; align-self: flex-start; }
+    button.theme { position: fixed; top: auto; right: auto; left: 24px; bottom: 24px; }   /* dans la colonne de gauche */
     nav.hub { top: 0; right: auto; width: 232px; flex-direction: column; justify-content: flex-start;
               padding: 28px 14px; border-top: none; border-right: 1px solid var(--ligne); }
     nav.hub a { flex: 0 0 auto; flex-direction: row; gap: 10px; font-size: 16px; padding: 6px;
@@ -421,4 +448,4 @@ details.annexe p.aide { color: var(--doux); font-size: 14px; margin: 8px 0; }
 
 STYLE_HORS_LIGNE = """div#hors-ligne { background: #fff4d6; color: #6b4e00; border-radius: 16px; padding: 10px 14px; margin: 0 0 12px;
                  font-weight: 600; font-size: 14px; }
-""" + sombre(""" div#hors-ligne { background: #3d3214; color: #ffe08a; } """) + """"""
+""" + sombre(""" div#hors-ligne { background: #3d3214; color: #ffe08a; } """)

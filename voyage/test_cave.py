@@ -100,7 +100,7 @@ def test_reprise_de_depart():
 from cave import cave_en_html
 import re
 
-EMOJI = re.compile("[\U0001F300-\U0001FAFF☀-➿]")
+EMOJI = re.compile("[\U0001F300-\U0001FAFF⌚⌛⏩-⏺☀-➿]")
 
 
 def test_page_cave():
@@ -112,8 +112,7 @@ def test_page_cave():
     assert '<script type="application/json" id="couleurs">' in html
     assert '<script type="application/json" id="profils">' in html
     assert "envoyerOuGarder" in html                                   # la file hors ligne de Courses
-    from design import SCRIPT_THEME                                    # signes du bouton thème, pas des emojis de contenu
-    assert EMOJI.findall(html.replace(SCRIPT_THEME, "")) == []
+    assert EMOJI.findall(html) == []
 
 
 def test_page_cave_a_la_tete_des_autres_onglets():

@@ -2498,7 +2498,7 @@ p.legende { font-size: .75rem; color: var(--doux); margin: 0 0 .6rem; }
 p.legende .avenir { color: var(--accent); } p.legende .passe { color: #9ca3af; }
 """ + sombre("""     /* fond de carte sombre, comme le reste de l'app */
   #carte .leaflet-tile { filter: invert(1) hue-rotate(180deg) brightness(.95) contrast(.9); }
-""") + """"""
+""")
 
 SCRIPT_CARTE = """
 (function () {
