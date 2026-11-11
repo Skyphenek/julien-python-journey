@@ -28,7 +28,7 @@ from db import (emprunter, ajouter_depense, lire_depenses, supprimer_depense, ob
                 lire_frais, finir, corriger_a_finir,
                 lire_cave, enregistrer_bouteille, boire, retirer_bouteille,
                 lire_sorties, creer_sortie, donner_avis, maj_sortie)
-from sortir import valider_sortie, tirer_weekend
+from sortir import valider_sortie, tirer_weekend, rappels
 import random
 from valise import (solde_depenses, actualiser_meteo, fenetres_du_voyage, page_du_voyage, accueil_en_html,
                     lieux_depuis_reponse, normales_ou_url, normales_depuis_historique,
@@ -115,7 +115,8 @@ def creer_app(nom_base="valise", secret=None):
                     belle = belles[0] if belles else None
                 html = aujourdhui_en_html(lister_voyages(conn), jour,
                                           a_acheter_aujourd_hui(du_jour, lu["placard"], articles),
-                                          ce_soir, hier, compteur(repas, jour), cette_semaine, a_finir, vins, belle)
+                                          ce_soir, hier, compteur(repas, jour), cette_semaine, a_finir, vins, belle,
+                                          sortir=rappels(lire_sorties(conn), jour))
             finally:
                 conn.close()
             return Response(html, mimetype="text/html")

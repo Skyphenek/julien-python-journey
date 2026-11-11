@@ -97,6 +97,13 @@ div.bloc-a-finir ul.plats li { display: flex; align-items: center; justify-conte
 div.bloc-a-finir ul.plats li span { display: flex; flex-direction: column; min-width: 0; }
 div.bloc-a-finir ul.plats button { border-color: var(--diners); color: var(--diners); flex: none; }
 div.bloc-a-finir p.pris { margin: 6px 0 0; }
+div.bloc-sortir { background: var(--sortir-doux); border-radius: 24px; padding: 18px 20px; margin: 16px 0; }
+div.bloc-sortir .titre { font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--sortir); }
+div.bloc-sortir ul { list-style: none; margin: 8px 0 0; padding: 0; }
+div.bloc-sortir li { padding: 8px 0; border-top: 1px solid var(--ligne); display: flex; flex-direction: column; gap: 2px; }
+div.bloc-sortir li strong { font-size: 17px; font-weight: 800; }
+div.bloc-sortir li span { color: var(--doux); font-size: 14px; }
+div.bloc-sortir a { display: inline-flex; align-items: center; min-height: 44px; color: var(--sortir); font-weight: 800; }
 div.bloc-a-finir .message { margin: 8px 0 0; color: var(--diners); font-weight: 700; font-size: 14px; }
 div.bloc-vin { background: var(--carte); border-radius: 24px; padding: 14px 16px; margin: 0 0 12px; }
 div.bloc-vin .titre { display: block; font-size: 13px; font-weight: 800; color: var(--doux); }
@@ -319,14 +326,30 @@ SCRIPT_A_FINIR = """
 """
 
 
+def bloc_sortir(r, aujourd_hui):
+    """Rappels des sorties (sortir.rappels) : ce qui finit bientôt, ce qui est prévu, et le tirage du week-end. Rien : rien."""
+    if not (r and (r["finissent"] or r["prevues"] or r["weekend"])):
+        return ""
+    lignes = []
+    for s in r["finissent"]:
+        n = (s["fin"] - aujourd_hui).days
+        quand = "finit aujourd'hui" if n <= 0 else "finit demain" if n == 1 else f"finit dans {n} jours"
+        lignes.append(f'<li><strong>{echapper(s["titre"])}</strong><span>{quand}</span></li>')
+    for s in r["prevues"]:
+        lignes.append(f'<li><strong>{echapper(s["titre"])}</strong><span>prévu : {_quand(s["le"], aujourd_hui).lower()}</span></li>')
+    liste = f'<ul>{"".join(lignes)}</ul>' if lignes else ""
+    lien = '<a href="sortir#tirage">Ce week-end ?</a>' if r["weekend"] else ""
+    return f'<div class="bloc-sortir"><span class="titre">Sortir</span>{liste}{lien}</div>'
+
+
 def aujourdhui_en_html(voyages, aujourd_hui, a_acheter=(), plats_du_soir=(), diner_hier=None, compte=None,
-                       semaine_budget=None, a_finir=(), vins=(), belle=None):
+                       semaine_budget=None, a_finir=(), vins=(), belle=None, sortir=None):
     """L'accueil du hub : ce soir (et le vin à ouvrir), hier soir, ce qui est à finir, ce qu'il faut acheter aujourd'hui, le budget de la
     semaine, le prochain voyage, le compteur Deliveroo."""
     v = prochain_voyage(voyages, aujourd_hui)
     blocs = (bloc_ce_soir(list(plats_du_soir)) + bloc_vin(vins, belle)
              + (bloc_hier(diner_hier) if diner_hier else "")
-             + bloc_a_finir(list(a_finir), aujourd_hui) + bloc_courses(list(a_acheter))
+             + bloc_a_finir(list(a_finir), aujourd_hui) + bloc_sortir(sortir, aujourd_hui) + bloc_courses(list(a_acheter))
              + bloc_budget(semaine_budget)
              + (bloc_vadrouille(v, aujourd_hui) if v else "") + bloc_compteur(compte))
     return f"""<!doctype html>

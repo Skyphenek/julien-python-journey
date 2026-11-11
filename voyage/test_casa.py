@@ -253,3 +253,20 @@ def test_bloc_vin_indique_la_region_et_le_pays_etranger():
     assert "<span>Rhône Nord · à boire avant 2028</span>" in html
     assert "<span>Toscane, Italie · à boire avant 2028</span>" in html
     assert "<span>à boire avant 2028</span>" in html                     # sans région : rien de plus
+
+
+def test_bloc_sortir():
+    from casa import bloc_sortir
+    j = date(2026, 11, 13)
+    vide = {"finissent": [], "prevues": [], "weekend": False}
+    assert bloc_sortir(vide, j) == ""
+    r = {"finissent": [{"id": "a", "titre": "Expo <X>", "fin": j + timedelta(days=5)}],
+         "prevues": [{"id": "b", "titre": "Refuge des Fondus", "le": j + timedelta(days=1)}], "weekend": True}
+    html = bloc_sortir(r, j)
+    assert 'class="bloc-sortir"' in html and "Expo &lt;X&gt;" in html and "finit dans 5 jours" in html
+    assert "Refuge des Fondus" in html and "demain" in html.lower() and 'href="sortir#tirage"' in html and "Ce week-end ?" in html
+    assert "<script" not in html
+    assert "finit aujourd'hui" in bloc_sortir({**vide, "finissent": [{"id": "a", "titre": "Z", "fin": j}]}, j)
+    assert 'href="sortir#tirage"' in bloc_sortir({**vide, "weekend": True}, j)
+    assert 'class="bloc-sortir"' not in aujourdhui_en_html([], j)
+    assert 'class="bloc-sortir"' in aujourdhui_en_html([], j, sortir=r)
