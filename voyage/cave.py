@@ -6,7 +6,7 @@ restent au placard (Courses). Le vin du soir : accords_vins.py.
 import json
 
 from accords_vins import PROFILS
-from design import STYLE_D, STYLE_NAV_HUB, STYLE_ANNEXE, STYLE_HORS_LIGNE, TETE_POLICE, nav_hub
+from design import STYLE_D, STYLE_NAV_HUB, STYLE_ANNEXE, STYLE_HORS_LIGNE, TETE_POLICE, nav_hub, onglets_popote
 from pwa import SCRIPT_FILE, TETE_PWA
 
 # Les profils d'accord (accords_vins.PROFILS) tels qu'affichés
@@ -106,7 +106,6 @@ body.cave button { border-radius: 14px; border: 2px solid var(--ligne); backgrou
 body.cave button#ajouter { background: var(--cave); border-color: var(--cave); color: var(--blanc); }
 form#ajout-vin button[type="submit"] { background: var(--cave); border-color: var(--cave); color: var(--blanc); }
 article.vin .ligne > button:not(.nom) { flex: none; border-color: var(--cave); color: var(--cave); }
-body.cave h1 { margin-bottom: 4px; }
 p.resume { color: var(--doux); margin: 0 0 14px; }
 p.message { color: var(--doux); margin: 0 0 14px; }
 p.message:empty { display: none; }
@@ -332,7 +331,7 @@ def cave_en_html():
 <style>{STYLE_D}{STYLE_NAV_HUB}{STYLE_ANNEXE}{STYLE_HORS_LIGNE}{STYLE_CAVE}</style>
 </head>
 <body class="accueil hub-page cave">
-<h1>Cave</h1>
+{onglets_popote("cave")}
 <p class="resume" id="resume">Chargement…</p>
 <p class="message" id="message-cave" aria-live="polite"></p>
 <div id="hors-ligne" hidden></div>

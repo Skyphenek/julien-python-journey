@@ -12,7 +12,7 @@ import re
 from datetime import date, timedelta
 
 from courses import normaliser, STYLE_COURSES
-from design import STYLE_D, STYLE_NAV_HUB, TETE_POLICE, nav_hub, ICONES_REPERE
+from design import STYLE_D, STYLE_NAV_HUB, TETE_POLICE, nav_hub, onglets_popote, ICONES_REPERE
 from pwa import TETE_PWA, SCRIPT_FILE
 
 _ID = re.compile(r"[A-Za-z0-9-]{8,64}")
@@ -1237,7 +1237,7 @@ def diners_en_html():
 <style>{STYLE_D}{STYLE_NAV_HUB}{STYLE_COURSES}{STYLE_DINERS}</style>
 </head>
 <body class="accueil hub-page diners">
-<h1>Dîners</h1>
+{onglets_popote("diners")}
 <div id="hors-ligne" hidden></div>
 <nav class="vues">{vues}</nav>
 <div id="vue" class="vue"><p class="vide-courses">Chargement des recettes…</p></div>

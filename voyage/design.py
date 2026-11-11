@@ -52,18 +52,18 @@ ICONES_RUBRIQUE = {
 # Dîners, Courses et Colis s'ajoutent ici à leur livraison : jamais de lien vers une page absente.
 HUB = [
     ("aujourdhui", "Aujourd'hui", "./"),
-    ("diners", "Dîners", "diners"),
-    ("courses", "Courses", "courses"),
-    ("cave", "Cave", "cave"),
+    ("popote", "Popote", "diners"),                     # Dîners · Courses · Cave, onglets en haut des pages
     ("budget", "Budget", "budget"),
     ("vadrouille", "Vadrouille", "vadrouille"),          # court : tient dans la barre du bas sur iPhone
 ]
+POPOTE = ("diners", "courses", "cave")
 ICONES_HUB = {
     "aujourdhui": _TRAIT.format('<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/>'),
     "diners": _TRAIT.format('<path d="M7 3v7a2 2 0 0 0 4 0V3M9 10v11M17 3c-1.7 0-3 2-3 5s1.3 4 3 4v9"/>'),
     "courses": _TRAIT.format('<circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/>'
                              '<path d="M2 3h3l2.7 12.4a1 1 0 0 0 1 .8h9.6a1 1 0 0 0 1-.8L21 7H6"/>'),
     "cave": _TRAIT.format('<path d="M8 3h8l-.6 6.2a3.4 3.4 0 0 1-6.8 0z"/><path d="M12 12.6V20M8.5 20h7"/>'),
+    "popote": _TRAIT.format('<path d="M7 3v7a2 2 0 0 0 4 0V3M9 10v11M17 3c-1.7 0-3 2-3 5s1.3 4 3 4v9"/>'),
     "budget": _TRAIT.format('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
     "vadrouille": ICONES_RUBRIQUE["valise"],
 }
@@ -107,6 +107,7 @@ SCRIPT_THEME = """<script>(function () {
 
 def nav_hub(actif):
     """La navigation du hub (en bas sur téléphone, à gauche sur ordinateur), l'entrée actif en surbrillance."""
+    actif = "popote" if actif in POPOTE else actif
     liens = "".join(
         f'<a href="{adresse}" data-hub="{cle}"'
         + (' class="actif" aria-current="page">' if cle == actif else ">")
@@ -117,6 +118,16 @@ def nav_hub(actif):
                      for cle, svg in ICONES_THEME.items())
     bouton = f'<button type="button" class="theme" aria-label="Thème automatique, appuyer pour changer">{signes}</button>'
     return f'{bouton}<nav class="hub">{liens}</nav>{SCRIPT_THEME}'
+
+
+def onglets_popote(actif):
+    """Les onglets de Popote en haut de Dîners, Courses et Cave (à la place du titre) ; la page active soulignée."""
+    liens = "".join(
+        f'<a href="{cle}" data-popote="{cle}"'
+        + (' class="actif" aria-current="page">' if cle == actif else ">")
+        + f"{libelle}</a>"
+        for cle, libelle in (("diners", "Dîners"), ("courses", "Courses"), ("cave", "Cave")))
+    return f'<nav class="popote" aria-label="Popote">{liens}</nav>'
 
 
 STYLE_NAV_HUB = """
@@ -131,9 +142,7 @@ nav.hub a .icone-hub { display: flex; padding: 6px 10px; border-radius: 16px; co
 nav.hub a.actif { color: var(--texte); font-weight: 800; }
 nav.hub a.actif .icone-hub { background: var(--c-doux); }
 nav.hub a[data-hub="aujourdhui"] { --c: var(--texte); --c-doux: var(--carte); }
-nav.hub a[data-hub="diners"] { --c: var(--diners); --c-doux: var(--diners-doux); }
-nav.hub a[data-hub="courses"] { --c: var(--courses); --c-doux: var(--courses-doux); }
-nav.hub a[data-hub="cave"] { --c: var(--cave); --c-doux: var(--cave-doux); }
+nav.hub a[data-hub="popote"] { --c: var(--diners); --c-doux: var(--diners-doux); }
 nav.hub a[data-hub="budget"] { --c: var(--courses); --c-doux: var(--courses-doux); }
 nav.hub a[data-hub="vadrouille"] { --c: var(--valise); --c-doux: var(--valise-doux); }
 body.hub-page { position: relative; display: block; max-width: 720px; margin: 0 auto; padding: 28px 20px 110px; }   /* place pour la barre */
@@ -145,7 +154,14 @@ button.theme { position: absolute; top: calc(10px + env(safe-area-inset-top)); r
 span.repere svg, button.theme svg { width: 1em; height: 1em; vertical-align: -0.15em; }
 button.theme svg[hidden] { display: none; }   /* [hidden] n'agit pas tout seul sur un svg */
 span.repere.nouvelle { color: var(--dore); }
-@media (max-width: 899px) { body.hub-page h1 { padding-right: 52px; } }
+nav.popote { display: flex; gap: 22px; margin: 0 0 18px; }
+nav.popote a { font-size: 24px; font-weight: 800; color: var(--doux); text-decoration: none; padding: 2px 0 6px;
+               border-bottom: 3px solid transparent; }
+nav.popote a.actif { color: var(--texte); border-bottom-color: var(--c); }
+nav.popote a[data-popote="diners"] { --c: var(--diners); }
+nav.popote a[data-popote="courses"] { --c: var(--courses); }
+nav.popote a[data-popote="cave"] { --c: var(--cave); }
+@media (max-width: 899px) { body.hub-page h1, body.hub-page nav.popote { padding-right: 52px; } }
 @media (min-width: 900px) {
     button.theme { position: fixed; top: auto; right: auto; left: 24px; bottom: 24px; }   /* dans la colonne de gauche */
     nav.hub { top: 0; right: auto; width: 232px; flex-direction: column; justify-content: flex-start;
