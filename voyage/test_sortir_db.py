@@ -109,3 +109,8 @@ def test_api_sorties(client):
     d = client.get("/api/sorties").get_json()
     assert [x["id"] for x in d["sorties"]] == [i] and "aujourd_hui" in d
     assert client.get("/api/sorties/weekend").status_code == 200
+
+
+def test_api_sorties_corps_invalide(client):
+    assert client.post("/api/sorties", data="pas du json").status_code == 400
+    assert client.post("/api/sorties", json=["liste"]).status_code == 400

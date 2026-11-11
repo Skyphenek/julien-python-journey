@@ -386,7 +386,8 @@ def creer_app(nom_base="valise", secret=None):
         conn = emprunter(app.config["NOM_BASE"])
         try:
             try:
-                sortie = valider_sortie(request.get_json(silent=True), aujourd_hui_paris())
+                corps = request.get_json(silent=True)
+                sortie = valider_sortie(corps if isinstance(corps, dict) else {}, aujourd_hui_paris())
                 identifiant, cree = creer_sortie(conn, sortie)
             except (ValueError, TypeError) as e:
                 conn.rollback()
