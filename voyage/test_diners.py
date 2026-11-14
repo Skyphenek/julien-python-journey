@@ -318,6 +318,63 @@ def test_proposer_un_diner_compose_compte_comme_prevu():
     assert proposer(carte(), repas, SEMAINE, LUN, hasard=Random(7)) == {}
 
 
+# --- proposer_cases : les cases cochées, midi et soir ---
+from diners import proposer_cases, MINUTES_MIDI
+
+MAR, SAM, DIM = LUN + timedelta(days=1), LUN + timedelta(days=5), LUN + timedelta(days=6)
+
+
+def test_proposer_cases_remplit_exactement_les_cases_cochees():
+    cases = [(j, "diner") for j in SEMAINE] + [(SAM, "dejeuner"), (DIM, "dejeuner")]
+    p = proposer_cases(carte(n=20), [], cases, LUN, hasard=Random(1))
+    assert sorted(p) == sorted(cases) and len(set(p.values())) == 9          # 9 repas, aucun doublon
+
+
+def test_proposer_cases_midi_rapide_et_soir_comme_avant():
+    plats = carte(n=4, a_tester=0) + [{**plat(f"plat-moyen-{i}", f"Moyen {i}", minutes=40), "recette": "1.",
+                                       "pour": "nous"} for i in range(4)]
+    for graine in range(15):
+        p = proposer_cases(plats, [], [(LUN, "dejeuner"), (MAR, "dejeuner"), (LUN, "diner")], LUN,
+                           hasard=Random(graine))
+        assert all(not p[(j, "dejeuner")].startswith("plat-moyen") for j in (LUN, MAR))   # 40 min > 30 à midi
+    assert MINUTES_MIDI == 30
+
+
+def test_proposer_cases_ne_touche_pas_ce_qui_est_pose():
+    repas = [diner(LUN, "plat-carnet-00"), diner(MAR, issue="dehors"),
+             diner(SAM, "plat-carnet-01", moment="brunch")]
+    p = proposer_cases(carte(), repas, [(LUN, "diner"), (MAR, "diner"), (SAM, "dejeuner"), (DIM, "diner")], LUN,
+                       hasard=Random(2))
+    assert list(p) == [(DIM, "diner")] and p[(DIM, "diner")] not in {"plat-carnet-00", "plat-carnet-01"}
+
+
+def test_proposer_cases_jours_passes_ignores():
+    assert proposer_cases(carte(), [], [(LUN, "diner")], MAR, hasard=Random(3)) == {}
+
+
+def test_proposer_cases_remplacer_un_dejeuner():
+    plats = carte()
+    p = proposer_cases(plats, [], [(SAM, "dejeuner")], LUN, hasard=Random(4))
+    avant = p[(SAM, "dejeuner")]
+    q = proposer_cases(plats, [diner(SAM, avant, moment="dejeuner")], [], LUN,
+                       remplacer=[(SAM, "dejeuner")], hasard=Random(5))
+    assert list(q) == [(SAM, "dejeuner")] and q[(SAM, "dejeuner")] != avant
+
+
+def test_proposer_cases_un_seul_plat_a_tester():
+    cases = [(j, m) for j in SEMAINE for m in ("dejeuner", "diner")]
+    p = proposer_cases(carte(n=20, a_tester=5), [], cases, LUN, hasard=Random(6))
+    assert sum(v.startswith("plat-tester") for v in p.values()) <= 1
+
+
+def test_proposer_cases_anti_gaspi_a_midi():
+    plats = carte(n=6, a_tester=0) + [{**plat("plat-epinards", "Épinards", minutes=20, ingredients=["épinards frais"]),
+                                       "recette": "1.", "pour": "nous"}]
+    p = proposer_cases(plats, [], [(LUN, "dejeuner"), (LUN, "diner"), (MAR, "diner")], LUN,
+                       a_finir=[("epinards frais", MAR)], hasard=Random(7))
+    assert p[(LUN, "dejeuner")] == "plat-epinards"
+
+
 # --- Proposer avec un accompagnement (étape 3) ---
 from diners import accompagner
 
