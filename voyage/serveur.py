@@ -23,7 +23,7 @@ from db import (emprunter, ajouter_depense, lire_depenses, supprimer_depense, ob
                 enregistrer_a_voir, lire_a_voir, supprimer_a_voir, enregistrer_proche, enregistrer_souvenir,
                 lire_souvenirs, supprimer_souvenir, enregistrer_coche, lister_voyages, lire_voyage, archiver_voyage,
                 VERDICTS, enregistrer_retour, supprimer_retour, lire_retours,
-                enregistrer_article, lire_courses, supprimer_article, vider_pris, lire_achats,
+                enregistrer_article, lire_courses, supprimer_article, enregistrer_avis, lire_avis, vider_pris, lire_achats,
                 enregistrer_placard, retirer_du_placard, enregistrer_plat, lire_plats, plat_existe, enregistrer_repas, lire_repas, compter_faits,
                 lire_frais, finir, corriger_a_finir,
                 lire_cave, enregistrer_bouteille, boire, retirer_bouteille,
@@ -50,6 +50,7 @@ from fiche_recette import decouper
 from diners import (avec_achats_recents, FRAIS_JOURS, disponibles, a_acheter_aujourd_hui, valider_plat, valider_repas, secours, a_acheter, compteur, journal, semaine, diners_en_html,
                     proposer, proposer_cases, accompagner, cout_semaine, repas_prevus, ranger, nettoyer_accords, LIVRAISON_DEUX, FENETRE_PASSE, FENETRE_FUTUR)
 from a_finir import suivis, alertes, plats_qui_utilisent, ENCORE_BON_JOURS
+from avis import valider_avis, a_noter, resume as resume_avis, RAISONS_MOINS, RAISONS_PLUS
 from uuid import uuid4
 
 load_dotenv(Path(__file__).parent / ".env")   # en local : lit voyage/.env s'il existe
@@ -159,6 +160,13 @@ def creer_app(nom_base="valise", secret=None):
                               if b["id"] not in {v["id"] for v in vins}]
                     belle = belles[0] if belles else None
                 try:
+                    tous_avis = lire_avis(conn)
+                except psycopg2.errors.UndefinedTable:      # table avis pas encore créée
+                    conn.rollback()
+                    tous_avis = None
+                avis_a_noter = (None if tous_avis is None else
+                                {q: a_noter(repas, list(plats.values()), tous_avis, q, jour) for q in ("julien", "laetitia")})
+                try:
                     sortir = rappels(lire_sorties(conn), jour)
                 except psycopg2.errors.UndefinedTable:      # table pas encore créée (appliquer_schema pas passé)
                     conn.rollback()
@@ -166,7 +174,8 @@ def creer_app(nom_base="valise", secret=None):
                 html = aujourdhui_en_html(lister_voyages(conn), jour,
                                           a_acheter_aujourd_hui(du_jour, lu["placard"], articles, stock_perime),
                                           ce_soir, hier, compteur(repas, jour), cette_semaine, a_finir, vins, belle,
-                                          sortir=sortir, plats_hier=plats_hier, noms_plats=noms_plats)
+                                          sortir=sortir, plats_hier=plats_hier, noms_plats=noms_plats,
+                                          avis_a_noter=avis_a_noter)
             finally:
                 conn.close()
             return Response(html, mimetype="text/html")
@@ -232,6 +241,11 @@ def creer_app(nom_base="valise", secret=None):
             lu = lire_courses(conn)
             articles = articles_et_achats_recents(conn, lu["articles"], jour)
             produits, a_finir = alertes_du_frigo(conn, jour, plats, lu, articles)
+            try:
+                avis_par_plat = resume_avis(lire_avis(conn))
+            except psycopg2.errors.UndefinedTable:      # table avis pas encore créée
+                conn.rollback()
+                avis_par_plat = {}
         finally:
             conn.close()
         stock_perime = perimes(produits, jour)
@@ -243,7 +257,8 @@ def creer_app(nom_base="valise", secret=None):
         return jsonify({
             "aujourd_hui": jour.isoformat(), "semaine": [j.isoformat() for j in jours],
             "plats": [{**p, "cout": cout_repas(p["ingredients"], p["recette"]), "fiche": decouper(p["recette"]),
-                       "faits": faits.get(p["id"], 0)} for p in plats],
+                       "faits": faits.get(p["id"], 0), "avis": avis_par_plat.get(p["id"])} for p in plats],
+            "raisons_avis": {"moins": RAISONS_MOINS, "plus": RAISONS_PLUS},
             "repas": [{**r, "jour": r["jour"].isoformat()} for r in repas],
             "liste": sorted({normaliser(a["nom"]) for a in lu["articles"] if a["actif"] and not a["pris"]}),
             "livraison": LIVRAISON_DEUX, "cout_semaine": cout_semaine(prevus, lu["placard"], articles),
@@ -290,6 +305,33 @@ def creer_app(nom_base="valise", secret=None):
         finally:
             conn.close()
         return jsonify({"ok": True})
+
+    @routes.post("/api/avis")
+    def enregistrer_un_avis():
+        """Un retour de cuisson (avis.valider_avis) ; le même (plat, jour, moment, qui) le remplace."""
+        try:
+            a = valider_avis(request.get_json(silent=True), aujourd_hui_paris())
+        except ValueError as e:
+            return jsonify({"erreur": str(e)}), 400
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            if not plat_existe(conn, a["plat"]):
+                return jsonify({"erreur": "plat inconnu"}), 400
+            enregistrer_avis(conn, a)
+        finally:
+            conn.close()
+        return jsonify({"ok": True})
+
+    @routes.get("/api/avis")
+    def lire_les_avis():
+        """Tous les retours de cuisson, leur résumé par plat et les raisons : ce que lit le skill chef-casa."""
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            tous = lire_avis(conn)
+        finally:
+            conn.close()
+        return jsonify({"avis": [{**a, "jour": a["jour"].isoformat()} for a in tous], "resume": resume_avis(tous),
+                        "raisons": {"moins": RAISONS_MOINS, "plus": RAISONS_PLUS}})
 
     @routes.post("/api/diners/courses")
     def courses_de_la_semaine():

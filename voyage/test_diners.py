@@ -758,3 +758,13 @@ def test_fiche_autre_repas_fermer_en_bas_et_cuisines():
     for texte in ("'Autre repas…'", "function grilleFiche", "div.barre-fiche", "history.pushState", "popstate",
                   "function fermerPanneau", "cuisineChoisie", "'Cuisine'", "cuisine: cuisine.value"):
         assert texte in SCRIPT_DINERS or texte in html, texte
+
+
+def test_avis_dans_les_diners():
+    from diners import SCRIPT_DINERS
+    html = diners_en_html()
+    assert "function formulaireAvis" in html and "div.form-avis" in html
+    for texte in ("'Mon avis'", "function sectionAvis", "['coeur', 'Coups de cœur']", "p.avis.moyenne >= 4.5",
+                  "url: 'api/avis'", "'casa-qui'"):
+        assert texte in SCRIPT_DINERS, texte
+    assert "bouton('Toutes', cuisineChoisie === 'tout'" in SCRIPT_DINERS        # voir toutes les cuisines

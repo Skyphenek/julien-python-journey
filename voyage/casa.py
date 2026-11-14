@@ -11,6 +11,7 @@ from html import escape as echapper
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
+from avis import STYLE_AVIS, SCRIPT_FORM_AVIS
 from compte_a_rebours import compte_en_html, STYLE_COMPTE, SCRIPT_COMPTE
 from design import STYLE_D, STYLE_NAV_HUB, TETE_POLICE, nav_hub
 from programme import etapes_du_voyage
@@ -68,6 +69,14 @@ a.bloc-ce-soir.vide { background: var(--diners-doux); color: var(--texte); }
 a.bloc-ce-soir .titre { font-size: 14px; font-weight: 700; opacity: .85; }
 a.bloc-ce-soir strong { font-size: 28px; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; }
 a.bloc-ce-soir.vide strong { color: var(--diners); }
+div.bloc-avis { background: var(--carte); border-radius: 24px; padding: 18px 20px; margin: 16px 0; display: flex;
+                flex-direction: column; gap: 10px; }
+div.bloc-avis .titre { font-size: 14px; font-weight: 700; color: var(--doux); }
+div.bloc-avis .zone-avis { display: flex; flex-wrap: wrap; gap: 8px; }
+div.bloc-avis .zone-avis > div.form-avis { flex-basis: 100%; }
+div.bloc-avis p.question { flex-basis: 100%; margin: 0; font-weight: 800; }
+div.bloc-avis button.qui { flex: 1; min-height: 48px; border-radius: 16px; border: 2px solid var(--ligne); background: var(--blanc);
+                           color: var(--texte); font: inherit; font-weight: 800; }
 div.bloc-hier { background: var(--carte); border-radius: 24px; padding: 18px 20px; margin: 16px 0; display: flex;
                 flex-direction: column; gap: 10px; }
 div.bloc-hier strong { font-size: 19px; font-weight: 800; }
@@ -257,6 +266,18 @@ def bloc_hier(diner_hier, plats=(), noms=None):
             f'<p class="message" aria-live="polite"></p></div>')
 
 
+def bloc_avis(a_noter):
+    """« Ton avis ? » : les plats faits maison de ces derniers jours que chacun n'a pas notés (avis.a_noter),
+    {julien: [...], laetitia: [...]} ; le script montre ceux de la personne du téléphone (« casa-qui »)."""
+    if not a_noter or not any(a_noter.values()):
+        return ""
+    from avis import RAISONS_MOINS, RAISONS_PLUS
+    donnees = json.dumps({"a_noter": a_noter, "raisons": {"moins": RAISONS_MOINS, "plus": RAISONS_PLUS}},
+                         ensure_ascii=False).replace("<", "\\u003c")
+    return (f'<div class="bloc-avis"><span class="titre">Retour de cuisson</span><div class="zone-avis"></div></div>'
+            f'<script type="application/json" id="avis-json">{donnees}</script>')
+
+
 def bloc_compteur(c):
     if not c or not c["renseignes"]:
         return ""
@@ -309,6 +330,42 @@ def bloc_a_finir(alertes, aujourd_hui):
                       f'<span>{etat}</span></div><div class="actions">{boutons}</div>{plats}</li>')
     return (f'<div class="bloc-a-finir"><span class="titre">À finir</span><ul>{"".join(lignes)}</ul>'
             f'<p class="message" aria-live="polite"></p></div>')
+
+
+# « Ton avis ? » : une personne par téléphone (« casa-qui », comme Sortir), un plat à la fois
+SCRIPT_AVIS = r"""
+(function () {
+    const bloc = document.querySelector('div.bloc-avis');
+    if (!bloc) return;
+    const d = JSON.parse(document.getElementById('avis-json').textContent);
+    const zone = bloc.querySelector('.zone-avis');
+    let qui = null;
+    try { qui = localStorage.getItem('casa-qui'); } catch (e) {}
+    function bouton(t, c, f) { const b = document.createElement('button'); b.type = 'button'; b.className = c; b.textContent = t; b.addEventListener('click', f); return b; }
+    function suivant() {
+        zone.replaceChildren();
+        if (!qui) {
+            const p = document.createElement('p'); p.className = 'question'; p.textContent = 'Qui tient le téléphone ?';
+            zone.append(p, bouton('Julien', 'qui', function () { choisir('julien'); }), bouton('Laetitia', 'qui', function () { choisir('laetitia'); }));
+            return;
+        }
+        const liste = d.a_noter[qui] || [];
+        if (!liste.length) { bloc.remove(); return; }
+        const x = liste[0];
+        formulaireAvis(zone, {
+            nom: x.nom, raisons: d.raisons,
+            envoyer: function (corps) {
+                return fetch('api/avis', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                           body: JSON.stringify(Object.assign({ plat: x.plat, jour: x.jour, moment: x.moment, qui: qui }, corps)) })
+                    .then(function (r) { if (!r.ok) throw new Error(r.status); });
+            },
+            fini: function () { liste.shift(); suivant(); }
+        });
+    }
+    function choisir(q) { qui = q; try { localStorage.setItem('casa-qui', q); } catch (e) {} suivant(); }
+    suivant();
+})();
+"""
 
 
 SCRIPT_HIER = JS_CLE_NOM + """
@@ -446,12 +503,13 @@ def bloc_sortir(r, aujourd_hui):
 
 
 def aujourdhui_en_html(voyages, aujourd_hui, a_acheter=(), plats_du_soir=(), diner_hier=None, compte=None,
-                       semaine_budget=None, a_finir=(), vins=(), belle=None, sortir=None, plats_hier=(), noms_plats=None):
+                       semaine_budget=None, a_finir=(), vins=(), belle=None, sortir=None, plats_hier=(), noms_plats=None,
+                       avis_a_noter=None):
     """L'accueil du hub : ce soir (et le vin à ouvrir), hier soir, ce qui est à finir, ce qu'il faut acheter aujourd'hui, le budget de la
     semaine, le prochain voyage, le compteur Deliveroo."""
     v = prochain_voyage(voyages, aujourd_hui)
     blocs = (bloc_ce_soir(list(plats_du_soir)) + bloc_vin(vins, belle)
-             + (bloc_hier(diner_hier, plats_hier, noms_plats) if diner_hier else "")
+             + (bloc_hier(diner_hier, plats_hier, noms_plats) if diner_hier else "") + bloc_avis(avis_a_noter)
              + bloc_a_finir(list(a_finir), aujourd_hui) + bloc_sortir(sortir, aujourd_hui) + bloc_courses(list(a_acheter))
              + bloc_budget(semaine_budget)
              + (bloc_vadrouille(v, aujourd_hui) if v else "") + bloc_compteur(compte))
@@ -463,7 +521,7 @@ def aujourdhui_en_html(voyages, aujourd_hui, a_acheter=(), plats_du_soir=(), din
 <title>{NOM}</title>
 {TETE_PWA}
 {TETE_POLICE}
-<style>{HTML_STYLE}{STYLE_COMPTE}{STYLE_D}{STYLE_NAV_HUB}{STYLE_CASA}</style>
+<style>{HTML_STYLE}{STYLE_COMPTE}{STYLE_D}{STYLE_NAV_HUB}{STYLE_CASA}{STYLE_AVIS}</style>
 </head>
 <body class="accueil hub-page">
 <h1>{NOM}</h1>
@@ -472,6 +530,7 @@ def aujourdhui_en_html(voyages, aujourd_hui, a_acheter=(), plats_du_soir=(), din
 {nav_hub("aujourdhui")}
 <script>{SCRIPT_COMPTE}</script>
 <script>{SCRIPT_HIER}</script>
+<script>{SCRIPT_FORM_AVIS}{SCRIPT_AVIS}</script>
 <script>{SCRIPT_A_FINIR}</script>
 <script>{SCRIPT_VIN}</script>
 </body>

@@ -1657,7 +1657,8 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # 63 = Courses : les repas prévus remplissent la liste, le frais périmé n'est plus à la maison ; épaule de veau.
 # 64 = Dîners : « Mettre la liste à jour avec la semaine » ajoute et retire.
 # 65 = Recettes : par cuisine ; fiche : autre repas, Fermer en bas, retour d'iPhone.
-VERSION_PAGE = 65
+# 66 = Retours de cuisson (avis) ; cuisines : pastille Toutes.
+VERSION_PAGE = 66
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
 RUBRIQUES = [("valise", "Valise"), ("avant", "Avant"), ("programme", "Programme"), ("sur-place", "Sur place"),

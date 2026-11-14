@@ -855,6 +855,23 @@ def _sortir_la_viande(cur, ids_plats):
         cur.execute("DELETE FROM a_finir WHERE cle = ANY(%s)", (list(cles),))
 
 
+def enregistrer_avis(conn, a):
+    """Un avis validé (avis.valider_avis) : le même (plat, jour, moment, qui) le remplace."""
+    with conn.cursor() as cur:
+        cur.execute("""INSERT INTO avis (plat, jour, moment, qui, note, raisons, mot) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                       ON CONFLICT (plat, jour, moment, qui) DO UPDATE SET note = EXCLUDED.note,
+                       raisons = EXCLUDED.raisons, mot = EXCLUDED.mot, maj_le = now()""",
+                    (a["plat"], a["jour"], a["moment"], a["qui"], a["note"], Json(a["raisons"]), a["mot"]))
+    conn.commit()
+
+
+def lire_avis(conn):
+    """Tous les avis, du plus ancien au plus récent : [{plat, jour, moment, qui, note, raisons, mot}]."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT plat, jour, moment, qui, note, raisons, mot FROM avis ORDER BY jour, maj_le")
+        return [dict(zip(("plat", "jour", "moment", "qui", "note", "raisons", "mot"), ligne)) for ligne in cur.fetchall()]
+
+
 def lire_repas(conn, debut, fin):
     with conn.cursor() as cur:
         cur.execute("""SELECT jour, moment, plats, issue FROM repas WHERE jour BETWEEN %s AND %s

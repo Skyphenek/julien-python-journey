@@ -13,6 +13,7 @@ from datetime import date, timedelta
 
 from courses import normaliser, STYLE_COURSES
 from design import STYLE_D, STYLE_NAV_HUB, TETE_POLICE, nav_hub, onglets_cucina, ICONES_REPERE
+from avis import STYLE_AVIS, SCRIPT_FORM_AVIS
 from pwa import TETE_PWA, SCRIPT_FILE
 
 _ID = re.compile(r"[A-Za-z0-9-]{8,64}")
@@ -631,6 +632,7 @@ div.grille-fiche button.case { min-height: 42px; padding: 0; border-radius: 10px
 div.grille-fiche button.case.pris { border-color: var(--diners); color: var(--diners); }
 div.grille-fiche button.case:disabled:not(.pris) { opacity: .4; }
 div.filtres.cuisines { margin-bottom: 6px; }
+span.note-avis { font-size: 12px; font-weight: 800; color: var(--diners); white-space: nowrap; }
 div.panneau h2 { font-size: 32px; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; margin: 0; }
 div.panneau .meta { color: var(--doux); font-weight: 600; }
 div.panneau .meta a { color: var(--diners); }
@@ -738,7 +740,8 @@ SCRIPT_DINERS = """
     const GRILLE_DEFAUT = ['0|diner', '1|diner', '2|diner', '3|diner'];
     let grilleOuverte = false, grille = null;
     const ETIQUETTES = [['tout', 'Tout'], ['nouvelles', 'Nouvelles'], ['rapide', 'Rapide'], ['nous', 'Nous deux'], ['julien', 'Julien'], ['laetitia', 'Laetitia'],
-                        ['air-fryer', 'Air fryer'], ['poisson', 'Poisson'], ['legumes', 'Légumes'], ['brunch', 'Brunch']];
+                        ['air-fryer', 'Air fryer'], ['poisson', 'Poisson'], ['legumes', 'Légumes'], ['brunch', 'Brunch'],
+                        ['coeur', 'Coups de cœur']];
     // Brunch : les recettes « brunch- » et celles du carnet qui s'y prêtent
     const BRUNCH = ['plat-oeufs-brouilles', 'plat-oeuf-coque', 'plat-oeuf-cocotte', 'tester-pancakes', 'tester-shakshuka', 'mer-bagel-saumon'];
     const MER = ['saumon', 'thon', 'crevette', 'gambas', 'cabillaud', 'dorade', 'sole', 'sardine', 'moule', 'calamar',
@@ -805,6 +808,7 @@ SCRIPT_DINERS = """
             const n = normaliser(i); return n.indexOf('sauce') !== 0 && MER.some(function (m) { return n.indexOf(m) >= 0; }); });
         if (e === 'legumes') return p.id.indexOf('lg-') === 0 || (p.id.indexOf('af-') === 0 && p.genre === 'accompagnement');
         if (e === 'brunch') return p.id.indexOf('brunch-') === 0 || BRUNCH.indexOf(p.id) >= 0;
+        if (e === 'coeur') return !!p.avis && p.avis.moyenne >= 4.5;           // les retours de cuisson
         return true;
     }
     function correspond(p, q) {
@@ -829,6 +833,10 @@ SCRIPT_DINERS = """
     // Les grandes cuisines, avec leur nombre ; un 2e appui sur l'active la retire
     function barreCuisines(liste, rafraichir) {
         const f = el('div', 'filtres etiquettes cuisines');
+        const toutes = bouton('Toutes', cuisineChoisie === 'tout' ? 'actif' : '', function () { cuisineChoisie = 'tout'; rafraichir(); });
+        toutes.setAttribute('aria-pressed', String(cuisineChoisie === 'tout'));
+        toutes.append(el('span', '', String(liste.length)));
+        f.append(toutes);                                  // toutes les recettes, quelle que soit leur cuisine
         CUISINES.forEach(function (c) {
             const n = liste.filter(function (p) { return p.cuisine === c[0]; }).length;
             if (!n && cuisineChoisie !== c[0]) return;
@@ -1439,6 +1447,7 @@ SCRIPT_DINERS = """
             va.append(el('h3', '', 'Va bien avec'), liste, bouton('Modifier les accords', 'petit', function () { ouvrirAccords(p.id); }));
             c.append(va);
         }
+        c.append(sectionAvis(p));
         const act = el('div', 'actions');
         act.append(bouton('Ce soir', 'plein', function () {
             const envoi = ajouterPlat(d.aujourd_hui, 'diner', p.id);
@@ -1468,6 +1477,58 @@ SCRIPT_DINERS = """
         document.getElementById('panneau').hidden = false;
         document.getElementById('panneau').scrollTop = 0;
         verrouiller();                                     // l'écran reste allumé pendant qu'on cuisine
+    }
+    // Les retours de cuisson d'une recette : la note de chacun, les raisons les plus citées, et « Mon avis »
+    function libelleRaison(c) {
+        const r = (d.raisons_avis || { moins: [], plus: [] });
+        const x = r.moins.concat(r.plus).find(function (y) { return y[0] === c; });
+        return x ? x[1] : c;
+    }
+    function sectionAvis(p) {
+        const s = el('section', 'groupe-ing avis-fiche');
+        s.append(el('h3', '', 'Vos avis'));
+        const a = p.avis;
+        if (a) {
+            const notes = [];
+            if (a.julien) notes.push('Julien ' + a.julien + '/5');
+            if (a.laetitia) notes.push('Laetitia ' + a.laetitia + '/5');
+            s.append(el('p', 'meta', notes.join(' · ') + ' · moyenne ' + String(a.moyenne).replace('.', ',') + ' (' + a.nb + ' avis)'));
+            if (a.raisons.length) s.append(el('p', 'meta', a.raisons.map(libelleRaison).join(' · ')));
+        } else s.append(el('p', 'meta', 'Pas encore noté.'));
+        const zone = el('div');
+        zone.append(bouton('Mon avis', 'petit', function () { donnerAvis(p, zone); }));
+        s.append(zone);
+        return s;
+    }
+    // Le repas fait maison le plus récent qui contient la recette (sinon « libre », aujourd'hui) : l'avis s'y rattache
+    function repasDeLAvis(p) {
+        const faits = d.repas.filter(function (r) { return r.issue === 'fait' && r.plats.indexOf(p.id) >= 0 && r.jour <= d.aujourd_hui; })
+            .sort(function (x, y) { return x.jour < y.jour ? 1 : -1; });
+        return faits.length ? { jour: faits[0].jour, moment: faits[0].moment } : { jour: d.aujourd_hui, moment: 'libre' };
+    }
+    function donnerAvis(p, zone) {
+        let qui = null;
+        try { qui = localStorage.getItem('casa-qui'); } catch (e) {}
+        zone.replaceChildren();
+        if (!qui) {
+            zone.append(el('p', 'meta', 'Qui tient le téléphone ?'));
+            [['julien', 'Julien'], ['laetitia', 'Laetitia']].forEach(function (x) {
+                zone.append(bouton(x[1], 'petit', function () { try { localStorage.setItem('casa-qui', x[0]); } catch (e) {} donnerAvis(p, zone); }));
+            });
+            return;
+        }
+        const ou = repasDeLAvis(p);
+        formulaireAvis(zone, {
+            nom: p.nom, raisons: d.raisons_avis || { moins: [], plus: [] },
+            envoyer: function (corps) {
+                return envoyer({ url: 'api/avis', methode: 'POST', cle: 'avis:' + p.id + ':' + ou.jour + ':' + ou.moment + ':' + qui,
+                                 corps: Object.assign({ plat: p.id, jour: ou.jour, moment: ou.moment, qui: qui }, corps) });
+            },
+            fini: function (note) {
+                zone.replaceChildren(el('p', 'message', note ? 'Merci : ' + note + '/5 enregistré.' : "Noté : pas d'avis."));
+                relire();
+            }
+        });
     }
     // Ajouter la recette à un repas des 7 jours (pas seulement ce soir) : la grille Midi / Soir, un appui = ajoutée
     function grilleFiche(p) {
@@ -1685,6 +1746,11 @@ SCRIPT_DINERS = """
         ligne.plats.forEach(function (p, i) {
             if (i) noms.append(', ');
             noms.append(bouton(p.nom, '', function () { ouvrirFiche(p.id); }));
+            const r = plat(p.id);
+            if (r && r.avis) {
+                const n = el('span', 'note-avis'); n.innerHTML = ' ' + ETOILE_AVIS; n.append(' ' + String(r.avis.moyenne).replace('.', ','));
+                n.title = 'moyenne des avis'; noms.append(n);
+            }
         });
         l.append(noms);
         if (ligne.issue) l.append(icone(ligne.issue, LIBELLE_ISSUE[ligne.issue], 'issue ' + ligne.issue));
@@ -1805,7 +1871,7 @@ def diners_en_html(page="diners"):
 <title>{titre} · Casa Binomerie</title>
 {TETE_PWA}
 {TETE_POLICE}
-<style>{STYLE_D}{STYLE_NAV_HUB}{STYLE_COURSES}{STYLE_DINERS}</style>
+<style>{STYLE_D}{STYLE_NAV_HUB}{STYLE_COURSES}{STYLE_DINERS}{STYLE_AVIS}</style>
 </head>
 <body class="accueil hub-page diners" data-page="{page}">
 {onglets_cucina(page)}
@@ -1824,6 +1890,7 @@ window.addEventListener('offline', majHorsLigne);
 majHorsLigne();
 viderFile();
 </script>
+<script>{SCRIPT_FORM_AVIS}</script>
 <script>{SCRIPT_DINERS}</script>
 </body>
 </html>"""

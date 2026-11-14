@@ -273,6 +273,18 @@ CREATE TABLE IF NOT EXISTS repas (
     maj_le      TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (jour, moment)
 );
+-- Retours de cuisson (14/11/2026) : une note par personne, plat et repas ; note NULL = « pas d'avis »
+CREATE TABLE IF NOT EXISTS avis (
+    plat        TEXT        NOT NULL,
+    jour        DATE        NOT NULL,
+    moment      TEXT        NOT NULL CHECK (moment IN ('diner', 'dejeuner', 'brunch', 'libre')),
+    qui         TEXT        NOT NULL CHECK (qui IN ('julien', 'laetitia')),
+    note        SMALLINT    CHECK (note BETWEEN 1 AND 5),
+    raisons     JSONB       NOT NULL DEFAULT '[]',
+    mot         TEXT        NOT NULL DEFAULT '',
+    maj_le      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (plat, jour, moment, qui)
+);
 
 -- Le journal des achats (02/11/2026) : chaque article coché dans Courses, son prix estimé (prix_paris), le jour à
 -- Paris. Décoché le même jour : la ligne part. Vider les pris n'y touche pas. Sert au budget de la maison.
