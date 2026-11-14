@@ -158,9 +158,9 @@ button.theme { position: absolute; top: calc(10px + env(safe-area-inset-top)); r
 span.repere svg, button.theme svg { width: 1em; height: 1em; vertical-align: -0.15em; }
 button.theme svg[hidden] { display: none; }   /* [hidden] n'agit pas tout seul sur un svg */
 span.repere.nouvelle { color: var(--dore); }
-nav.cucina { display: flex; gap: 16px; margin: 0 0 18px; overflow-x: auto; scrollbar-width: none; }
+nav.cucina { display: flex; gap: 12px; margin: 0 0 18px; overflow-x: auto; scrollbar-width: none; }
 nav.cucina::-webkit-scrollbar { display: none; }
-nav.cucina a { flex: none; font-size: 19px; font-weight: 800; color: var(--doux); text-decoration: none; padding: 2px 0 6px;
+nav.cucina a { flex: none; font-size: 18px; font-weight: 800; color: var(--doux); text-decoration: none; padding: 2px 0 6px;
                border-bottom: 3px solid transparent; }
 nav.cucina a.actif { color: var(--texte); border-bottom-color: var(--c); }
 nav.cucina a[data-cucina="diners"], nav.cucina a[data-cucina="recettes"] { --c: var(--diners); }
