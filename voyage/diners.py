@@ -528,6 +528,17 @@ ul.plats-soir li { display: flex; justify-content: space-between; align-items: c
 ul.plats-soir button { padding: 6px 12px !important; font-size: 13px !important; }
 div.proposer { display: flex; gap: 8px; flex-wrap: wrap; }
 div.proposer button.plein { flex: 1 1 220px; }
+div.grille-proposer { background: var(--carte); border: 1px solid var(--ligne); border-radius: 12px; padding: 10px; margin: 8px 0; }
+div.grille-proposer .rang { display: grid; grid-template-columns: 2.6rem repeat(7, minmax(0, 1fr)); gap: 3px; margin-bottom: 3px; align-items: center; }
+div.grille-proposer .rang > span { text-align: center; font-size: .75rem; color: var(--doux); line-height: 1.15; }
+div.grille-proposer .rang > span.etiq { text-align: left; font-weight: 600; color: var(--texte); }
+div.grille-proposer button.case { min-height: 44px; min-width: 0; padding: 0; border-radius: 8px; border: 1px solid var(--ligne);
+    background: var(--fond); color: var(--doux); font-size: .7rem; }
+div.grille-proposer button.case[aria-pressed="true"] { background: var(--diners); border-color: var(--diners); color: var(--fond); font-weight: 700; }
+div.grille-proposer button.case:disabled { opacity: .55; }
+div.grille-proposer .decompte { margin: 8px 0; font-size: .9rem; }
+div.grille-proposer .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+div.grille-proposer .actions button.plein { flex: 1 1 140px; }
 p.message { color: var(--diners); font-weight: 700; font-size: 14px; margin: 0; min-height: 1.2em; }
 /* Fiche recette et formulaire : un panneau plein écran */
 div.panneau { position: fixed; inset: 0; z-index: 30; background: var(--fond); overflow-y: auto;
@@ -604,6 +615,10 @@ SCRIPT_DINERS = """
     const etiquette = { recettes: 'tout', choix: 'nous' };   // un filtre par liste ; un soir : à deux
     let derniereProposition = {};                         // {jour: 'plat accompagnement'} : ce que « Reproposer » peut changer
     let messageSemaine = '';
+    // La grille « Proposer ma semaine » : ouverte ou non, repas cochés (« <0-6>|<moment> », 0 = lundi) ; hors du rendu pour survivre à afficher()
+    const CLE_GRILLE = 'diners:grille';
+    const GRILLE_DEFAUT = ['0|diner', '1|diner', '2|diner', '3|diner'];
+    let grilleOuverte = false, grille = null;
     const ETIQUETTES = [['tout', 'Tout'], ['nouvelles', 'Nouvelles'], ['rapide', 'Rapide'], ['nous', 'Nous deux'], ['julien', 'Julien'], ['laetitia', 'Laetitia'],
                         ['air-fryer', 'Air fryer'], ['poisson', 'Poisson'], ['legumes', 'Légumes'], ['brunch', 'Brunch']];
     // Brunch : les recettes « brunch- » et celles du carnet qui s'y prêtent
@@ -827,28 +842,94 @@ SCRIPT_DINERS = """
             zone.append(q);
         }
     }
-    // « Proposer ma semaine » : le serveur complète jusqu'à 4 soirs (diners.proposer) ; « Reproposer » ne
-    // change que les soirs qu'il a proposés et qu'on n'a pas modifiés depuis
-    function proposerSemaine(msg, remplacer) {
+    // « Proposer ma semaine » : le serveur propose un menu pour chaque case cochée (diners.proposer_cases) ;
+    // « Reproposer » ne change que les repas qu'il a proposés et qu'on n'a pas modifiés depuis (cases vide)
+    function proposerSemaine(msg, cases, remplacer) {
         msg.textContent = 'Je cherche…';
         chaine.then(function () {
             return fetch('api/diners/proposer', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                                                  body: JSON.stringify({ remplacer: remplacer || [] }) });
+                                                  body: JSON.stringify({ cases: cases, remplacer: remplacer || [] }) });
         }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
           .then(function (r) {
-              const jours = Object.keys(r.proposes), poses = {};
-              jours.forEach(function (iso) {
-                  const plats = (r.menus && r.menus[iso]) || [r.proposes[iso]];   // le plat et son accompagnement
-                  d.repas = d.repas.filter(function (x) { return !(x.jour === iso && x.moment === 'diner'); })
-                                   .concat([{ jour: iso, moment: 'diner', plats: plats, issue: null }]);
-                  poses[iso] = plats.join(' ');
+              const cles = Object.keys(r.menus || {}), poses = {};
+              cles.forEach(function (cle) {
+                  const jour = cle.split('|')[0], moment = cle.split('|')[1], plats = r.menus[cle];
+                  d.repas = d.repas.filter(function (x) { return !(x.jour === jour && x.moment === moment); })
+                                   .concat([{ jour: jour, moment: moment, plats: plats, issue: null }]);
+                  poses[cle] = plats.join(' ');
               });
               derniereProposition = remplacer && remplacer.length ? Object.assign({}, derniereProposition, poses) : poses;
-              garder(); afficher();
-              messageSemaine = jours.length ? jours.length + ' dîner(s) proposé(s), avec un accompagnement quand le plat en a. Change-le ou ajoute un dessert, puis envoie aux courses.'
-                                            : 'Rien à proposer : la semaine a déjà quatre dîners, ou aucun plat ne convient.';
+              grilleOuverte = false;
+              garder();
+              messageSemaine = cles.length ? cles.length + ' repas proposé(s), avec un accompagnement quand le plat en a. Change-les ou ajoute un dessert, puis envoie aux courses.'
+                                           : 'Rien à proposer : aucun plat ne convient pour ces repas.';
               afficher(); relire();
           }, function () { msg.textContent = 'Pas de réseau : réessaie une fois connecté.'; });
+    }
+    function lireGrille() {
+        if (grille) return grille;
+        try {
+            const v = JSON.parse(localStorage.getItem(CLE_GRILLE));
+            if (Array.isArray(v)) grille = v.filter(function (x) { return typeof x === 'string'; });
+        } catch (e) {}
+        if (!grille) grille = GRILLE_DEFAUT.slice();
+        return grille;
+    }
+    function ecrireGrille() { try { localStorage.setItem(CLE_GRILLE, JSON.stringify(grille)); } catch (e) {} }
+    function jourDeSemaine(iso) { return (new Date(iso + 'T12:00:00').getDay() + 6) % 7; }   // 0 = lundi
+    // Un repas est pris s'il a des plats ou une issue (le midi : aussi un brunch) ; un jour passé ne se remplit plus
+    function caseOccupee(iso, moment) {
+        if (iso < d.aujourd_hui) return true;
+        const moments = moment === 'dejeuner' ? ['dejeuner', 'brunch'] : [moment];
+        return moments.some(function (m) { return repas(iso, m).plats.length || repas(iso, m).issue; });
+    }
+    function casesCochees() {
+        const choix = lireGrille(), res = [];
+        d.semaine.forEach(function (iso) {
+            ['dejeuner', 'diner'].forEach(function (moment) {
+                if (choix.indexOf(jourDeSemaine(iso) + '|' + moment) >= 0 && !caseOccupee(iso, moment)) res.push({ jour: iso, moment: moment });
+            });
+        });
+        return res;
+    }
+    function grilleProposer(msg) {
+        const g = el('div', 'grille-proposer');
+        const choix = lireGrille();
+        const tete = el('div', 'rang');
+        tete.append(el('span'));
+        d.semaine.forEach(function (iso) {
+            const s = el('span', '', enClair(iso).charAt(0).toUpperCase() + ' ' + iso.slice(8).replace(/^0/, ''));
+            s.setAttribute('aria-label', enClair(iso));
+            tete.append(s);
+        });
+        g.append(tete);
+        [['dejeuner', 'Midi'], ['diner', 'Soir']].forEach(function (m) {
+            const rang = el('div', 'rang');
+            rang.append(el('span', 'etiq', m[1]));
+            d.semaine.forEach(function (iso) {
+                const cle = jourDeSemaine(iso) + '|' + m[0];
+                const pris = caseOccupee(iso, m[0]), coche = !pris && choix.indexOf(cle) >= 0;
+                const b = el('button', 'case', pris ? 'pris' : coche ? 'x' : '');
+                b.type = 'button'; b.disabled = pris;
+                b.setAttribute('aria-pressed', coche ? 'true' : 'false');
+                b.setAttribute('aria-label', m[1] + ' ' + enClair(iso) + (pris ? ' (pris)' : ''));
+                b.addEventListener('click', function () {
+                    const k = choix.indexOf(cle);
+                    if (k >= 0) choix.splice(k, 1); else choix.push(cle);
+                    ecrireGrille(); afficher();
+                });
+                rang.append(b);
+            });
+            g.append(rang);
+        });
+        const cases = casesCochees();
+        g.append(el('p', 'decompte', cases.length + ' repas à proposer'));
+        const act = el('div', 'actions');
+        const ok = bouton('Proposer', 'plein', function () { proposerSemaine(msg, casesCochees(), []); });
+        ok.disabled = !cases.length;
+        act.append(ok, bouton('Annuler', 'petit', function () { grilleOuverte = false; afficher(); }));
+        g.append(act);
+        return g;
     }
     // Une carte de repas : ses plats (× pour retirer), puis + plat / + entrée / + accompagnement / + dessert
     function carteRepas(iso, moment) {
@@ -891,7 +972,7 @@ SCRIPT_DINERS = """
     }
     function vueSemaine(zone) {
         const e = el('div', 'encart');
-        e.append(el('h2', '', 'La semaine'), el('p', 'aide', 'Trois ou quatre dîners suffisent. Les autres restent libres.'));
+        e.append(el('h2', '', 'La semaine'), el('p', 'aide', 'Coche les repas à remplir : l\\'app propose un plat pour chacun.'));
         d.semaine.forEach(function (iso, i) {
             const jour = el('div', 'jour-repas');
             const q = el('span', 'quand', i === 0 ? 'Ce soir' : enClair(iso));
@@ -923,11 +1004,14 @@ SCRIPT_DINERS = """
             e.append(bilan);
         }
         const prop = el('div', 'proposer');
-        prop.append(bouton('Proposer ma semaine', 'plein', function () { proposerSemaine(msgP, []); }));
-        const aRefaire = Object.keys(derniereProposition).filter(function (iso) {
-            return repas(iso, 'diner').plats.join(' ') === derniereProposition[iso]; });
-        if (aRefaire.length) prop.append(bouton('Reproposer', 'petit', function () { proposerSemaine(msgP, aRefaire); }));
-        zone.append(prop, msgP, e);
+        prop.append(bouton('Proposer ma semaine', 'plein', function () { grilleOuverte = !grilleOuverte; afficher(); }));
+        const aRefaire = Object.keys(derniereProposition).filter(function (cle) {
+            return repas(cle.split('|')[0], cle.split('|')[1]).plats.join(' ') === derniereProposition[cle]; })
+            .map(function (cle) { return { jour: cle.split('|')[0], moment: cle.split('|')[1] }; });
+        if (aRefaire.length) prop.append(bouton('Reproposer', 'petit', function () { proposerSemaine(msgP, [], aRefaire); }));
+        zone.append(prop);
+        if (grilleOuverte) zone.append(grilleProposer(msgP));
+        zone.append(msgP, e);
         const msg = el('p', 'message');
         zone.append(bouton('Ajouter les ingrédients de la semaine aux courses', 'plein', function () {
             msg.textContent = 'Envoi…';

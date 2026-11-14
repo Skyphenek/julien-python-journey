@@ -197,7 +197,7 @@ def test_fiche_et_actions_de_la_page():
     assert "Va bien avec" in html and "Modifier les accords" in html and "'Avec :'" in html
     assert "if (absents.length && !accompagne && r.plats.length < 8)" in html     # déjà un accompagnement : rien
     assert "['brunch', 'Brunch']" in html and "brunch-" in html and "'+ ajouter'" in html            # brunch
-    assert "r.menus" in html and "plats.join(' ') === derniereProposition[iso]" in html             # étape 3
+    assert "r.menus" in html and "plats.join(' ') === derniereProposition[cle]" in html            # étape 3
 
 
 def test_version_page_repas():
@@ -581,3 +581,15 @@ def test_ce_soir_depuis_recettes_attend_l_envoi_avant_de_changer_de_page():
 def test_redirection_vers_recettes_sort_de_l_iife():
     from diners import SCRIPT_DINERS
     assert "{ location.replace('recettes'); return; }" in SCRIPT_DINERS
+
+
+def test_page_diners_grille_proposer():
+    from diners import SCRIPT_DINERS
+    html = diners_en_html()
+    assert "div.grille-proposer" in html and "'diners:grille'" in SCRIPT_DINERS
+    assert "cases:" in SCRIPT_DINERS and "remplacer:" in SCRIPT_DINERS
+    assert "['0|diner', '1|diner', '2|diner', '3|diner']" in SCRIPT_DINERS
+    assert "Trois ou quatre dîners suffisent" not in SCRIPT_DINERS
+    assert "repas à proposer" in SCRIPT_DINERS
+    from valise import VERSION_PAGE
+    assert VERSION_PAGE >= 57
