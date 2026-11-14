@@ -127,7 +127,7 @@ def test_page_sortir():
     assert html.index("function pileATrier") < html.index("const LIB = JSON.parse")      # règles chargées avant la page
     from sortir import FIN_PROCHE
     assert f'"fin_proche": {FIN_PROCHE}' in html and "const FIN_PROCHE = JSON.parse" in html
-    assert "<h1>Sortir</h1>" in html and 'class="popote"' not in html
+    assert "<h1>Sortir</h1>" in html and 'class="cucina"' not in html
 
 
 # --- Les règles de la page, exécutées avec node (mêmes cas que les règles Python) ------------------------------

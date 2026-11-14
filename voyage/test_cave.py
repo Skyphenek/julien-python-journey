@@ -105,7 +105,7 @@ EMOJI = re.compile("[\U0001F300-\U0001FAFF⌚⌛⏩-⏺☀-➿]")
 
 def test_page_cave():
     html = cave_en_html()
-    assert "<h1>Cave</h1>" not in html and 'data-hub="popote" class="actif"' in html and 'data-popote="cave" class="actif"' in html
+    assert "<h1>Cave</h1>" not in html and 'data-hub="cucina" class="actif"' in html and 'data-cucina="cave" class="actif"' in html
     assert 'id="cave"' in html and 'id="zone-bues"' in html and 'id="ajout-vin"' in html
     for libelle in ("À boire vite", "Prêtes", "À garder"):
         assert libelle in html

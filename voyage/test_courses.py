@@ -111,7 +111,7 @@ def test_placard_de_depart_sans_doublon():
 def test_page_courses():
     html = courses_en_html()
     assert "<title>Courses · Casa Binomerie</title>" in html
-    assert 'data-hub="popote" class="actif"' in html and 'data-popote="courses" class="actif"' in html and "<h1>Courses</h1>" not in html
+    assert 'data-hub="cucina" class="actif"' in html and 'data-cucina="courses" class="actif"' in html and "<h1>Courses</h1>" not in html
     assert '<form id="ajout-course"' in html and 'id="vider-pris"' in html
     assert "SCRIPT_FILE" not in html and "function envoyerOuGarder" in html     # la file hors ligne commune
     assert '"frais"' in html                                                   # les rayons pour le script

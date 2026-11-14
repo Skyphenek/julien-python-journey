@@ -20,23 +20,23 @@ def voyage(depart, jours=10, libelle="Hanoï"):
 def test_barre_du_bas_a_quatre_entrees():
     from design import nav_hub
     nav = nav_hub("aujourdhui")
-    assert [x.split('"')[0] for x in nav.split('data-hub="')[1:]] == ["aujourdhui", "popote", "sortir", "budget", "vadrouille"]
-    assert '<a href="diners" data-hub="popote"' in nav
-    for page in ("diners", "courses", "cave"):
-        assert 'data-hub="popote" class="actif" aria-current="page"' in nav_hub(page)
+    assert [x.split('"')[0] for x in nav.split('data-hub="')[1:]] == ["aujourdhui", "cucina", "sortir", "budget", "vadrouille"]
+    assert '<a href="diners" data-hub="cucina"' in nav and "<span>Cucina</span>" in nav and "Popote" not in nav
+    for page in ("diners", "recettes", "courses", "cave"):
+        assert 'data-hub="cucina" class="actif" aria-current="page"' in nav_hub(page)
 
 
-def test_onglets_popote():
-    from design import onglets_popote
-    html = onglets_popote("courses")
-    assert html.startswith('<nav class="popote" aria-label="Popote">')
-    assert '<a href="diners" data-popote="diners">Dîners</a>' in html
-    assert '<a href="courses" data-popote="courses" class="actif" aria-current="page">Courses</a>' in html
-    assert '<a href="cave" data-popote="cave">Cave</a>' in html
+def test_onglets_cucina():
+    from design import onglets_cucina
+    html = onglets_cucina("courses")
+    assert html.startswith('<nav class="cucina" aria-label="Cucina">')
+    assert [x.split('"')[0] for x in html.split('data-cucina="')[1:]] == ["diners", "recettes", "courses", "cave"]
+    assert '<a href="recettes" data-cucina="recettes">Recettes</a>' in html
+    assert '<a href="courses" data-cucina="courses" class="actif" aria-current="page">Courses</a>' in html
 
 
 def test_le_hub_commence_par_aujourd_hui_et_finit_par_la_vadrouille():
-    assert [cle for cle, _, _ in HUB] == ["aujourdhui", "popote", "sortir", "budget", "vadrouille"]   # les modules s'ajoutent à leur livraison
+    assert [cle for cle, _, _ in HUB] == ["aujourdhui", "cucina", "sortir", "budget", "vadrouille"]   # les modules s'ajoutent à leur livraison
     assert HUB[0][2] == "./" and HUB[-1][2] == "vadrouille"
     assert HUB[-1][1] == "Vadrouille"           # « En Vadrouille » débordait de la barre du bas sur iPhone
 

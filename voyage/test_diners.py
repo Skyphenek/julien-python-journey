@@ -133,7 +133,7 @@ def test_carnet_de_depart_valide():
 def test_page_diners():
     html = diners_en_html()
     assert "<title>Dîners · Casa Binomerie</title>" in html
-    assert 'data-hub="popote" class="actif"' in html and 'data-popote="diners" class="actif"' in html and "<h1>Dîners</h1>" not in html
+    assert 'data-hub="cucina" class="actif"' in html and 'data-cucina="diners" class="actif"' in html and "<h1>Dîners</h1>" not in html
     for vue in ("ce-soir", "semaine", "recettes"):
         assert f'data-vue="{vue}"' in html
     assert 'data-vue="carnet"' not in html and 'data-vue="a-tester"' not in html
