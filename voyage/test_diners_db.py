@@ -328,3 +328,12 @@ def test_un_ingredient_du_planning_achete_entre_au_placard(client, conn):
     spag = next(a for a in client.get("/api/courses").get_json()["articles"] if a["nom"] == "spaghetti")
     client.post("/api/courses", json={**spag, "pris": True})
     assert any(p["cle"] == "spaghetti" and p["en_stock"] for p in client.get("/api/courses").get_json()["placard"])
+
+
+def test_cuisine_enregistree_et_gardee_si_absente(conn):
+    from diners import valider_plat
+    carbo = next(p for p in lire_plats(conn) if p["id"] == "plat-carbonara")
+    assert carbo["cuisine"] == ""
+    enregistrer_plat(conn, valider_plat({**carbo, "cuisine": "italie"}))
+    enregistrer_plat(conn, valider_plat({k: v for k, v in carbo.items() if k != "cuisine"}))   # page en cache
+    assert next(p for p in lire_plats(conn) if p["id"] == "plat-carbonara")["cuisine"] == "italie"

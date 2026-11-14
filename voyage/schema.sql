@@ -256,6 +256,11 @@ ALTER TABLE plats DROP CONSTRAINT IF EXISTS plats_pour_check;          -- 01/11 
 ALTER TABLE plats ADD CONSTRAINT plats_pour_check CHECK (pour IN ('nous', 'julien', 'laetitia'));
 -- Accords (02/11/2026) : les accompagnements qui vont avec un plat (ids de plats, 6 au plus)
 ALTER TABLE plats ADD COLUMN IF NOT EXISTS accords JSONB NOT NULL DEFAULT '[]';
+-- Cuisine (14/11/2026) : la grande cuisine d'une recette, pour filtrer ; '' = pas encore classée
+ALTER TABLE plats ADD COLUMN IF NOT EXISTS cuisine TEXT NOT NULL DEFAULT '';
+ALTER TABLE plats DROP CONSTRAINT IF EXISTS plats_cuisine_check;
+ALTER TABLE plats ADD CONSTRAINT plats_cuisine_check
+    CHECK (cuisine IN ('', 'france', 'italie', 'mediterranee', 'maghreb', 'asie', 'ameriques', 'autres'));
 -- Les soirs (un plat par jour) : repris en repas le 01/11/2026 (reprise repas-v1), supprimés le 02/11/2026.
 DROP TABLE IF EXISTS soirs;
 -- Un repas = plusieurs plats (01/11/2026) : le dîner de chaque jour, un déjeuner ou un brunch à la demande.
