@@ -49,22 +49,22 @@ ICONES_RUBRIQUE = {
 }
 
 # Le hub Casa Binomerie : une entrée par module livré (clé, libellé, adresse relative), dans l'ordre.
-# Dîners, Courses et Colis s'ajoutent ici à leur livraison : jamais de lien vers une page absente.
+# Un module n'entre ici qu'à sa livraison : jamais de lien vers une page absente. Cucina regroupe Dîners, Recettes, Courses et Cave.
 HUB = [
     ("aujourdhui", "Aujourd'hui", "./"),
-    ("popote", "Popote", "diners"),                     # Dîners · Courses · Cave, onglets en haut des pages
+    ("cucina", "Cucina", "diners"),                     # Dîners · Recettes · Courses · Cave, onglets en haut des pages
     ("sortir", "Sortir", "sortir"),
     ("budget", "Budget", "budget"),
     ("vadrouille", "Vadrouille", "vadrouille"),          # court : tient dans la barre du bas sur iPhone
 ]
-POPOTE = ("diners", "courses", "cave")
+CUCINA = ("diners", "recettes", "courses", "cave")
 ICONES_HUB = {
     "aujourdhui": _TRAIT.format('<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/>'),
     "diners": _TRAIT.format('<path d="M7 3v7a2 2 0 0 0 4 0V3M9 10v11M17 3c-1.7 0-3 2-3 5s1.3 4 3 4v9"/>'),
     "courses": _TRAIT.format('<circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/>'
                              '<path d="M2 3h3l2.7 12.4a1 1 0 0 0 1 .8h9.6a1 1 0 0 0 1-.8L21 7H6"/>'),
     "cave": _TRAIT.format('<path d="M8 3h8l-.6 6.2a3.4 3.4 0 0 1-6.8 0z"/><path d="M12 12.6V20M8.5 20h7"/>'),
-    "popote": _TRAIT.format('<path d="M7 3v7a2 2 0 0 0 4 0V3M9 10v11M17 3c-1.7 0-3 2-3 5s1.3 4 3 4v9"/>'),
+    "cucina": _TRAIT.format('<path d="M7 3v7a2 2 0 0 0 4 0V3M9 10v11M17 3c-1.7 0-3 2-3 5s1.3 4 3 4v9"/>'),
     "sortir": _TRAIT.format('<path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4z"/><path d="M14 6v12" stroke-dasharray="2 2"/>'),
     "budget": _TRAIT.format('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
     "vadrouille": ICONES_RUBRIQUE["valise"],
@@ -109,7 +109,7 @@ SCRIPT_THEME = """<script>(function () {
 
 def nav_hub(actif):
     """La navigation du hub (en bas sur téléphone, à gauche sur ordinateur), l'entrée actif en surbrillance."""
-    actif = "popote" if actif in POPOTE else actif
+    actif = "cucina" if actif in CUCINA else actif
     liens = "".join(
         f'<a href="{adresse}" data-hub="{cle}"'
         + (' class="actif" aria-current="page">' if cle == actif else ">")
@@ -122,14 +122,14 @@ def nav_hub(actif):
     return f'{bouton}<nav class="hub">{liens}</nav>{SCRIPT_THEME}'
 
 
-def onglets_popote(actif):
-    """Les onglets de Popote en haut de Dîners, Courses et Cave (à la place du titre) ; la page active soulignée."""
+def onglets_cucina(actif):
+    """Les onglets de Cucina en haut de Dîners, Recettes, Courses et Cave (à la place du titre) ; la page active soulignée."""
     liens = "".join(
-        f'<a href="{cle}" data-popote="{cle}"'
+        f'<a href="{cle}" data-cucina="{cle}"'
         + (' class="actif" aria-current="page">' if cle == actif else ">")
         + f"{libelle}</a>"
-        for cle, libelle in (("diners", "Dîners"), ("courses", "Courses"), ("cave", "Cave")))
-    return f'<nav class="popote" aria-label="Popote">{liens}</nav>'
+        for cle, libelle in (("diners", "Dîners"), ("recettes", "Recettes"), ("courses", "Courses"), ("cave", "Cave")))
+    return f'<nav class="cucina" aria-label="Cucina">{liens}</nav>'
 
 
 STYLE_NAV_HUB = """
@@ -145,7 +145,7 @@ nav.hub a .icone-hub { display: flex; padding: 6px 10px; border-radius: 16px; co
 nav.hub a.actif { color: var(--texte); font-weight: 800; }
 nav.hub a.actif .icone-hub { background: var(--c-doux); }
 nav.hub a[data-hub="aujourdhui"] { --c: var(--texte); --c-doux: var(--carte); }
-nav.hub a[data-hub="popote"] { --c: var(--diners); --c-doux: var(--diners-doux); }
+nav.hub a[data-hub="cucina"] { --c: var(--diners); --c-doux: var(--diners-doux); }
 nav.hub a[data-hub="sortir"] { --c: var(--sortir); --c-doux: var(--sortir-doux); }
 nav.hub a[data-hub="budget"] { --c: var(--courses); --c-doux: var(--courses-doux); }
 nav.hub a[data-hub="vadrouille"] { --c: var(--valise); --c-doux: var(--valise-doux); }
@@ -158,14 +158,18 @@ button.theme { position: absolute; top: calc(10px + env(safe-area-inset-top)); r
 span.repere svg, button.theme svg { width: 1em; height: 1em; vertical-align: -0.15em; }
 button.theme svg[hidden] { display: none; }   /* [hidden] n'agit pas tout seul sur un svg */
 span.repere.nouvelle { color: var(--dore); }
-nav.popote { display: flex; gap: 22px; margin: 0 0 18px; }
-nav.popote a { font-size: 24px; font-weight: 800; color: var(--doux); text-decoration: none; padding: 2px 0 6px;
+nav.cucina { display: flex; gap: 12px; margin: 0 0 18px; overflow-x: auto; scrollbar-width: none; }
+nav.cucina::-webkit-scrollbar { display: none; }
+nav.cucina a { flex: none; font-size: 18px; font-weight: 800; color: var(--doux); text-decoration: none; padding: 2px 0 6px;
                border-bottom: 3px solid transparent; }
-nav.popote a.actif { color: var(--texte); border-bottom-color: var(--c); }
-nav.popote a[data-popote="diners"] { --c: var(--diners); }
-nav.popote a[data-popote="courses"] { --c: var(--courses); }
-nav.popote a[data-popote="cave"] { --c: var(--cave); }
-@media (max-width: 899px) { body.hub-page h1, body.hub-page nav.popote { padding-right: 52px; } }
+nav.cucina a.actif { color: var(--texte); border-bottom-color: var(--c); }
+nav.cucina a[data-cucina="diners"], nav.cucina a[data-cucina="recettes"] { --c: var(--diners); }
+nav.cucina a[data-cucina="courses"] { --c: var(--courses); }
+nav.cucina a[data-cucina="cave"] { --c: var(--cave); }
+@media (max-width: 899px) {
+    body.hub-page h1 { padding-right: 52px; }
+    body.hub-page nav.cucina { margin-right: 52px; }   /* marge, pas padding : les onglets ne défilent pas sous le bouton thème */
+}
 @media (min-width: 900px) {
     button.theme { position: fixed; top: auto; right: auto; left: 24px; bottom: 24px; }   /* dans la colonne de gauche */
     nav.hub { top: 0; right: auto; width: 232px; flex-direction: column; justify-content: flex-start;

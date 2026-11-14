@@ -109,7 +109,12 @@ def test_api_plats(client):
 
 def test_page_diners(client):
     html = client.get("/diners").get_data(as_text=True)
-    assert "<h1>Dîners</h1>" not in html and 'data-popote="diners" class="actif"' in html
+    assert "<h1>Dîners</h1>" not in html and 'data-cucina="diners" class="actif"' in html
+
+
+def test_route_recettes(client):
+    html = client.get("/recettes").get_data(as_text=True)
+    assert 'data-page="recettes"' in html and 'data-cucina="recettes" class="actif"' in html
 
 
 def test_pour_julien_sort_du_nom(conn):

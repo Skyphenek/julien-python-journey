@@ -132,17 +132,35 @@ def test_carnet_de_depart_valide():
 
 def test_page_diners():
     html = diners_en_html()
-    assert "<title>Dîners · Casa Binomerie</title>" in html
-    assert 'data-hub="popote" class="actif"' in html and 'data-popote="diners" class="actif"' in html and "<h1>Dîners</h1>" not in html
-    for vue in ("ce-soir", "semaine", "recettes"):
-        assert f'data-vue="{vue}"' in html
+    assert "<title>Dîners · Casa Binomerie</title>" in html and 'data-page="diners"' in html
+    assert 'data-hub="cucina" class="actif"' in html and 'data-cucina="diners" class="actif"' in html and "<h1>Dîners</h1>" not in html
+    assert 'data-vue="ce-soir"' in html and 'data-vue="semaine"' in html and 'data-vue="recettes"' not in html
     assert 'data-vue="carnet"' not in html and 'data-vue="a-tester"' not in html
     assert "function vueRecettes" in html and "function ordreRecettes" in html
-    assert "nav.vues { display: grid; grid-template-columns: repeat(3, 1fr)" in html            # 3 onglets, sans trou
+    assert "nav.vues { display: grid; grid-template-columns: repeat(2, 1fr)" in html            # 2 onglets, sans trou
     assert "div.filtres.etiquettes { flex-wrap: nowrap; overflow-x: auto;" in html            # étiquettes sur une ligne
     assert "el('div', 'segments')" in html and "'Accomp.'" in html and "if (e[0] === 'tout') return;" in html
     assert "function vueCarnet" not in html and "function vueATester" not in html
     assert "'nouvelles'" in html and "'Nouvelles'" in html
+
+
+def test_page_recettes():
+    html = diners_en_html("recettes")
+    assert "<title>Recettes · Casa Binomerie</title>" in html and 'data-page="recettes"' in html
+    assert 'data-hub="cucina" class="actif"' in html and 'data-cucina="recettes" class="actif"' in html
+    assert '<nav class="vues"' not in html                       # pas d'onglets internes
+    assert "function vueRecettes" in html
+
+
+def test_anciens_liens_vers_recettes_et_allers_retours():
+    from diners import SCRIPT_DINERS
+    assert "location.replace('recettes')" in SCRIPT_DINERS       # diners#recettes, #carnet, #a-tester
+    assert "function allerA(" in SCRIPT_DINERS and "location.href = 'diners#' + v" in SCRIPT_DINERS
+    assert "vue = 'ce-soir'; afficher()" not in SCRIPT_DINERS     # tout passe par allerA
+
+
+def test_fiche_et_actions_de_la_page():
+    html = diners_en_html()
     assert "function icone" in html and "function points" in html and "aria-label" in html
     assert '<template id="reperes">' in html and "setAttribute('role', 'img')" in html
     for signe in ("✦", "⚡", "⏳"):
@@ -156,7 +174,6 @@ def test_page_diners():
     assert "On l\\'a déjà faite" in html and "'Archiver'" in html and "'Désarchiver'" in html
     assert "au carnet" not in html and "Retirer du carnet" not in html
     assert "'recette à écrire'" in html
-    assert "carnet: 'recettes', 'a-tester': 'recettes'" in html                       # anciens liens
     assert "function envoyerOuGarder" in html and "wakeLock" in html
     assert "api/diners/proposer" in html and "Proposer ma semaine" in html and "Reproposer" in html   # A
     assert "function ouvrirChoix" in html and "function barreEtiquettes" in html                       # B
@@ -463,3 +480,18 @@ def test_proposer_a_finir_respecte_reproposer_et_la_cible():
 def test_version_page_recettes():
     from valise import VERSION_PAGE
     assert VERSION_PAGE >= 48
+
+
+def test_ce_soir_depuis_recettes_attend_l_envoi_avant_de_changer_de_page():
+    from diners import SCRIPT_DINERS
+    # enregistrerRepas et ajouterPlat rendent la promesse d'envoi
+    assert "return envoyer({ url: 'api/repas'" in SCRIPT_DINERS
+    assert "return enregistrerRepas(Object.assign({}, r, { plats: r.plats.concat([id]) }))" in SCRIPT_DINERS
+    # sur Recettes, allerA attend que l'envoi soit parti ou mis en file ; sur Dîners, immédiat
+    assert "const envoi = ajouterPlat(d.aujourd_hui, 'diner', p.id);" in SCRIPT_DINERS
+    assert "if (PAGE === 'recettes' && envoi) envoi.then(aller, aller); else aller();" in SCRIPT_DINERS
+
+
+def test_redirection_vers_recettes_sort_de_l_iife():
+    from diners import SCRIPT_DINERS
+    assert "{ location.replace('recettes'); return; }" in SCRIPT_DINERS
