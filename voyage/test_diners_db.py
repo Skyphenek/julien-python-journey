@@ -112,6 +112,11 @@ def test_page_diners(client):
     assert "<h1>Dîners</h1>" not in html and 'data-cucina="diners" class="actif"' in html
 
 
+def test_route_recettes(client):
+    html = client.get("/recettes").get_data(as_text=True)
+    assert 'data-page="recettes"' in html and 'data-cucina="recettes" class="actif"' in html
+
+
 def test_pour_julien_sort_du_nom(conn):
     from db import separer_pour_julien
     p = next(x for x in lire_plats(conn) if x["id"] == "tester-moules")

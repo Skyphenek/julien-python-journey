@@ -353,7 +353,7 @@ def compteur(repas, aujourd_hui):
 
 STYLE_DINERS = """
 body.diners { --rubrique: var(--diners); --rubrique-doux: var(--diners-doux); }
-nav.vues { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: var(--carte); border-radius: 18px;
+nav.vues { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; background: var(--carte); border-radius: 18px;
            padding: 4px; margin: 0 0 18px; position: sticky; top: 0; z-index: 5; }
 nav.vues button { border: none; background: none; border-radius: 14px; padding: 10px 4px; font-family: inherit; font-weight: 700;
                   font-size: 14px; color: var(--doux); }
@@ -517,7 +517,8 @@ SCRIPT_DINERS = """
     const AJOUTS = [['plat', '+ plat'], ['entree', '+ entrée'], ['accompagnement', '+ accompagnement'], ['dessert', '+ dessert']];
     const CLE_COPIE = 'diners:copie';
     let d = null;                                         // ce que renvoie api/diners
-    let vue = 'ce-soir', filtre = 'tout', recherche = '';
+    const PAGE = document.body.dataset.page || 'diners';
+    let vue = PAGE === 'recettes' ? 'recettes' : 'ce-soir', filtre = 'tout', recherche = '';
     const etiquette = { recettes: 'tout', choix: 'nous' };   // un filtre par liste ; un soir : à deux
     let derniereProposition = {};                         // {jour: 'plat accompagnement'} : ce que « Reproposer » peut changer
     let messageSemaine = '';
@@ -708,7 +709,7 @@ SCRIPT_DINERS = """
             const cout = ps.reduce(function (t, x) { return t + (x.cout || 0); }, 0);
             if (cout) bloc.append(el('span', 'cout', '≈ ' + euros(cout) + ' le repas · en livraison ≈ ' + euros(d.livraison)));
             const b = el('div', 'boutons');
-            b.append(bouton('Changer', 'discret', function () { vue = 'semaine'; afficher(); }));
+            b.append(bouton('Changer', 'discret', function () { allerA('semaine'); }));
             bloc.append(b);
             zone.append(bloc);
         } else {
@@ -1094,7 +1095,7 @@ SCRIPT_DINERS = """
             c.append(va);
         }
         const act = el('div', 'actions');
-        act.append(bouton('Ce soir', 'plein', function () { ajouterPlat(d.aujourd_hui, 'diner', p.id); fermer(); vue = 'ce-soir'; afficher(); }),
+        act.append(bouton('Ce soir', 'plein', function () { ajouterPlat(d.aujourd_hui, 'diner', p.id); fermer(); allerA('ce-soir'); }),
                    bouton('Modifier', 'petit', function () { ouvrirEdition(p.id); }));
         const manquants = p.ingredients.filter(function (i) { return !enStock(i) && !surLaListe(i); });
         const total = manquants.reduce(function (t, i) { const pr = prixDe(i); return t + (pr ? pr[1] : 0); }, 0);
@@ -1197,12 +1198,21 @@ SCRIPT_DINERS = """
         const zone = document.getElementById('vue'); zone.replaceChildren();
         ({ 'ce-soir': vueCeSoir, 'semaine': vueSemaine, 'recettes': vueRecettes })[vue](zone);
     }
+    // Ce soir et Semaine vivent sur la page Dîners, Recettes sur la sienne
+    function allerA(v) {
+        if ((PAGE === 'recettes') !== (v === 'recettes')) {
+            if (v === 'recettes') location.href = 'recettes'; else location.href = 'diners#' + v;
+            return;
+        }
+        vue = v; afficher();
+    }
     document.querySelectorAll('nav.vues button').forEach(function (b) {
         b.addEventListener('click', function () { vue = b.dataset.vue; afficher(); try { history.replaceState(null, '', '#' + vue); } catch (e) {} });
     });
-    const VUES = ['ce-soir', 'semaine', 'recettes'];
-    const ANCIENNES = { carnet: 'recettes', 'a-tester': 'recettes' };           // liens et favoris d'avant la fusion
-    function vueDuLien() { const h = location.hash.slice(1); return ANCIENNES[h] || (VUES.indexOf(h) >= 0 ? h : null); }
+    const VUES = PAGE === 'recettes' ? ['recettes'] : ['ce-soir', 'semaine'];
+    const VERS_RECETTES = ['recettes', 'carnet', 'a-tester'];                    // liens et favoris d'avant la page Recettes
+    function vueDuLien() { const h = location.hash.slice(1); return VUES.indexOf(h) >= 0 ? h : null; }
+    if (PAGE === 'diners' && VERS_RECETTES.indexOf(location.hash.slice(1)) >= 0) location.replace('recettes');
     if (vueDuLien()) vue = vueDuLien();
     window.addEventListener('hashchange', function () { if (vueDuLien()) { vue = vueDuLien(); afficher(); } });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && ouverte) fermer(); });
@@ -1217,32 +1227,35 @@ SCRIPT_DINERS = """
 """
 
 
-def diners_en_html():
-    """La page Dîners : une coquille, remplie par le script depuis api/diners (copie gardée hors ligne)."""
+def diners_en_html(page="diners"):
+    """La page Dîners (Ce soir · Semaine) ou Recettes (page="recettes") : une coquille, remplie par le script depuis
+    api/diners (copie gardée hors ligne). Même script ; la page choisit la vue de départ."""
     import json
     from prix_paris import PRIX
     genres = json.dumps(GENRES, ensure_ascii=False)
     prix = json.dumps(PRIX, ensure_ascii=False)
     reperes = "".join(svg.replace("<svg ", f'<svg data-icone="{cle}" ', 1) for cle, svg in ICONES_REPERE.items())
-    vues = "".join(f'<button type="button" data-vue="{v}">{t}</button>'
-                   for v, t in [("ce-soir", "Ce soir"), ("semaine", "Semaine"), ("recettes", "Recettes")])
+    titre = "Recettes" if page == "recettes" else "Dîners"
+    vues = ("" if page == "recettes" else
+            '<nav class="vues">' + "".join(f'<button type="button" data-vue="{v}">{t}</button>'
+                                           for v, t in [("ce-soir", "Ce soir"), ("semaine", "Semaine")]) + "</nav>")
     return f"""<!doctype html>
 <html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Dîners · Casa Binomerie</title>
+<title>{titre} · Casa Binomerie</title>
 {TETE_PWA}
 {TETE_POLICE}
 <style>{STYLE_D}{STYLE_NAV_HUB}{STYLE_COURSES}{STYLE_DINERS}</style>
 </head>
-<body class="accueil hub-page diners">
-{onglets_cucina("diners")}
+<body class="accueil hub-page diners" data-page="{page}">
+{onglets_cucina(page)}
 <div id="hors-ligne" hidden></div>
-<nav class="vues">{vues}</nav>
+{vues}
 <div id="vue" class="vue"><p class="vide-courses">Chargement des recettes…</p></div>
 <div class="panneau" id="panneau" hidden><div class="contenu"></div></div>
-{nav_hub("diners")}
+{nav_hub(page)}
 <template id="reperes">{reperes}</template>
 <script type="application/json" id="genres">{genres}</script>
 <script type="application/json" id="prix">{prix}</script>

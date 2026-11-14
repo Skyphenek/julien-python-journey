@@ -146,6 +146,10 @@ def creer_app(nom_base="valise", secret=None):
     def page_diners():
         return Response(diners_en_html(), mimetype="text/html")
 
+    @routes.get("/recettes")
+    def page_recettes():
+        return Response(diners_en_html("recettes"), mimetype="text/html")
+
     @routes.get("/api/diners")
     def lire_les_diners():
         """Tout ce que la page Dîners affiche ; le secours est calculé ici (logique testée en Python)."""
