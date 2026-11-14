@@ -49,7 +49,7 @@ ICONES_RUBRIQUE = {
 }
 
 # Le hub Casa Binomerie : une entrée par module livré (clé, libellé, adresse relative), dans l'ordre.
-# Dîners, Courses et Colis s'ajoutent ici à leur livraison : jamais de lien vers une page absente.
+# Un module n'entre ici qu'à sa livraison : jamais de lien vers une page absente. Cucina regroupe Dîners, Recettes, Courses et Cave.
 HUB = [
     ("aujourdhui", "Aujourd'hui", "./"),
     ("cucina", "Cucina", "diners"),                     # Dîners · Recettes · Courses · Cave, onglets en haut des pages
@@ -166,7 +166,10 @@ nav.cucina a.actif { color: var(--texte); border-bottom-color: var(--c); }
 nav.cucina a[data-cucina="diners"], nav.cucina a[data-cucina="recettes"] { --c: var(--diners); }
 nav.cucina a[data-cucina="courses"] { --c: var(--courses); }
 nav.cucina a[data-cucina="cave"] { --c: var(--cave); }
-@media (max-width: 899px) { body.hub-page h1, body.hub-page nav.cucina { padding-right: 52px; } }
+@media (max-width: 899px) {
+    body.hub-page h1 { padding-right: 52px; }
+    body.hub-page nav.cucina { margin-right: 52px; }   /* marge, pas padding : les onglets ne défilent pas sous le bouton thème */
+}
 @media (min-width: 900px) {
     button.theme { position: fixed; top: auto; right: auto; left: 24px; bottom: 24px; }   /* dans la colonne de gauche */
     nav.hub { top: 0; right: auto; width: 232px; flex-direction: column; justify-content: flex-start;

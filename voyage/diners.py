@@ -627,12 +627,12 @@ SCRIPT_DINERS = """
         const vide = !r.plats.length && !r.issue;
         d.repas = d.repas.filter(function (x) { return !(x.jour === r.jour && x.moment === r.moment); }).concat(vide ? [] : [r]);
         garder(); afficher();
-        envoyer({ url: 'api/repas', methode: 'POST', corps: r, cle: 'repas:' + r.jour + ':' + r.moment }).then(relire, relire);
+        return envoyer({ url: 'api/repas', methode: 'POST', corps: r, cle: 'repas:' + r.jour + ':' + r.moment }).then(relire, relire);
     }
     function ajouterPlat(iso, moment, id) {
         const r = repas(iso, moment);
         if (r.plats.indexOf(id) >= 0 || r.plats.length >= 8) return;
-        enregistrerRepas(Object.assign({}, r, { plats: r.plats.concat([id]) }));
+        return enregistrerRepas(Object.assign({}, r, { plats: r.plats.concat([id]) }));
     }
     function retirerPlat(iso, moment, id) {
         const r = repas(iso, moment);
@@ -1095,7 +1095,13 @@ SCRIPT_DINERS = """
             c.append(va);
         }
         const act = el('div', 'actions');
-        act.append(bouton('Ce soir', 'plein', function () { ajouterPlat(d.aujourd_hui, 'diner', p.id); fermer(); allerA('ce-soir'); }),
+        act.append(bouton('Ce soir', 'plein', function () {
+            const envoi = ajouterPlat(d.aujourd_hui, 'diner', p.id);
+            fermer();
+            // sur Recettes, allerA quitte la page : attendre que l'envoi soit parti ou mis en file hors ligne
+            const aller = function () { allerA('ce-soir'); };
+            if (PAGE === 'recettes' && envoi) envoi.then(aller, aller); else aller();
+        }),
                    bouton('Modifier', 'petit', function () { ouvrirEdition(p.id); }));
         const manquants = p.ingredients.filter(function (i) { return !enStock(i) && !surLaListe(i); });
         const total = manquants.reduce(function (t, i) { const pr = prixDe(i); return t + (pr ? pr[1] : 0); }, 0);
@@ -1212,7 +1218,7 @@ SCRIPT_DINERS = """
     const VUES = PAGE === 'recettes' ? ['recettes'] : ['ce-soir', 'semaine'];
     const VERS_RECETTES = ['recettes', 'carnet', 'a-tester'];                    // liens et favoris d'avant la page Recettes
     function vueDuLien() { const h = location.hash.slice(1); return VUES.indexOf(h) >= 0 ? h : null; }
-    if (PAGE === 'diners' && VERS_RECETTES.indexOf(location.hash.slice(1)) >= 0) location.replace('recettes');
+    if (PAGE === 'diners' && VERS_RECETTES.indexOf(location.hash.slice(1)) >= 0) { location.replace('recettes'); return; }
     if (vueDuLien()) vue = vueDuLien();
     window.addEventListener('hashchange', function () { if (vueDuLien()) { vue = vueDuLien(); afficher(); } });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && ouverte) fermer(); });

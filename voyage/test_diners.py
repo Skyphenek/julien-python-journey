@@ -480,3 +480,18 @@ def test_proposer_a_finir_respecte_reproposer_et_la_cible():
 def test_version_page_recettes():
     from valise import VERSION_PAGE
     assert VERSION_PAGE >= 48
+
+
+def test_ce_soir_depuis_recettes_attend_l_envoi_avant_de_changer_de_page():
+    from diners import SCRIPT_DINERS
+    # enregistrerRepas et ajouterPlat rendent la promesse d'envoi
+    assert "return envoyer({ url: 'api/repas'" in SCRIPT_DINERS
+    assert "return enregistrerRepas(Object.assign({}, r, { plats: r.plats.concat([id]) }))" in SCRIPT_DINERS
+    # sur Recettes, allerA attend que l'envoi soit parti ou mis en file ; sur Dîners, immédiat
+    assert "const envoi = ajouterPlat(d.aujourd_hui, 'diner', p.id);" in SCRIPT_DINERS
+    assert "if (PAGE === 'recettes' && envoi) envoi.then(aller, aller); else aller();" in SCRIPT_DINERS
+
+
+def test_redirection_vers_recettes_sort_de_l_iife():
+    from diners import SCRIPT_DINERS
+    assert "{ location.replace('recettes'); return; }" in SCRIPT_DINERS

@@ -112,3 +112,9 @@ def test_bouton_theme_dans_la_navigation():
         assert f'data-theme-icone="{icone}"' in html
     assert "button.theme" in STYLE_NAV_HUB and "nav.hub button.theme" not in STYLE_NAV_HUB
     assert html.index('class="theme"') < html.index('<nav class="hub">')   # hors du nav fixe : absolute serait relatif à lui
+
+
+def test_barre_cucina_iphone_marge_et_non_padding_pour_le_bouton_theme():
+    from design import STYLE_NAV_HUB as css
+    assert "body.hub-page h1 { padding-right: 52px; }" in css
+    assert "body.hub-page nav.cucina { margin-right: 52px; }" in css
