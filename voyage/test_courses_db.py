@@ -179,10 +179,17 @@ def test_api_vider_et_placard(client):
     assert client.get("/api/courses").get_json()["articles"] == []
     r = client.post("/api/placard", json={"nom": "Pâtes", "en_stock": False})
     assert r.status_code == 200
-    assert client.get("/api/courses").get_json()["placard"] == [basique("Pâtes", en_stock=False)]
+    assert client.get("/api/courses").get_json()["placard"] == [{**basique("Pâtes", en_stock=False), "rayon": "epicerie"}]
     assert client.post("/api/placard", json={"nom": "", "en_stock": True}).status_code == 400
     assert client.delete("/api/placard/" + "pates").status_code == 200
     assert client.get("/api/courses").get_json()["placard"] == []
+
+
+def test_api_courses_rayon_du_placard(client):
+    client.post("/api/placard", json={"nom": "parmesan", "en_stock": True, "zone": "frigo"})
+    client.post("/api/placard", json={"nom": "sauce soja", "en_stock": True})
+    rayons = {p["nom"]: p["rayon"] for p in client.get("/api/courses").get_json()["placard"]}
+    assert rayons == {"parmesan": "frais", "sauce soja": "specialise"}
 
 
 def test_aujourd_hui_sans_repas_pas_de_courses(client):

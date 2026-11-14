@@ -115,17 +115,27 @@ def test_page_courses():
     assert '<form id="ajout-course"' in html and 'id="vider-pris"' in html
     assert "SCRIPT_FILE" not in html and "function envoyerOuGarder" in html     # la file hors ligne commune
     assert '"frais"' in html                                                   # les rayons pour le script
-    assert '"congelateur"' in html and '<form id="ajout-placard"' in html and 'id="ranger"' in html   # placard v2
-    assert "bientot" in html and "api/placard/" in html
+    # À la maison remplace Placard et Habituels
+    assert 'id="zone-maison"' in html and "À la maison" in html and 'id="chercher-maison"' in html
+    assert 'id="modifier-maison"' in html and "api/placard/" in html
+    for parti in ('id="zone-placard"', 'id="zone-habituels"', '<form id="ajout-placard"', 'id="ranger"',
+                  'id="zones"', 'id="zones-catalogue"', "bientôt fini"):
+        assert parti not in html
+    from courses import SCRIPT_COURSES
+    assert "function basculerPlacard" not in SCRIPT_COURSES and "aLaMaison(placard, articles)" in SCRIPT_COURSES
+    assert "correspond(m.nom, recherche)" in SCRIPT_COURSES
 
 
-def test_page_courses_v2():
+def test_page_courses_liste_unique():
     html = courses_en_html()
-    assert '<nav id="magasins"' in html and 'class="progression"' in html          # onglets par magasin, progression
+    from courses import SCRIPT_COURSES
+    assert 'id="magasins"' not in html and "courses:magasin" not in html             # plus d'onglets par magasin
+    assert "Réassort" not in html and "estReassort" not in html and "Cette semaine" not in html
+    assert "Dans le panier" in html and "Courses finies" in html and 'class="progression"' in html
+    assert "pastille(a, ITALIEN)" in SCRIPT_COURSES and "span.pastille" in html
+    assert "Toujours en avoir" in SCRIPT_COURSES and "Plus besoin d'en avoir" in SCRIPT_COURSES
+    assert "'Plus habituel'" not in SCRIPT_COURSES
     assert '<script type="application/json" id="italien">' in html and '"pecorino"' in html
-    assert "Réassort placard" in html and "Dans le panier" in html and "Cette semaine" in html
-    assert "Courses finies" in html and "<svg" in html                             # habituel : une icône
-    assert "const DURABLES = ['epicerie', 'surgeles', 'boissons', 'specialise']" in html   # oignons : la semaine
 
 
 def test_un_envoi_a_la_fois():
@@ -170,3 +180,87 @@ def test_page_courses_relit_seulement_quand_tout_est_envoye():
     assert html.index("function suiviEnvois") < html.index("const CLE_COPIE")
     from courses import SCRIPT_COURSES
     assert "suivi.peutLire()" in SCRIPT_COURSES and "suivi.fraiche(jeton)" in SCRIPT_COURSES
+
+
+def _node_regles(code):
+    """Exécute SCRIPT_REGLES_COURSES puis code (qui fait console.log) ; rend la sortie JSON."""
+    import json, shutil, subprocess
+    if not shutil.which("node"):
+        pytest.skip("node absent")
+    from courses import SCRIPT_REGLES_COURSES
+    sortie = subprocess.run(["node", "-e", SCRIPT_REGLES_COURSES + "\n" + code], capture_output=True, text=True, check=True).stdout
+    return json.loads(sortie)
+
+
+def test_js_a_la_maison():
+    import json
+    placard = [{"cle": "parmesan", "nom": "parmesan", "en_stock": True, "bientot": False, "rayon": "frais"},
+               {"cle": "riz basmati", "nom": "riz basmati", "en_stock": True, "bientot": True, "rayon": "epicerie"},
+               {"cle": "thon", "nom": "thon", "en_stock": False, "bientot": False, "rayon": "epicerie"},
+               {"cle": "oeufs", "nom": "œufs", "en_stock": True, "bientot": False, "rayon": "frais"},
+               {"cle": "farine", "nom": "farine", "en_stock": True, "bientot": False, "rayon": "epicerie"}]
+    articles = [{"id": "a1", "nom": "Œufs", "rayon": "frais", "recurrent": True, "actif": False, "pris": False},
+                {"id": "a2", "nom": "lait", "rayon": "frais", "recurrent": True, "actif": False, "pris": False},
+                {"id": "a3", "nom": "beurre", "rayon": "frais", "recurrent": True, "actif": True, "pris": False},
+                {"id": "a4", "nom": "farine", "rayon": "epicerie", "recurrent": False, "actif": True, "pris": False},
+                {"id": "a5", "nom": "citrons", "rayon": "fruits-legumes", "recurrent": True, "actif": True, "pris": True}]
+    r = _node_regles(f"console.log(JSON.stringify(aLaMaison({json.dumps(placard)}, {json.dumps(articles)})"
+                     ".map(function (m) {{ return [m.nom, m.rayon, !!m.placard, m.article ? m.article.id : null]; }})));")
+    # thon épuisé, farine sur la liste, beurre sur la liste, citrons dans le panier : absents ; œufs une seule fois
+    assert r == [["lait", "frais", False, "a2"], ["œufs", "frais", True, "a1"],
+                 ["parmesan", "frais", True, None], ["riz basmati", "epicerie", True, None]]
+
+
+def test_js_a_la_maison_sans_le_panier():
+    import json
+    placard = [{"cle": "citron", "nom": "citron", "en_stock": True, "bientot": False, "rayon": "fruits-legumes"},
+               {"cle": "sel", "nom": "sel", "en_stock": True, "bientot": False, "rayon": "epicerie"}]
+    articles = [{"id": "c1", "nom": "citron", "rayon": "fruits-legumes", "recurrent": False, "actif": True, "pris": True}]
+    r = _node_regles(f"console.log(JSON.stringify(aLaMaison({json.dumps(placard)}, {json.dumps(articles)}).map(function (m) {{ return m.nom; }})));")
+    assert r == ["sel"]                                       # coché dans le panier : pas de retour dans À la maison
+
+
+def test_js_plus_a_la_maison():
+    import json
+    placard = [{"cle": "lardons", "nom": "lardons", "en_stock": False, "rayon": "frais"},
+               {"cle": "tomates pelees", "nom": "tomates pelées", "en_stock": False, "rayon": "epicerie"},
+               {"cle": "thon", "nom": "thon", "en_stock": False, "rayon": "epicerie"},
+               {"cle": "pain", "nom": "pain", "en_stock": False, "rayon": "frais"},
+               {"cle": "riz", "nom": "riz", "en_stock": True, "rayon": "epicerie"}]
+    articles = [{"id": "a1", "nom": "Thon", "actif": True, "pris": False},
+                {"id": "a2", "nom": "pain", "actif": True, "pris": True},
+                {"id": "a3", "nom": "lardons", "actif": False, "pris": False}]
+    r = _node_regles(f"console.log(JSON.stringify(plusALaMaison({json.dumps(placard)}, {json.dumps(articles)}).map(function (p) {{ return p.nom; }})));")
+    assert r == ["lardons", "tomates pelées"]                 # thon sur la liste, pain au panier, riz en stock : absents
+
+
+def test_page_courses_plus_a_la_maison():
+    from courses import SCRIPT_COURSES, STYLE_COURSES
+    assert "plusALaMaison(placard, articles)" in SCRIPT_COURSES and "Plus à la maison" in SCRIPT_COURSES
+    assert "Un appui : il repart sur la liste." in SCRIPT_COURSES and "ajouter(p.nom, 'placard')" in SCRIPT_COURSES
+    assert "button.epuise" in STYLE_COURSES
+
+
+def test_page_courses_maison_ouverte_jamais_coincee():
+    from courses import SCRIPT_COURSES
+    assert "maisonOuverte && !" in SCRIPT_COURSES and "maisonOuverte = null;" in SCRIPT_COURSES
+    assert "zone-maison').addEventListener('toggle'" in SCRIPT_COURSES
+
+
+def test_js_correspond():
+    r = _node_regles("console.log(JSON.stringify([correspond('parmesan', 'parm'), correspond(\"huile d'olive\", 'olive'),"
+                     " correspond('Crème fraîche', 'creme'), correspond('parmesan', 'mesan'), correspond('thon', ''),"
+                     " correspond('Œufs', 'oeu')]));")
+    assert r == [True, True, True, False, True, True]
+
+
+def test_js_pastille():
+    r = _node_regles("const it = new Set(['pecorino'].map(cleCatalogue));"
+                     "console.log(JSON.stringify([pastille({nom: 'pecorino', rayon: 'specialise'}, it),"
+                     " pastille({nom: 'sauce soja', rayon: 'specialise'}, it), pastille({nom: 'lait', rayon: 'frais'}, it)]));")
+    assert r == ["Italien", "Asie", None]
+
+
+def test_js_normaliser_regles():
+    assert _node_regles("console.log(JSON.stringify([normaliser('Crème  Fraîche'), cleCatalogue('tomates cerises')]));") \
+        == ["creme fraiche", "tomate cerise"]

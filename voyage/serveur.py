@@ -44,7 +44,7 @@ from accords_vins import profils_du_repas, suggerer
 from budget import semaines_budget, moyenne_precedentes, lundi, budget_en_html, SEMAINES
 from cave import valider_bouteille, cave_en_html
 from sortir import sortir_en_html
-from courses import valider_article, valider_placard, courses_en_html, normaliser
+from courses import valider_article, valider_placard, courses_en_html, normaliser, deviner_rayon
 from prix_paris import cout_repas
 from fiche_recette import decouper
 from diners import (avec_achats_recents, FRAIS_JOURS, disponibles, a_acheter_aujourd_hui, valider_plat, valider_repas, secours, a_acheter, compteur, semaine, diners_en_html,
@@ -269,11 +269,13 @@ def creer_app(nom_base="valise", secret=None):
 
     @routes.get("/api/courses")
     def lire_les_courses():
+        """La liste et le placard ; chaque élément du placard avec son rayon deviné (« À la maison » se range par rayon)."""
         conn = emprunter(app.config["NOM_BASE"])
         try:
-            return jsonify(lire_courses(conn))
+            lu = lire_courses(conn)
         finally:
             conn.close()
+        return jsonify({**lu, "placard": [{**p, "rayon": deviner_rayon(p["nom"])} for p in lu["placard"]]})
 
     @routes.post("/api/courses")
     def enregistrer_un_article():
