@@ -115,8 +115,15 @@ def test_page_courses():
     assert '<form id="ajout-course"' in html and 'id="vider-pris"' in html
     assert "SCRIPT_FILE" not in html and "function envoyerOuGarder" in html     # la file hors ligne commune
     assert '"frais"' in html                                                   # les rayons pour le script
-    assert '"congelateur"' in html and '<form id="ajout-placard"' in html and 'id="ranger"' in html   # placard v2
-    assert "bientot" in html and "api/placard/" in html
+    # À la maison remplace Placard et Habituels
+    assert 'id="zone-maison"' in html and "À la maison" in html and 'id="chercher-maison"' in html
+    assert 'id="modifier-maison"' in html and "api/placard/" in html
+    for parti in ('id="zone-placard"', 'id="zone-habituels"', '<form id="ajout-placard"', 'id="ranger"',
+                  'id="zones"', 'id="zones-catalogue"', "bientôt fini"):
+        assert parti not in html
+    from courses import SCRIPT_COURSES
+    assert "function basculerPlacard" not in SCRIPT_COURSES and "aLaMaison(placard, articles)" in SCRIPT_COURSES
+    assert "correspond(m.nom, recherche)" in SCRIPT_COURSES
 
 
 def test_page_courses_liste_unique():

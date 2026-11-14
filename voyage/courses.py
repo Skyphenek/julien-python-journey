@@ -3,10 +3,10 @@
 - Un article est « actif » tant qu'il est dans la liste ; coché, il est « pris » (barré) jusqu'à
   « Vider les pris » : supprimé, sauf s'il est récurrent — il passe alors dans les Habituels
   (actif = false), d'où il revient d'un tap.
-- Le placard : ce qui dure, rangé par zone de la cuisine (ZONES). En stock -> bientôt fini -> épuisé ;
-  bientôt fini ou épuisé -> part dans les courses ; pris en magasin -> de nouveau en stock
-  (db.enregistrer_article). Le frais à rotation hebdomadaire est un habituel des courses, pas un
-  élément du placard. Les noms se comparent normalisés (casse, accents).
+- « À la maison » : le placard en stock et les habituels rangés, groupés par rayon comme la liste. Un appui =
+  il en manque : le placard passe épuisé et part dans les courses ; pris en magasin -> de nouveau en stock
+  (db.enregistrer_article). La zone de cuisine (ZONES) reste en base pour « À finir », sans être affichée.
+  Les noms se comparent normalisés (casse, accents).
 """
 import json
 import re
@@ -199,7 +199,6 @@ details.repli { background: var(--carte); border-radius: 24px; padding: 14px 16p
 details.repli.panier { background: none; border: 2px dashed var(--ligne); }
 details.repli summary { font-size: 17px; font-weight: 800; cursor: pointer; min-height: 28px; }
 details.repli summary span { color: var(--doux); font-weight: 600; }
-details.repli p.aide { color: var(--doux); font-size: 14px; margin: 8px 0; }
 section.rayon { background: var(--carte); border-radius: 24px; padding: 14px 16px; margin: 0 0 12px; }
 section.rayon h2 { font-size: 15px; font-weight: 800; color: var(--doux); margin: 0 0 6px; }
 ul.articles { list-style: none; margin: 0; padding: 0; }
@@ -222,23 +221,18 @@ button#vider-pris { width: 100%; min-height: 48px; border-radius: 999px; border:
 """ + STYLE_ANNEXE + """div.puces-courses { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 div.puces-courses button { font-family: inherit; font-size: 15px; padding: 8px 14px; border-radius: 999px;
                            border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte); }
-div.puces-courses button.epuise { border-color: var(--courses); background: var(--courses-doux); font-weight: 700; }
-div.puces-courses button.bientot { border-color: var(--courses); border-style: dashed; }
-div.puces-courses button.bientot::after { content: " · bientôt fini"; color: var(--courses); font-size: 13px; font-weight: 700; }
-div.puces-courses button.epuise::after { content: " · épuisé"; color: var(--courses); font-size: 13px; }
-section.zone-placard { border-top: 1px solid var(--ligne); margin-top: 12px; padding-top: 10px; }
-section.zone-placard h3 { font-size: 15px; font-weight: 800; margin: 0; display: flex; justify-content: space-between; gap: 8px; }
-section.zone-placard h3 span { color: var(--courses); font-size: 13px; font-weight: 700; }
+div.puces-courses button.choisi { border-color: var(--courses); background: var(--courses-doux); font-weight: 700; }
+section.rayon-maison { border-top: 1px solid var(--ligne); margin-top: 12px; padding-top: 10px; }
+section.rayon-maison h3 { font-size: 15px; font-weight: 800; margin: 0; }
 div.edition-placard { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; padding: 10px 12px;
                       border-radius: 16px; background: var(--courses-doux); }
 div.edition-placard strong { flex-basis: 100%; }
-div.edition-placard select, div.edition-placard button, form#ajout-placard select, form#ajout-placard input,
-form#ajout-placard button, button#ranger { font-family: inherit; font-size: 14px; padding: 8px 12px; border-radius: 999px;
-    border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte); }
-form#ajout-placard { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-form#ajout-placard input { flex: 1 1 160px; min-width: 0; }
-form#ajout-placard[hidden] { display: none; }
-button#ranger { margin-top: 12px; font-weight: 700; }
+div.edition-placard select, div.edition-placard button, button#modifier-maison { font-family: inherit; font-size: 14px;
+    padding: 8px 12px; border-radius: 999px; border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte); }
+button#modifier-maison { margin-top: 12px; font-weight: 700; }
+input#chercher-maison { width: 100%; box-sizing: border-box; font-family: inherit; font-size: 16px; padding: 10px 14px;
+                        margin-top: 10px; border-radius: 999px; border: 2px solid var(--ligne); background: var(--blanc);
+                        color: var(--texte); }
 p.vide-courses { background: var(--carte); border-radius: 24px; padding: 18px; color: var(--doux); }
 """ + STYLE_HORS_LIGNE + """"""
 
@@ -265,7 +259,7 @@ function suiviEnvois() {
 SCRIPT_REGLES_COURSES = r"""
 function normaliser(nom) {
     return nom.trim().toLowerCase().replace(/œ/g, 'oe').replace(/æ/g, 'ae')
-        .normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
 }
 // Même clé que catalogue.cle_catalogue : « tomate cerise » = « tomates cerises »
 function cleCatalogue(nom) {
@@ -276,7 +270,7 @@ function pastille(a, italien) {
     if (a.rayon !== 'specialise') return null;
     return italien.has(cleCatalogue(a.nom)) ? 'Italien' : 'Asie';
 }
-// À la maison : le placard en stock (bientôt fini compris) et les habituels rangés, un seul par nom,
+// À la maison : le placard en stock (« bientôt » compris) et les habituels rangés, un seul par nom,
 // sans ce qui est sur la liste à prendre
 function aLaMaison(placard, articles) {
     const surLaListe = new Set(articles.filter(function (a) { return a.actif && !a.pris; })
@@ -314,9 +308,8 @@ SCRIPT_COURSES = """
     const resume = document.getElementById('resume');
     const viderPris = document.getElementById('vider-pris');
     let articles = [], placard = [];
-    const ZONES = JSON.parse(document.getElementById('zones').textContent);
     let ouvert = null;                                   // article en cours d'édition : pas de rafraîchissement
-    let ranger = false, placardOuvert = null;            // mode « Ranger le placard » : zone, retrait, ajout
+    let modifier = false, maisonOuverte = null, recherche = '';   // « À la maison » : mode Modifier, puce ouverte, filtre
     let panierOuvert = false;
 
     const ITALIEN = new Set(JSON.parse(document.getElementById('italien').textContent).map(cleCatalogue));
@@ -361,7 +354,7 @@ SCRIPT_COURSES = """
     function appliquer(lu) { const r = avecAttente(lu); articles = r.articles; placard = r.placard; garder(); afficher(); }
     const suivi = suiviEnvois();
     function charger() {
-        if (ouvert || placardOuvert || !suivi.peutLire()) return;     // le dernier envoi relira
+        if (ouvert || maisonOuverte || !suivi.peutLire()) return;     // le dernier envoi relira
         const jeton = suivi.jeton();
         fetch('api/courses', { headers: { 'X-Valise-Vite': '1' } })
             .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
@@ -414,19 +407,11 @@ SCRIPT_COURSES = """
                   corps: { nom: p.nom, en_stock: p.en_stock, bientot: p.bientot, zone: p.zone } })
             .then(function (etat) { if (etat === 'ok') relire(); });
     }
-    // En stock -> bientôt fini -> épuisé -> en stock. Bientôt fini ou épuisé : direction les courses.
-    function basculerPlacard(p) {
-        const suivant = !p.en_stock ? { en_stock: true, bientot: false }
-                      : p.bientot ? { en_stock: false, bientot: false } : { en_stock: true, bientot: true };
-        enregistrerPlacard(Object.assign({}, p, suivant));
-        if (suivant.bientot || !suivant.en_stock) ajouter(p.nom, 'placard'); else afficher();
-    }
     function retirerPlacard(p) {
         placard = placard.filter(function (x) { return x.cle !== p.cle; });
-        placardOuvert = null; garder(); afficher();
+        maisonOuverte = null; garder(); afficher();
         envoyer({ url: 'api/placard/' + encodeURIComponent(p.cle), methode: 'DELETE', cle: 'placard:' + p.cle });
     }
-    function etatPlacard(p) { return !p.en_stock ? 'epuise' : p.bientot ? 'bientot' : ''; }
 
     function ligne(a) {
         const li = el('li', a.pris ? 'pris' : '');
@@ -507,85 +492,73 @@ SCRIPT_COURSES = """
         viderPris.hidden = !panier.length;
         viderPris.textContent = 'Courses finies · ranger ' + panier.length + ' article' + (panier.length > 1 ? 's' : '');
 
-        const habituels = articles.filter(function (a) { return a.recurrent && !a.actif; })
-            .sort(function (x, y) { return x.nom.localeCompare(y.nom, 'fr'); });
-        const zoneH = document.getElementById('habituels');
-        zoneH.replaceChildren();
-        habituels.forEach(function (a) {
-            const b = el('button', '', '+ ' + a.nom); b.type = 'button';
-            b.addEventListener('click', function () { enregistrer(Object.assign({}, a, { actif: true, pris: false })); });
-            zoneH.append(b);
-        });
-        document.getElementById('nb-habituels').textContent = habituels.length;
-
-        afficherPlacard();
+        afficherMaison();
     }
 
-    function afficherPlacard() {
-        const zoneP = document.getElementById('placard');
-        zoneP.replaceChildren();
-        const rang = { epuise: 0, bientot: 1, '': 2 };
-        ZONES.forEach(function (z) {
-            const du = placard.filter(function (p) { return (p.zone || 'placard-sec') === z[0]; })
-                .sort(function (x, y) { return (rang[etatPlacard(x)] - rang[etatPlacard(y)]) || x.nom.localeCompare(y.nom, 'fr'); });
+    // Un appui : il en manque. Le placard passe épuisé et l'article part sur la liste (ajouter remet aussi
+    // l'habituel du même nom) ; un habituel seul revient sur la liste.
+    function manque(m) {
+        if (m.placard) {
+            enregistrerPlacard(Object.assign({}, m.placard, { en_stock: false, bientot: false }));
+            ajouter(m.nom, 'placard');
+        } else enregistrer(Object.assign({}, m.article, { actif: true, pris: false }));
+    }
+    function afficherMaison() {
+        const zone = document.getElementById('maison');
+        zone.replaceChildren();
+        const tous = aLaMaison(placard, articles);
+        const vus = tous.filter(function (m) { return correspond(m.nom, recherche); });
+        RAYONS.forEach(function (r) {
+            const du = vus.filter(function (m) { return m.rayon === r[0]; });
             if (!du.length) return;
-            const section = el('section', 'zone-placard'); section.dataset.zone = z[0];
-            const titre = el('h3', '', z[1]);
-            const manque = du.filter(function (p) { return etatPlacard(p); }).length;
-            if (manque) titre.append(el('span', '', manque + ' à racheter'));
+            const section = el('section', 'rayon-maison'); section.dataset.rayon = r[0];
             const puces = el('div', 'puces-courses');
-            du.forEach(function (p) {
-                const b = el('button', etatPlacard(p), p.nom); b.type = 'button';
-                b.setAttribute('aria-label', p.nom + ({ epuise: ', épuisé', bientot: ', bientôt fini', '': ', en stock' })[etatPlacard(p)]);
+            du.forEach(function (m) {
+                const b = el('button', modifier && maisonOuverte === m.cle ? 'choisi' : '', m.nom); b.type = 'button';
+                if (!modifier) b.setAttribute('aria-label', m.nom + ', il en manque');
                 b.addEventListener('click', function () {
-                    if (ranger) { placardOuvert = placardOuvert === p.cle ? null : p.cle; afficher(); }
-                    else basculerPlacard(p);
+                    if (modifier) { maisonOuverte = maisonOuverte === m.cle ? null : m.cle; afficherMaison(); }
+                    else manque(m);
                 });
                 puces.append(b);
             });
-            section.append(titre, puces);
-            const choisi = ranger && du.find(function (p) { return p.cle === placardOuvert; });
-            if (choisi) section.append(editionPlacard(choisi));
-            zoneP.append(section);
+            section.append(el('h3', '', r[1]), puces);
+            const choisi = modifier && du.find(function (m) { return m.cle === maisonOuverte; });
+            if (choisi) section.append(editionMaison(choisi));
+            zone.append(section);
         });
-        const epuises = placard.filter(function (p) { return !p.en_stock; }).length;
-        const bientot = placard.filter(function (p) { return p.en_stock && p.bientot; }).length;
-        document.getElementById('nb-placard').textContent = (epuises || bientot)
-            ? [epuises ? epuises + ' épuisé(s)' : '', bientot ? bientot + ' bientôt fini(s)' : ''].filter(Boolean).join(' · ')
-            : 'tout en stock';
-        document.getElementById('ranger').textContent = ranger ? 'Terminé' : 'Ranger le placard';
-        document.getElementById('ajout-placard').hidden = !ranger;
+        if (!vus.length) zone.append(el('p', 'aide', tous.length ? "Rien à la maison qui s'appelle ainsi. Ajoute-le à la liste."
+                                                                   : "Rien pour l'instant : sur la liste, marque un article « Toujours en avoir »."));
+        document.getElementById('nb-maison').textContent = tous.length + ' article' + (tous.length > 1 ? 's' : '');
+        document.getElementById('modifier-maison').textContent = modifier ? 'Terminé' : 'Modifier';
     }
-    function editionPlacard(p) {
+    // Modifier : un habituel change de rayon ; le placard n'a qu'une zone en base, son rayon est deviné du nom
+    function editionMaison(m) {
         const bloc = el('div', 'edition-placard');
-        bloc.append(el('strong', '', p.nom));
-        const zone = el('select'); zone.setAttribute('aria-label', 'Zone de ' + p.nom);
-        ZONES.forEach(function (z) { const o = el('option', '', z[1]); o.value = z[0]; o.selected = z[0] === p.zone; zone.append(o); });
-        zone.addEventListener('change', function () { placardOuvert = null; enregistrerPlacard(Object.assign({}, p, { zone: zone.value })); afficher(); });
-        const retirer = el('button', '', 'Retirer du placard'); retirer.type = 'button';
-        retirer.addEventListener('click', function () { retirerPlacard(p); });
+        bloc.append(el('strong', '', m.nom));
+        if (m.article && !m.placard) {
+            const rayon = el('select'); rayon.setAttribute('aria-label', 'Rayon de ' + m.nom);
+            RAYONS.forEach(function (r) { const o = el('option', '', r[1]); o.value = r[0]; o.selected = r[0] === m.article.rayon; rayon.append(o); });
+            rayon.addEventListener('change', function () { maisonOuverte = null; enregistrer(Object.assign({}, m.article, { rayon: rayon.value })); });
+            bloc.append(rayon);
+        }
+        const retirer = el('button', '', 'Retirer'); retirer.type = 'button';
+        retirer.addEventListener('click', function () {
+            maisonOuverte = null;
+            if (m.placard) retirerPlacard(m.placard);
+            if (m.article) supprimer(m.article);
+        });
         const fermer = el('button', '', 'Fermer'); fermer.type = 'button';
-        fermer.addEventListener('click', function () { placardOuvert = null; afficher(); });
-        bloc.append(zone, retirer, fermer);
+        fermer.addEventListener('click', function () { maisonOuverte = null; afficherMaison(); });
+        bloc.append(retirer, fermer);
         return bloc;
     }
 
-    document.getElementById('ranger').addEventListener('click', function () { ranger = !ranger; placardOuvert = null; afficher(); });
-    // Un nom du catalogue choisit sa zone tout seul (même clé que catalogue.cle_catalogue)
-    const ZONES_CATALOGUE = {};
-    Object.entries(JSON.parse(document.getElementById('zones-catalogue').textContent))
-        .forEach(function (e) { ZONES_CATALOGUE[cleCatalogue(e[0])] = e[1]; });
-    document.querySelector('#ajout-placard input').addEventListener('input', function () {
-        const zone = ZONES_CATALOGUE[cleCatalogue(this.value)];
-        if (zone) document.querySelector('#ajout-placard select').value = zone;
+    document.getElementById('modifier-maison').addEventListener('click', function () {
+        modifier = !modifier; maisonOuverte = null; afficherMaison();
     });
-    document.getElementById('ajout-placard').addEventListener('submit', function (ev) {
-        ev.preventDefault();
-        const nom = this.querySelector('input').value.trim();
-        if (!nom) return;
-        enregistrerPlacard({ cle: normaliser(nom), nom: nom, en_stock: true, bientot: false, zone: this.querySelector('select').value });
-        this.querySelector('input').value = '';
-        afficher();
+    document.getElementById('chercher-maison').addEventListener('input', function () {
+        recherche = this.value; afficherMaison();                       // le champ n'est pas redessiné : il garde le focus
     });
     document.getElementById('ajout-course').addEventListener('submit', function (ev) {
         ev.preventDefault();
@@ -612,15 +585,11 @@ SCRIPT_COURSES = """
 def courses_en_html():
     """La page Courses : une coquille, remplie par le script depuis api/courses (copie gardée hors ligne)."""
     rayons = json.dumps(RAYONS, ensure_ascii=False)
-    zones = json.dumps(ZONES, ensure_ascii=False)
     from catalogue import CATALOGUE, ITALIEN
     from prix_paris import PRIX
     suggestions = "".join(f'<option value="{nom}"></option>' for nom, _, _ in CATALOGUE)
     italien = json.dumps(ITALIEN, ensure_ascii=False)
     prix = json.dumps(PRIX, ensure_ascii=False)
-    zones_catalogue = json.dumps({nom: zone for nom, _, zone in CATALOGUE}, ensure_ascii=False)
-    options_zones = "".join(f'<option value="{cle}"{" selected" if cle == "placard-sec" else ""}>{nom}</option>'
-                            for cle, nom in ZONES)
     return f"""<!doctype html>
 <html lang="fr">
 <head>
@@ -643,26 +612,15 @@ def courses_en_html():
 </form>
 <div id="liste"></div>
 <button type="button" id="vider-pris" hidden>Vider les pris</button>
-<details class="annexe" id="zone-habituels">
-<summary>Habituels (<span id="nb-habituels">0</span>)</summary>
-<p class="aide">Les articles marqués « habituel » reviennent ici une fois achetés : un tap pour les remettre sur la liste.</p>
-<div class="puces-courses" id="habituels"></div>
-</details>
-<details class="annexe" id="zone-placard">
-<summary>Placard · <span id="nb-placard">…</span></summary>
-<p class="aide">Ce qui dure, rangé comme la cuisine. Un appui : en stock, puis bientôt fini, puis épuisé. Bientôt fini ou épuisé, il part dans les courses ; acheté, il revient en stock tout seul.</p>
-<div id="placard"></div>
-<form id="ajout-placard" autocomplete="off" hidden>
-<input name="nom" placeholder="Ajouter au placard" aria-label="Élément à ajouter au placard" list="catalogue">
-<select name="zone" aria-label="Zone">{options_zones}</select>
-<button type="submit">Ajouter</button>
-</form>
-<button type="button" id="ranger">Ranger le placard</button>
+<details class="annexe" id="zone-maison">
+<summary>À la maison · <span id="nb-maison">…</span></summary>
+<p class="aide">Ce qu'on a toujours chez nous, rangé comme la liste. Il en manque ? Un appui : il part sur la liste. Acheté, il revient ici tout seul.</p>
+<input type="search" id="chercher-maison" placeholder="Chercher (ex. parmesan)" aria-label="Chercher à la maison" autocomplete="off" enterkeyhint="search">
+<div id="maison"></div>
+<button type="button" id="modifier-maison">Modifier</button>
 </details>
 {nav_hub("courses")}
 <script type="application/json" id="rayons">{rayons}</script>
-<script type="application/json" id="zones">{zones}</script>
-<script type="application/json" id="zones-catalogue">{zones_catalogue}</script>
 <script type="application/json" id="italien">{italien}</script>
 <script type="application/json" id="prix">{prix}</script>
 <datalist id="catalogue">{suggestions}</datalist>

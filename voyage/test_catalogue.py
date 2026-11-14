@@ -60,7 +60,7 @@ def test_inconnu_passe_par_les_mots():
 def test_suggestions_a_la_saisie():
     page = courses_en_html()
     assert '<datalist id="catalogue">' in page and '<option value="lentilles corail">' in page
-    assert page.count('list="catalogue"') == 2 and 'id="zones-catalogue"' in page
+    assert page.count('list="catalogue"') == 1 and 'id="zones-catalogue"' not in page
 
 
 def test_epicerie_italienne():
