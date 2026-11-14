@@ -248,3 +248,9 @@ def test_api_passe(client):
     jours = [d for s in r.get_json()["semaines"] for d in s["jours"]]
     assert any(d["jour"] == hier and d["soir"]["issue"] == "fait" for d in jours)
     assert client.get("/api/diners/passe?avant=pas-une-date").status_code == 400
+
+
+def test_api_passe_avant_un_mardi_refuse(client):
+    mardi = J + timedelta(days=(1 - J.weekday()) % 7)
+    assert mardi.weekday() == 1
+    assert client.get(f"/api/diners/passe?avant={mardi.isoformat()}").status_code == 400

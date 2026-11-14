@@ -671,3 +671,20 @@ def test_journal_pagination():
     k = journal(repas, [], LUN + timedelta(days=1), avant=j["suite"], n=8)
     assert [x["lundi"] for x in k["semaines"]][0] == LUN - timedelta(days=28) and k["suite"] is None
     assert SEMAINES_JOURNAL == 8
+
+
+def test_journal_le_lundi_commence_par_la_semaine_precedente():
+    repas = [diner(LUN - timedelta(days=7 * k), issue="fait") for k in range(1, 4)]
+    j = journal(repas, [], LUN, n=2)                      # lundi : la semaine en cours n'a encore aucun jour passé
+    assert [x["lundi"] for x in j["semaines"]] == [LUN - timedelta(days=7), LUN - timedelta(days=14)]
+    assert len(j["semaines"][0]["jours"]) == 7 and all(x["jours"] for x in j["semaines"])
+
+
+def test_journal_midi_brunch():
+    plats = [plat("plat-a", "Pancakes")]
+    samedi = LUN + timedelta(days=5)
+    j = journal([diner(samedi, "plat-a", moment="brunch", issue="fait")], plats, LUN + timedelta(days=9))
+    semaine = next(x for x in j["semaines"] if x["lundi"] == LUN)
+    midi = semaine["jours"][5]["midi"]
+    assert midi["moment"] == "brunch" and midi["issue"] == "fait" and [p["nom"] for p in midi["plats"]] == ["Pancakes"]
+    assert semaine["bilan"]["fait"] == 1

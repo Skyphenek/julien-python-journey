@@ -284,3 +284,48 @@ def test_bloc_hier_fait_maison_demande_le_plat():
                   "Choisis une recette de la liste."):
         assert texte in SCRIPT_HIER
     assert bloc_hier({**hier, "issue": "fait"}, []) == ""
+
+
+def test_bloc_hier_cles_normalisees_et_prevus_de_tous_les_plats():
+    import json
+    import re
+    from datetime import date
+    from html import unescape
+    from casa import bloc_hier
+    hier = {"jour": date(2026, 11, 13), "moment": "diner", "plats": ["plat-x", "plat-a"], "issue": None}
+    plats = [{"id": "plat-a", "nom": "Purée façon Robuchon"}, {"id": "plat-b", "nom": "L’œuf cocotte"},
+             {"id": "plat-c", "nom": "PUREE FACON ROBUCHON"}]
+    html = bloc_hier(hier, plats, noms={"plat-x": "Vieux plat archivé", "plat-a": "Purée façon Robuchon"})
+    cles = json.loads(re.search(r'id="plats-hier-json">(.*?)</script>', html).group(1))
+    assert cles == {"puree facon robuchon": "plat-a", "l'oeuf cocotte": "plat-b"}   # doublon : le premier par nom
+    prevus = json.loads(unescape(re.search(r'data-prevus="(.*?)"', html).group(1)))
+    assert prevus == ["Vieux plat archivé", "Purée façon Robuchon"]
+    assert '<option value="Purée façon Robuchon">' in html                          # datalist : non archivés seulement
+
+
+def test_js_normalisation_des_noms_de_plat():
+    import json
+    import shutil
+    import subprocess
+    if not shutil.which("node"):
+        pytest.skip("node absent")
+    from casa import JS_CLE_NOM
+    sortie = subprocess.run(["node", "-e", JS_CLE_NOM + "\nconsole.log(JSON.stringify([cleNom('Purée  Façon Robuchon'),"
+                             " cleNom(' l’œuf '), cleNom('Æon Flux')]));"],
+                            capture_output=True, text=True, check=True).stdout
+    assert json.loads(sortie) == ["puree facon robuchon", "l'oeuf", "aeon flux"]
+
+
+def test_script_hier_syntaxe_js_et_ergonomie(tmp_path):
+    import shutil
+    import subprocess
+    from casa import SCRIPT_HIER
+    for texte in ("createElement('form')", "preventDefault", "champ.focus()", "Retour", "cleNom("):
+        assert texte in SCRIPT_HIER
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node absent")
+    fichier = tmp_path / "hier.js"
+    fichier.write_text(SCRIPT_HIER, encoding="utf-8")
+    r = subprocess.run([node, "--check", str(fichier)], capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr

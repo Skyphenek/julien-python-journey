@@ -486,7 +486,8 @@ def journal(repas, plats, aujourd_hui, avant=None, n=SEMAINES_JOURNAL):
                     cout += sum(cout_repas(p["ingredients"], p.get("recette", "")) for p in trouves)
             soir = lignes["soir"][0] if lignes["soir"] else {"plats": [], "issue": None, "non_note": False}
             jours.append({"jour": jour, "soir": soir, "midi": lignes["midi"][0] if lignes["midi"] else None})
-        semaines.append({"lundi": lundi_, "bilan": bilan, "cout_maison": round(cout, 2), "jours": jours})
+        if jours:                                  # le lundi, la semaine en cours n'a aucun jour passé : on la saute
+            semaines.append({"lundi": lundi_, "bilan": bilan, "cout_maison": round(cout, 2), "jours": jours})
         lundi_ -= timedelta(days=7)
     suite = semaines[-1]["lundi"] if semaines and semaines[-1]["lundi"] > premier else None
     return {"semaines": semaines, "suite": suite}
@@ -1515,10 +1516,11 @@ SCRIPT_DINERS = """
         });
         l.append(noms);
         if (ligne.issue) l.append(el('span', 'issue ' + ligne.issue, LIBELLE_ISSUE[ligne.issue]));
+        else if (ligne.non_note && !corrigeable(jour)) l.append(el('span', 'issue non-note', 'non noté'));
         else if (ligne.non_note) {
             const b = bouton('non noté', 'issue non-note', function () { corrige = corrige === cle ? null : cle; afficher(); });
             l.append(b);
-            if (corrige === cle && corrigeable(jour)) {
+            if (corrige === cle) {
                 const c = el('div', 'correction');
                 ISSUES.forEach(function (x) { c.append(bouton(x[1], '', function () { corrigerLigne(semaine, jour, ligne, x[0]); })); });
                 l.append(c);
@@ -1553,8 +1555,12 @@ SCRIPT_DINERS = """
         if (!passe.length) { zone.append(el('p', 'aide', "Rien de noté pour l'instant.")); return; }
         passe.forEach(function (s) { zone.append(carteSemainePassee(s)); });
         if (passeEtat === 'hors-ligne') zone.append(el('p', 'aide', "Pas de réseau : l'historique se charge une fois connecté."));
-        if (passeSuite) zone.append(bouton(passeEtat === 'charge' ? 'Chargement\u2026' : 'Semaines plus anciennes', 'plus-ancien',
-            function () { passeEtat = ''; chargerPasse(passeSuite); }));
+        if (passeSuite) {
+            const plus = bouton(passeEtat === 'charge' ? 'Chargement\u2026' : 'Semaines plus anciennes', 'plus-ancien',
+                function () { if (passeEtat === 'hors-ligne') passeEtat = ''; chargerPasse(passeSuite); if (vue === 'passe') afficher(); });
+            plus.disabled = passeEtat === 'charge';
+            zone.append(plus);
+        }
     }
 
     function afficher() {
