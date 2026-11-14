@@ -67,13 +67,46 @@ def articles_et_achats_recents(conn, articles, jour, achats=None):
     return avec_achats_recents(articles, noms)
 
 
+def frais_suivi(conn, lu):
+    """Le frais du frigo daté (a_finir.suivis). `lu` : lire_courses."""
+    frais = lire_frais(conn)
+    return suivis(frais["placard"], lu["articles"], frais["derniers_achats"], frais["corrections"])
+
+
+def perimes(produits, jour):
+    """Les clés du frais dont la date « à finir avant » est passée : on ne les compte plus comme à la maison
+    (la viande d'il y a trois semaines ne fait pas une blanquette)."""
+    return {p["cle"] for p in produits if p["jusqu_au"] < jour}
+
+
 def alertes_du_frigo(conn, jour, plats, lu, articles):
     """(produits suivis, alertes du jour) — a_finir.py : le frais daté, et ce qu'aucun repas prévu (d'aujourd'hui à
     FENETRE_FUTUR) n'utilise à temps. `lu` : lire_courses ; `articles` : articles_et_achats_recents."""
-    frais = lire_frais(conn)
-    produits = suivis(frais["placard"], lu["articles"], frais["derniers_achats"], frais["corrections"])
+    produits = frais_suivi(conn, lu)
     a_venir = lire_repas(conn, jour, jour + timedelta(days=FENETRE_FUTUR))
-    return produits, alertes(produits, a_venir, plats, disponibles(lu["placard"], articles), jour)
+    return produits, alertes(produits, a_venir, plats, disponibles(lu["placard"], articles, perimes(produits, jour)), jour)
+
+
+SOURCE_REPAS = "repas:"         # source d'un article posé par un repas prévu (« Aux courses » de Ce soir : « plat: »)
+
+
+def synchroniser_courses(conn, jour):
+    """Les repas prévus des 7 jours (sans issue) et la liste : leurs ingrédients qui manquent y sont (source
+    « repas:<plat> ») ; ceux d'un plat qui n'est plus prévu en partent, sauf cochés ou habituels. Les articles
+    ajoutés à la main ou par « Aux courses » ne bougent pas."""
+    plats = {p["id"]: p for p in lire_plats(conn)}
+    prevus = [p for r in repas_prevus(lire_repas(conn, jour, jour + timedelta(days=6)), plats, semaine(jour)) for p in r]
+    ids = {p["id"] for p in prevus}
+    for a in lire_courses(conn)["articles"]:
+        source = a.get("source") or ""
+        if (source.startswith(SOURCE_REPAS) and source[len(SOURCE_REPAS):] not in ids
+                and a["actif"] and not a["pris"] and not a["recurrent"]):
+            supprimer_article(conn, a["id"])
+    lu = lire_courses(conn)                          # relue : un ingrédient partagé avec un plat encore prévu revient
+    stock_perime = perimes(frais_suivi(conn, lu), jour)
+    for nom, id_plat in a_acheter(prevus, lu["placard"], articles_et_achats_recents(conn, lu["articles"], jour),
+                                  stock_perime):
+        enregistrer_article(conn, valider_article({"id": str(uuid4()), "nom": nom, "source": SOURCE_REPAS + id_plat}))
 
 
 def creer_app(nom_base="valise", secret=None):
@@ -107,7 +140,8 @@ def creer_app(nom_base="valise", secret=None):
                 achats = lire_achats(conn, min(lundi(jour), jour - timedelta(days=FRAIS_JOURS - 1)), jour)
                 cette_semaine = semaines_budget([a for a in achats if a["jour"] >= lundi(jour)], repas, plats, jour, n=1)[0]
                 articles = articles_et_achats_recents(conn, lu["articles"], jour, achats)
-                _, a_finir = alertes_du_frigo(conn, jour, list(plats.values()), lu, articles)
+                produits, a_finir = alertes_du_frigo(conn, jour, list(plats.values()), lu, articles)
+                stock_perime = perimes(produits, jour)
                 soir = diners.get(jour)
                 vins, belle = [], None
                 if soir and soir["plats"] and not soir["issue"]:          # un dîner prévu, pas encore passé
@@ -123,7 +157,7 @@ def creer_app(nom_base="valise", secret=None):
                     conn.rollback()
                     sortir = None
                 html = aujourdhui_en_html(lister_voyages(conn), jour,
-                                          a_acheter_aujourd_hui(du_jour, lu["placard"], articles),
+                                          a_acheter_aujourd_hui(du_jour, lu["placard"], articles, stock_perime),
                                           ce_soir, hier, compteur(repas, jour), cette_semaine, a_finir, vins, belle,
                                           sortir=sortir, plats_hier=plats_hier, noms_plats=noms_plats)
             finally:
@@ -190,11 +224,12 @@ def creer_app(nom_base="valise", secret=None):
             repas = lire_repas(conn, jour - timedelta(days=FENETRE_PASSE), jour + timedelta(days=FENETRE_FUTUR))
             lu = lire_courses(conn)
             articles = articles_et_achats_recents(conn, lu["articles"], jour)
-            _, a_finir = alertes_du_frigo(conn, jour, plats, lu, articles)
+            produits, a_finir = alertes_du_frigo(conn, jour, plats, lu, articles)
         finally:
             conn.close()
+        stock_perime = perimes(produits, jour)
         cles_a_finir = {a["cle"] for a in a_finir}
-        faisables, presque = secours(plats, lu["placard"], articles, a_finir=cles_a_finir)
+        faisables, presque = secours(plats, lu["placard"], articles, a_finir=cles_a_finir, perimes=stock_perime)
         par_id = {p["id"]: p for p in plats}
         jours = semaine(jour)
         prevus = repas_prevus(repas, par_id, jours)
@@ -205,7 +240,7 @@ def creer_app(nom_base="valise", secret=None):
             "repas": [{**r, "jour": r["jour"].isoformat()} for r in repas],
             "liste": sorted({normaliser(a["nom"]) for a in lu["articles"] if a["actif"] and not a["pris"]}),
             "livraison": LIVRAISON_DEUX, "cout_semaine": cout_semaine(prevus, lu["placard"], articles),
-            "stock": sorted(disponibles(lu["placard"], articles)),
+            "stock": sorted(disponibles(lu["placard"], articles, stock_perime)),
             "secours": {"faisables": [p["id"] for p in faisables],
                         "presque": [{"plat": x["plat"]["id"], "manquants": x["manquants"]} for x in presque]},
             "a_finir": plats_qui_utilisent(plats, cles_a_finir),
@@ -243,6 +278,8 @@ def creer_app(nom_base="valise", secret=None):
                         r["moment"] == repas["moment"] and (r["plats"] or r["issue"]) for r in pris):
                     return jsonify({"erreur": "soir déjà pris"}), 409
             enregistrer_repas(conn, repas)
+            if 0 <= (repas["jour"] - aujourd_hui_paris()).days <= 6:      # un repas des 7 jours : la liste suit
+                synchroniser_courses(conn, aujourd_hui_paris())
         finally:
             conn.close()
         return jsonify({"ok": True})
@@ -258,7 +295,8 @@ def creer_app(nom_base="valise", secret=None):
                       for p in r]
             lu = lire_courses(conn)
             ajoutes = []
-            for nom, id_plat in a_acheter(prevus, lu["placard"], articles_et_achats_recents(conn, lu["articles"], jour)):
+            for nom, id_plat in a_acheter(prevus, lu["placard"], articles_et_achats_recents(conn, lu["articles"], jour),
+                                          perimes(frais_suivi(conn, lu), jour)):
                 enregistrer_article(conn, valider_article({"id": str(uuid4()), "nom": nom, "source": f"plat:{id_plat}"}))
                 ajoutes.append(nom)
         finally:
@@ -287,6 +325,8 @@ def creer_app(nom_base="valise", secret=None):
             menus = accompagner(proposes, plats, repas, semaine(jour))
             for j, ids in menus.items():
                 enregistrer_repas(conn, {"jour": j, "moment": "diner", "plats": ids, "issue": None})
+            if menus:
+                synchroniser_courses(conn, jour)
         finally:
             conn.close()
         return jsonify({"proposes": {j.isoformat(): id_plat for j, id_plat in proposes.items()},   # pages v38
@@ -326,6 +366,8 @@ def creer_app(nom_base="valise", secret=None):
                 ids = accomp[j] if m == "diner" else [i]
                 enregistrer_repas(conn, {"jour": j, "moment": m, "plats": ids, "issue": None})
                 menus[f"{j.isoformat()}|{m}"] = ids
+            if menus:
+                synchroniser_courses(conn, jour)
         finally:
             conn.close()
         return jsonify({"menus": menus})

@@ -309,6 +309,7 @@ escalopes de veau | 2 pièces (250 g) | 8.90
 blanquette de veau | 1,2 kg | 23.90
 osso buco de veau | 4 tranches (1,2 kg) | 22.90
 tendron de veau | 1 kg | 16.90
+épaule de veau | 1 kg | 21.90
 rôti de veau | 800 g | 21.90
 côtes de veau | 2 pièces (500 g) | 13.90
 porc | 1 kg | 9.90

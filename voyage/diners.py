@@ -151,19 +151,21 @@ def avec_achats_recents(courses, noms):
     return list(courses) + [{"nom": n, "recurrent": True, "actif": False, "pris": False} for n in noms]
 
 
-def disponibles(placard, courses=()):
+def disponibles(placard, courses=(), perimes=()):
     """Les clés de ce qu'on a : le placard en stock (bientôt fini compris) et le frais habituel rangé
     ou déjà dans le panier (un habituel sur la liste à prendre, c'est qu'il en manque). Tout ce qui est sur la liste
-    à prendre manque, même si le placard le croit en stock (un frais acheté, puis à racheter)."""
+    à prendre manque, même si le placard le croit en stock (un frais acheté, puis à racheter). `perimes` : les clés du
+    frais dont la date « à finir avant » est passée (a_finir.suivis) — on ne les compte plus."""
     manque = {normaliser(a["nom"]) for a in courses if a["actif"] and not a["pris"]}
-    return ({p["cle"] for p in placard if p["en_stock"]} - manque
-            | {normaliser(a["nom"]) for a in courses if a["recurrent"] and (not a["actif"] or a["pris"])})
+    return (({p["cle"] for p in placard if p["en_stock"]} - manque
+             | {normaliser(a["nom"]) for a in courses if a["recurrent"] and (not a["actif"] or a["pris"])})
+            - set(perimes))
 
 
-def secours(plats, placard, courses=(), a_finir=()):
+def secours(plats, placard, courses=(), a_finir=(), perimes=()):
     """(faisables, presque) : plats du carnet ≤ SECOURS_MINUTES, tout disponible / 1-2 manquants. `a_finir` : les
-    clés des produits à finir (a_finir.py) ; les plats qui en utilisent passent en tête."""
-    stock = disponibles(placard, courses)
+    clés des produits à finir (a_finir.py) ; les plats qui en utilisent passent en tête. `perimes` : voir disponibles."""
+    stock = disponibles(placard, courses, perimes)
     faisables, presque = [], []
     candidats = sorted((p for p in plats if p["genre"] == "plat" and p["statut"] == "carnet" and not p["archive"]
                         and p["minutes"] <= SECOURS_MINUTES and p["ingredients"]),
@@ -177,9 +179,9 @@ def secours(plats, placard, courses=(), a_finir=()):
     return faisables, presque
 
 
-def a_acheter(plats_prevus, placard, courses):
-    """[(ingrédient, id du plat)] à ajouter aux courses : ni au placard, ni déjà sur la liste."""
-    deja = disponibles(placard, courses) | {normaliser(a["nom"]) for a in courses if a["actif"] and not a["pris"]}
+def a_acheter(plats_prevus, placard, courses, perimes=()):
+    """[(ingrédient, id du plat)] à ajouter aux courses : ni au placard (périmé : voir disponibles), ni déjà sur la liste."""
+    deja = disponibles(placard, courses, perimes) | {normaliser(a["nom"]) for a in courses if a["actif"] and not a["pris"]}
     resultat = []
     for p in plats_prevus:
         for i in p["ingredients"]:
@@ -189,10 +191,10 @@ def a_acheter(plats_prevus, placard, courses):
     return resultat
 
 
-def a_acheter_aujourd_hui(plats_du_jour, placard, courses):
+def a_acheter_aujourd_hui(plats_du_jour, placard, courses, perimes=()):
     """Les ingrédients des repas du jour qu'on n'a pas (ni au placard, ni en habituel rangé), sur la liste ou
     non : ce qu'il faut acheter avant de cuisiner (page Aujourd'hui)."""
-    stock, vus, noms = disponibles(placard, courses), set(), []
+    stock, vus, noms = disponibles(placard, courses, perimes), set(), []
     for p in plats_du_jour:
         for i in p["ingredients"]:
             if normaliser(i) not in stock and normaliser(i) not in vus:

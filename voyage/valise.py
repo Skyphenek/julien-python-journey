@@ -1654,7 +1654,8 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # 60 = Dîners, Passé : modifier ou supprimer un repas passé.
 # 61 = Dîners, Passé : issues en icônes (iPhone).
 # 62 = Dîners, Passé : un midi sur chaque jour.
-VERSION_PAGE = 62
+# 63 = Courses : les repas prévus remplissent la liste, le frais périmé n'est plus à la maison ; épaule de veau.
+VERSION_PAGE = 63
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
 RUBRIQUES = [("valise", "Valise"), ("avant", "Avant"), ("programme", "Programme"), ("sur-place", "Sur place"),
