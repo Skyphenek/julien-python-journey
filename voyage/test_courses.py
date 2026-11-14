@@ -119,13 +119,16 @@ def test_page_courses():
     assert "bientot" in html and "api/placard/" in html
 
 
-def test_page_courses_v2():
+def test_page_courses_liste_unique():
     html = courses_en_html()
-    assert '<nav id="magasins"' in html and 'class="progression"' in html          # onglets par magasin, progression
+    from courses import SCRIPT_COURSES
+    assert 'id="magasins"' not in html and "courses:magasin" not in html             # plus d'onglets par magasin
+    assert "Réassort" not in html and "estReassort" not in html and "Cette semaine" not in html
+    assert "Dans le panier" in html and "Courses finies" in html and 'class="progression"' in html
+    assert "pastille(a, ITALIEN)" in SCRIPT_COURSES and "span.pastille" in html
+    assert "Toujours en avoir" in SCRIPT_COURSES and "Plus besoin d'en avoir" in SCRIPT_COURSES
+    assert "'Plus habituel'" not in SCRIPT_COURSES
     assert '<script type="application/json" id="italien">' in html and '"pecorino"' in html
-    assert "Réassort placard" in html and "Dans le panier" in html and "Cette semaine" in html
-    assert "Courses finies" in html and "<svg" in html                             # habituel : une icône
-    assert "const DURABLES = ['epicerie', 'surgeles', 'boissons', 'specialise']" in html   # oignons : la semaine
 
 
 def test_un_envoi_a_la_fois():

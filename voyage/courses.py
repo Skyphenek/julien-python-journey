@@ -190,24 +190,16 @@ form#ajout-course input { flex: 1; min-width: 0; font-size: 17px; padding: 12px 
                           border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte); }
 form#ajout-course button { border: none; border-radius: 999px; padding: 0 20px; font-weight: 800; font-size: 16px;
                            background: var(--courses); color: #ffffff; font-family: inherit; }
-nav#magasins { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; background: var(--carte);
-               border-radius: 16px; padding: 4px; margin: 0 0 12px; }
-nav#magasins button { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 52px;
-                      border: none; border-radius: 12px; background: none; color: var(--texte); font-family: inherit;
-                      font-size: 15px; font-weight: 700; }
-nav#magasins button span { font-size: 12px; font-weight: 600; color: var(--doux); }
-nav#magasins button[aria-pressed="true"] { background: var(--courses); color: #ffffff; font-weight: 800; }
-nav#magasins button[aria-pressed="true"] span { color: #ffffff; }
+ul.articles .nom span.pastille { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px;
+                                 font-size: 12px; font-weight: 700; vertical-align: 2px;
+                                 background: var(--courses-doux); color: var(--courses); }
 div.progression { height: 8px; background: var(--ligne); border-radius: 999px; overflow: hidden; margin: 0 0 14px; }
 div.progression div { height: 100%; background: var(--courses); border-radius: 999px; transition: width .2s; }
-h2.semaine { font-size: 20px; font-weight: 800; margin: 4px 0 10px; }
 details.repli { background: var(--carte); border-radius: 24px; padding: 14px 16px; margin: 0 0 12px; }
 details.repli.panier { background: none; border: 2px dashed var(--ligne); }
 details.repli summary { font-size: 17px; font-weight: 800; cursor: pointer; min-height: 28px; }
 details.repli summary span { color: var(--doux); font-weight: 600; }
 details.repli p.aide { color: var(--doux); font-size: 14px; margin: 8px 0; }
-details.repli h3 { font-size: 13px; font-weight: 700; color: var(--doux); margin: 12px 0 2px; text-transform: uppercase;
-                   letter-spacing: .5px; }
 section.rayon { background: var(--carte); border-radius: 24px; padding: 14px 16px; margin: 0 0 12px; }
 section.rayon h2 { font-size: 15px; font-weight: 800; color: var(--doux); margin: 0 0 6px; }
 ul.articles { list-style: none; margin: 0; padding: 0; }
@@ -325,14 +317,9 @@ SCRIPT_COURSES = """
     const ZONES = JSON.parse(document.getElementById('zones').textContent);
     let ouvert = null;                                   // article en cours d'édition : pas de rafraîchissement
     let ranger = false, placardOuvert = null;            // mode « Ranger le placard » : zone, retrait, ajout
-    let reassortOuvert = false, panierOuvert = false;
-    const MAGASINS = [['supermarche', 'Supermarché'], ['asiatique', 'Asiatique'], ['italien', 'Italien']];
-    const CLE_MAGASIN = 'courses:magasin';
-    let magasinActif = 'supermarche';
-    try { magasinActif = localStorage.getItem(CLE_MAGASIN) || 'supermarche'; } catch (e) {}
+    let panierOuvert = false;
 
     const ITALIEN = new Set(JSON.parse(document.getElementById('italien').textContent).map(cleCatalogue));
-    // Où l'acheter : les épiceries spécialisées se partagent entre l'asiatique et l'italienne
     // Prix d'un panier parisien (prix_paris.py) : unité type et prix, par la clé du catalogue
     const PRIX = {};
     Object.entries(JSON.parse(document.getElementById('prix').textContent))
@@ -343,18 +330,6 @@ SCRIPT_COURSES = """
             minimumFractionDigits: arrondi ? 0 : 2, maximumFractionDigits: arrondi ? 0 : 2 });
     }
     function somme(liste_) { return liste_.reduce(function (t, a) { const p = prixDe(a); return t + (p ? p[1] : 0); }, 0); }
-    function magasin(a) {
-        if (a.rayon !== 'specialise') return 'supermarche';
-        return ITALIEN.has(cleCatalogue(a.nom)) ? 'italien' : 'asiatique';
-    }
-    // Réassort : ce qui dure (épicerie, surgelés, boissons) et revient au placard, sans dîner prévu qui
-    // l'attende ; le frais et les fruits et légumes, même au placard, sont toujours de la semaine
-    const DURABLES = ['epicerie', 'surgeles', 'boissons', 'specialise'];
-    function estReassort(a) {
-        if (a.recurrent || (a.source || '').indexOf('plat:') === 0 || DURABLES.indexOf(a.rayon) < 0) return false;
-        const cle = normaliser(a.nom);
-        return a.source === 'placard' || placard.some(function (p) { return p.cle === cle; });
-    }
     function nouvelId() {
         if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
         return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
@@ -459,13 +434,14 @@ SCRIPT_COURSES = """
         coche.setAttribute('aria-label', a.nom);
         coche.addEventListener('change', function () { enregistrer(Object.assign({}, a, { pris: coche.checked })); });
         const nom = el('button', 'nom', a.nom); nom.type = 'button';
+        const ou = pastille(a, ITALIEN); if (ou) nom.append(el('span', 'pastille', ou));
         const prix = prixDe(a);
         if (prix) nom.append(el('small', '', prix[0] + ' · ' + euros(prix[1])));
         nom.addEventListener('click', function () { ouvert = ouvert === a.id ? null : a.id; afficher(); });
         li.append(coche, nom);
         if (a.recurrent) {
             const icone = el('span', 'recurrent');
-            icone.setAttribute('role', 'img'); icone.setAttribute('aria-label', 'habituel'); icone.title = 'habituel';
+            icone.setAttribute('role', 'img'); icone.setAttribute('aria-label', 'toujours en avoir'); icone.title = 'toujours en avoir';
             icone.innerHTML = ICONE_HABITUEL;
             li.append(icone);
         }
@@ -474,7 +450,7 @@ SCRIPT_COURSES = """
         const rayon = el('select');
         RAYONS.forEach(function (r) { const o = el('option', '', r[1]); o.value = r[0]; o.selected = r[0] === a.rayon; rayon.append(o); });
         rayon.addEventListener('change', function () { ouvert = null; enregistrer(Object.assign({}, a, { rayon: rayon.value })); });
-        const recurrent = el('button', '', a.recurrent ? 'Plus habituel' : 'Habituel'); recurrent.type = 'button';
+        const recurrent = el('button', '', a.recurrent ? "Plus besoin d'en avoir" : 'Toujours en avoir'); recurrent.type = 'button';
         recurrent.addEventListener('click', function () { ouvert = null; enregistrer(Object.assign({}, a, { recurrent: !a.recurrent })); });
         const retirer = el('button', '', 'Retirer'); retirer.type = 'button';
         retirer.addEventListener('click', function () { ouvert = null; supprimer(a); });
@@ -483,17 +459,15 @@ SCRIPT_COURSES = """
     }
 
     function parNom(x, y) { return x.nom.localeCompare(y.nom, 'fr'); }
-    // Les articles par rayon, dans l'ordre des rayons ; titre h2 (sections) ou h3 (dans un repli)
-    function parRayon(liste_, conteneur, enSections) {
+    // Les articles à prendre par rayon, dans l'ordre du parcours du magasin
+    function parRayon(liste_, conteneur) {
         RAYONS.forEach(function (r) {
             const du = liste_.filter(function (a) { return a.rayon === r[0]; }).sort(parNom);
             if (!du.length) return;
             const ul = el('ul', 'articles');
             du.forEach(function (a) { ligne(a).forEach(function (n) { ul.append(n); }); });
-            if (enSections) {
-                const section = el('section', 'rayon'); section.dataset.rayon = r[0];
-                section.append(el('h2', '', r[1]), ul); conteneur.append(section);
-            } else conteneur.append(el('h3', '', r[1]), ul);
+            const section = el('section', 'rayon'); section.dataset.rayon = r[0];
+            section.append(el('h2', '', r[1]), ul); conteneur.append(section);
         });
     }
     function repli(classe, titre, nombre, ouvertAvant, quandBascule) {
@@ -505,55 +479,23 @@ SCRIPT_COURSES = """
 
     function afficher() {
         const actifs = articles.filter(function (a) { return a.actif; });
-        const pris = actifs.filter(function (a) { return a.pris; }).length;
-
-        // Onglets : un par magasin, avec ce qui reste à y prendre
-        const nav = document.getElementById('magasins');
-        nav.replaceChildren();
-        MAGASINS.forEach(function (m) {
-            const reste = actifs.filter(function (a) { return !a.pris && magasin(a) === m[0]; }).length;
-            const b = el('button', '', m[1]); b.type = 'button';
-            b.setAttribute('aria-pressed', String(m[0] === magasinActif));
-            b.append(el('span', '', reste ? reste + ' à prendre' : '—'));
-            b.addEventListener('click', function () {
-                magasinActif = m[0];
-                try { localStorage.setItem(CLE_MAGASIN, magasinActif); } catch (e) {}
-                afficher();
-            });
-            nav.append(b);
-        });
-
-        const ici = actifs.filter(function (a) { return magasin(a) === magasinActif; });
-        const aPrendre = ici.filter(function (a) { return !a.pris; });
-        const panier = ici.filter(function (a) { return a.pris; });
+        const aPrendre = actifs.filter(function (a) { return !a.pris; });
+        const panier = actifs.filter(function (a) { return a.pris; });
         resume.textContent = aPrendre.length ? aPrendre.length + ' à prendre' + (panier.length ? ' · ' + panier.length + ' dans le panier' : '')
-                                             : (panier.length ? 'Tout est dans le panier' : 'Rien à prendre ici');
+                                             : (panier.length ? 'Tout est dans le panier' : 'Rien à prendre');
         const budget = document.getElementById('budget');
         const sansPrix = aPrendre.filter(function (a) { return !prixDe(a); }).length;
         budget.replaceChildren();
-        if (ici.length) {
-            budget.append(el('strong', '', '≈ ' + euros(somme(aPrendre), true)), ' à prendre ici');
+        if (actifs.length) {
+            budget.append(el('strong', '', '≈ ' + euros(somme(aPrendre), true)), ' à prendre');
             if (panier.length) budget.append(' · ' + euros(somme(panier), true) + ' dans le panier');
             if (sansPrix) budget.append(' · ' + sansPrix + ' sans prix');
-            const total = somme(actifs);
-            if (ici.length < actifs.length) budget.append(' · total des courses ≈ ' + euros(total, true));
         }
         document.querySelector('div.progression div').style.width =
-            (ici.length ? Math.round(100 * panier.length / ici.length) : 0) + '%';
+            (actifs.length ? Math.round(100 * panier.length / actifs.length) : 0) + '%';
 
         liste.replaceChildren();
-        // Au supermarché : la semaine d'abord, le réassort du placard replié
-        const reassort = magasinActif === 'supermarche' ? aPrendre.filter(estReassort) : [];
-        const semaine = aPrendre.filter(function (a) { return reassort.indexOf(a) < 0; });
-        if (reassort.length && semaine.length) liste.append(el('h2', 'semaine', 'Cette semaine'));
-        parRayon(semaine, liste, true);
-        if (reassort.length) {
-            const d = repli('reassort', 'Réassort placard', reassort.length, reassortOuvert || !semaine.length,
-                            function (o) { reassortOuvert = o; });
-            d.append(el('p', 'aide', 'Ce qui dure : à prendre quand il y a la place dans le caddie.'));
-            parRayon(reassort, d, false);
-            liste.append(d);
-        }
+        parRayon(aPrendre, liste);
         if (panier.length) {
             const d = repli('panier', 'Dans le panier', panier.length, panierOuvert, function (o) { panierOuvert = o; });
             const ul = el('ul', 'articles');
@@ -561,9 +503,9 @@ SCRIPT_COURSES = """
             d.append(ul);
             liste.append(d);
         }
-        if (!actifs.length) liste.append(el('p', 'vide-courses', 'Rien à acheter. Ajoute un article, un habituel ou un basique épuisé.'));
-        viderPris.hidden = !pris;
-        viderPris.textContent = 'Courses finies · ranger ' + pris + ' article' + (pris > 1 ? 's' : '');
+        if (!actifs.length) liste.append(el('p', 'vide-courses', 'Rien à acheter. Ajoute un article, ou touche ce qui manque dans « À la maison ».'));
+        viderPris.hidden = !panier.length;
+        viderPris.textContent = 'Courses finies · ranger ' + panier.length + ' article' + (panier.length > 1 ? 's' : '');
 
         const habituels = articles.filter(function (a) { return a.recurrent && !a.actif; })
             .sort(function (x, y) { return x.nom.localeCompare(y.nom, 'fr'); });
@@ -692,7 +634,6 @@ def courses_en_html():
 <body class="accueil hub-page courses">
 {onglets_cucina("courses")}
 <p class="resume" id="resume">Chargement…</p>
-<nav id="magasins" aria-label="Où je fais les courses"></nav>
 <div class="progression" aria-hidden="true"><div></div></div>
 <p class="budget" id="budget" title="Prix moyens en supérette parisienne, unité type par article : ±15 à 25 % sur un panier"></p>
 <div id="hors-ligne" hidden></div>
