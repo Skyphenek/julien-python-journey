@@ -198,7 +198,10 @@ def test_fiche_et_actions_de_la_page():
         assert f in html
     for marqueur in ("function uneFiche", "function bandeauCourses", "function ingredientsFiche",     # fiche magazine
                      "function tempoFiche", "function etapesFiche", "function phraseFiche",
-                     "div.une-fiche", "details.courses-fiche", "ol.etapes-fiche", "div.tempo-fiche"):
+                     "div.une-fiche", "details.courses-fiche", "ol.etapes-fiche", "div.tempo-fiche",
+                     "function texteAjuste", "function compteursParts", "function bandeauParts",       # portions
+                     "div.parts-fiche", "p.bandeau-parts", "'À table'", "'À garder'",
+                     "recette écrite pour", "Quantités ajustées pour"):
         assert marqueur in html, marqueur
     assert "innerHTML" not in html.split("function phraseFiche")[1].split("function ouvrirAccords")[0]
     assert "+ déjeuner ou brunch" in html and "+ accompagnement" in html and "'brunch'" in html
@@ -768,3 +771,14 @@ def test_avis_dans_les_diners():
                   "url: 'api/avis'", "'casa-qui'"):
         assert texte in SCRIPT_DINERS, texte
     assert "bouton('Toutes', cuisineChoisie === 'tout'" in SCRIPT_DINERS        # voir toutes les cuisines
+
+
+def test_version_page_portions():
+    from valise import VERSION_PAGE
+    assert VERSION_PAGE >= 67
+
+
+def test_fiche_boutons_compteurs_tactiles_et_defilement_tempo():
+    html = diners_en_html()
+    for marqueur in ("touch-action: manipulation", "une part de plus", "une part de moins", "scrollLeft"):
+        assert marqueur in html, marqueur

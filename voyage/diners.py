@@ -15,6 +15,7 @@ from courses import normaliser, STYLE_COURSES
 from design import STYLE_D, STYLE_NAV_HUB, TETE_POLICE, nav_hub, onglets_cucina, ICONES_REPERE
 from avis import STYLE_AVIS, SCRIPT_FORM_AVIS
 from pwa import TETE_PWA, SCRIPT_FILE
+from portions import SCRIPT_PORTIONS
 
 _ID = re.compile(r"[A-Za-z0-9-]{8,64}")
 
@@ -665,6 +666,11 @@ ul.ing-fiche li { break-inside: avoid; padding: 7px 0; border-bottom: 1px dashed
 ul.ing-fiche input { width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--courses); flex: none; }
 ul.ing-fiche b { display: block; font-size: 16px; }
 ul.ing-fiche li.coche { color: var(--doux); text-decoration: line-through; }
+div.parts-fiche { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 12px 0; }
+div.parts-fiche button { min-width: 44px; min-height: 44px; font-size: 18px; touch-action: manipulation; }
+div.parts-fiche .compteur { display: inline-flex; align-items: center; gap: 6px; }
+div.parts-fiche .compteur b { min-width: 1.6em; text-align: center; font-size: 17px; }
+p.bandeau-parts { margin: 12px 0; padding: 8px 10px; border-left: 3px solid var(--courses); font-size: 14px; }
 p.para-fiche { font-size: 16px; line-height: 1.5; margin: 6px 0; }
 div.tempo-fiche { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x mandatory; }
 div.tempo-fiche button { flex: none; width: 72%; max-width: 260px; text-align: left; border: none; background: var(--carte);
@@ -1307,12 +1313,15 @@ SCRIPT_DINERS = """
         afficher();
     }
     // --- Fiche « magazine » : affiche p.fiche (découpée en Python, fiche_recette.py) ---
-    function phraseFiche(x, parent) {
-        if (x.action) parent.append(el('strong', '', x.action));
-        x.morceaux.forEach(function (m) { parent.append(m.genre === 'pourquoi' ? el('em', '', ' ' + m.texte) : document.createTextNode(m.texte)); });
+    function phraseFiche(x, parent, facteur) {
+        if (x.action) parent.append(el('strong', '', texteAjuste(x.action_s, facteur)));
+        x.morceaux.forEach(function (m) {
+            const t = texteAjuste(m.s, facteur);
+            parent.append(m.genre === 'pourquoi' ? el('em', '', ' ' + t) : document.createTextNode(t));
+        });
         x.secrets.forEach(function (s) {
             const b = el('div', 'secret' + (s.qui === 'mamma' ? ' mamma' : ''));
-            b.append(el('b', '', s.qui === 'mamma' ? 'Secret de mamma' : 'Secret de grand-mère'), document.createTextNode(' · ' + s.texte));
+            b.append(el('b', '', s.qui === 'mamma' ? 'Secret de mamma' : 'Secret de grand-mère'), document.createTextNode(' · ' + texteAjuste(s.s, facteur)));
             parent.append(b);
         });
     }
@@ -1353,36 +1362,38 @@ SCRIPT_DINERS = """
         if (p.cout) det.append(el('p', 'meta', '≈ ' + euros(p.cout) + ' le repas pour deux · en livraison ≈ ' + euros(d.livraison)));
         return det;
     }
-    function ingredientsFiche(f) {
+    function ingredientsFiche(f, facteur, coches) {
         const frag = document.createDocumentFragment();
-        function liste(lignes) {
+        function liste(lignes, prefixe) {
             const ul = el('ul', 'ing-fiche');
-            lignes.forEach(function (x) {
-                const li = el('li'), c = el('input'), t = el('span');
+            lignes.forEach(function (x, i) {
+                const li = el('li'), c = el('input'), t = el('span'), cle = prefixe + i;
                 c.type = 'checkbox';
-                c.addEventListener('change', function () { li.classList.toggle('coche', c.checked); });
-                t.append(el('b', '', x.nom));
-                if (x.quantite) t.append(document.createTextNode(x.quantite));
+                c.checked = !!coches[cle];                          // la case reste cochée quand les parts changent
+                li.classList.toggle('coche', c.checked);
+                c.addEventListener('change', function () { coches[cle] = c.checked; li.classList.toggle('coche', c.checked); });
+                t.append(el('b', '', texteAjuste(x.nom_s, facteur)));
+                if (x.quantite) t.append(document.createTextNode(texteAjuste(x.quantite_s, facteur)));
                 li.append(c, t); ul.append(li);
             });
             return ul;
         }
-        if (f.ingredients.length) frag.append(el('h3', 'titre-fiche', 'Ingrédients'), liste(f.ingredients));
-        f.sections.forEach(function (s) {
+        if (f.ingredients.length) frag.append(el('h3', 'titre-fiche', 'Ingrédients'), liste(f.ingredients, 'i'));
+        f.sections.forEach(function (s, k) {
             if (!s.lignes.length) { frag.append(el('p', 'para-fiche', s.titre)); return; }
             frag.append(el('h3', 'titre-fiche', s.titre),
-                        liste(s.lignes.map(function (l) { return { nom: l, quantite: '' }; })));
+                        liste(s.lignes.map(function (l, i) { return { nom: l, nom_s: s.lignes_s[i], quantite: '', quantite_s: [] }; }), 's' + k + '-'));
         });
         return frag;
     }
-    function tempoFiche(f) {
+    function tempoFiche(f, facteur) {
         const frag = document.createDocumentFragment();
         if (!f.tempo || !f.tempo.lignes.length) return frag;
         const bande = el('div', 'tempo-fiche');
         f.tempo.lignes.forEach(function (l) {
             const b = el('button');
             b.type = 'button';
-            b.append(el('b', '', l.heure), document.createTextNode(l.texte));
+            b.append(el('b', '', l.heure), document.createTextNode(texteAjuste(l.s, facteur)));
             if (l.etapes.length) b.addEventListener('click', function () {
                 const cible = document.getElementById('etape-' + l.etapes[0]);
                 if (!cible) return;
@@ -1395,16 +1406,16 @@ SCRIPT_DINERS = """
         frag.append(el('h3', 'titre-fiche', f.tempo.titre), bande);
         return frag;
     }
-    function etapesFiche(f) {
+    function etapesFiche(f, facteur) {
         const ol = el('ol', 'etapes-fiche');
         f.etapes.forEach(function (e) {
             const li = el('li');
             li.id = 'etape-' + e.n;
             li.append(el('span', 'num', String(e.n)));
-            phraseFiche(e, li);
+            phraseFiche(e, li, facteur);
             if (e.si.length) {
                 const ul = el('ul');
-                e.si.forEach(function (s) { const x = el('li'); phraseFiche(s, x); ul.append(x); });
+                e.si.forEach(function (s) { const x = el('li'); phraseFiche(s, x, facteur); ul.append(x); });
                 li.append(ul);
             }
             ol.append(li);
@@ -1412,6 +1423,26 @@ SCRIPT_DINERS = """
         const frag = document.createDocumentFragment();
         frag.append(el('h3', 'titre-fiche', 'Étapes'), ol);
         return frag;
+    }
+    function compteursParts(f, etat, rafraichir) {
+        const bloc = el('div', 'parts-fiche');
+        function compteur(libelle, cle, min) {
+            const g = el('span', 'compteur');
+            const moins = bouton('–', 'petit', function () { if (etat[cle] > min) { etat[cle]--; rafraichir(); } });
+            const plus = bouton('+', 'petit', function () { if (etat[cle] < 12) { etat[cle]++; rafraichir(); } });
+            moins.setAttribute('aria-label', 'une part de moins'); plus.setAttribute('aria-label', 'une part de plus');
+            g.append(el('span', '', libelle), moins, el('b', '', String(etat[cle])), plus);
+            return g;
+        }
+        const total = etat.table + etat.garder;
+        bloc.append(compteur('À table', 'table', 1), compteur('À garder', 'garder', 0),
+                    el('span', 'meta', '= ' + total + (total > 1 ? ' parts' : ' part') + ' (recette écrite pour ' + (f.base.table + f.base.garder) + ')'));
+        return bloc;
+    }
+    function bandeauParts(etat) {
+        const total = etat.table + etat.garder;
+        return el('p', 'bandeau-parts', 'Quantités ajustées pour ' + total + (total > 1 ? ' parts' : ' part') +
+                  ' — temps de cuisson inchangés ; prends une plus grande cocotte, saisis en plus de fournées.');
     }
     function lienOrigine(p, c) {
         if (!p.lien) return;
@@ -1428,7 +1459,22 @@ SCRIPT_DINERS = """
         const c = document.querySelector('#panneau .contenu'); c.replaceChildren();
         const groupes = groupesIngredients(p);
         if (p.fiche && p.fiche.structuree) {
-            c.append(uneFiche(p), bandeauCourses(p, groupes), ingredientsFiche(p.fiche), tempoFiche(p.fiche), etapesFiche(p.fiche));
+            const f = p.fiche, corps = el('div', 'corps-fiche'), coches = {};
+            const etat = f.base ? { table: f.base.table, garder: f.base.garder } : null;   // rien n'est mémorisé
+            const rafraichir = function () {
+                const facteur = etat ? (etat.table + etat.garder) / (f.base.table + f.base.garder) : 1;
+                const ancienTempo = corps.querySelector('div.tempo-fiche');
+                const defile = ancienTempo ? ancienTempo.scrollLeft : 0;
+                corps.replaceChildren();
+                if (etat) corps.append(compteursParts(f, etat, rafraichir));
+                corps.append(ingredientsFiche(f, facteur, coches), tempoFiche(f, facteur));
+                if (facteur !== 1) corps.append(bandeauParts(etat));
+                corps.append(etapesFiche(f, facteur));
+                const nouveauTempo = corps.querySelector('div.tempo-fiche');
+                if (nouveauTempo) nouveauTempo.scrollLeft = defile;
+            };
+            rafraichir();
+            c.append(uneFiche(p), bandeauCourses(p, groupes), corps);
             lienOrigine(p, c);
         } else {
             const haut = el('div', 'haut');
@@ -1891,6 +1937,7 @@ majHorsLigne();
 viderFile();
 </script>
 <script>{SCRIPT_FORM_AVIS}</script>
+<script>{SCRIPT_PORTIONS}</script>
 <script>{SCRIPT_DINERS}</script>
 </body>
 </html>"""

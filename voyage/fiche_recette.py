@@ -4,6 +4,8 @@ Le texte reste la seule source en base : on le relit à chaque affichage, on ne 
 """
 import re
 
+from portions import SECTIONS_METRIQUES, base_parts, segmenter
+
 ETAPE = re.compile(r"^(\d+)[.)]\s+(.*)$")
 SOUS_PUCE = re.compile(r"^\s+-\s+(.*)$")
 LIGNE_TEMPO = re.compile(r"^-\s+(\d+:\d\d|Veille|La veille)\s+(.*)$")   # « Veille » : marinade, salage
@@ -59,7 +61,7 @@ def decouper_phrase(texte):
 
 
 def _vide():
-    return {"structuree": False, "pour": "", "ingredients": [], "sections": [], "tempo": None,
+    return {"structuree": False, "pour": "", "base": None, "ingredients": [], "sections": [], "tempo": None,
             "etapes": [], "difference": []}
 
 
@@ -122,6 +124,36 @@ def _lire_lignes(texte):
     return f
 
 
+def _segments_ligne(ligne):
+    """Une ligne d'ingrédient (« Passata — 700 g ») : la quantité est après le séparateur s'il y en a un."""
+    m = COUPE_INGREDIENT.search(ligne)
+    if not m:
+        return segmenter(ligne, premier=True)
+    return segmenter(ligne[:m.end()]) + segmenter(ligne[m.end():], premier=True)
+
+
+def _segments_phrase(p):
+    """Une étape ou une sous-puce découpée : segments de l'action, de chaque morceau et de chaque secret."""
+    return {**p, "action_s": segmenter(p["action"]),
+            "morceaux": [{**m, "s": segmenter(m["texte"])} for m in p["morceaux"]],
+            "secrets": [{**s, "s": segmenter(s["texte"])} for s in p["secrets"]]}
+
+
+def _ajouter_portions(f):
+    """Base des compteurs et quantités multipliables (portions.py) sur chaque texte affiché par la fiche."""
+    f["base"] = base_parts(f["pour"])
+    for x in f["ingredients"]:
+        x["nom_s"] = segmenter(x["nom"], premier=not x["quantite"])
+        x["quantite_s"] = segmenter(x["quantite"], premier=True)
+    for s in f["sections"]:
+        metrique = s["titre"].startswith(SECTIONS_METRIQUES)
+        s["lignes_s"] = [segmenter(l) if metrique else _segments_ligne(l) for l in s["lignes"]]
+    for l in (f["tempo"] or {"lignes": []})["lignes"]:
+        l["s"] = segmenter(l["texte"])
+    f["etapes"] = [{**_segments_phrase(e), "si": [_segments_phrase(s) for s in e["si"]]} for e in f["etapes"]]
+    return f
+
+
 def decouper(texte):
     """Texte brut d'une recette -> fiche (dict). Ne lève jamais : en cas de souci, fiche non structurée."""
     if not texte or not str(texte).strip():
@@ -130,6 +162,6 @@ def decouper(texte):
         f = _lire_lignes(str(texte))
         f["etapes"] = [{"n": e["n"], **decouper_phrase(e["texte"]), "si": [decouper_phrase(s) for s in e["si"]]}
                        for e in f["etapes"]]
-        return f
+        return _ajouter_portions(f)
     except Exception:                                    # le texte vient aussi de « Modifier » : tout peut arriver
         return _vide()
