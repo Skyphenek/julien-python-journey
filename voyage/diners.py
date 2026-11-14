@@ -667,6 +667,7 @@ ul.ing-fiche input { width: 20px; height: 20px; margin: 1px 0 0; accent-color: v
 ul.ing-fiche b { display: block; font-size: 16px; }
 ul.ing-fiche li.coche { color: var(--doux); text-decoration: line-through; }
 div.parts-fiche { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 12px 0; }
+div.parts-fiche button { min-width: 44px; min-height: 44px; font-size: 18px; touch-action: manipulation; }
 div.parts-fiche .compteur { display: inline-flex; align-items: center; gap: 6px; }
 div.parts-fiche .compteur b { min-width: 1.6em; text-align: center; font-size: 17px; }
 p.bandeau-parts { margin: 12px 0; padding: 8px 10px; border-left: 3px solid var(--courses); font-size: 14px; }
@@ -1427,10 +1428,10 @@ SCRIPT_DINERS = """
         const bloc = el('div', 'parts-fiche');
         function compteur(libelle, cle, min) {
             const g = el('span', 'compteur');
-            g.append(el('span', '', libelle),
-                     bouton('–', 'petit', function () { if (etat[cle] > min) { etat[cle]--; rafraichir(); } }),
-                     el('b', '', String(etat[cle])),
-                     bouton('+', 'petit', function () { if (etat[cle] < 12) { etat[cle]++; rafraichir(); } }));
+            const moins = bouton('–', 'petit', function () { if (etat[cle] > min) { etat[cle]--; rafraichir(); } });
+            const plus = bouton('+', 'petit', function () { if (etat[cle] < 12) { etat[cle]++; rafraichir(); } });
+            moins.setAttribute('aria-label', 'une part de moins'); plus.setAttribute('aria-label', 'une part de plus');
+            g.append(el('span', '', libelle), moins, el('b', '', String(etat[cle])), plus);
             return g;
         }
         const total = etat.table + etat.garder;
@@ -1462,11 +1463,15 @@ SCRIPT_DINERS = """
             const etat = f.base ? { table: f.base.table, garder: f.base.garder } : null;   // rien n'est mémorisé
             const rafraichir = function () {
                 const facteur = etat ? (etat.table + etat.garder) / (f.base.table + f.base.garder) : 1;
+                const ancienTempo = corps.querySelector('div.tempo-fiche');
+                const defile = ancienTempo ? ancienTempo.scrollLeft : 0;
                 corps.replaceChildren();
                 if (etat) corps.append(compteursParts(f, etat, rafraichir));
                 corps.append(ingredientsFiche(f, facteur, coches), tempoFiche(f, facteur));
                 if (facteur !== 1) corps.append(bandeauParts(etat));
                 corps.append(etapesFiche(f, facteur));
+                const nouveauTempo = corps.querySelector('div.tempo-fiche');
+                if (nouveauTempo) nouveauTempo.scrollLeft = defile;
             };
             rafraichir();
             c.append(uneFiche(p), bandeauCourses(p, groupes), corps);

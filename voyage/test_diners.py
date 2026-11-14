@@ -776,3 +776,9 @@ def test_avis_dans_les_diners():
 def test_version_page_portions():
     from valise import VERSION_PAGE
     assert VERSION_PAGE >= 67
+
+
+def test_fiche_boutons_compteurs_tactiles_et_defilement_tempo():
+    html = diners_en_html()
+    for marqueur in ("touch-action: manipulation", "une part de plus", "une part de moins", "scrollLeft"):
+        assert marqueur in html, marqueur
