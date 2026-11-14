@@ -73,21 +73,18 @@ Pas de correctif à part : la refonte Courses (§3) supprime ce cycle (1 tap = �
 - Le retour se fait comme aujourd'hui : un article coché puis « Courses finies » revient en stock au placard, ou
   dans les habituels rangés.
 - Le bouton **Modifier** remplace « Ranger le placard ». En mode Modifier, un tap ouvre l'édition de la puce :
-  **Changer de rayon**, **Retirer**, **Fermer**.
-  - Pour un élément du placard, changer de rayon recalcule sa zone (`deviner_zone(nom, rayon)`). La zone reste en
-    base pour « À finir », elle n'est plus affichée.
-  - Pour un habituel, c'est le rayon de la ligne `courses` qui change.
-  - Retirer : supprime la ligne `placard`, ou passe l'habituel à `recurrent = false` puis le supprime s'il n'est pas
-    actif.
+  - un **habituel** : Changer de rayon (le rayon de la ligne `courses`), Retirer (supprime la ligne), Fermer ;
+  - un élément du **placard** : Retirer (supprime la ligne `placard`), Fermer. Pas de changement de rayon : le
+    placard ne stocke qu'une zone, son rayon est deviné du nom (`deviner_rayon`, ajouté par `GET /api/courses`).
+    Changer le rayon demanderait une colonne, donc une migration : hors périmètre (14/11, en écrivant le plan).
 - Le formulaire « ajouter au placard » disparaît. On fait entrer un article par la liste, avec « Toujours en
   avoir », et les ingrédients de recettes achetés entrent tout seuls (`db.enregistrer_article`, inchangé).
 - Le résumé du repli : « À la maison · N articles ».
 
 ### Inchangé
 
-- Aucune migration. Les tables `placard`, `courses` et `achats` et leurs API ne changent pas, sauf si le
-  changement de rayon d'un élément du placard demande un champ de plus dans `POST /api/placard`. La zone y est
-  déjà, donc a priori non.
+- Aucune migration. Les tables `placard`, `courses` et `achats` ne changent pas. Seul ajout d'API : `GET /api/courses`
+  rend chaque élément du placard avec son `rayon` deviné (lecture seule, pas stocké).
 - Le stock lu par Dîners (Ce soir, Proposer ma semaine) et par Aujourd'hui (À finir, À acheter pour aujourd'hui) ne
   change pas.
 - Le fonctionnement hors ligne (file d'envois, copie `localStorage`) et les prix ne changent pas.
