@@ -375,6 +375,35 @@ def test_proposer_cases_anti_gaspi_a_midi():
     assert p[(LUN, "dejeuner")] == "plat-epinards"
 
 
+# fenêtre glissante : aujourd'hui + 6 jours, pas la semaine du calendrier
+JEU = date(2026, 11, 5)
+LUN_PROCHAIN, LUN_DERNIER = JEU + timedelta(days=4), JEU - timedelta(days=3)
+
+
+def test_proposer_cases_plat_pose_lundi_prochain_jamais_propose_jeudi():
+    for graine in range(20):
+        p = proposer_cases(carte(n=3, a_tester=0), [diner(LUN_PROCHAIN, "plat-carnet-00")], [(JEU, "diner")], JEU,
+                           hasard=Random(graine))
+        assert p[(JEU, "diner")] != "plat-carnet-00"
+
+
+def test_proposer_cases_plat_du_lundi_dernier_ne_bloque_pas_jeudi():
+    repas = [diner(LUN_DERNIER, "plat-carnet-00"), diner(JEU + timedelta(days=1), "plat-carnet-01"),
+             diner(JEU + timedelta(days=2), "plat-carnet-02")]
+    for graine in range(10):
+        p = proposer_cases(carte(n=3, a_tester=0), repas, [(JEU, "diner")], JEU, hasard=Random(graine))
+        assert p == {(JEU, "diner"): "plat-carnet-00"}
+
+
+def test_proposer_cases_un_seul_a_tester_sur_la_fenetre_glissante():
+    cases = [(JEU + timedelta(days=i), m) for i in range(7) for m in ("dejeuner", "diner")]
+    cases = [c for c in cases if c != (LUN_PROCHAIN, "diner")]
+    repas = [diner(LUN_PROCHAIN, "plat-tester-00")]
+    for graine in range(10):
+        p = proposer_cases(carte(n=20, a_tester=5), repas, cases, JEU, hasard=Random(graine))
+        assert not any(v.startswith("plat-tester") for v in p.values())
+
+
 # --- Proposer avec un accompagnement (étape 3) ---
 from diners import accompagner
 

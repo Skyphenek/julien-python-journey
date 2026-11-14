@@ -332,8 +332,8 @@ def proposer_cases(plats, repas, cases, aujourd_hui, remplacer=(), hasard=None, 
     Une case est libre si aucun repas de ce jour et de ce moment n'a de plat ni d'issue (à midi, un brunch du même
     jour l'occupe aussi) ; les jours passés sont ignorés. `remplacer` : des cases à tirer de nouveau, même absentes
     de `cases` (si le repas est encore tel que proposé, sans issue). Plats pour nous deux, avec recette ; ≤ 30 min à
-    midi, ≤ 45 min le soir du lundi au jeudi ; ni déjà prévus dans la semaine (hors cases remplacées), ni mangés ces
-    14 derniers jours, ni brunchs, sans doublon ; un plat à tester au plus par semaine. `a_finir` : [(clé, à finir
+    midi, ≤ 45 min le soir du lundi au jeudi ; ni déjà prévus dans les 7 jours (hors cases remplacées), ni mangés ces
+    14 derniers jours, ni brunchs, sans doublon ; un plat à tester au plus sur ces 7 jours. `a_finir` : [(clé, à finir
     avant)] — pour chacun, d'abord le plus rapide des plats du carnet qui l'utilisent, sur la première case libre
     avant sa date. Le dimanche d'abord, puis par jour (déjeuner avant dîner). Sans plat possible, la case reste vide."""
     from random import Random
@@ -341,7 +341,7 @@ def proposer_cases(plats, repas, cases, aujourd_hui, remplacer=(), hasard=None, 
     par_id = {p["id"]: p for p in plats}
     remplacer = set(remplacer)
     ordre = lambda c: (c[0], c[1] != "dejeuner")                            # par jour, déjeuner avant dîner
-    semaine_de = lambda j: j - timedelta(days=j.weekday())
+    fin = aujourd_hui + timedelta(days=6)                                   # la fenêtre : comme semaine()
 
     def repas_de(jour, moment):
         return [r for r in repas if r["jour"] == jour and (r["moment"] == moment
@@ -360,19 +360,18 @@ def proposer_cases(plats, repas, cases, aujourd_hui, remplacer=(), hasard=None, 
     a_remplir = sorted({c for c in set(cases) | remplacer if libre(c)}, key=ordre)
     if not a_remplir:
         return {}
-    semaines = {semaine_de(j) for j, _ in a_remplir}
 
     manges = {i for r in repas if r["issue"] == "fait" and 0 <= (aujourd_hui - r["jour"]).days < RECENT
               for i in r["plats"]}
     liberees = {c for c in a_remplir if c in remplacer}
-    posees = [r for r in repas if semaine_de(r["jour"]) in semaines and (r["jour"], r["moment"]) not in liberees]
+    posees = [r for r in repas if aujourd_hui <= r["jour"] <= fin and (r["jour"], r["moment"]) not in liberees]
     deja = {i for r in posees for i in r["plats"]}
     ecartes = {i for c in liberees for r in repas_de(*c) for i in r["plats"]}
     candidats = [p for p in plats if p["genre"] == "plat" and not p["archive"] and p.get("pour", "nous") == "nous"
                  and p["recette"] and p["id"] not in deja | manges | ecartes and not p["id"].startswith("brunch-")]
     hasard.shuffle(candidats)
-    a_tester = {s: any(i in par_id and par_id[i]["statut"] == "a-tester" and par_id[i]["genre"] == "plat"
-                       for r in posees if semaine_de(r["jour"]) == s for i in r["plats"]) for s in semaines}
+    a_tester = any(i in par_id and par_id[i]["statut"] == "a-tester" and par_id[i]["genre"] == "plat" for i in deja)
+    carnet = sorted(candidats, key=lambda p: (p["minutes"], p["nom"]))
 
     def assez_rapide(p, case):
         jour, moment = case
@@ -387,7 +386,7 @@ def proposer_cases(plats, repas, cases, aujourd_hui, remplacer=(), hasard=None, 
                 break
             if case in choix:
                 continue
-            p = next((p for p in sorted(candidats, key=lambda p: (p["minutes"], p["nom"]))
+            p = next((p for p in carnet
                       if p["statut"] == "carnet" and p["id"] not in choix.values() and assez_rapide(p, case)
                       and any(normaliser(i) == cle for i in p["ingredients"])), None)
             if p:
@@ -395,14 +394,13 @@ def proposer_cases(plats, repas, cases, aujourd_hui, remplacer=(), hasard=None, 
                 break
 
     for case in sorted((c for c in a_remplir if c not in choix), key=lambda c: c[0].weekday() != 6):
-        s = semaine_de(case[0])
-        for p in sorted(candidats, key=lambda p: (p["statut"] == "a-tester") == a_tester[s]):
+        for p in sorted(candidats, key=lambda p: (p["statut"] == "a-tester") == a_tester):
             if p["id"] in choix.values() or not assez_rapide(p, case):
                 continue
-            if p["statut"] == "a-tester" and a_tester[s]:
+            if p["statut"] == "a-tester" and a_tester:
                 continue
             choix[case] = p["id"]
-            a_tester[s] = a_tester[s] or p["statut"] == "a-tester"
+            a_tester = a_tester or p["statut"] == "a-tester"
             break
     return dict(sorted(choix.items(), key=lambda kv: ordre(kv[0])))
 
