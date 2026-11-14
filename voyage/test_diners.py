@@ -197,7 +197,7 @@ def test_fiche_et_actions_de_la_page():
     assert "Va bien avec" in html and "Modifier les accords" in html and "'Avec :'" in html
     assert "if (absents.length && !accompagne && r.plats.length < 8)" in html     # déjà un accompagnement : rien
     assert "['brunch', 'Brunch']" in html and "brunch-" in html and "'+ ajouter'" in html            # brunch
-    assert "r.menus" in html and "plats.join(' ') === derniereProposition[iso]" in html             # étape 3
+    assert "r.menus" in html and "plats.join(' ') === derniereProposition[cle]" in html            # étape 3
 
 
 def test_version_page_repas():
@@ -316,6 +316,92 @@ def test_proposer_ignore_dejeuner_et_brunch():
 def test_proposer_un_diner_compose_compte_comme_prevu():
     repas = [diner(LUN + timedelta(days=i), f"plat-carnet-{i:02d}", f"plat-carnet-{i + 6:02d}") for i in range(4)]
     assert proposer(carte(), repas, SEMAINE, LUN, hasard=Random(7)) == {}
+
+
+# --- proposer_cases : les cases cochées, midi et soir ---
+from diners import proposer_cases, MINUTES_MIDI
+
+MAR, SAM, DIM = LUN + timedelta(days=1), LUN + timedelta(days=5), LUN + timedelta(days=6)
+
+
+def test_proposer_cases_remplit_exactement_les_cases_cochees():
+    cases = [(j, "diner") for j in SEMAINE] + [(SAM, "dejeuner"), (DIM, "dejeuner")]
+    p = proposer_cases(carte(n=20), [], cases, LUN, hasard=Random(1))
+    assert sorted(p) == sorted(cases) and len(set(p.values())) == 9          # 9 repas, aucun doublon
+
+
+def test_proposer_cases_midi_rapide_et_soir_comme_avant():
+    plats = carte(n=4, a_tester=0) + [{**plat(f"plat-moyen-{i}", f"Moyen {i}", minutes=40), "recette": "1.",
+                                       "pour": "nous"} for i in range(4)]
+    for graine in range(15):
+        p = proposer_cases(plats, [], [(LUN, "dejeuner"), (MAR, "dejeuner"), (LUN, "diner")], LUN,
+                           hasard=Random(graine))
+        assert all(not p[(j, "dejeuner")].startswith("plat-moyen") for j in (LUN, MAR))   # 40 min > 30 à midi
+    assert MINUTES_MIDI == 30
+
+
+def test_proposer_cases_ne_touche_pas_ce_qui_est_pose():
+    repas = [diner(LUN, "plat-carnet-00"), diner(MAR, issue="dehors"),
+             diner(SAM, "plat-carnet-01", moment="brunch")]
+    p = proposer_cases(carte(), repas, [(LUN, "diner"), (MAR, "diner"), (SAM, "dejeuner"), (DIM, "diner")], LUN,
+                       hasard=Random(2))
+    assert list(p) == [(DIM, "diner")] and p[(DIM, "diner")] not in {"plat-carnet-00", "plat-carnet-01"}
+
+
+def test_proposer_cases_jours_passes_ignores():
+    assert proposer_cases(carte(), [], [(LUN, "diner")], MAR, hasard=Random(3)) == {}
+
+
+def test_proposer_cases_remplacer_un_dejeuner():
+    plats = carte()
+    p = proposer_cases(plats, [], [(SAM, "dejeuner")], LUN, hasard=Random(4))
+    avant = p[(SAM, "dejeuner")]
+    q = proposer_cases(plats, [diner(SAM, avant, moment="dejeuner")], [], LUN,
+                       remplacer=[(SAM, "dejeuner")], hasard=Random(5))
+    assert list(q) == [(SAM, "dejeuner")] and q[(SAM, "dejeuner")] != avant
+
+
+def test_proposer_cases_un_seul_plat_a_tester():
+    cases = [(j, m) for j in SEMAINE for m in ("dejeuner", "diner")]
+    p = proposer_cases(carte(n=20, a_tester=5), [], cases, LUN, hasard=Random(6))
+    assert sum(v.startswith("plat-tester") for v in p.values()) <= 1
+
+
+def test_proposer_cases_anti_gaspi_a_midi():
+    plats = carte(n=6, a_tester=0) + [{**plat("plat-epinards", "Épinards", minutes=20, ingredients=["épinards frais"]),
+                                       "recette": "1.", "pour": "nous"}]
+    p = proposer_cases(plats, [], [(LUN, "dejeuner"), (LUN, "diner"), (MAR, "diner")], LUN,
+                       a_finir=[("epinards frais", MAR)], hasard=Random(7))
+    assert p[(LUN, "dejeuner")] == "plat-epinards"
+
+
+# fenêtre glissante : aujourd'hui + 6 jours, pas la semaine du calendrier
+JEU = date(2026, 11, 5)
+LUN_PROCHAIN, LUN_DERNIER = JEU + timedelta(days=4), JEU - timedelta(days=3)
+
+
+def test_proposer_cases_plat_pose_lundi_prochain_jamais_propose_jeudi():
+    for graine in range(20):
+        p = proposer_cases(carte(n=3, a_tester=0), [diner(LUN_PROCHAIN, "plat-carnet-00")], [(JEU, "diner")], JEU,
+                           hasard=Random(graine))
+        assert p[(JEU, "diner")] != "plat-carnet-00"
+
+
+def test_proposer_cases_plat_du_lundi_dernier_ne_bloque_pas_jeudi():
+    repas = [diner(LUN_DERNIER, "plat-carnet-00"), diner(JEU + timedelta(days=1), "plat-carnet-01"),
+             diner(JEU + timedelta(days=2), "plat-carnet-02")]
+    for graine in range(10):
+        p = proposer_cases(carte(n=3, a_tester=0), repas, [(JEU, "diner")], JEU, hasard=Random(graine))
+        assert p == {(JEU, "diner"): "plat-carnet-00"}
+
+
+def test_proposer_cases_un_seul_a_tester_sur_la_fenetre_glissante():
+    cases = [(JEU + timedelta(days=i), m) for i in range(7) for m in ("dejeuner", "diner")]
+    cases = [c for c in cases if c != (LUN_PROCHAIN, "diner")]
+    repas = [diner(LUN_PROCHAIN, "plat-tester-00")]
+    for graine in range(10):
+        p = proposer_cases(carte(n=20, a_tester=5), repas, cases, JEU, hasard=Random(graine))
+        assert not any(v.startswith("plat-tester") for v in p.values())
 
 
 # --- Proposer avec un accompagnement (étape 3) ---
@@ -495,3 +581,52 @@ def test_ce_soir_depuis_recettes_attend_l_envoi_avant_de_changer_de_page():
 def test_redirection_vers_recettes_sort_de_l_iife():
     from diners import SCRIPT_DINERS
     assert "{ location.replace('recettes'); return; }" in SCRIPT_DINERS
+
+
+def test_page_diners_grille_proposer():
+    from diners import SCRIPT_DINERS
+    html = diners_en_html()
+    assert "div.grille-proposer" in html and "'diners:grille'" in SCRIPT_DINERS
+    assert "cases:" in SCRIPT_DINERS and "remplacer:" in SCRIPT_DINERS
+    assert "['0|diner', '1|diner', '2|diner', '3|diner']" in SCRIPT_DINERS
+    assert "Trois ou quatre dîners suffisent" not in SCRIPT_DINERS
+    assert "repas à proposer" in SCRIPT_DINERS
+    from valise import VERSION_PAGE
+    assert VERSION_PAGE >= 57
+
+
+def test_proposer_cases_hors_fenetre_jamais_propose():
+    # une case à aujourd'hui + 10 est hors de la fenêtre de 7 jours : jamais proposée
+    assert proposer_cases(carte(), [], [(LUN + timedelta(days=10), "diner")], LUN, hasard=Random(4)) == {}
+
+
+def test_script_proposer_semaine_garde_anti_double_envoi_et_erreurs():
+    from diners import SCRIPT_DINERS
+    s = SCRIPT_DINERS
+    assert "let proposeEnCours = false;" in s
+    assert "if (proposeEnCours) return;" in s and "proposeEnCours = true;" in s
+    assert s.count("proposeEnCours = false;") >= 3                      # déclaration + les deux branches du .then final
+    assert "ok.disabled = !cases.length || proposeEnCours;" in s
+    assert "if (proposeEnCours) re.disabled = true;" in s
+    # « Proposer » mémorise toujours en fusionnant, et Reproposer ignore les jours passés
+    assert "derniereProposition = Object.assign({}, derniereProposition, poses);" in s
+    assert "cle.split('|')[0] >= d.aujourd_hui" in s
+    # erreur serveur distincte de la panne réseau
+    assert "Le serveur a refusé (code ' + e.code + ').'" in s
+    # largeur des cases à 390 px
+    from diners import STYLE_DINERS
+    assert "padding: 6px; margin: 8px 0;" in STYLE_DINERS and "grid-template-columns: 2.2rem repeat(7" in STYLE_DINERS
+
+
+def test_page_diners_vider_la_semaine():
+    from diners import SCRIPT_DINERS
+    assert "function viderSemaine" in SCRIPT_DINERS and "'Vider la semaine'" in SCRIPT_DINERS
+    assert "'Oui, vider '" in SCRIPT_DINERS                         # confirmation dans la page, pas de confirm()
+    assert "confirm(" not in SCRIPT_DINERS
+    assert "!r.issue && r.plats.length" in SCRIPT_DINERS             # fait, commandé, dehors : gardés
+
+
+def test_grille_midi_du_jour_passe_apres_15_h():
+    from diners import SCRIPT_DINERS
+    assert "MIDI_PASSE_A = 15" in SCRIPT_DINERS
+    assert "new Date().getHours() >= MIDI_PASSE_A" in SCRIPT_DINERS

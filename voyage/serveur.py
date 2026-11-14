@@ -48,7 +48,7 @@ from courses import valider_article, valider_placard, courses_en_html, normalise
 from prix_paris import cout_repas
 from fiche_recette import decouper
 from diners import (avec_achats_recents, FRAIS_JOURS, disponibles, a_acheter_aujourd_hui, valider_plat, valider_repas, secours, a_acheter, compteur, semaine, diners_en_html,
-                    proposer, accompagner, cout_semaine, repas_prevus, ranger, nettoyer_accords, LIVRAISON_DEUX, FENETRE_PASSE, FENETRE_FUTUR)
+                    proposer, proposer_cases, accompagner, cout_semaine, repas_prevus, ranger, nettoyer_accords, LIVRAISON_DEUX, FENETRE_PASSE, FENETRE_FUTUR)
 from a_finir import suivis, alertes, plats_qui_utilisent, ENCORE_BON_JOURS
 from uuid import uuid4
 
@@ -240,6 +240,8 @@ def creer_app(nom_base="valise", secret=None):
     def proposer_la_semaine():
         """Complète la semaine (diners.proposer, un accompagnement par diners.accompagner) et enregistre les dîners proposés ; `remplacer` : jours à retirer."""
         corps = request.get_json(silent=True) or {}
+        if "cases" in corps:
+            return proposer_des_cases(corps)
         try:
             remplacer = [date.fromisoformat(j) for j in corps.get("remplacer", [])]
         except (TypeError, ValueError):
@@ -260,6 +262,44 @@ def creer_app(nom_base="valise", secret=None):
             conn.close()
         return jsonify({"proposes": {j.isoformat(): id_plat for j, id_plat in proposes.items()},   # pages v38
                         "menus": {j.isoformat(): ids for j, ids in menus.items()}})
+
+    def lire_cases(brut):
+        """Liste d'objets {jour: iso, moment: diner|dejeuner} -> [(date, moment)] ; ValueError si invalide."""
+        if not isinstance(brut, list):
+            raise ValueError("liste attendue")
+        cases = []
+        for c in brut:
+            if not isinstance(c, dict) or c.get("moment") not in ("diner", "dejeuner"):
+                raise ValueError("case invalide")
+            cases.append((date.fromisoformat(c.get("jour")), c["moment"]))
+        return cases
+
+    def proposer_des_cases(corps):
+        """Propose des cases (midi/soir) : dîner = plat + accompagnement, déjeuner = plat seul ; enregistre chaque repas."""
+        try:
+            cases = lire_cases(corps["cases"])
+            remplacer = lire_cases(corps.get("remplacer", []))
+        except (TypeError, ValueError):
+            return jsonify({"erreur": "cases invalides"}), 400
+        jour = aujourd_hui_paris()
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            plats = lire_plats(conn)
+            repas = lire_repas(conn, jour - timedelta(days=FENETRE_PASSE), jour + timedelta(days=6))
+            lu = lire_courses(conn)
+            _, a_finir = alertes_du_frigo(conn, jour, plats, lu, articles_et_achats_recents(conn, lu["articles"], jour))
+            choix = proposer_cases(plats, repas, cases, jour, remplacer=remplacer,
+                                   a_finir=[(a["cle"], a["jusqu_au"]) for a in a_finir if a["etat"] == "a-finir"])
+            diners = {j: i for (j, m), i in choix.items() if m == "diner"}
+            accomp = accompagner(diners, plats, repas, semaine(jour))
+            menus = {}
+            for (j, m), i in choix.items():
+                ids = accomp[j] if m == "diner" else [i]
+                enregistrer_repas(conn, {"jour": j, "moment": m, "plats": ids, "issue": None})
+                menus[f"{j.isoformat()}|{m}"] = ids
+        finally:
+            conn.close()
+        return jsonify({"menus": menus})
 
     # --- Casa Binomerie : courses et placard ---
 
