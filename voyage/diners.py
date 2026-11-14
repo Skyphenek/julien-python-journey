@@ -520,6 +520,7 @@ button.retirer { border: none; background: var(--carte); color: var(--doux); bor
                  font-size: 18px; font-weight: 800; flex: none; }
 div.ajouts { display: flex; gap: 6px; flex-wrap: wrap; }
 div.ajouts button.petit { padding: 6px 10px; }
+button.petit.danger { border-color: var(--diners); color: var(--diners); font-weight: 800; }   /* Oui, vider : on voit ce qu'on confirme */
 ul.plats-repas li.avec { flex-wrap: wrap; gap: 6px; min-height: 0; padding: 0 0 6px; }
 ul.plats-repas li.avec button.petit { padding: 6px 10px; }
 section.accords div.ingredients { margin-bottom: 8px; }
@@ -615,6 +616,7 @@ SCRIPT_DINERS = """
     const etiquette = { recettes: 'tout', choix: 'nous' };   // un filtre par liste ; un soir : à deux
     let derniereProposition = {};                         // {'<iso>|<moment>': 'plat accompagnement'} : ce que « Reproposer » peut changer
     let proposeEnCours = false;                           // une demande à Proposer est partie : on n'en lance pas une seconde
+    let viderDemande = false;                             // « Vider la semaine » touché une fois : on attend la confirmation
     let messageSemaine = '';
     // La grille « Proposer ma semaine » : ouverte ou non, repas cochés (« <0-6>|<moment> », 0 = lundi) ; hors du rendu pour survivre à afficher()
     const CLE_GRILLE = 'diners:grille';
@@ -726,6 +728,17 @@ SCRIPT_DINERS = """
         d.repas = d.repas.filter(function (x) { return !(x.jour === r.jour && x.moment === r.moment); }).concat(vide ? [] : [r]);
         garder(); afficher();
         return envoyer({ url: 'api/repas', methode: 'POST', corps: r, cle: 'repas:' + r.jour + ':' + r.moment }).then(relire, relire);
+    }
+    // Les repas prévus des 7 jours sans issue (fait, commandé, dehors : gardés, ce sont des faits)
+    function aViderDansLaSemaine() {
+        return d.repas.filter(function (r) { return d.semaine.indexOf(r.jour) >= 0 && !r.issue && r.plats.length; });
+    }
+    function viderSemaine() {
+        const aVider = aViderDansLaSemaine();
+        viderDemande = false; derniereProposition = {};
+        messageSemaine = aVider.length + ' repas retiré(s) : la semaine est libre.';
+        aVider.forEach(function (r) { enregistrerRepas(Object.assign({}, r, { plats: [] })); });
+        afficher();
     }
     function ajouterPlat(iso, moment, id) {
         const r = repas(iso, moment);
@@ -1022,6 +1035,13 @@ SCRIPT_DINERS = """
             const re = bouton('Reproposer', 'petit', function () { proposerSemaine(msgP, [], aRefaire); });
             if (proposeEnCours) re.disabled = true;
             prop.append(re);
+        }
+        const nbAVider = aViderDansLaSemaine().length;
+        if (nbAVider && !viderDemande) {
+            prop.append(bouton('Vider la semaine', 'petit', function () { viderDemande = true; afficher(); }));
+        } else if (nbAVider) {
+            prop.append(bouton('Oui, vider ' + nbAVider + ' repas', 'petit danger', viderSemaine),
+                        bouton('Annuler', 'petit', function () { viderDemande = false; afficher(); }));
         }
         zone.append(prop);
         if (grilleOuverte) zone.append(grilleProposer(msgP));

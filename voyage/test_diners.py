@@ -616,3 +616,11 @@ def test_script_proposer_semaine_garde_anti_double_envoi_et_erreurs():
     # largeur des cases à 390 px
     from diners import STYLE_DINERS
     assert "padding: 6px; margin: 8px 0;" in STYLE_DINERS and "grid-template-columns: 2.2rem repeat(7" in STYLE_DINERS
+
+
+def test_page_diners_vider_la_semaine():
+    from diners import SCRIPT_DINERS
+    assert "function viderSemaine" in SCRIPT_DINERS and "'Vider la semaine'" in SCRIPT_DINERS
+    assert "'Oui, vider '" in SCRIPT_DINERS                         # confirmation dans la page, pas de confirm()
+    assert "confirm(" not in SCRIPT_DINERS
+    assert "!r.issue && r.plats.length" in SCRIPT_DINERS             # fait, commandé, dehors : gardés

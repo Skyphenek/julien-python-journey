@@ -1649,7 +1649,8 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # 55 = Courses : une liste par rayon, À la maison.
 # 56 = Catalogue et prix : ingrédients des recettes en prod qui manquaient (taboulé, agneau haché…).
 # 57 = Proposer ma semaine : grille Midi / Soir.
-VERSION_PAGE = 57
+# 58 = Dîners : Vider la semaine (confirmation dans la page).
+VERSION_PAGE = 58
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
 RUBRIQUES = [("valise", "Valise"), ("avant", "Avant"), ("programme", "Programme"), ("sur-place", "Sur place"),
