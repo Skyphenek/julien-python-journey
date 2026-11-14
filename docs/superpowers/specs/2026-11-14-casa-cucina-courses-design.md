@@ -79,6 +79,7 @@ Pas de correctif à part : la refonte Courses (§3) supprime ce cycle (1 tap = �
     Changer le rayon demanderait une colonne, donc une migration : hors périmètre (14/11, en écrivant le plan).
 - Le formulaire « ajouter au placard » disparaît. On fait entrer un article par la liste, avec « Toujours en
   avoir », et les ingrédients de recettes achetés entrent tout seuls (`db.enregistrer_article`, inchangé).
+- « Plus à la maison » (décidé le 14/11 après la revue) : épuisés hors liste, grisés en bas, trouvables par la recherche, un appui les remet sur la liste.
 - Le résumé du repli : « À la maison · N articles ».
 
 ### Inchangé

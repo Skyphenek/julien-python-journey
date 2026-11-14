@@ -211,6 +211,42 @@ def test_js_a_la_maison():
                  ["parmesan", "frais", True, None], ["riz basmati", "epicerie", True, None]]
 
 
+def test_js_a_la_maison_sans_le_panier():
+    import json
+    placard = [{"cle": "citron", "nom": "citron", "en_stock": True, "bientot": False, "rayon": "fruits-legumes"},
+               {"cle": "sel", "nom": "sel", "en_stock": True, "bientot": False, "rayon": "epicerie"}]
+    articles = [{"id": "c1", "nom": "citron", "rayon": "fruits-legumes", "recurrent": False, "actif": True, "pris": True}]
+    r = _node_regles(f"console.log(JSON.stringify(aLaMaison({json.dumps(placard)}, {json.dumps(articles)}).map(function (m) {{ return m.nom; }})));")
+    assert r == ["sel"]                                       # coché dans le panier : pas de retour dans À la maison
+
+
+def test_js_plus_a_la_maison():
+    import json
+    placard = [{"cle": "lardons", "nom": "lardons", "en_stock": False, "rayon": "frais"},
+               {"cle": "tomates pelees", "nom": "tomates pelées", "en_stock": False, "rayon": "epicerie"},
+               {"cle": "thon", "nom": "thon", "en_stock": False, "rayon": "epicerie"},
+               {"cle": "pain", "nom": "pain", "en_stock": False, "rayon": "frais"},
+               {"cle": "riz", "nom": "riz", "en_stock": True, "rayon": "epicerie"}]
+    articles = [{"id": "a1", "nom": "Thon", "actif": True, "pris": False},
+                {"id": "a2", "nom": "pain", "actif": True, "pris": True},
+                {"id": "a3", "nom": "lardons", "actif": False, "pris": False}]
+    r = _node_regles(f"console.log(JSON.stringify(plusALaMaison({json.dumps(placard)}, {json.dumps(articles)}).map(function (p) {{ return p.nom; }})));")
+    assert r == ["lardons", "tomates pelées"]                 # thon sur la liste, pain au panier, riz en stock : absents
+
+
+def test_page_courses_plus_a_la_maison():
+    from courses import SCRIPT_COURSES, STYLE_COURSES
+    assert "plusALaMaison(placard, articles)" in SCRIPT_COURSES and "Plus à la maison" in SCRIPT_COURSES
+    assert "Un appui : il repart sur la liste." in SCRIPT_COURSES and "ajouter(p.nom, 'placard')" in SCRIPT_COURSES
+    assert "button.epuise" in STYLE_COURSES
+
+
+def test_page_courses_maison_ouverte_jamais_coincee():
+    from courses import SCRIPT_COURSES
+    assert "maisonOuverte && !" in SCRIPT_COURSES and "maisonOuverte = null;" in SCRIPT_COURSES
+    assert "zone-maison').addEventListener('toggle'" in SCRIPT_COURSES
+
+
 def test_js_correspond():
     r = _node_regles("console.log(JSON.stringify([correspond('parmesan', 'parm'), correspond(\"huile d'olive\", 'olive'),"
                      " correspond('Crème fraîche', 'creme'), correspond('parmesan', 'mesan'), correspond('thon', ''),"

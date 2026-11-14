@@ -221,6 +221,7 @@ button#vider-pris { width: 100%; min-height: 48px; border-radius: 999px; border:
 """ + STYLE_ANNEXE + """div.puces-courses { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 div.puces-courses button { font-family: inherit; font-size: 15px; padding: 8px 14px; border-radius: 999px;
                            border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte); }
+div.puces-courses button.epuise { color: var(--doux); border-style: dashed; }
 div.puces-courses button.choisi { border-color: var(--courses); background: var(--courses-doux); font-weight: 700; }
 section.rayon-maison { border-top: 1px solid var(--ligne); margin-top: 12px; padding-top: 10px; }
 section.rayon-maison h3 { font-size: 15px; font-weight: 800; margin: 0; }
@@ -271,9 +272,9 @@ function pastille(a, italien) {
     return italien.has(cleCatalogue(a.nom)) ? 'Italien' : 'Asie';
 }
 // À la maison : le placard en stock (« bientôt » compris) et les habituels rangés, un seul par nom,
-// sans ce qui est sur la liste à prendre
+// sans ce qui est déjà sur la liste ou dans le panier (cocher un article remet son placard en stock)
 function aLaMaison(placard, articles) {
-    const surLaListe = new Set(articles.filter(function (a) { return a.actif && !a.pris; })
+    const surLaListe = new Set(articles.filter(function (a) { return a.actif; })
         .map(function (a) { return normaliser(a.nom); }));
     const vus = {};
     placard.forEach(function (p) {
@@ -287,6 +288,13 @@ function aLaMaison(placard, articles) {
         else vus[cle] = { cle: cle, nom: a.nom, rayon: a.rayon || 'autre', placard: null, article: a };
     });
     return Object.keys(vus).map(function (k) { return vus[k]; })
+        .sort(function (x, y) { return x.nom.localeCompare(y.nom, 'fr'); });
+}
+// Plus à la maison : le placard épuisé qui n'est ni sur la liste ni dans le panier
+function plusALaMaison(placard, articles) {
+    const surLaListe = new Set(articles.filter(function (a) { return a.actif; })
+        .map(function (a) { return normaliser(a.nom); }));
+    return placard.filter(function (p) { return !p.en_stock && !surLaListe.has(p.cle); })
         .sort(function (x, y) { return x.nom.localeCompare(y.nom, 'fr'); });
 }
 // La recherche : le début d'un des mots du nom (« parm » -> parmesan, « olive » -> huile d'olive)
@@ -508,6 +516,9 @@ SCRIPT_COURSES = """
         zone.replaceChildren();
         const tous = aLaMaison(placard, articles);
         const vus = tous.filter(function (m) { return correspond(m.nom, recherche); });
+        const epuises = plusALaMaison(placard, articles).filter(function (p) { return correspond(p.nom, recherche); });
+        // la puce ouverte a disparu (recherche, repli fermé, autre téléphone) : sans panneau visible, la synchro resterait bloquée
+        if (maisonOuverte && !vus.concat(epuises).some(function (m) { return m.cle === maisonOuverte; })) maisonOuverte = null;
         RAYONS.forEach(function (r) {
             const du = vus.filter(function (m) { return m.rayon === r[0]; });
             if (!du.length) return;
@@ -527,7 +538,24 @@ SCRIPT_COURSES = """
             if (choisi) section.append(editionMaison(choisi));
             zone.append(section);
         });
-        if (!vus.length) zone.append(el('p', 'aide', tous.length ? "Rien à la maison qui s'appelle ainsi. Ajoute-le à la liste."
+        if (epuises.length) {
+            const section = el('section', 'plus-maison');
+            const puces = el('div', 'puces-courses');
+            epuises.forEach(function (p) {
+                const b = el('button', 'epuise' + (modifier && maisonOuverte === p.cle ? ' choisi' : ''), p.nom); b.type = 'button';
+                if (!modifier) b.setAttribute('aria-label', p.nom + ', plus à la maison, remettre sur la liste');
+                b.addEventListener('click', function () {
+                    if (modifier) { maisonOuverte = maisonOuverte === p.cle ? null : p.cle; afficherMaison(); }
+                    else ajouter(p.nom, 'placard');                  // déjà épuisé : aucune écriture au placard
+                });
+                puces.append(b);
+            });
+            section.append(el('h3', '', 'Plus à la maison'), el('p', 'aide', 'Un appui : il repart sur la liste.'), puces);
+            const choisi = modifier && epuises.find(function (p) { return p.cle === maisonOuverte; });
+            if (choisi) section.append(editionMaison({ cle: choisi.cle, nom: choisi.nom, placard: choisi, article: null }));
+            zone.append(section);
+        }
+        if (!vus.length && !epuises.length) zone.append(el('p', 'aide', tous.length ? "Rien à la maison qui s'appelle ainsi. Ajoute-le à la liste."
                                                                    : "Rien pour l'instant : sur la liste, marque un article « Toujours en avoir »."));
         document.getElementById('nb-maison').textContent = tous.length + ' article' + (tous.length > 1 ? 's' : '');
         document.getElementById('modifier-maison').textContent = modifier ? 'Terminé' : 'Modifier';
@@ -554,6 +582,9 @@ SCRIPT_COURSES = """
         return bloc;
     }
 
+    document.getElementById('zone-maison').addEventListener('toggle', function () {
+        if (!this.open && maisonOuverte) { maisonOuverte = null; afficherMaison(); }   // repli fermé : plus de panneau, la synchro reprend
+    });
     document.getElementById('modifier-maison').addEventListener('click', function () {
         modifier = !modifier; maisonOuverte = null; afficherMaison();
     });
