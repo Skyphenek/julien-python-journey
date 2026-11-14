@@ -220,3 +220,21 @@ def test_api_diners_faits(client, conn):
     plats = {p["id"]: p for p in client.get("/api/diners").get_json()["plats"]}
     assert plats["plat-carbonara"]["faits"] == 1
     assert all(p["faits"] == 0 for i, p in plats.items() if i != "plat-carbonara")
+
+
+def test_api_proposer_cases_midi_et_soir(client):
+    demain = (J + timedelta(days=1)).isoformat()
+    cases = [{"jour": demain, "moment": "dejeuner"}, {"jour": demain, "moment": "diner"}]
+    r = client.post("/api/diners/proposer", json={"cases": cases})
+    assert r.status_code == 200
+    menus = r.get_json()["menus"]
+    assert set(menus) <= {f"{demain}|dejeuner", f"{demain}|diner"} and menus
+    poses = {(x["jour"], x["moment"]): x["plats"] for x in client.get("/api/diners").get_json()["repas"]}
+    assert all(poses[tuple(k.split("|"))] == ids for k, ids in menus.items())
+    assert all(len(ids) == 1 for k, ids in menus.items() if k.endswith("|dejeuner"))   # midi : sans accompagnement
+
+
+def test_api_proposer_cases_invalides(client):
+    assert client.post("/api/diners/proposer", json={"cases": [{"jour": "x", "moment": "diner"}]}).status_code == 400
+    assert client.post("/api/diners/proposer",
+                       json={"cases": [{"jour": J.isoformat(), "moment": "brunch"}]}).status_code == 400
