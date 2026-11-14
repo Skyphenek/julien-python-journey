@@ -204,3 +204,21 @@ def test_segments_bout_a_bout_sur_tous_les_exemples():
         f = decouper(fichier.read_text(encoding="utf-8"))
         assert f["structuree"], fichier.name
         _verifie_bout_a_bout(f)
+
+
+def test_hot_dog_deux_quantites_sur_une_ligne():
+    f = decouper(lire("af-hot-dog"))
+    x = f["ingredients"][0]
+    assert [(s["q"], s["u"]) for s in x["nom_s"] if "q" in s] == [(4.0, ""), (4.0, "")]
+    assert joint(x["nom_s"]) == x["nom"]
+
+
+def test_virgule_et_quantite_dans_une_ligne_d_ingredient():
+    from fiche_recette import _segments_ligne
+    def qs(l):
+        s = _segments_ligne(l)
+        assert joint(s) == l
+        return [(x["q"], x["u"]) for x in s if "q" in x]
+    assert qs("Beurre : 40 g, plus 2 noix") == [(40.0, "g")]
+    assert qs("Veau — 1,2 kg de veau, en cubes de 5 cm") == [(1.2, "kg")]
+    assert qs("Bouillon — 1,2 à 1,5 L") == [(1.2, "l")]

@@ -8,6 +8,9 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+import math
+
+import portions
 from portions import base_parts, segmenter
 
 
@@ -92,6 +95,62 @@ def test_fraction_impossible_reste_du_texte():
     assert quantites(s) == [] and bout_a_bout(s) == "1/0 citron"
 
 
+def _complet(texte, premier=True):
+    s = segmenter(texte, premier=premier)
+    assert bout_a_bout(s) == texte
+    return s
+
+
+def test_unites_litre_gr_et_majuscule_normalisees():
+    assert quantites(_complet("300 gr de farine")) == [(300.0, "g")]
+    assert quantites(_complet("2 litres d'eau")) == [(2.0, "l")]
+    assert quantites(_complet("1 litre de lait")) == [(1.0, "l")]
+    assert quantites(_complet("1,5 L de bouillon")) == [(1.5, "l")]
+
+
+def test_plage_avec_a():
+    s = _complet("1,2 à 1,5 L")
+    assert s == [{"t": "1,2 à 1,5", "q": 1.2, "u": "l", "q2": 1.5, "sep": " à "}, {"t": " L"}]
+    s = _complet("3 à 4 tomates")
+    assert s[0] == {"t": "3 à 4", "q": 3.0, "u": "", "q2": 4.0, "sep": " à "}
+    assert quantites(_complet("Bouillon — 1,2 à 1,5 L")) == [(1.2, "l")]
+
+
+def test_a_ne_fait_pas_bouger_une_duree_ou_une_etape():
+    # « 2 à 3 min » : plage non gardée (durée) ; le comportement le plus sûr l'emporte
+    assert quantites(_complet("2 à 3 min", premier=True)) == []
+    assert quantites(_complet("Cuis 2 à 3 min.", premier=False)) == []
+
+
+def test_poids_d_une_piece_ne_bouge_pas():
+    assert quantites(_complet("1 côte de bœuf d'environ 1 kg")) == [(1.0, "")]
+    assert quantites(_complet("1 côte de bœuf d’environ 1 kg")) == [(1.0, "")]
+    assert quantites(_complet("2 steaks hachés de 150 g")) == [(2.0, "")]
+    assert quantites(_complet("1 boîte de 400 g de tomates")) == [(1.0, "")]
+    assert quantites(_complet("4 (env. 70 g de jaunes)")) == [(4.0, ""), (70.0, "g")]
+    assert quantites(_complet("320 g de penne")) == [(320.0, "g")]
+
+
+def test_virgule_suivie_d_un_chiffre_nouvelle_quantite():
+    assert quantites(_complet("4 saucisses de Strasbourg, 4 pains à hot dog, moutarde")) == [(4.0, ""), (4.0, "")]
+    assert quantites(_complet("1,2 kg de veau, en cubes de 5 cm")) == [(1.2, "kg")]
+    assert quantites(_complet("40 g, plus 2 noix")) == [(40.0, "g")]
+    assert quantites(_complet("1 boîte de 400 g, 2 oignons")) == [(1.0, ""), (2.0, "")]
+
+
+def test_poids_par_piece_dans_les_etapes():
+    assert quantites(_complet("Prends une balle de ping-pong de farce, environ 35–40 g par boulette.", premier=False)) == []
+    assert quantites(_complet("Ajoute 30 g de beurre chacun", premier=False)) == []
+    assert quantites(_complet("Ajoute 30 g de beurre par personne.", premier=False)) == []
+    assert quantites(_complet("Verse 80 cl de bouillon.", premier=False)) == [(80.0, "cl")]
+
+
+def test_valeur_non_finie_est_du_texte():
+    assert portions._valeur("9" * 400) is None
+    s = _complet("9" * 400 + " g de sel")
+    assert quantites(s) == []
+
+
 VERIFS_JS = r"""
 const echecs = [];
 function ok(obtenu, attendu) { if (obtenu !== attendu) echecs.push(JSON.stringify(obtenu) + ' au lieu de ' + JSON.stringify(attendu)); }
@@ -108,6 +167,7 @@ ok(texteAjuste([{t: '1/4', q: 0.25, u: ''}, {t: ' de chou'}], 0.5), '1/2 de chou
 ok(texteAjuste([{t: '12', q: 12, u: ''}, {t: ' oignons'}], 3), '36 oignons');
 ok(texteAjuste([{t: '2–3', q: 2, u: '', q2: 3, sep: '–'}, {t: ' c. à s.'}], 2), '4–6 c. à s.');
 ok(texteAjuste([{t: 'Sel'}], 3), 'Sel');
+ok(texteAjuste([{t: '1,2 à 1,5', q: 1.2, u: 'l', q2: 1.5, sep: ' à '}, {t: ' L'}], 3), '3,6 à 4,5 L');
 if (echecs.length) { console.error(echecs.join('\n')); process.exit(1); }
 """
 

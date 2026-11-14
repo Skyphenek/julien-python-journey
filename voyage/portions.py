@@ -2,11 +2,15 @@
 
 Python repère et marque (segments) ; le JavaScript de la fiche (SCRIPT_PORTIONS) multiplie et arrondit.
 """
+import math
 import re
 
 NOMBRE = r"\d+\s+\d+/\d+|\d+/\d+|\d+(?:[.,]\d+)?"                 # « 1 1/2 », « 1/2 », « 1,2 », « 320 »
-QUANTITE = re.compile(rf"(?<![\w:/.,])({NOMBRE})(?:\s?([–-])\s?({NOMBRE}))?(?![\w:/]|[.,]\d)")
-METRIQUE = re.compile(r"\s?(kg|g|ml|cl|l)(?![\wÀ-ÿ’'])")
+QUANTITE = re.compile(rf"(?<![\w:/.,])({NOMBRE})(?:(\s?[–-]\s?|\s+à\s+)({NOMBRE}))?(?![\w:/]|[.,]\d)")
+METRIQUE = re.compile(r"\s?(kg|ml|cl|g|(?i:gr|litres?|l))(?![\wÀ-ÿ’'])")
+PIECE_DE = re.compile(r"(?<![\wÀ-ÿ])(?:de|d['’]environ)\s+$")      # « une boîte de 400 g », « d'environ 1 kg »
+PAR_PIECE = re.compile(r"(?:\s+[^\s,.;:()]+){0,4}\s+(?:par\s+(?:boulette|pièce|personne)|chacune?)(?![\wÀ-ÿ])")
+VIRGULE_NOUVEAU_NOMBRE = re.compile(r",\s+(?=\d)")             # « 4 saucisses, 4 pains » : 2 quantités
 PAS_UNE_QUANTITE = re.compile(r"\s?(?:min\b|h\b|°|%)")
 BASE = re.compile(r"^Pour (\d+)(?=$|[\s,(—])(.*)$")
 SUITE_ADMISE = re.compile(r"^(?:$|\s*[,(—]|\s+(?:portions?|personnes?)\b)")
@@ -38,34 +42,57 @@ def _valeur(nombre):
         if "/" in n:
             entier, _, fraction = n.rpartition(" ")
             haut, bas = fraction.split("/")
-            return (float(entier) if entier else 0.0) + int(haut) / int(bas)
-        return float(n)
+            v = (float(entier) if entier else 0.0) + int(haut) / int(bas)
+            return v if math.isfinite(v) else None
+        v = float(n)
+        return v if math.isfinite(v) else None
     except (ValueError, ZeroDivisionError):
         return None
+
+
+def _unite(brute):
+    u = brute.lower()
+    return {"gr": "g", "litre": "l", "litres": "l"}.get(u, u)
 
 
 def segmenter(texte, premier=False):
     """Texte -> segments {"t"} ou {"t", "q", "u"} (+ "q2", "sep" pour une plage) ; les "t" bout à bout redonnent
     le texte. premier : le 1er nombre est la quantité de la ligne, quelle que soit son unité (sauf min, h, °, %) ;
-    les autres nombres ne comptent que suivis de g, kg, ml, cl, l."""
-    segments, i, vu = [], 0, False
+    les autres nombres ne comptent que suivis d'une unité métrique. Avec premier, un morceau qui suit une virgule
+    et commence par un chiffre est une nouvelle quantité (« 4 saucisses, 4 pains »)."""
+    if not premier:
+        return _segmenter_un(texte, False)
+    segments, i = [], 0
+    for m in VIRGULE_NOUVEAU_NOMBRE.finditer(texte):
+        segments += _segmenter_un(texte[i:m.end()], True)
+        i = m.end()
+    return segments + _segmenter_un(texte[i:], True)
+
+
+def _segmenter_un(texte, premier):
+    segments, i, vu, en_pieces = [], 0, False, False
     for m in QUANTITE.finditer(texte):
         apres = texte[m.end():]
         unite = METRIQUE.match(apres)
         if premier and not vu:
             vu = True
             garde = not PAS_UNE_QUANTITE.match(apres)
+            en_pieces = garde and unite is None
         else:
             garde = unite is not None
+            if garde and premier and en_pieces and PIECE_DE.search(texte[:m.start()]):
+                garde = False                                  # poids d'une pièce : ne bouge pas
+            if garde and not premier and PAR_PIECE.match(apres[unite.end():]):
+                garde = False                                  # « 35–40 g par boulette »
         q = _valeur(m.group(1))
         q2 = _valeur(m.group(3)) if m.group(3) else None
         if not garde or q is None or (m.group(3) and q2 is None):
             continue
         if m.start() > i:
             segments.append({"t": texte[i:m.start()]})
-        s = {"t": m.group(0), "q": q, "u": unite.group(1) if unite else ""}
+        s = {"t": m.group(0), "q": q, "u": _unite(unite.group(1)) if unite else ""}
         if m.group(3):
-            s.update({"q2": q2, "sep": texte[m.end(1):m.start(3)]})
+            s.update({"q2": q2, "sep": m.group(2)})
         segments.append(s)
         i = m.end()
     if i < len(texte):
