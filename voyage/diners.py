@@ -672,8 +672,17 @@ div.ligne-passee .noms { flex: 1; min-width: 0; }
 div.ligne-passee .noms button { border: none; background: none; padding: 6px 2px; font: inherit; color: var(--texte); text-decoration: underline; text-decoration-color: var(--ligne); text-underline-offset: 3px; }
 .issue { font-size: 12px; font-weight: 700; border-radius: 999px; padding: 4px 10px; background: var(--fond); color: var(--doux); border: 1px solid var(--ligne); }
 .issue.fait { color: var(--diners); border-color: var(--diners); }
-button.issue.non-note { min-height: 44px; font-family: inherit; cursor: pointer; border-style: dashed; color: var(--texte); }
-div.correction { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 6px 0 4px; width: 100%; }
+span.issue.non-note { border-style: dashed; }
+div.ligne-passee button.modifier { min-height: 36px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--ligne); background: none;
+                                   color: var(--doux); font: inherit; font-size: 13px; font-weight: 700; }
+div.correction { display: flex; flex-direction: column; gap: 8px; padding: 8px 0 4px; width: 100%; }
+div.correction .choix-issue { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+div.correction .choix-issue button.actif { border-color: var(--diners); color: var(--diners); }
+div.correction .plats-edition, div.correction .bas-edition { display: flex; flex-wrap: wrap; gap: 6px; }
+div.correction form.ajout-plat { display: flex; flex-wrap: wrap; gap: 6px; }
+div.correction form.ajout-plat input { flex: 1 1 180px; min-width: 0; font: inherit; font-size: 16px; min-height: 44px; padding: 0 12px;
+                                       border-radius: 14px; border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte); }
+div.correction form.ajout-plat p.aide { flex-basis: 100%; margin: 0; color: var(--diners); }
 div.correction button { min-height: 44px; border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte); border-radius: 14px; font: inherit; font-weight: 700; }
 button.plus-ancien { width: 100%; min-height: 48px; border: 2px solid var(--ligne); background: var(--carte); color: var(--texte); border-radius: 14px; font: inherit; font-weight: 700; margin: 0 0 14px; }
 """
@@ -1481,7 +1490,7 @@ SCRIPT_DINERS = """
     const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
     const ISSUES = [['fait', 'Fait maison'], ['commande', 'Commandé'], ['dehors', 'Dehors'], ['autre', 'Autre']];
     const LIBELLE_ISSUE = { fait: 'maison', commande: 'commandé', dehors: 'dehors', autre: 'autre' };
-    let passe = null, passeSuite = null, passeEtat = '', corrige = null;
+    let passe = null, passeSuite = null, passeEtat = '', edition = null;   // edition : la ligne du journal ouverte, 'jour:soir'
     function dateCourte(iso) { const j = new Date(iso + 'T12:00:00'); return j.getDate() + ' ' + MOIS[j.getMonth()]; }
     function chargerPasse(avant) {
         if (passeEtat === 'charge') return;
@@ -1494,37 +1503,92 @@ SCRIPT_DINERS = """
     function corrigeable(iso) {
         return (new Date(d.aujourd_hui + 'T12:00:00') - new Date(iso + 'T12:00:00')) / 86400000 <= 60;
     }
-    function corrigerLigne(semaine, jour, ligne, issue) {
-        const avant = ligne.issue;
-        ligne.issue = issue; ligne.non_note = false; corrige = null;
-        if (!avant) semaine.bilan.non_note = Math.max(0, semaine.bilan.non_note - 1);
-        semaine.bilan[issue] += 1;
+    // Le bilan d'une semaine, recompté après une modification (le coût maison attend le prochain chargement)
+    function recalculerBilan(s) {
+        const b = { fait: 0, commande: 0, dehors: 0, autre: 0, non_note: 0 };
+        s.jours.forEach(function (j) {
+            [j.soir, j.midi].forEach(function (l) {
+                if (!l) return;
+                if (l.issue) b[l.issue] += 1; else if (l.non_note) b.non_note += 1;
+            });
+        });
+        s.bilan = b;
+    }
+    function enregistrerLigne(semaine, j, cleLigne, moment) {
+        const ligne = j[cleLigne];
+        ligne.non_note = !!ligne.plats.length && !ligne.issue;
+        if (cleLigne === 'midi' && !ligne.plats.length && !ligne.issue) j.midi = null;     // midi supprimé : plus de ligne
+        recalculerBilan(semaine);
         afficher();
-        envoyer({ url: 'api/repas', methode: 'POST', cle: 'repas:' + jour + ':' + ligne.moment,
-                  corps: { jour: jour, moment: ligne.moment, plats: ligne.plats.map(function (p) { return p.id; }), issue: issue } })
+        envoyer({ url: 'api/repas', methode: 'POST', cle: 'repas:' + j.jour + ':' + moment,
+                  corps: { jour: j.jour, moment: moment, plats: ligne.plats.map(function (p) { return p.id; }), issue: ligne.issue } })
             .then(relire, relire);
     }
-    function lignePassee(semaine, jour, ligne, titre) {
-        const cle = jour + ':' + titre;
+    function platParNom(nom) {
+        const cle = normaliser(nom.replace(/’/g, "'"));
+        return cle ? (d.plats || []).find(function (p) { return !p.archive && normaliser(p.nom.replace(/’/g, "'")) === cle; }) : null;
+    }
+    // Modifier un repas passé : ce qui s'est passé, les plats mangés, ou le supprimer (une erreur de saisie)
+    function panneauEdition(semaine, j, cleLigne, moment) {
+        const ligne = j[cleLigne];
+        const c = el('div', 'correction');
+        const issues = el('div', 'choix-issue');
+        ISSUES.forEach(function (x) {
+            issues.append(bouton(x[1], ligne.issue === x[0] ? 'actif' : '', function () {
+                ligne.issue = x[0]; enregistrerLigne(semaine, j, cleLigne, moment); }));
+        });
+        c.append(issues);
+        if (ligne.plats.length) {
+            const plats = el('div', 'plats-edition');
+            ligne.plats.forEach(function (p, i) {
+                const b = bouton(p.nom + ' ×', 'petit', function () { ligne.plats.splice(i, 1); enregistrerLigne(semaine, j, cleLigne, moment); });
+                b.setAttribute('aria-label', 'Retirer ' + p.nom);
+                plats.append(b);
+            });
+            c.append(plats);
+        }
+        const f = el('form', 'ajout-plat');
+        const champ = el('input'); champ.setAttribute('list', 'plats-journal'); champ.autocomplete = 'off';
+        champ.placeholder = 'Ajouter un plat mangé'; champ.setAttribute('aria-label', 'Ajouter un plat mangé');
+        const ok = el('button', 'petit', 'Ajouter'); ok.type = 'submit';
+        const msg = el('p', 'aide');
+        f.append(champ, ok, msg);
+        f.addEventListener('submit', function (e) {
+            e.preventDefault();
+            const p = platParNom(champ.value);
+            if (!p) { msg.textContent = 'Choisis une recette de la liste.'; return; }
+            if (!ligne.plats.some(function (x) { return x.id === p.id; })) ligne.plats.push({ id: p.id, nom: p.nom });
+            if (!ligne.issue) ligne.issue = 'fait';                   // un plat mangé à la maison, par défaut
+            enregistrerLigne(semaine, j, cleLigne, moment);
+        });
+        c.append(f);
+        const bas = el('div', 'bas-edition');
+        if (ligne.plats.length || ligne.issue) {
+            bas.append(bouton('Supprimer ce repas', 'petit danger', function () {
+                ligne.plats = []; ligne.issue = null; edition = null; enregistrerLigne(semaine, j, cleLigne, moment); }));
+        }
+        bas.append(bouton('Fermer', 'petit', function () { edition = null; afficher(); }));
+        c.append(bas);
+        return c;
+    }
+    function lignePassee(semaine, j, cleLigne, titre) {
+        const ligne = j[cleLigne], jour = j.jour;
+        const moment = cleLigne === 'soir' ? 'diner' : (ligne.moment || 'dejeuner');
+        const cle = jour + ':' + cleLigne;
         const l = el('div', 'ligne-passee');
         l.append(el('span', 'moment', titre));
         const noms = el('span', 'noms');
-        if (!ligne.plats.length) noms.textContent = '\u2014';
+        if (!ligne.plats.length) noms.textContent = '—';
         ligne.plats.forEach(function (p, i) {
             if (i) noms.append(', ');
             noms.append(bouton(p.nom, '', function () { ouvrirFiche(p.id); }));
         });
         l.append(noms);
         if (ligne.issue) l.append(el('span', 'issue ' + ligne.issue, LIBELLE_ISSUE[ligne.issue]));
-        else if (ligne.non_note && !corrigeable(jour)) l.append(el('span', 'issue non-note', 'non noté'));
-        else if (ligne.non_note) {
-            const b = bouton('non noté', 'issue non-note', function () { corrige = corrige === cle ? null : cle; afficher(); });
-            l.append(b);
-            if (corrige === cle) {
-                const c = el('div', 'correction');
-                ISSUES.forEach(function (x) { c.append(bouton(x[1], '', function () { corrigerLigne(semaine, jour, ligne, x[0]); })); });
-                l.append(c);
-            }
+        else if (ligne.non_note) l.append(el('span', 'issue non-note', 'non noté'));
+        if (corrigeable(jour)) {
+            l.append(bouton(edition === cle ? 'Fermer' : 'Modifier', 'modifier', function () { edition = edition === cle ? null : cle; afficher(); }));
+            if (edition === cle) l.append(panneauEdition(semaine, j, cleLigne, moment));
         }
         return l;
     }
@@ -1539,8 +1603,8 @@ SCRIPT_DINERS = """
         c.append(b);
         s.jours.forEach(function (j) {
             const e = el('div', 'jour-passe');
-            e.append(el('div', 'quand', enClair(j.jour)), lignePassee(s, j.jour, j.soir, 'Soir'));
-            if (j.midi) e.append(lignePassee(s, j.jour, j.midi, 'Midi'));
+            e.append(el('div', 'quand', enClair(j.jour)), lignePassee(s, j, 'soir', 'Soir'));
+            if (j.midi) e.append(lignePassee(s, j, 'midi', 'Midi'));
             c.append(e);
         });
         return c;
@@ -1551,6 +1615,12 @@ SCRIPT_DINERS = """
             zone.append(el('p', 'aide', passeEtat === 'hors-ligne' ? "Pas de réseau : l'historique se charge une fois connecté." : 'Chargement\u2026'));
             if (passeEtat === 'hors-ligne') zone.append(bouton('Réessayer', 'plus-ancien', function () { passeEtat = ''; afficher(); }));
             return;
+        }
+        if (!document.getElementById('plats-journal')) {
+            const liste = el('datalist'); liste.id = 'plats-journal';
+            (d.plats || []).filter(function (p) { return !p.archive; }).map(function (p) { return p.nom; }).sort()
+                .forEach(function (n) { const o = el('option'); o.value = n; liste.append(o); });
+            document.body.append(liste);
         }
         if (!passe.length) { zone.append(el('p', 'aide', "Rien de noté pour l'instant.")); return; }
         passe.forEach(function (s) { zone.append(carteSemainePassee(s)); });

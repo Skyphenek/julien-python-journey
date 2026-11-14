@@ -688,3 +688,12 @@ def test_journal_midi_brunch():
     midi = semaine["jours"][5]["midi"]
     assert midi["moment"] == "brunch" and midi["issue"] == "fait" and [p["nom"] for p in midi["plats"]] == ["Pancakes"]
     assert semaine["bilan"]["fait"] == 1
+
+
+def test_journal_modifier_ou_supprimer_un_repas_passe():
+    from diners import SCRIPT_DINERS
+    for texte in ("function panneauEdition", "'Modifier'", "'Supprimer ce repas'", "'Ajouter un plat mangé'",
+                  "'plats-journal'", "function recalculerBilan", "Choisis une recette de la liste."):
+        assert texte in SCRIPT_DINERS
+    assert "confirm(" not in SCRIPT_DINERS
+    assert "corrigerLigne" not in SCRIPT_DINERS                     # remplacé par la modification de toute ligne
