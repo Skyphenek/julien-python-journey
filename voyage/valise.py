@@ -1647,7 +1647,8 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # 30 = Placard v2 (zones, bientôt fini, frais en habituels).
 # 54 = Cucina (page Recettes).
 # 55 = Courses : une liste par rayon, À la maison.
-VERSION_PAGE = 55
+# 56 = Catalogue et prix : ingrédients des recettes en prod qui manquaient (taboulé, agneau haché…).
+VERSION_PAGE = 56
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
 RUBRIQUES = [("valise", "Valise"), ("avant", "Avant"), ("programme", "Programme"), ("sur-place", "Sur place"),
