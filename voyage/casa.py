@@ -4,6 +4,8 @@ La page Aujourd'hui : chaque module y remonte une ligne — ce soir, hier soir, 
 voyage, le compteur Deliveroo (spec : docs/superpowers/specs/2026-10-28-hub-maison-design.md).
 """
 import json
+import re
+import unicodedata
 from datetime import datetime
 from html import escape as echapper
 from urllib.parse import quote
@@ -73,6 +75,9 @@ div.bloc-hier .choix { display: grid; grid-template-columns: repeat(2, 1fr); gap
 div.bloc-hier button { min-height: 48px; border-radius: 16px; border: 2px solid var(--ligne); background: var(--blanc);
                        color: var(--texte); font-family: inherit; font-weight: 700; font-size: 15px; }
 div.bloc-hier button[data-issue="commande"] { border-color: var(--diners); color: var(--diners); }
+div.bloc-hier .question { margin: 0; font-weight: 700; font-size: 16px; }
+div.bloc-hier .champ-plat { grid-column: 1 / -1; min-height: 48px; border-radius: 16px; border: 2px solid var(--ligne);
+                            background: var(--blanc); color: var(--texte); font-family: inherit; font-size: 16px; padding: 0 14px; }
 div.bloc-hier .message { margin: 0; color: var(--diners); font-weight: 700; font-size: 14px; }
 div.bloc-compteur { display: flex; flex-direction: column; gap: 2px; border-radius: 24px; padding: 16px 20px; margin: 16px 0;
                     background: var(--carte); }
@@ -212,14 +217,44 @@ SCRIPT_VIN = """
 ISSUES_HIER = [("fait", "Fait maison"), ("commande", "Commandé"), ("dehors", "Dehors"), ("autre", "Autre")]
 
 
-def bloc_hier(diner_hier):
-    """« Hier soir ? » tant que le dîner d'hier n'est pas renseigné : c'est ce qui compte les Deliveroo."""
+def cle_nom(nom):
+    """La clé de comparaison d'un nom de plat (même règle que JS_CLE_NOM) : minuscules, sans accents, œ->oe, æ->ae,
+    ’->', espaces compactés. « Purée  façon Robuchon » -> « puree facon robuchon »."""
+    nom = nom.strip().lower().replace("œ", "oe").replace("æ", "ae").replace("\u2019", "'")
+    nom = "".join(c for c in unicodedata.normalize("NFD", nom) if unicodedata.category(c) != "Mn")
+    return re.sub(r"\s+", " ", nom)
+
+
+JS_CLE_NOM = """
+function cleNom(nom) {
+    return nom.toLowerCase().replace(/\u0153/g, 'oe').replace(/\u00e6/g, 'ae').replace(/\u2019/g, "'")
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+}
+"""
+
+
+def bloc_hier(diner_hier, plats=(), noms=None):
+    """« Hier soir ? » tant que le dîner d'hier n'est pas renseigné : c'est ce qui compte les Deliveroo.
+    `plats` : les plats non archivés ({id, nom}) pour dire ce qu'on a mangé (datalist + table nom normalisé -> id,
+    le premier par ordre des noms si deux plats ont la même clé) ; `noms` : id -> nom de TOUS les plats (archivés
+    compris), pour afficher les plats prévus (ids déjà rangés dans l'ordre du service) dans data-prevus."""
     if diner_hier["issue"]:
         return ""
     corps = json.dumps({"jour": diner_hier["jour"].isoformat(), "moment": "diner", "plats": diner_hier["plats"]})
+    if noms is None:
+        noms = {p["id"]: p["nom"] for p in plats}
+    prevus = json.dumps([noms[i] for i in diner_hier["plats"] if i in noms], ensure_ascii=False)
     boutons = "".join(f'<button type="button" data-issue="{c}">{t}</button>' for c, t in ISSUES_HIER)
-    return (f'<div class="bloc-hier" data-repas="{echapper(corps)}"><strong>Hier soir ?</strong>'
-            f'<div class="choix">{boutons}</div><p class="message" aria-live="polite"></p></div>')
+    options = "".join(f'<option value="{echapper(p["nom"])}">' for p in plats)
+    cles = {}
+    for p in plats:
+        cles.setdefault(cle_nom(p["nom"]), p["id"])
+    ids = json.dumps(cles, ensure_ascii=False).replace("<", "\\u003c")
+    return (f'<div class="bloc-hier" data-repas="{echapper(corps)}" data-prevus="{echapper(prevus)}">'
+            f'<strong>Hier soir ?</strong><div class="choix">{boutons}</div>'
+            f'<datalist id="plats-hier">{options}</datalist>'
+            f'<script type="application/json" id="plats-hier-json">{ids}</script>'
+            f'<p class="message" aria-live="polite"></p></div>')
 
 
 def bloc_compteur(c):
@@ -276,23 +311,91 @@ def bloc_a_finir(alertes, aujourd_hui):
             f'<p class="message" aria-live="polite"></p></div>')
 
 
-SCRIPT_HIER = """
+SCRIPT_HIER = JS_CLE_NOM + """
 (function () {
     const bloc = document.querySelector('div.bloc-hier');
     if (!bloc) return;
     const repas = JSON.parse(bloc.dataset.repas);
-    bloc.querySelectorAll('button').forEach(function (b) {
-        b.addEventListener('click', function () {
-            bloc.querySelectorAll('button').forEach(function (x) { x.disabled = true; });
-            fetch('api/repas', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                                 body: JSON.stringify(Object.assign({}, repas, { issue: b.dataset.issue })) })
-                .then(function (r) { if (!r.ok) throw new Error(r.status); location.reload(); })
-                .catch(function () {
-                    bloc.querySelector('.message').textContent = 'Pas envoyé : réessaie une fois connecté.';
-                    bloc.querySelectorAll('button').forEach(function (x) { x.disabled = false; });
-                });
+    const prevus = JSON.parse(bloc.dataset.prevus || '[]');
+    const ids = JSON.parse(document.getElementById('plats-hier-json').textContent);
+    const choix = bloc.querySelector('.choix');
+    const message = bloc.querySelector('.message');
+    function boutons() { return bloc.querySelectorAll('button'); }
+    function envoyer(corps) {
+        boutons().forEach(function (x) { x.disabled = true; });
+        fetch('api/repas', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                             body: JSON.stringify(Object.assign({}, repas, corps)) })
+            .then(function (r) { if (!r.ok) throw new Error(r.status); location.reload(); })
+            .catch(function () {
+                message.textContent = 'Pas envoyé : réessaie une fois connecté.';
+                boutons().forEach(function (x) { x.disabled = false; });
+            });
+    }
+    function bouton(texte, action) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = texte;
+        b.addEventListener('click', action);
+        return b;
+    }
+    function questionPrevu() { const q = bloc.querySelector('.question'); if (q) q.remove(); }
+    function retour() {
+        questionPrevu();
+        message.textContent = '';
+        choix.innerHTML = initial;
+        brancher();
+    }
+    function demanderLePlat() {
+        message.textContent = '';
+        questionPrevu();
+        choix.innerHTML = '';
+        const form = document.createElement('form');
+        form.className = 'choix';
+        const champ = document.createElement('input');
+        champ.setAttribute('list', 'plats-hier');
+        champ.placeholder = "Qu'avez-vous mangé ?";
+        champ.setAttribute('aria-label', "Qu'avez-vous mangé ?");
+        champ.autocomplete = 'off';
+        champ.className = 'champ-plat';
+        form.appendChild(champ);
+        const valider = bouton('Valider', function () {});
+        valider.type = 'submit';
+        form.appendChild(valider);
+        form.appendChild(bouton('Je ne sais plus', function () { envoyer({ issue: 'fait', plats: [] }); }));
+        form.appendChild(bouton('Retour', retour));
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            const id = ids[cleNom(champ.value)];
+            if (!id) { message.textContent = 'Choisis une recette de la liste.'; return; }
+            envoyer({ issue: 'fait', plats: [id] });
         });
-    });
+        choix.appendChild(form);
+        champ.focus();
+    }
+    function confirmerLePrevu() {
+        message.textContent = '';
+        choix.innerHTML = '';
+        const q = document.createElement('p');
+        q.className = 'question';
+        q.textContent = "C'était bien : " + prevus.join(' + ') + ' ?';
+        bloc.insertBefore(q, choix);
+        choix.appendChild(bouton('Oui', function () { envoyer({ issue: 'fait', plats: repas.plats }); }));
+        choix.appendChild(bouton('Autre chose', function () { demanderLePlat(); }));
+        choix.appendChild(bouton('Retour', retour));
+    }
+    const initial = choix.innerHTML;
+    function brancher() {
+        choix.querySelectorAll('button').forEach(function (b) {
+            b.addEventListener('click', function () {
+                if (b.dataset.issue === 'fait') {
+                    if (prevus.length) confirmerLePrevu(); else demanderLePlat();
+                    return;
+                }
+                envoyer({ issue: b.dataset.issue });
+            });
+        });
+    }
+    brancher();
 })();
 """
 
@@ -343,12 +446,12 @@ def bloc_sortir(r, aujourd_hui):
 
 
 def aujourdhui_en_html(voyages, aujourd_hui, a_acheter=(), plats_du_soir=(), diner_hier=None, compte=None,
-                       semaine_budget=None, a_finir=(), vins=(), belle=None, sortir=None):
+                       semaine_budget=None, a_finir=(), vins=(), belle=None, sortir=None, plats_hier=(), noms_plats=None):
     """L'accueil du hub : ce soir (et le vin à ouvrir), hier soir, ce qui est à finir, ce qu'il faut acheter aujourd'hui, le budget de la
     semaine, le prochain voyage, le compteur Deliveroo."""
     v = prochain_voyage(voyages, aujourd_hui)
     blocs = (bloc_ce_soir(list(plats_du_soir)) + bloc_vin(vins, belle)
-             + (bloc_hier(diner_hier) if diner_hier else "")
+             + (bloc_hier(diner_hier, plats_hier, noms_plats) if diner_hier else "")
              + bloc_a_finir(list(a_finir), aujourd_hui) + bloc_sortir(sortir, aujourd_hui) + bloc_courses(list(a_acheter))
              + bloc_budget(semaine_budget)
              + (bloc_vadrouille(v, aujourd_hui) if v else "") + bloc_compteur(compte))

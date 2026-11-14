@@ -130,6 +130,16 @@ def test_carnet_de_depart_valide():
         valider_plat({**p, "statut": "carnet"})
 
 
+def test_page_diners_onglet_passe():
+    from diners import SCRIPT_DINERS
+    html = diners_en_html()
+    assert 'data-vue="passe"' in html and ">Passé<" in html
+    assert "'passe'" in SCRIPT_DINERS and "api/diners/passe" in SCRIPT_DINERS
+    assert "Semaines plus anciennes" in SCRIPT_DINERS and "non noté" in SCRIPT_DINERS
+    assert "repeat(3, 1fr)" in html
+    assert 'data-vue="passe"' not in diners_en_html("recettes")
+
+
 def test_page_diners():
     html = diners_en_html()
     assert "<title>Dîners · Casa Binomerie</title>" in html and 'data-page="diners"' in html
@@ -137,7 +147,7 @@ def test_page_diners():
     assert 'data-vue="ce-soir"' in html and 'data-vue="semaine"' in html and 'data-vue="recettes"' not in html
     assert 'data-vue="carnet"' not in html and 'data-vue="a-tester"' not in html
     assert "function vueRecettes" in html and "function ordreRecettes" in html
-    assert "nav.vues { display: grid; grid-template-columns: repeat(2, 1fr)" in html            # 2 onglets, sans trou
+    assert "nav.vues { display: grid; grid-template-columns: repeat(3, 1fr)" in html            # 3 onglets, sans trou
     assert "div.filtres.etiquettes { flex-wrap: nowrap; overflow-x: auto;" in html            # étiquettes sur une ligne
     assert "el('div', 'segments')" in html and "'Accomp.'" in html and "if (e[0] === 'tout') return;" in html
     assert "function vueCarnet" not in html and "function vueATester" not in html
@@ -630,3 +640,76 @@ def test_grille_midi_du_jour_passe_apres_15_h():
     from diners import SCRIPT_DINERS
     assert "MIDI_PASSE_A = 15" in SCRIPT_DINERS
     assert "new Date().getHours() >= MIDI_PASSE_A" in SCRIPT_DINERS
+
+
+# --- Journal des semaines passées ---
+
+from diners import journal, SEMAINES_JOURNAL
+
+
+def test_journal_semaines_et_bilan():
+    plats = [plat("plat-a", "Carbonara"), plat("plat-b", "Burger"), plat("acc-c", "Purée", genre="accompagnement")]
+    jeu = LUN + timedelta(days=3)
+    repas = [diner(LUN, "plat-a", "acc-c", issue="fait"), diner(LUN + timedelta(days=1), issue="commande"),
+             diner(LUN + timedelta(days=2), "plat-b"), diner(jeu, "plat-b", moment="dejeuner", issue="fait"),
+             diner(LUN - timedelta(days=7), "plat-a", issue="dehors")]
+    j = journal(repas, plats, LUN + timedelta(days=5))                     # samedi : la semaine s'arrête à vendredi
+    s = j["semaines"]
+    assert [x["lundi"] for x in s] == [LUN, LUN - timedelta(days=7)] and j["suite"] is None
+    assert [d["jour"] for d in s[0]["jours"]] == [LUN + timedelta(days=i) for i in range(5)]
+    assert s[0]["bilan"] == {"fait": 2, "commande": 1, "dehors": 0, "autre": 0, "non_note": 1}
+    lundi = s[0]["jours"][0]["soir"]
+    assert [p["nom"] for p in lundi["plats"]] == ["Carbonara", "Purée"] and lundi["issue"] == "fait"
+    assert s[0]["jours"][2]["soir"]["non_note"] and s[0]["jours"][3]["midi"]["issue"] == "fait"
+    assert s[0]["jours"][4]["soir"] == {"plats": [], "issue": None, "non_note": False}
+
+
+def test_journal_pagination():
+    repas = [diner(LUN - timedelta(days=7 * k), issue="fait") for k in range(10)]
+    j = journal(repas, [], LUN + timedelta(days=1), n=4)
+    assert len(j["semaines"]) == 4 and j["suite"] == LUN - timedelta(days=21)
+    k = journal(repas, [], LUN + timedelta(days=1), avant=j["suite"], n=8)
+    assert [x["lundi"] for x in k["semaines"]][0] == LUN - timedelta(days=28) and k["suite"] is None
+    assert SEMAINES_JOURNAL == 8
+
+
+def test_journal_le_lundi_commence_par_la_semaine_precedente():
+    repas = [diner(LUN - timedelta(days=7 * k), issue="fait") for k in range(1, 4)]
+    j = journal(repas, [], LUN, n=2)                      # lundi : la semaine en cours n'a encore aucun jour passé
+    assert [x["lundi"] for x in j["semaines"]] == [LUN - timedelta(days=7), LUN - timedelta(days=14)]
+    assert len(j["semaines"][0]["jours"]) == 7 and all(x["jours"] for x in j["semaines"])
+
+
+def test_journal_midi_brunch():
+    plats = [plat("plat-a", "Pancakes")]
+    samedi = LUN + timedelta(days=5)
+    j = journal([diner(samedi, "plat-a", moment="brunch", issue="fait")], plats, LUN + timedelta(days=9))
+    semaine = next(x for x in j["semaines"] if x["lundi"] == LUN)
+    midi = semaine["jours"][5]["midi"]
+    assert midi["moment"] == "brunch" and midi["issue"] == "fait" and [p["nom"] for p in midi["plats"]] == ["Pancakes"]
+    assert semaine["bilan"]["fait"] == 1
+
+
+def test_journal_modifier_ou_supprimer_un_repas_passe():
+    from diners import SCRIPT_DINERS
+    for texte in ("function panneauEdition", "'Modifier'", "'Supprimer ce repas'", "'Ajouter un plat mangé'",
+                  "'plats-journal'", "function recalculerBilan", "Choisis une recette de la liste."):
+        assert texte in SCRIPT_DINERS
+    assert "confirm(" not in SCRIPT_DINERS
+    assert "corrigerLigne" not in SCRIPT_DINERS                     # remplacé par la modification de toute ligne
+
+
+def test_journal_issues_en_icones():
+    from design import ICONES_REPERE
+    from diners import SCRIPT_DINERS
+    for cle in ("fait", "commande", "dehors", "autre", "non-note", "crayon"):
+        assert cle in ICONES_REPERE and ICONES_REPERE[cle].startswith("<svg")
+        assert f'data-icone="{cle}"' in diners_en_html()
+    assert "function legendeIssues" in SCRIPT_DINERS
+    assert "icone(ligne.issue" in SCRIPT_DINERS                     # plus de badge texte « maison »
+
+
+def test_journal_un_midi_sur_chaque_jour():
+    from diners import SCRIPT_DINERS
+    assert "lignePassee(s, j, 'midi', 'Midi'), lignePassee(s, j, 'soir', 'Soir')" in SCRIPT_DINERS   # midi avant soir
+    assert "if (!j.midi) j.midi = { plats: [], issue: null, non_note: false, moment: 'dejeuner' };" in SCRIPT_DINERS

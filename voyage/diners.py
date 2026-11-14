@@ -431,11 +431,73 @@ def compteur(repas, aujourd_hui):
             "renseignes": len(recents)}
 
 
+SEMAINES_JOURNAL = 8        # semaines passées rendues par page du journal
+
+
+def journal(repas, plats, aujourd_hui, avant=None, n=SEMAINES_JOURNAL):
+    """Les `n` semaines calendaires qui précèdent `avant` (un lundi, exclu ; par défaut le lundi qui suit la
+    semaine en cours), de la plus récente à la plus ancienne, sans dépasser la semaine du plus ancien repas.
+    Chaque semaine : bilan des issues (soirs et midis), coût des repas faits maison, et ses jours passés
+    (strictement avant aujourd'hui) avec le soir et le midi (déjeuner, sinon brunch). `suite` : le lundi à
+    passer en `avant` pour la page suivante, None s'il n'y a pas de repas plus ancien."""
+    from prix_paris import cout_repas
+    par_id = {p["id"]: p for p in plats}
+    par_case = {(r["jour"], r["moment"]): r for r in repas}
+    if avant is None:
+        avant = aujourd_hui - timedelta(days=aujourd_hui.weekday()) + timedelta(days=7)
+    if not repas:
+        return {"semaines": [], "suite": None}
+    plus_ancien = min(r["jour"] for r in repas)
+    premier = plus_ancien - timedelta(days=plus_ancien.weekday())
+
+    def ligne(jour, moment):
+        r = par_case.get((jour, moment))
+        if r is None:
+            return None
+        trouves = [par_id[i] for i in r["plats"] if i in par_id]
+        return {"moment": moment, "plats": [{"id": p["id"], "nom": p["nom"]} for p in ranger(trouves, moment)],
+                "issue": r["issue"], "non_note": bool(trouves) and r["issue"] is None}, trouves
+
+    semaines, lundi_ = [], avant - timedelta(days=7)
+    while len(semaines) < n and lundi_ >= premier:
+        bilan = {"fait": 0, "commande": 0, "dehors": 0, "autre": 0, "non_note": 0}
+        cout, jours = 0.0, []
+        for i in range(7):
+            jour = lundi_ + timedelta(days=i)
+            if jour >= aujourd_hui:
+                break
+            lignes = {}
+            for cle, moments in (("soir", ("diner",)), ("midi", ("dejeuner", "brunch"))):
+                lignes[cle] = None
+                for m in moments:
+                    trouve = ligne(jour, m)
+                    if trouve:
+                        lignes[cle] = trouve
+                        break
+            for cle in ("soir", "midi"):
+                if lignes[cle] is None:
+                    continue
+                l, trouves = lignes[cle]
+                if l["issue"]:
+                    bilan[l["issue"]] += 1
+                elif l["non_note"]:
+                    bilan["non_note"] += 1
+                if l["issue"] == "fait":
+                    cout += sum(cout_repas(p["ingredients"], p.get("recette", "")) for p in trouves)
+            soir = lignes["soir"][0] if lignes["soir"] else {"plats": [], "issue": None, "non_note": False}
+            jours.append({"jour": jour, "soir": soir, "midi": lignes["midi"][0] if lignes["midi"] else None})
+        if jours:                                  # le lundi, la semaine en cours n'a aucun jour passé : on la saute
+            semaines.append({"lundi": lundi_, "bilan": bilan, "cout_maison": round(cout, 2), "jours": jours})
+        lundi_ -= timedelta(days=7)
+    suite = semaines[-1]["lundi"] if semaines and semaines[-1]["lundi"] > premier else None
+    return {"semaines": semaines, "suite": suite}
+
+
 # --- Page ---------------------------------------------------------------------------------------
 
 STYLE_DINERS = """
 body.diners { --rubrique: var(--diners); --rubrique-doux: var(--diners-doux); }
-nav.vues { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; background: var(--carte); border-radius: 18px;
+nav.vues { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: var(--carte); border-radius: 18px;
            padding: 4px; margin: 0 0 18px; position: sticky; top: 0; z-index: 5; }
 nav.vues button { border: none; background: none; border-radius: 14px; padding: 10px 4px; font-family: inherit; font-weight: 700;
                   font-size: 14px; color: var(--doux); }
@@ -599,6 +661,35 @@ ol.etapes-fiche div.secret.mamma { border-color: var(--courses); }
 ol.etapes-fiche div.secret.mamma b { color: var(--courses); }
 ol.etapes-fiche ul { padding-left: 18px; margin: 8px 0 0; }
 ol.etapes-fiche ul li { font-size: 16px; margin-top: 6px; }
+div.semaine-passee { background: var(--carte); border-radius: 18px; padding: 14px 14px 6px; margin: 0 0 14px; }
+div.semaine-passee h3 { margin: 0 0 6px; font-size: 16px; }
+div.semaine-passee .bilan { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 13px; color: var(--doux); font-weight: 600; margin: 0 0 8px; }
+div.jour-passe { padding: 8px 0; border-top: 1px solid var(--ligne); }
+div.jour-passe .quand { font-weight: 800; font-size: 14px; margin: 0 0 4px; }
+div.ligne-passee { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: 36px; font-size: 14px; }
+div.ligne-passee .moment { font-size: 11px; font-weight: 800; color: var(--doux); text-transform: uppercase; width: 32px; }
+div.ligne-passee .noms { flex: 1; min-width: 0; }
+div.ligne-passee .noms button { border: none; background: none; padding: 6px 2px; font: inherit; color: var(--texte); text-decoration: underline; text-decoration-color: var(--ligne); text-underline-offset: 3px; }
+span.repere.issue { margin-left: 0; font-size: 18px; color: var(--doux); }
+span.repere.issue.fait { color: var(--diners); }
+span.repere.issue.commande { color: var(--texte); }
+div.ligne-passee button.modifier { width: 36px; height: 36px; padding: 0; border-radius: 999px; border: 1px solid var(--ligne); background: none;
+                                   color: var(--doux); font: inherit; font-size: 18px; display: inline-flex; align-items: center; justify-content: center; }
+div.ligne-passee button.modifier svg { width: 18px; height: 18px; }
+div.semaine-passee .bilan span.compte { display: inline-flex; align-items: center; gap: 3px; }
+div.semaine-passee .bilan span.repere.issue { font-size: 15px; }
+div.legende-issues { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--doux); margin: 0 0 10px; }
+div.legende-issues span.repere.issue { font-size: 14px; }
+div.correction { display: flex; flex-direction: column; gap: 8px; padding: 8px 0 4px; width: 100%; }
+div.correction .choix-issue { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+div.correction .choix-issue button.actif { border-color: var(--diners); color: var(--diners); }
+div.correction .plats-edition, div.correction .bas-edition { display: flex; flex-wrap: wrap; gap: 6px; }
+div.correction form.ajout-plat { display: flex; flex-wrap: wrap; gap: 6px; }
+div.correction form.ajout-plat input { flex: 1 1 180px; min-width: 0; font: inherit; font-size: 16px; min-height: 44px; padding: 0 12px;
+                                       border-radius: 14px; border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte); }
+div.correction form.ajout-plat p.aide { flex-basis: 100%; margin: 0; color: var(--diners); }
+div.correction button { min-height: 44px; border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte); border-radius: 14px; font: inherit; font-weight: 700; }
+button.plus-ancien { width: 100%; min-height: 48px; border: 2px solid var(--ligne); background: var(--carte); color: var(--texte); border-radius: 14px; font: inherit; font-weight: 700; margin: 0 0 14px; }
 """
 
 SCRIPT_DINERS = """
@@ -770,7 +861,7 @@ SCRIPT_DINERS = """
     }
     // Les repères d'une recette en icônes ; le mot reste pour le lecteur d'écran et au survol
     // `signe` : une clé du <template id="reperes"> (icône SVG), sinon du texte
-    const CLES_REPERES = ['nouvelle', 'eclair', 'sablier'];
+    const CLES_REPERES = ['nouvelle', 'eclair', 'sablier', 'fait', 'commande', 'dehors', 'autre', 'non-note', 'crayon'];
     function clone(cle) { return document.getElementById('reperes').content.querySelector('[data-icone="' + cle + '"]').cloneNode(true); }
     function icone(signe, mot, classe) {
         const s = el('span', 'repere' + (classe ? ' ' + classe : ''));
@@ -1400,11 +1491,182 @@ SCRIPT_DINERS = """
         document.getElementById('panneau').hidden = false;
     }
 
+    // --- Passé : le journal des semaines, gardé ici (d est remplacé par charger()) ---
+    const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+    const ISSUES = [['fait', 'Fait maison'], ['commande', 'Commandé'], ['dehors', 'Dehors'], ['autre', 'Autre']];
+    const LIBELLE_ISSUE = { fait: 'maison', commande: 'commandé', dehors: 'dehors', autre: 'autre' };
+    let passe = null, passeSuite = null, passeEtat = '', edition = null;   // edition : la ligne du journal ouverte, 'jour:soir'
+    function dateCourte(iso) { const j = new Date(iso + 'T12:00:00'); return j.getDate() + ' ' + MOIS[j.getMonth()]; }
+    function chargerPasse(avant) {
+        if (passeEtat === 'charge') return;
+        passeEtat = 'charge';
+        fetch('api/diners/passe' + (avant ? '?avant=' + avant : ''), { headers: { 'X-Valise-Vite': '1' } })
+            .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+            .then(function (lu) { passe = (passe || []).concat(lu.semaines); passeSuite = lu.suite; passeEtat = ''; if (vue === 'passe') afficher(); })
+            .catch(function () { passeEtat = 'hors-ligne'; if (vue === 'passe') afficher(); });
+    }
+    function corrigeable(iso) {
+        return (new Date(d.aujourd_hui + 'T12:00:00') - new Date(iso + 'T12:00:00')) / 86400000 <= 60;
+    }
+    // Le bilan d'une semaine, recompté après une modification (le coût maison attend le prochain chargement)
+    function recalculerBilan(s) {
+        const b = { fait: 0, commande: 0, dehors: 0, autre: 0, non_note: 0 };
+        s.jours.forEach(function (j) {
+            [j.soir, j.midi].forEach(function (l) {
+                if (!l) return;
+                if (l.issue) b[l.issue] += 1; else if (l.non_note) b.non_note += 1;
+            });
+        });
+        s.bilan = b;
+    }
+    function enregistrerLigne(semaine, j, cleLigne, moment) {
+        const ligne = j[cleLigne];
+        ligne.non_note = !!ligne.plats.length && !ligne.issue;
+        if (cleLigne === 'midi' && !ligne.plats.length && !ligne.issue) j.midi = null;     // midi supprimé : plus de ligne
+        recalculerBilan(semaine);
+        afficher();
+        envoyer({ url: 'api/repas', methode: 'POST', cle: 'repas:' + j.jour + ':' + moment,
+                  corps: { jour: j.jour, moment: moment, plats: ligne.plats.map(function (p) { return p.id; }), issue: ligne.issue } })
+            .then(relire, relire);
+    }
+    function platParNom(nom) {
+        const cle = normaliser(nom.replace(/’/g, "'"));
+        if (!cle) return null;
+        const actifs = (d.plats || []).filter(function (p) { return !p.archive; });
+        const nomDe = function (p) { return normaliser(p.nom.replace(/’/g, "'")); };
+        const exact = actifs.find(function (p) { return nomDe(p) === cle; });
+        if (exact) return exact;
+        const contient = actifs.filter(function (p) { return nomDe(p).indexOf(cle) >= 0; });
+        return contient.length === 1 ? contient[0] : null;          // « carbonara » : la seule recette qui le contient
+    }
+    // Modifier un repas passé : ce qui s'est passé, les plats mangés, ou le supprimer (une erreur de saisie)
+    function panneauEdition(semaine, j, cleLigne, moment) {
+        const ligne = j[cleLigne];
+        const c = el('div', 'correction');
+        const issues = el('div', 'choix-issue');
+        ISSUES.forEach(function (x) {
+            issues.append(bouton(x[1], ligne.issue === x[0] ? 'actif' : '', function () {
+                ligne.issue = x[0]; enregistrerLigne(semaine, j, cleLigne, moment); }));
+        });
+        c.append(issues);
+        if (ligne.plats.length) {
+            const plats = el('div', 'plats-edition');
+            ligne.plats.forEach(function (p, i) {
+                const b = bouton(p.nom + ' ×', 'petit', function () { ligne.plats.splice(i, 1); enregistrerLigne(semaine, j, cleLigne, moment); });
+                b.setAttribute('aria-label', 'Retirer ' + p.nom);
+                plats.append(b);
+            });
+            c.append(plats);
+        }
+        const f = el('form', 'ajout-plat');
+        const champ = el('input'); champ.setAttribute('list', 'plats-journal'); champ.autocomplete = 'off';
+        champ.placeholder = 'Ajouter un plat mangé'; champ.setAttribute('aria-label', 'Ajouter un plat mangé');
+        const ok = el('button', 'petit', 'Ajouter'); ok.type = 'submit';
+        const msg = el('p', 'aide');
+        f.append(champ, ok, msg);
+        f.addEventListener('submit', function (e) {
+            e.preventDefault();
+            const p = platParNom(champ.value);
+            if (!p) {
+                const cle = normaliser(champ.value.replace(/’/g, "'"));
+                const n = cle ? (d.plats || []).filter(function (x) { return !x.archive && normaliser(x.nom.replace(/’/g, "'")).indexOf(cle) >= 0; }).length : 0;
+                msg.textContent = n > 1 ? n + ' recettes correspondent : précise le nom (la liste en propose).' : 'Choisis une recette de la liste.';
+                return;
+            }
+            if (!ligne.plats.some(function (x) { return x.id === p.id; })) ligne.plats.push({ id: p.id, nom: p.nom });
+            if (!ligne.issue) ligne.issue = 'fait';                   // un plat mangé à la maison, par défaut
+            enregistrerLigne(semaine, j, cleLigne, moment);
+        });
+        c.append(f);
+        const bas = el('div', 'bas-edition');
+        if (ligne.plats.length || ligne.issue) {
+            bas.append(bouton('Supprimer ce repas', 'petit danger', function () {
+                ligne.plats = []; ligne.issue = null; edition = null; enregistrerLigne(semaine, j, cleLigne, moment); }));
+        }
+        bas.append(bouton('Fermer', 'petit', function () { edition = null; afficher(); }));
+        c.append(bas);
+        return c;
+    }
+    function lignePassee(semaine, j, cleLigne, titre) {
+        const ligne = j[cleLigne], jour = j.jour;
+        const moment = cleLigne === 'soir' ? 'diner' : (ligne.moment || 'dejeuner');
+        const cle = jour + ':' + cleLigne;
+        const l = el('div', 'ligne-passee');
+        l.append(el('span', 'moment', titre));
+        const noms = el('span', 'noms');
+        if (!ligne.plats.length) noms.textContent = '—';
+        ligne.plats.forEach(function (p, i) {
+            if (i) noms.append(', ');
+            noms.append(bouton(p.nom, '', function () { ouvrirFiche(p.id); }));
+        });
+        l.append(noms);
+        if (ligne.issue) l.append(icone(ligne.issue, LIBELLE_ISSUE[ligne.issue], 'issue ' + ligne.issue));
+        else if (ligne.non_note) l.append(icone('non-note', 'non noté', 'issue non-note'));
+        if (corrigeable(jour)) {
+            const m = bouton(edition === cle ? '\u00d7' : '', 'modifier', function () { edition = edition === cle ? null : cle; afficher(); });
+            if (edition !== cle) m.append(clone('crayon'));
+            m.setAttribute('aria-label', edition === cle ? 'Fermer' : 'Modifier'); m.title = m.getAttribute('aria-label');
+            l.append(m);
+            if (edition === cle) l.append(panneauEdition(semaine, j, cleLigne, moment));
+        }
+        return l;
+    }
+    // Les icônes du journal, une fois en tête : maison, commandé, dehors, autre, non noté, modifier
+    function legendeIssues() {
+        const l = el('div', 'legende-issues');
+        [['fait', 'maison'], ['commande', 'commandé'], ['dehors', 'dehors'], ['autre', 'autre'], ['non-note', 'non noté'], ['crayon', 'modifier']]
+            .forEach(function (x) { const c = el('span'); c.append(icone(x[0], x[1], 'issue ' + x[0]), ' ' + x[1]); l.append(c); });
+        return l;
+    }
+    function carteSemainePassee(s) {
+        const c = el('div', 'semaine-passee');
+        c.append(el('h3', '', 'Semaine du ' + dateCourte(s.lundi)));
+        const b = el('div', 'bilan');
+        [['fait', 'fait', 'maison'], ['commande', 'commande', 'commandé'], ['dehors', 'dehors', 'dehors'], ['autre', 'autre', 'autre'],
+         ['non_note', 'non-note', 'non noté']].forEach(function (x) {
+            if (!s.bilan[x[0]]) return;
+            const c = el('span', 'compte ' + x[1]); c.append(icone(x[1], x[2], 'issue ' + x[1]), String(s.bilan[x[0]])); b.append(c);
+        });
+        if (s.cout_maison) b.append(el('span', '', 'maison \u2248 ' + euros(s.cout_maison)));
+        c.append(b);
+        s.jours.forEach(function (j) {
+            const e = el('div', 'jour-passe');
+            if (!j.midi) j.midi = { plats: [], issue: null, non_note: false, moment: 'dejeuner' };   // un midi à noter, chaque jour
+            e.append(el('div', 'quand', enClair(j.jour)), lignePassee(s, j, 'midi', 'Midi'), lignePassee(s, j, 'soir', 'Soir'));
+            c.append(e);
+        });
+        return c;
+    }
+    function vuePasse(zone) {
+        if (passe === null && passeEtat === '') chargerPasse(null);
+        if (passe === null) {
+            zone.append(el('p', 'aide', passeEtat === 'hors-ligne' ? "Pas de réseau : l'historique se charge une fois connecté." : 'Chargement\u2026'));
+            if (passeEtat === 'hors-ligne') zone.append(bouton('Réessayer', 'plus-ancien', function () { passeEtat = ''; afficher(); }));
+            return;
+        }
+        if (!document.getElementById('plats-journal')) {
+            const liste = el('datalist'); liste.id = 'plats-journal';
+            (d.plats || []).filter(function (p) { return !p.archive; }).map(function (p) { return p.nom; }).sort()
+                .forEach(function (n) { const o = el('option'); o.value = n; liste.append(o); });
+            document.body.append(liste);
+        }
+        if (!passe.length) { zone.append(el('p', 'aide', "Rien de noté pour l'instant.")); return; }
+        zone.append(legendeIssues());
+        passe.forEach(function (s) { zone.append(carteSemainePassee(s)); });
+        if (passeEtat === 'hors-ligne') zone.append(el('p', 'aide', "Pas de réseau : l'historique se charge une fois connecté."));
+        if (passeSuite) {
+            const plus = bouton(passeEtat === 'charge' ? 'Chargement\u2026' : 'Semaines plus anciennes', 'plus-ancien',
+                function () { if (passeEtat === 'hors-ligne') passeEtat = ''; chargerPasse(passeSuite); if (vue === 'passe') afficher(); });
+            plus.disabled = passeEtat === 'charge';
+            zone.append(plus);
+        }
+    }
+
     function afficher() {
         if (!d) return;
         document.querySelectorAll('nav.vues button').forEach(function (b) { b.classList.toggle('actif', b.dataset.vue === vue); });
         const zone = document.getElementById('vue'); zone.replaceChildren();
-        ({ 'ce-soir': vueCeSoir, 'semaine': vueSemaine, 'recettes': vueRecettes })[vue](zone);
+        ({ 'ce-soir': vueCeSoir, 'semaine': vueSemaine, 'passe': vuePasse, 'recettes': vueRecettes })[vue](zone);
     }
     // Ce soir et Semaine vivent sur la page Dîners, Recettes sur la sienne
     function allerA(v) {
@@ -1417,7 +1679,7 @@ SCRIPT_DINERS = """
     document.querySelectorAll('nav.vues button').forEach(function (b) {
         b.addEventListener('click', function () { vue = b.dataset.vue; afficher(); try { history.replaceState(null, '', '#' + vue); } catch (e) {} });
     });
-    const VUES = PAGE === 'recettes' ? ['recettes'] : ['ce-soir', 'semaine'];
+    const VUES = PAGE === 'recettes' ? ['recettes'] : ['ce-soir', 'semaine', 'passe'];
     const VERS_RECETTES = ['recettes', 'carnet', 'a-tester'];                    // liens et favoris d'avant la page Recettes
     function vueDuLien() { const h = location.hash.slice(1); return VUES.indexOf(h) >= 0 ? h : null; }
     if (PAGE === 'diners' && VERS_RECETTES.indexOf(location.hash.slice(1)) >= 0) { location.replace('recettes'); return; }
@@ -1446,7 +1708,7 @@ def diners_en_html(page="diners"):
     titre = "Recettes" if page == "recettes" else "Dîners"
     vues = ("" if page == "recettes" else
             '<nav class="vues">' + "".join(f'<button type="button" data-vue="{v}">{t}</button>'
-                                           for v, t in [("ce-soir", "Ce soir"), ("semaine", "Semaine")]) + "</nav>")
+                                           for v, t in [("ce-soir", "Ce soir"), ("semaine", "Semaine"), ("passe", "Passé")]) + "</nav>")
     return f"""<!doctype html>
 <html lang="fr">
 <head>

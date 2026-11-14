@@ -1650,7 +1650,11 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # 56 = Catalogue et prix : ingrédients des recettes en prod qui manquaient (taboulé, agneau haché…).
 # 57 = Proposer ma semaine : grille Midi / Soir.
 # 58 = Dîners : Vider la semaine (confirmation dans la page).
-VERSION_PAGE = 58
+# 59 = Dîners : onglet Passé ; Hier soir ? dit ce qu'on a mangé.
+# 60 = Dîners, Passé : modifier ou supprimer un repas passé.
+# 61 = Dîners, Passé : issues en icônes (iPhone).
+# 62 = Dîners, Passé : un midi sur chaque jour.
+VERSION_PAGE = 62
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
 RUBRIQUES = [("valise", "Valise"), ("avant", "Avant"), ("programme", "Programme"), ("sur-place", "Sur place"),
