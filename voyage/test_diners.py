@@ -130,6 +130,16 @@ def test_carnet_de_depart_valide():
         valider_plat({**p, "statut": "carnet"})
 
 
+def test_page_diners_onglet_passe():
+    from diners import SCRIPT_DINERS
+    html = diners_en_html()
+    assert 'data-vue="passe"' in html and ">Passé<" in html
+    assert "'passe'" in SCRIPT_DINERS and "api/diners/passe" in SCRIPT_DINERS
+    assert "Semaines plus anciennes" in SCRIPT_DINERS and "non noté" in SCRIPT_DINERS
+    assert "repeat(3, 1fr)" in html
+    assert 'data-vue="passe"' not in diners_en_html("recettes")
+
+
 def test_page_diners():
     html = diners_en_html()
     assert "<title>Dîners · Casa Binomerie</title>" in html and 'data-page="diners"' in html
@@ -137,7 +147,7 @@ def test_page_diners():
     assert 'data-vue="ce-soir"' in html and 'data-vue="semaine"' in html and 'data-vue="recettes"' not in html
     assert 'data-vue="carnet"' not in html and 'data-vue="a-tester"' not in html
     assert "function vueRecettes" in html and "function ordreRecettes" in html
-    assert "nav.vues { display: grid; grid-template-columns: repeat(2, 1fr)" in html            # 2 onglets, sans trou
+    assert "nav.vues { display: grid; grid-template-columns: repeat(3, 1fr)" in html            # 3 onglets, sans trou
     assert "div.filtres.etiquettes { flex-wrap: nowrap; overflow-x: auto;" in html            # étiquettes sur une ligne
     assert "el('div', 'segments')" in html and "'Accomp.'" in html and "if (e[0] === 'tout') return;" in html
     assert "function vueCarnet" not in html and "function vueATester" not in html

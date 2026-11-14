@@ -455,7 +455,7 @@ def journal(repas, plats, aujourd_hui, avant=None, n=SEMAINES_JOURNAL):
         if r is None:
             return None
         trouves = [par_id[i] for i in r["plats"] if i in par_id]
-        return {"plats": [{"id": p["id"], "nom": p["nom"]} for p in ranger(trouves, moment)],
+        return {"moment": moment, "plats": [{"id": p["id"], "nom": p["nom"]} for p in ranger(trouves, moment)],
                 "issue": r["issue"], "non_note": bool(trouves) and r["issue"] is None}, trouves
 
     semaines, lundi_ = [], avant - timedelta(days=7)
@@ -496,7 +496,7 @@ def journal(repas, plats, aujourd_hui, avant=None, n=SEMAINES_JOURNAL):
 
 STYLE_DINERS = """
 body.diners { --rubrique: var(--diners); --rubrique-doux: var(--diners-doux); }
-nav.vues { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; background: var(--carte); border-radius: 18px;
+nav.vues { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: var(--carte); border-radius: 18px;
            padding: 4px; margin: 0 0 18px; position: sticky; top: 0; z-index: 5; }
 nav.vues button { border: none; background: none; border-radius: 14px; padding: 10px 4px; font-family: inherit; font-weight: 700;
                   font-size: 14px; color: var(--doux); }
@@ -660,6 +660,21 @@ ol.etapes-fiche div.secret.mamma { border-color: var(--courses); }
 ol.etapes-fiche div.secret.mamma b { color: var(--courses); }
 ol.etapes-fiche ul { padding-left: 18px; margin: 8px 0 0; }
 ol.etapes-fiche ul li { font-size: 16px; margin-top: 6px; }
+div.semaine-passee { background: var(--carte); border-radius: 18px; padding: 14px 14px 6px; margin: 0 0 14px; }
+div.semaine-passee h3 { margin: 0 0 6px; font-size: 16px; }
+div.semaine-passee .bilan { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 13px; color: var(--doux); font-weight: 600; margin: 0 0 8px; }
+div.jour-passe { padding: 8px 0; border-top: 1px solid var(--ligne); }
+div.jour-passe .quand { font-weight: 800; font-size: 14px; margin: 0 0 4px; }
+div.ligne-passee { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: 36px; font-size: 14px; }
+div.ligne-passee .moment { font-size: 12px; font-weight: 800; color: var(--doux); text-transform: uppercase; width: 38px; }
+div.ligne-passee .noms { flex: 1; min-width: 0; }
+div.ligne-passee .noms button { border: none; background: none; padding: 6px 2px; font: inherit; color: var(--texte); text-decoration: underline; text-decoration-color: var(--ligne); text-underline-offset: 3px; }
+.issue { font-size: 12px; font-weight: 700; border-radius: 999px; padding: 4px 10px; background: var(--fond); color: var(--doux); border: 1px solid var(--ligne); }
+.issue.fait { color: var(--diners); border-color: var(--diners); }
+button.issue.non-note { min-height: 44px; font-family: inherit; cursor: pointer; border-style: dashed; color: var(--texte); }
+div.correction { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 6px 0 4px; width: 100%; }
+div.correction button { min-height: 44px; border: 2px solid var(--ligne); background: var(--blanc); color: var(--texte); border-radius: 14px; font: inherit; font-weight: 700; }
+button.plus-ancien { width: 100%; min-height: 48px; border: 2px solid var(--ligne); background: var(--carte); color: var(--texte); border-radius: 14px; font: inherit; font-weight: 700; margin: 0 0 14px; }
 """
 
 SCRIPT_DINERS = """
@@ -1461,11 +1476,92 @@ SCRIPT_DINERS = """
         document.getElementById('panneau').hidden = false;
     }
 
+    // --- Passé : le journal des semaines, gardé ici (d est remplacé par charger()) ---
+    const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+    const ISSUES = [['fait', 'Fait maison'], ['commande', 'Commandé'], ['dehors', 'Dehors'], ['autre', 'Autre']];
+    const LIBELLE_ISSUE = { fait: 'maison', commande: 'commandé', dehors: 'dehors', autre: 'autre' };
+    let passe = null, passeSuite = null, passeEtat = '', corrige = null;
+    function dateCourte(iso) { const j = new Date(iso + 'T12:00:00'); return j.getDate() + ' ' + MOIS[j.getMonth()]; }
+    function chargerPasse(avant) {
+        if (passeEtat === 'charge') return;
+        passeEtat = 'charge';
+        fetch('api/diners/passe' + (avant ? '?avant=' + avant : ''), { headers: { 'X-Valise-Vite': '1' } })
+            .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+            .then(function (lu) { passe = (passe || []).concat(lu.semaines); passeSuite = lu.suite; passeEtat = ''; if (vue === 'passe') afficher(); })
+            .catch(function () { passeEtat = 'hors-ligne'; if (vue === 'passe') afficher(); });
+    }
+    function corrigeable(iso) {
+        return (new Date(d.aujourd_hui + 'T12:00:00') - new Date(iso + 'T12:00:00')) / 86400000 <= 60;
+    }
+    function corrigerLigne(semaine, jour, ligne, issue) {
+        const avant = ligne.issue;
+        ligne.issue = issue; ligne.non_note = false; corrige = null;
+        if (!avant) semaine.bilan.non_note = Math.max(0, semaine.bilan.non_note - 1);
+        semaine.bilan[issue] += 1;
+        afficher();
+        envoyer({ url: 'api/repas', methode: 'POST', cle: 'repas:' + jour + ':' + ligne.moment,
+                  corps: { jour: jour, moment: ligne.moment, plats: ligne.plats.map(function (p) { return p.id; }), issue: issue } })
+            .then(relire, relire);
+    }
+    function lignePassee(semaine, jour, ligne, titre) {
+        const cle = jour + ':' + titre;
+        const l = el('div', 'ligne-passee');
+        l.append(el('span', 'moment', titre));
+        const noms = el('span', 'noms');
+        if (!ligne.plats.length) noms.textContent = '\u2014';
+        ligne.plats.forEach(function (p, i) {
+            if (i) noms.append(', ');
+            noms.append(bouton(p.nom, '', function () { ouvrirFiche(p.id); }));
+        });
+        l.append(noms);
+        if (ligne.issue) l.append(el('span', 'issue ' + ligne.issue, LIBELLE_ISSUE[ligne.issue]));
+        else if (ligne.non_note) {
+            const b = bouton('non noté', 'issue non-note', function () { corrige = corrige === cle ? null : cle; afficher(); });
+            l.append(b);
+            if (corrige === cle && corrigeable(jour)) {
+                const c = el('div', 'correction');
+                ISSUES.forEach(function (x) { c.append(bouton(x[1], '', function () { corrigerLigne(semaine, jour, ligne, x[0]); })); });
+                l.append(c);
+            }
+        }
+        return l;
+    }
+    function carteSemainePassee(s) {
+        const c = el('div', 'semaine-passee');
+        c.append(el('h3', '', 'Semaine du ' + dateCourte(s.lundi)));
+        const b = el('div', 'bilan');
+        [['fait', 'maison'], ['commande', 'commandé'], ['dehors', 'dehors'], ['autre', 'autre'], ['non_note', 'non noté']].forEach(function (x) {
+            if (s.bilan[x[0]]) b.append(el('span', '', s.bilan[x[0]] + ' ' + x[1]));
+        });
+        if (s.cout_maison) b.append(el('span', '', 'maison \u2248 ' + euros(s.cout_maison)));
+        c.append(b);
+        s.jours.forEach(function (j) {
+            const e = el('div', 'jour-passe');
+            e.append(el('div', 'quand', enClair(j.jour)), lignePassee(s, j.jour, j.soir, 'Soir'));
+            if (j.midi) e.append(lignePassee(s, j.jour, j.midi, 'Midi'));
+            c.append(e);
+        });
+        return c;
+    }
+    function vuePasse(zone) {
+        if (passe === null && passeEtat === '') chargerPasse(null);
+        if (passe === null) {
+            zone.append(el('p', 'aide', passeEtat === 'hors-ligne' ? "Pas de réseau : l'historique se charge une fois connecté." : 'Chargement\u2026'));
+            if (passeEtat === 'hors-ligne') zone.append(bouton('Réessayer', 'plus-ancien', function () { passeEtat = ''; afficher(); }));
+            return;
+        }
+        if (!passe.length) { zone.append(el('p', 'aide', "Rien de noté pour l'instant.")); return; }
+        passe.forEach(function (s) { zone.append(carteSemainePassee(s)); });
+        if (passeEtat === 'hors-ligne') zone.append(el('p', 'aide', "Pas de réseau : l'historique se charge une fois connecté."));
+        if (passeSuite) zone.append(bouton(passeEtat === 'charge' ? 'Chargement\u2026' : 'Semaines plus anciennes', 'plus-ancien',
+            function () { passeEtat = ''; chargerPasse(passeSuite); }));
+    }
+
     function afficher() {
         if (!d) return;
         document.querySelectorAll('nav.vues button').forEach(function (b) { b.classList.toggle('actif', b.dataset.vue === vue); });
         const zone = document.getElementById('vue'); zone.replaceChildren();
-        ({ 'ce-soir': vueCeSoir, 'semaine': vueSemaine, 'recettes': vueRecettes })[vue](zone);
+        ({ 'ce-soir': vueCeSoir, 'semaine': vueSemaine, 'passe': vuePasse, 'recettes': vueRecettes })[vue](zone);
     }
     // Ce soir et Semaine vivent sur la page Dîners, Recettes sur la sienne
     function allerA(v) {
@@ -1478,7 +1574,7 @@ SCRIPT_DINERS = """
     document.querySelectorAll('nav.vues button').forEach(function (b) {
         b.addEventListener('click', function () { vue = b.dataset.vue; afficher(); try { history.replaceState(null, '', '#' + vue); } catch (e) {} });
     });
-    const VUES = PAGE === 'recettes' ? ['recettes'] : ['ce-soir', 'semaine'];
+    const VUES = PAGE === 'recettes' ? ['recettes'] : ['ce-soir', 'semaine', 'passe'];
     const VERS_RECETTES = ['recettes', 'carnet', 'a-tester'];                    // liens et favoris d'avant la page Recettes
     function vueDuLien() { const h = location.hash.slice(1); return VUES.indexOf(h) >= 0 ? h : null; }
     if (PAGE === 'diners' && VERS_RECETTES.indexOf(location.hash.slice(1)) >= 0) { location.replace('recettes'); return; }
@@ -1507,7 +1603,7 @@ def diners_en_html(page="diners"):
     titre = "Recettes" if page == "recettes" else "Dîners"
     vues = ("" if page == "recettes" else
             '<nav class="vues">' + "".join(f'<button type="button" data-vue="{v}">{t}</button>'
-                                           for v, t in [("ce-soir", "Ce soir"), ("semaine", "Semaine")]) + "</nav>")
+                                           for v, t in [("ce-soir", "Ce soir"), ("semaine", "Semaine"), ("passe", "Passé")]) + "</nav>")
     return f"""<!doctype html>
 <html lang="fr">
 <head>
