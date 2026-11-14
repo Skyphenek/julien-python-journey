@@ -707,3 +707,9 @@ def test_journal_issues_en_icones():
         assert f'data-icone="{cle}"' in diners_en_html()
     assert "function legendeIssues" in SCRIPT_DINERS
     assert "icone(ligne.issue" in SCRIPT_DINERS                     # plus de badge texte « maison »
+
+
+def test_journal_un_midi_sur_chaque_jour():
+    from diners import SCRIPT_DINERS
+    assert "lignePassee(s, j, 'midi', 'Midi'), lignePassee(s, j, 'soir', 'Soir')" in SCRIPT_DINERS   # midi avant soir
+    assert "if (!j.midi) j.midi = { plats: [], issue: null, non_note: false, moment: 'dejeuner' };" in SCRIPT_DINERS

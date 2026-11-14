@@ -1567,7 +1567,12 @@ SCRIPT_DINERS = """
         f.addEventListener('submit', function (e) {
             e.preventDefault();
             const p = platParNom(champ.value);
-            if (!p) { msg.textContent = 'Choisis une recette de la liste.'; return; }
+            if (!p) {
+                const cle = normaliser(champ.value.replace(/’/g, "'"));
+                const n = cle ? (d.plats || []).filter(function (x) { return !x.archive && normaliser(x.nom.replace(/’/g, "'")).indexOf(cle) >= 0; }).length : 0;
+                msg.textContent = n > 1 ? n + ' recettes correspondent : précise le nom (la liste en propose).' : 'Choisis une recette de la liste.';
+                return;
+            }
             if (!ligne.plats.some(function (x) { return x.id === p.id; })) ligne.plats.push({ id: p.id, nom: p.nom });
             if (!ligne.issue) ligne.issue = 'fait';                   // un plat mangé à la maison, par défaut
             enregistrerLigne(semaine, j, cleLigne, moment);
@@ -1626,8 +1631,8 @@ SCRIPT_DINERS = """
         c.append(b);
         s.jours.forEach(function (j) {
             const e = el('div', 'jour-passe');
-            e.append(el('div', 'quand', enClair(j.jour)), lignePassee(s, j, 'soir', 'Soir'));
-            if (j.midi) e.append(lignePassee(s, j, 'midi', 'Midi'));
+            if (!j.midi) j.midi = { plats: [], issue: null, non_note: false, moment: 'dejeuner' };   // un midi à noter, chaque jour
+            e.append(el('div', 'quand', enClair(j.jour)), lignePassee(s, j, 'midi', 'Midi'), lignePassee(s, j, 'soir', 'Soir'));
             c.append(e);
         });
         return c;
