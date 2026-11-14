@@ -729,3 +729,10 @@ def test_un_frais_perime_n_est_plus_disponible():
     assert a_acheter_aujourd_hui([blanquette], placard, [], perimes={"veau"}) == ["veau"]
     faisables, presque = secours([blanquette], placard, [], perimes={"veau"})
     assert faisables == [] and presque[0]["manquants"] == ["veau"]
+
+
+def test_ajouts_volontaires_etiquetes_fiche():
+    from diners import SCRIPT_DINERS
+    assert "'fiche:' + p.id" in SCRIPT_DINERS and "'fiche:' + pp.id" in SCRIPT_DINERS
+    assert "'plat:' + p.id)" not in SCRIPT_DINERS.replace("cle: 'plat:' + p.id", "")
+    assert "Mettre la liste à jour avec la semaine" in SCRIPT_DINERS and "r.retires" in SCRIPT_DINERS

@@ -941,7 +941,7 @@ SCRIPT_DINERS = """
                 const pp = plat(x.plat); if (!pp) return;
                 const li = lignePlat(pp, el('span', 'manque', 'il manque : ' + x.manquants.join(', ')));
                 li.append(bouton('Aux courses', 'petit', function (ev) {
-                    ajouterAuxCourses(x.manquants, 'plat:' + pp.id); ev.target.textContent = 'Ajouté'; ev.target.disabled = true;
+                    ajouterAuxCourses(x.manquants, 'fiche:' + pp.id); ev.target.textContent = 'Ajouté'; ev.target.disabled = true;
                 }));
                 ul2.append(li);
             });
@@ -1142,13 +1142,15 @@ SCRIPT_DINERS = """
         if (grilleOuverte) zone.append(grilleProposer(msgP));
         zone.append(msgP, e);
         const msg = el('p', 'message');
-        zone.append(bouton('Ajouter les ingrédients de la semaine aux courses', 'plein', function () {
+        zone.append(bouton('Mettre la liste à jour avec la semaine', 'plein', function () {
             msg.textContent = 'Envoi…';
             chaine.then(function () { return fetch('api/diners/courses', { method: 'POST' }); })   // après les choix en cours
                 .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
                 .then(function (r) {
-                    msg.textContent = r.ajoutes.length ? r.ajoutes.length + ' ajouté(s) : ' + r.ajoutes.join(', ')
-                                                       : 'Rien à ajouter : tout est au placard ou déjà sur la liste.';
+                    const morceaux = [];
+                    if (r.ajoutes.length) morceaux.push(r.ajoutes.length + ' ajouté(s) : ' + r.ajoutes.join(', '));
+                    if ((r.retires || []).length) morceaux.push(r.retires.length + ' retiré(s) : ' + r.retires.join(', '));
+                    msg.textContent = morceaux.length ? morceaux.join(' · ') : 'La liste est déjà à jour avec la semaine.';
                 }, function () { msg.textContent = 'Pas de réseau : réessaie une fois connecté.'; });
         }), msg);
     }
@@ -1401,7 +1403,7 @@ SCRIPT_DINERS = """
         const manquants = p.ingredients.filter(function (i) { return !enStock(i) && !surLaListe(i); });
         const total = manquants.reduce(function (t, i) { const pr = prixDe(i); return t + (pr ? pr[1] : 0); }, 0);
         if (manquants.length) act.append(bouton('Ajouter les ' + manquants.length + ' manquants aux courses' + (total ? ' (≈ ' + euros(total) + ')' : ''), 'petit', function (ev) {
-            ajouterAuxCourses(manquants, 'plat:' + p.id);
+            ajouterAuxCourses(manquants, 'fiche:' + p.id);
             d.liste = (d.liste || []).concat(manquants.map(normaliser)); garder();
             ev.target.textContent = 'Ajouté aux courses'; ev.target.disabled = true; }));
         if (p.statut === 'a-tester') act.append(bouton('On l\\'a déjà faite', 'petit', function () {

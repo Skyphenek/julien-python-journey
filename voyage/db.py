@@ -640,7 +640,7 @@ def enregistrer_article(conn, a):
         if a["pris"]:
             cur.execute("""UPDATE placard SET en_stock = true, bientot = false, maj_le = now()
                            WHERE cle = %s AND (NOT en_stock OR bientot)""", (normaliser(a["nom"]),))
-            if a["source"].startswith("plat:") and a["rayon"] in RAYONS_DURABLES:
+            if a["source"].startswith(("plat:", "repas:", "fiche:")) and a["rayon"] in RAYONS_DURABLES:   # acheté pour une recette
                 cur.execute("""INSERT INTO placard (cle, nom, zone) VALUES (%s, %s, %s) ON CONFLICT (cle) DO NOTHING""",
                             (normaliser(a["nom"]), a["nom"], deviner_zone(a["nom"], a["rayon"])))
             elif (not a["recurrent"] and not etait_pris and deviner_zone(a["nom"], a["rayon"]) == "frigo"):

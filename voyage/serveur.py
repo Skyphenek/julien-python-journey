@@ -87,26 +87,33 @@ def alertes_du_frigo(conn, jour, plats, lu, articles):
     return produits, alertes(produits, a_venir, plats, disponibles(lu["placard"], articles, perimes(produits, jour)), jour)
 
 
-SOURCE_REPAS = "repas:"         # source d'un article posé par un repas prévu (« Aux courses » de Ce soir : « plat: »)
+SOURCE_REPAS = "repas:"         # source d'un article posé par un repas prévu
+SOURCES_PLANNING = (SOURCE_REPAS, "plat:")   # « plat: » : l'ancien bouton de la semaine ; « fiche: » (ajout volontaire) n'en est pas
 
 
 def synchroniser_courses(conn, jour):
     """Les repas prévus des 7 jours (sans issue) et la liste : leurs ingrédients qui manquent y sont (source
     « repas:<plat> ») ; ceux d'un plat qui n'est plus prévu en partent, sauf cochés ou habituels. Les articles
-    ajoutés à la main ou par « Aux courses » ne bougent pas."""
+    ajoutés à la main ou depuis une fiche (« fiche: ») ne bougent pas. Rend (ajoutés, retirés), des noms."""
     plats = {p["id"]: p for p in lire_plats(conn)}
     prevus = [p for r in repas_prevus(lire_repas(conn, jour, jour + timedelta(days=6)), plats, semaine(jour)) for p in r]
     ids = {p["id"] for p in prevus}
+    retires = []
     for a in lire_courses(conn)["articles"]:
         source = a.get("source") or ""
-        if (source.startswith(SOURCE_REPAS) and source[len(SOURCE_REPAS):] not in ids
+        prefixe = next((x for x in SOURCES_PLANNING if source.startswith(x)), None)
+        if (prefixe and source[len(prefixe):] not in ids
                 and a["actif"] and not a["pris"] and not a["recurrent"]):
             supprimer_article(conn, a["id"])
+            retires.append(a["nom"])
     lu = lire_courses(conn)                          # relue : un ingrédient partagé avec un plat encore prévu revient
     stock_perime = perimes(frais_suivi(conn, lu), jour)
+    ajoutes = []
     for nom, id_plat in a_acheter(prevus, lu["placard"], articles_et_achats_recents(conn, lu["articles"], jour),
                                   stock_perime):
         enregistrer_article(conn, valider_article({"id": str(uuid4()), "nom": nom, "source": SOURCE_REPAS + id_plat}))
+        ajoutes.append(nom)
+    return ajoutes, retires
 
 
 def creer_app(nom_base="valise", secret=None):
@@ -286,22 +293,14 @@ def creer_app(nom_base="valise", secret=None):
 
     @routes.post("/api/diners/courses")
     def courses_de_la_semaine():
-        """Les ingrédients des repas prévus cette semaine, ni au placard ni déjà sur la liste."""
-        jour = aujourd_hui_paris()
+        """« Mettre la liste à jour avec la semaine » : ajoute ce qui manque aux repas prévus, retire ce qui ne servait
+        qu'à des repas retirés (synchroniser_courses)."""
         conn = emprunter(app.config["NOM_BASE"])
         try:
-            plats = {p["id"]: p for p in lire_plats(conn)}
-            prevus = [p for r in repas_prevus(lire_repas(conn, jour, jour + timedelta(days=6)), plats, semaine(jour))
-                      for p in r]
-            lu = lire_courses(conn)
-            ajoutes = []
-            for nom, id_plat in a_acheter(prevus, lu["placard"], articles_et_achats_recents(conn, lu["articles"], jour),
-                                          perimes(frais_suivi(conn, lu), jour)):
-                enregistrer_article(conn, valider_article({"id": str(uuid4()), "nom": nom, "source": f"plat:{id_plat}"}))
-                ajoutes.append(nom)
+            ajoutes, retires = synchroniser_courses(conn, aujourd_hui_paris())
         finally:
             conn.close()
-        return jsonify({"ok": True, "ajoutes": ajoutes})
+        return jsonify({"ok": True, "ajoutes": ajoutes, "retires": retires})
 
     @routes.post("/api/diners/proposer")
     def proposer_la_semaine():

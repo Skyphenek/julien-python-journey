@@ -274,9 +274,9 @@ def test_poser_un_repas_met_ses_ingredients_aux_courses_et_le_retirer_les_enleve
     client.post("/api/repas", json={"jour": demain, "moment": "dejeuner", "plats": ["plat-carbonara"], "issue": None})
     poses = _a_prendre(client)
     assert poses and all(src == "repas:plat-carbonara" for src in poses.values())
-    client.post("/api/courses", json={"id": "garder-0001", "nom": "pain", "source": "plat:plat-carbonara"})   # Aux courses : intouchable
+    client.post("/api/courses", json={"id": "garder-0001", "nom": "pain", "source": "fiche:plat-carbonara"})   # depuis une fiche : intouchable
     client.post("/api/repas", json={"jour": demain, "moment": "dejeuner", "plats": [], "issue": None})
-    assert _a_prendre(client) == {"pain": "plat:plat-carbonara"}
+    assert _a_prendre(client) == {"pain": "fiche:plat-carbonara"}
 
 
 def test_un_repas_hors_des_7_jours_ne_touche_pas_les_courses(client):
@@ -304,3 +304,27 @@ def test_la_viande_perimee_repart_aux_courses(client, conn):
     demain = (J + timedelta(days=1)).isoformat()
     client.post("/api/repas", json={"jour": demain, "moment": "diner", "plats": ["plat-carbonara"], "issue": None})
     assert "guanciale ou pancetta" in _a_prendre(client)
+
+
+def test_mettre_la_liste_a_jour_retire_les_ingredients_des_recettes_retirees(client, conn):
+    _sans_placard(conn)
+    demain = (J + timedelta(days=1)).isoformat()
+    client.post("/api/repas", json={"jour": demain, "moment": "diner", "plats": ["plat-carbonara"], "issue": None})
+    # ajoutés par l'ancien bouton (source « plat: ») ou une fiche (« fiche: », volontaire : jamais retiré)
+    client.post("/api/courses", json={"id": "ancien-0001", "nom": "tomates pelées", "source": "plat:plat-amatriciana"})
+    client.post("/api/courses", json={"id": "fiche-0001", "nom": "pain", "source": "fiche:plat-amatriciana"})
+    r = client.post("/api/diners/courses").get_json()
+    assert r["retires"] == ["tomates pelées"] and r["ajoutes"] == []
+    noms = {a["nom"]: a["source"] for a in client.get("/api/courses").get_json()["articles"] if a["actif"]}
+    assert noms["pain"] == "fiche:plat-amatriciana" and noms["guanciale ou pancetta"] == "repas:plat-carbonara"
+    assert "tomates pelées" not in noms
+    assert client.post("/api/diners/courses").get_json() == {"ok": True, "ajoutes": [], "retires": []}
+
+
+def test_un_ingredient_du_planning_achete_entre_au_placard(client, conn):
+    _sans_placard(conn)
+    demain = (J + timedelta(days=1)).isoformat()
+    client.post("/api/repas", json={"jour": demain, "moment": "diner", "plats": ["plat-carbonara"], "issue": None})
+    spag = next(a for a in client.get("/api/courses").get_json()["articles"] if a["nom"] == "spaghetti")
+    client.post("/api/courses", json={**spag, "pris": True})
+    assert any(p["cle"] == "spaghetti" and p["en_stock"] for p in client.get("/api/courses").get_json()["placard"])
