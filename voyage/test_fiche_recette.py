@@ -16,8 +16,8 @@ def test_carbonara_lignes():
     f = decouper(lire("plat-carbonara"))
     assert f["structuree"] is True
     assert f["pour"] == "Pour 2"
-    assert f["ingredients"][0] == {"nom": "Spaghetti", "quantite": "320 g"}
-    assert f["ingredients"][2] == {"nom": "Jaunes d’œufs", "quantite": "4 (env. 70 g de jaunes)"}
+    assert (f["ingredients"][0]["nom"], f["ingredients"][0]["quantite"]) == ("Spaghetti", "320 g")
+    assert (f["ingredients"][2]["nom"], f["ingredients"][2]["quantite"]) == ("Jaunes d’œufs", "4 (env. 70 g de jaunes)")
     assert len(f["ingredients"]) == 6
     assert f["sections"][0]["titre"] == "Variantes (acceptables)" and len(f["sections"][0]["lignes"]) == 2
     assert f["tempo"]["titre"].startswith("Tempo (≈ 27 min")
@@ -31,7 +31,7 @@ def test_carbonara_lignes():
 def test_risotto_etapes_en_parenthese_et_secret_libre():
     f = decouper(lire("plat-risotto-milanese"))
     assert len(f["etapes"]) == 10
-    assert f["ingredients"][3] == {"nom": "Beurre", "quantite": "60 g (dont 30 g froid, en dés, pour la mantecatura)"}
+    assert (f["ingredients"][3]["nom"], f["ingredients"][3]["quantite"]) == ("Beurre", "60 g (dont 30 g froid, en dés, pour la mantecatura)")
     libre = [s for s in f["sections"] if s["titre"].startswith("Secret de mamma")]
     assert len(libre) == 1 and libre[0]["lignes"] == []
 
@@ -39,7 +39,7 @@ def test_risotto_etapes_en_parenthese_et_secret_libre():
 def test_polpette_sous_liste_et_tiret_long():
     f = decouper(lire("tester-polpette"))
     assert f["pour"] == "Pour 4 (deux repas à deux)"
-    assert f["ingredients"][0] == {"nom": "Bœuf haché", "quantite": "350 g"}
+    assert (f["ingredients"][0]["nom"], f["ingredients"][0]["quantite"]) == ("Bœuf haché", "350 g")
     sauce = [s for s in f["sections"] if s["titre"] == "Sauce"][0]
     assert sauce["lignes"][0] == "Passata (coulis de tomate) — 700 g"
     assert f["tempo"]["titre"] == "Tempo (≈ 1 h 10)" and len(f["etapes"]) == 9
@@ -48,7 +48,7 @@ def test_polpette_sous_liste_et_tiret_long():
 def test_hot_dog_sans_tempo():
     f = decouper(lire("af-hot-dog"))
     assert f["tempo"] is None and len(f["etapes"]) == 3
-    assert f["ingredients"][0] == {"nom": "4 saucisses de Strasbourg, 4 pains à hot dog, moutarde, ketchup", "quantite": ""}
+    assert (f["ingredients"][0]["nom"], f["ingredients"][0]["quantite"]) == ("4 saucisses de Strasbourg, 4 pains à hot dog, moutarde, ketchup", "")
 
 
 def test_ancien_format_erreurs_frequentes_et_variante_libre():
@@ -145,4 +145,62 @@ def test_phrase_indentee_rattachee_a_son_etape():
 
 def test_tempo_ligne_veille():
     f = decouper(lire("plat-cote-de-boeuf"))
-    assert f["tempo"]["lignes"][0] == {"heure": "Veille", "texte": "Côte salée, au frigo à découvert (1).", "etapes": [1]}
+    l = f["tempo"]["lignes"][0]
+    assert (l["heure"], l["texte"], l["etapes"]) == ("Veille", "Côte salée, au frigo à découvert (1).", [1])
+
+
+def joint(segments):
+    return "".join(s["t"] for s in segments)
+
+
+def chiffres(segments):
+    return [(s["q"], s["u"]) for s in segments if "q" in s]
+
+
+def test_base_des_compteurs():
+    assert decouper(lire("plat-carbonara"))["base"] == {"table": 2, "garder": 0}
+    assert decouper(lire("tester-polpette"))["base"] == {"table": 2, "garder": 2}
+    assert decouper(lire("tester-nems"))["base"] is None                    # « Pour 20 nems »
+    assert decouper("")["base"] is None
+
+
+def test_segments_des_ingredients_et_sections():
+    f = decouper(lire("plat-carbonara"))
+    assert chiffres(f["ingredients"][0]["quantite_s"]) == [(320.0, "g")]
+    assert chiffres(f["ingredients"][2]["quantite_s"]) == [(4.0, ""), (70.0, "g")]
+    sauce = [s for s in decouper(lire("tester-polpette"))["sections"] if s["titre"] == "Sauce"][0]
+    assert chiffres(sauce["lignes_s"][0]) == [(700.0, "g")]
+
+
+def test_variantes_seuls_poids_et_volumes():
+    f = decouper("Pour 2\n- Riz : 160 g\n\nVariantes :\n- 2 œufs en plus\n- 30 g de comté\n\nSauce :\n"
+                 "- Oignon — 1 petit\n\n1. Cuis le riz : 10 min dans 50 cl d'eau.")   # « : » coupe l'action
+    variantes = [s for s in f["sections"] if s["titre"] == "Variantes"][0]
+    assert chiffres(variantes["lignes_s"][0]) == [] and chiffres(variantes["lignes_s"][1]) == [(30.0, "g")]
+    sauce = [s for s in f["sections"] if s["titre"] == "Sauce"][0]
+    assert chiffres(sauce["lignes_s"][0]) == [(1.0, "")]
+    etape = f["etapes"][0]
+    assert chiffres(etape["action_s"]) == [] and joint(etape["action_s"]) == etape["action"]
+    tout = [s for m in etape["morceaux"] for s in m["s"]]
+    assert chiffres(tout) == [(50.0, "cl")]
+
+
+def _verifie_bout_a_bout(f):
+    for x in f["ingredients"]:
+        assert joint(x["nom_s"]) == x["nom"] and joint(x["quantite_s"]) == x["quantite"]
+    for s in f["sections"]:
+        assert [joint(l) for l in s["lignes_s"]] == s["lignes"]
+    for l in (f["tempo"] or {"lignes": []})["lignes"]:
+        assert joint(l["s"]) == l["texte"]
+    for e in f["etapes"]:
+        for p in [e, *e["si"]]:
+            assert joint(p["action_s"]) == p["action"]
+            assert all(joint(m["s"]) == m["texte"] for m in p["morceaux"])
+            assert all(joint(s["s"]) == s["texte"] for s in p["secrets"])
+
+
+def test_segments_bout_a_bout_sur_tous_les_exemples():
+    for fichier in sorted(EX.glob("*.txt")):
+        f = decouper(fichier.read_text(encoding="utf-8"))
+        assert f["structuree"], fichier.name
+        _verifie_bout_a_bout(f)
