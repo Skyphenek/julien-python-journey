@@ -697,3 +697,13 @@ def test_journal_modifier_ou_supprimer_un_repas_passe():
         assert texte in SCRIPT_DINERS
     assert "confirm(" not in SCRIPT_DINERS
     assert "corrigerLigne" not in SCRIPT_DINERS                     # remplacé par la modification de toute ligne
+
+
+def test_journal_issues_en_icones():
+    from design import ICONES_REPERE
+    from diners import SCRIPT_DINERS
+    for cle in ("fait", "commande", "dehors", "autre", "non-note", "crayon"):
+        assert cle in ICONES_REPERE and ICONES_REPERE[cle].startswith("<svg")
+        assert f'data-icone="{cle}"' in diners_en_html()
+    assert "function legendeIssues" in SCRIPT_DINERS
+    assert "icone(ligne.issue" in SCRIPT_DINERS                     # plus de badge texte « maison »

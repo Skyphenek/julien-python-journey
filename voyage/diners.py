@@ -667,14 +667,19 @@ div.semaine-passee .bilan { display: flex; flex-wrap: wrap; gap: 6px 12px; font-
 div.jour-passe { padding: 8px 0; border-top: 1px solid var(--ligne); }
 div.jour-passe .quand { font-weight: 800; font-size: 14px; margin: 0 0 4px; }
 div.ligne-passee { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: 36px; font-size: 14px; }
-div.ligne-passee .moment { font-size: 12px; font-weight: 800; color: var(--doux); text-transform: uppercase; width: 38px; }
+div.ligne-passee .moment { font-size: 11px; font-weight: 800; color: var(--doux); text-transform: uppercase; width: 32px; }
 div.ligne-passee .noms { flex: 1; min-width: 0; }
 div.ligne-passee .noms button { border: none; background: none; padding: 6px 2px; font: inherit; color: var(--texte); text-decoration: underline; text-decoration-color: var(--ligne); text-underline-offset: 3px; }
-.issue { font-size: 12px; font-weight: 700; border-radius: 999px; padding: 4px 10px; background: var(--fond); color: var(--doux); border: 1px solid var(--ligne); }
-.issue.fait { color: var(--diners); border-color: var(--diners); }
-span.issue.non-note { border-style: dashed; }
-div.ligne-passee button.modifier { min-height: 36px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--ligne); background: none;
-                                   color: var(--doux); font: inherit; font-size: 13px; font-weight: 700; }
+span.repere.issue { margin-left: 0; font-size: 18px; color: var(--doux); }
+span.repere.issue.fait { color: var(--diners); }
+span.repere.issue.commande { color: var(--texte); }
+div.ligne-passee button.modifier { width: 36px; height: 36px; padding: 0; border-radius: 999px; border: 1px solid var(--ligne); background: none;
+                                   color: var(--doux); font: inherit; font-size: 18px; display: inline-flex; align-items: center; justify-content: center; }
+div.ligne-passee button.modifier svg { width: 18px; height: 18px; }
+div.semaine-passee .bilan span.compte { display: inline-flex; align-items: center; gap: 3px; }
+div.semaine-passee .bilan span.repere.issue { font-size: 15px; }
+div.legende-issues { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--doux); margin: 0 0 10px; }
+div.legende-issues span.repere.issue { font-size: 14px; }
 div.correction { display: flex; flex-direction: column; gap: 8px; padding: 8px 0 4px; width: 100%; }
 div.correction .choix-issue { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 div.correction .choix-issue button.actif { border-color: var(--diners); color: var(--diners); }
@@ -856,7 +861,7 @@ SCRIPT_DINERS = """
     }
     // Les repères d'une recette en icônes ; le mot reste pour le lecteur d'écran et au survol
     // `signe` : une clé du <template id="reperes"> (icône SVG), sinon du texte
-    const CLES_REPERES = ['nouvelle', 'eclair', 'sablier'];
+    const CLES_REPERES = ['nouvelle', 'eclair', 'sablier', 'fait', 'commande', 'dehors', 'autre', 'non-note', 'crayon'];
     function clone(cle) { return document.getElementById('reperes').content.querySelector('[data-icone="' + cle + '"]').cloneNode(true); }
     function icone(signe, mot, classe) {
         const s = el('span', 'repere' + (classe ? ' ' + classe : ''));
@@ -1590,20 +1595,32 @@ SCRIPT_DINERS = """
             noms.append(bouton(p.nom, '', function () { ouvrirFiche(p.id); }));
         });
         l.append(noms);
-        if (ligne.issue) l.append(el('span', 'issue ' + ligne.issue, LIBELLE_ISSUE[ligne.issue]));
-        else if (ligne.non_note) l.append(el('span', 'issue non-note', 'non noté'));
+        if (ligne.issue) l.append(icone(ligne.issue, LIBELLE_ISSUE[ligne.issue], 'issue ' + ligne.issue));
+        else if (ligne.non_note) l.append(icone('non-note', 'non noté', 'issue non-note'));
         if (corrigeable(jour)) {
-            l.append(bouton(edition === cle ? 'Fermer' : 'Modifier', 'modifier', function () { edition = edition === cle ? null : cle; afficher(); }));
+            const m = bouton(edition === cle ? '\u00d7' : '', 'modifier', function () { edition = edition === cle ? null : cle; afficher(); });
+            if (edition !== cle) m.append(clone('crayon'));
+            m.setAttribute('aria-label', edition === cle ? 'Fermer' : 'Modifier'); m.title = m.getAttribute('aria-label');
+            l.append(m);
             if (edition === cle) l.append(panneauEdition(semaine, j, cleLigne, moment));
         }
+        return l;
+    }
+    // Les icônes du journal, une fois en tête : maison, commandé, dehors, autre, non noté, modifier
+    function legendeIssues() {
+        const l = el('div', 'legende-issues');
+        [['fait', 'maison'], ['commande', 'commandé'], ['dehors', 'dehors'], ['autre', 'autre'], ['non-note', 'non noté'], ['crayon', 'modifier']]
+            .forEach(function (x) { const c = el('span'); c.append(icone(x[0], x[1], 'issue ' + x[0]), ' ' + x[1]); l.append(c); });
         return l;
     }
     function carteSemainePassee(s) {
         const c = el('div', 'semaine-passee');
         c.append(el('h3', '', 'Semaine du ' + dateCourte(s.lundi)));
         const b = el('div', 'bilan');
-        [['fait', 'maison'], ['commande', 'commandé'], ['dehors', 'dehors'], ['autre', 'autre'], ['non_note', 'non noté']].forEach(function (x) {
-            if (s.bilan[x[0]]) b.append(el('span', '', s.bilan[x[0]] + ' ' + x[1]));
+        [['fait', 'fait', 'maison'], ['commande', 'commande', 'commandé'], ['dehors', 'dehors', 'dehors'], ['autre', 'autre', 'autre'],
+         ['non_note', 'non-note', 'non noté']].forEach(function (x) {
+            if (!s.bilan[x[0]]) return;
+            const c = el('span', 'compte ' + x[1]); c.append(icone(x[1], x[2], 'issue ' + x[1]), String(s.bilan[x[0]])); b.append(c);
         });
         if (s.cout_maison) b.append(el('span', '', 'maison \u2248 ' + euros(s.cout_maison)));
         c.append(b);
@@ -1629,6 +1646,7 @@ SCRIPT_DINERS = """
             document.body.append(liste);
         }
         if (!passe.length) { zone.append(el('p', 'aide', "Rien de noté pour l'instant.")); return; }
+        zone.append(legendeIssues());
         passe.forEach(function (s) { zone.append(carteSemainePassee(s)); });
         if (passeEtat === 'hors-ligne') zone.append(el('p', 'aide', "Pas de réseau : l'historique se charge une fois connecté."));
         if (passeSuite) {

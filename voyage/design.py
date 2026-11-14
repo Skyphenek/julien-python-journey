@@ -76,6 +76,16 @@ ICONES_REPERE = {
     "nouvelle": _TRAIT.format('<path fill="currentColor" d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/>'),
     "eclair": _TRAIT.format('<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>'),
     "sablier": _TRAIT.format('<path d="M6 3h12M6 21h12M7 3c0 5 5 6 5 9s-5 4-5 9M17 3c0 5-5 6-5 9s5 4 5 9"/>'),
+    # Ce qui s'est passé à un repas (journal de Dîners) : fait maison, commandé, dehors, autre, non noté ; et modifier
+    "fait": _TRAIT.format('<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/>'),
+    "commande": _TRAIT.format('<circle cx="6" cy="17" r="3"/><circle cx="18" cy="17" r="3"/>'
+                              '<path d="M9 17h6l-3-7H8M15 6h3l3 11M12 10h5"/>'),
+    "dehors": _TRAIT.format('<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>'),
+    "autre": _TRAIT.format('<circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/>'
+                           '<circle cx="19" cy="12" r="1.2" fill="currentColor"/>'),
+    "non-note": _TRAIT.format('<circle cx="12" cy="12" r="9" stroke-dasharray="3 3"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5"/>'
+                              '<circle cx="12" cy="17" r=".6" fill="currentColor"/>'),
+    "crayon": _TRAIT.format('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/>'),
 }
 ICONES_THEME = {
     "auto": _TRAIT.format('<circle cx="12" cy="12" r="9"/><path fill="currentColor" d="M12 3a9 9 0 0 1 0 18z"/>'),
