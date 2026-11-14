@@ -783,8 +783,9 @@ def semer_placard(conn, noms):
 # --- Casa Binomerie : dîners (carnet et repas) ---------------------------------------------------
 
 CHAMPS_PLAT = ("nom", "genre", "minutes", "ingredients", "recette", "lien", "note", "statut", "archive", "pour",
-               "accords")
-_DEFAUTS_PLAT = {"pour": "nous", "accords": []}
+               "accords", "cuisine")
+_DEFAUTS_PLAT = {"pour": "nous", "accords": [], "cuisine": ""}
+_GARDES_SI_ABSENTS = ("accords", "cuisine")    # None (page d'avant) : la valeur en base reste
 _JSON_PLAT = ("ingredients", "accords")
 
 
@@ -799,9 +800,9 @@ def _valeurs_plat(p):
 
 
 def enregistrer_plat(conn, p):
-    """Crée ou met à jour (même id) une recette validée. Sans accords (None : une page d'avant les accords),
-    ceux déjà en base restent."""
-    champs = [c for c in CHAMPS_PLAT if not (c == "accords" and p.get("accords") is None)]
+    """Crée ou met à jour (même id) une recette validée. Sans accords ni cuisine (None : une page d'avant), ceux
+    déjà en base restent."""
+    champs = [c for c in CHAMPS_PLAT if not (c in _GARDES_SI_ABSENTS and p.get(c) is None)]
     valeurs = dict(zip(CHAMPS_PLAT, _valeurs_plat(p)))
     with conn.cursor() as cur:
         cur.execute(

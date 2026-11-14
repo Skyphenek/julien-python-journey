@@ -20,6 +20,9 @@ _ID = re.compile(r"[A-Za-z0-9-]{8,64}")
 GENRES = [("plat", "Plats"), ("accompagnement", "Accompagnements"), ("entree", "Entrées"), ("dessert", "Desserts")]
 STATUTS = ("carnet", "a-tester")
 POUR = [("nous", "Nous deux"), ("julien", "Julien"), ("laetitia", "Laetitia")]
+# Les grandes cuisines (14/11/2026) : de quoi filtrer les recettes au pouce ; « » = pas encore classée
+CUISINES = [("france", "France"), ("italie", "Italie"), ("mediterranee", "Méditerranée"), ("maghreb", "Maghreb"),
+            ("asie", "Asie"), ("ameriques", "Amériques"), ("autres", "Autres")]
 ISSUES = [("fait", "Fait maison"), ("commande", "Commandé"), ("dehors", "Dehors"), ("autre", "Autre")]
 MOMENTS = [("diner", "Dîner"), ("dejeuner", "Déjeuner"), ("brunch", "Brunch")]
 ORDRE_GENRES = ("entree", "plat", "accompagnement", "dessert")
@@ -95,6 +98,10 @@ def valider_plat(corps):
         if p["genre"] != "plat":
             accords = []
     p["accords"] = accords
+    cuisine = corps.get("cuisine")            # absente (page d'avant les cuisines) : None, celle en base reste
+    if cuisine is not None and cuisine != "" and cuisine not in dict(CUISINES):
+        raise ValueError("cuisine invalide")
+    p["cuisine"] = cuisine
     return p
 
 
@@ -611,6 +618,19 @@ div.panneau { position: fixed; inset: 0; z-index: 30; background: var(--fond); o
                        calc(40px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
 div.panneau .contenu { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
 div.panneau .haut { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+div.barre-fiche { position: sticky; bottom: calc(-40px - env(safe-area-inset-bottom, 0px)); z-index: 2; margin: 8px -16px 0;
+                  padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); background: var(--fond);
+                  border-top: 1px solid var(--ligne); }
+div.barre-fiche button { width: 100%; min-height: 48px; }
+div.grille-fiche { background: var(--carte); border-radius: 18px; padding: 10px; }
+div.grille-fiche .tableau { display: grid; grid-template-columns: 2.2rem repeat(7, minmax(0, 1fr)); gap: 3px; align-items: center; }
+div.grille-fiche .jour { text-align: center; font-size: 12px; font-weight: 700; color: var(--doux); }
+div.grille-fiche .moment { font-size: 11px; font-weight: 800; color: var(--doux); text-transform: uppercase; }
+div.grille-fiche button.case { min-height: 42px; padding: 0; border-radius: 10px; border: 2px solid var(--ligne); background: var(--blanc);
+                               color: var(--texte); font: inherit; font-weight: 800; }
+div.grille-fiche button.case.pris { border-color: var(--diners); color: var(--diners); }
+div.grille-fiche button.case:disabled:not(.pris) { opacity: .4; }
+div.filtres.cuisines { margin-bottom: 6px; }
 div.panneau h2 { font-size: 32px; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em; margin: 0; }
 div.panneau .meta { color: var(--doux); font-weight: 600; }
 div.panneau .meta a { color: var(--diners); }
@@ -697,6 +717,7 @@ button.plus-ancien { width: 100%; min-height: 48px; border: 2px solid var(--lign
 SCRIPT_DINERS = """
 (function () {
     const GENRES = JSON.parse(document.getElementById('genres').textContent);
+    const CUISINES = JSON.parse(document.getElementById('cuisines').textContent);   // [['france', 'France'], …]
     const NOMS_GENRE = { plat: 'Plat', accompagnement: 'Accompagnement', entree: 'Entrée', dessert: 'Dessert' };
     const JOURS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
     const MOMENTS = { diner: 'Dîner', dejeuner: 'Déjeuner', brunch: 'Brunch' };
@@ -706,6 +727,7 @@ SCRIPT_DINERS = """
     let d = null;                                         // ce que renvoie api/diners
     const PAGE = document.body.dataset.page || 'diners';
     let vue = PAGE === 'recettes' ? 'recettes' : 'ce-soir', filtre = 'tout', recherche = '';
+    let cuisineChoisie = 'tout';                          // la grande cuisine filtrée dans Recettes
     const etiquette = { recettes: 'tout', choix: 'nous' };   // un filtre par liste ; un soir : à deux
     let derniereProposition = {};                         // {'<iso>|<moment>': 'plat accompagnement'} : ce que « Reproposer » peut changer
     let proposeEnCours = false;                           // une demande à Proposer est partie : on n'en lance pas une seconde
@@ -798,6 +820,21 @@ SCRIPT_DINERS = """
             const b = bouton(e[1], etiquette[contexte] === e[0] ? 'actif' : '', function () {
                 etiquette[contexte] = etiquette[contexte] === e[0] ? 'tout' : e[0]; rafraichir(); });
             b.setAttribute('aria-pressed', String(etiquette[contexte] === e[0]));
+            b.append(el('span', '', String(n)));
+            f.append(b);
+        });
+        return f;
+    }
+
+    // Les grandes cuisines, avec leur nombre ; un 2e appui sur l'active la retire
+    function barreCuisines(liste, rafraichir) {
+        const f = el('div', 'filtres etiquettes cuisines');
+        CUISINES.forEach(function (c) {
+            const n = liste.filter(function (p) { return p.cuisine === c[0]; }).length;
+            if (!n && cuisineChoisie !== c[0]) return;
+            const b = bouton(c[1], cuisineChoisie === c[0] ? 'actif' : '', function () {
+                cuisineChoisie = cuisineChoisie === c[0] ? 'tout' : c[0]; rafraichir(); });
+            b.setAttribute('aria-pressed', String(cuisineChoisie === c[0]));
             b.append(el('span', '', String(n)));
             f.append(b);
         });
@@ -1169,8 +1206,9 @@ SCRIPT_DINERS = """
         function remplir() {
             ul.replaceChildren();
             const q = normaliser(recherche);
-            const parGenre = toutes.filter(function (p) { return (filtre === 'tout' || p.genre === filtre) && correspond(p, q); });
-            zoneEtiquettes.replaceChildren(barreEtiquettes('recettes', parGenre, remplir));
+            const avantCuisine = toutes.filter(function (p) { return (filtre === 'tout' || p.genre === filtre) && correspond(p, q); });
+            const parGenre = avantCuisine.filter(function (p) { return cuisineChoisie === 'tout' || p.cuisine === cuisineChoisie; });
+            zoneEtiquettes.replaceChildren(barreCuisines(avantCuisine, remplir), barreEtiquettes('recettes', parGenre, remplir));
             parGenre.filter(function (p) { return aEtiquette(p, etiquette.recettes); })
                 .sort(ordreRecettes)
                 .forEach(function (p) { ul.append(lignePlat(p, p.statut === 'a-tester' && !p.recette ? 'recette à écrire' : undefined)); });
@@ -1248,7 +1286,13 @@ SCRIPT_DINERS = """
         if (!('wakeLock' in navigator)) return;
         navigator.wakeLock.request('screen').then(function (v) { verrou = v; }).catch(function () {});
     }
+    // Fermer : si la fiche a son entrée d'historique, on recule (le geste retour d'iPhone fait pareil)
     function fermer() {
+        if (history.state && history.state.fiche) { history.back(); return; }
+        fermerPanneau();
+    }
+    window.addEventListener('popstate', function () { if (ouverte) fermerPanneau(); });
+    function fermerPanneau() {
         ouverte = null;
         if (verrou) { verrou.release().catch(function () {}); verrou = null; }
         document.getElementById('panneau').hidden = true;
@@ -1369,6 +1413,10 @@ SCRIPT_DINERS = """
     function ouvrirFiche(id) {
         const p = plat(id); if (!p) return;
         ouverte = { id: id, edition: false };
+        try {                                               // une entrée d'historique : « retour » ferme la fiche
+            if (history.state && history.state.fiche) history.replaceState({ fiche: id }, '');
+            else history.pushState({ fiche: id }, '');
+        } catch (e) {}
         const c = document.querySelector('#panneau .contenu'); c.replaceChildren();
         const groupes = groupesIngredients(p);
         if (p.fiche && p.fiche.structuree) {
@@ -1394,11 +1442,16 @@ SCRIPT_DINERS = """
         const act = el('div', 'actions');
         act.append(bouton('Ce soir', 'plein', function () {
             const envoi = ajouterPlat(d.aujourd_hui, 'diner', p.id);
-            fermer();
+            try { if (history.state && history.state.fiche) history.replaceState(null, ''); } catch (e) {}
+            fermerPanneau();
             // sur Recettes, allerA quitte la page : attendre que l'envoi soit parti ou mis en file hors ligne
             const aller = function () { allerA('ce-soir'); };
             if (PAGE === 'recettes' && envoi) envoi.then(aller, aller); else aller();
         }),
+                   bouton('Autre repas…', 'petit', function () {
+                       const g = c.querySelector('div.grille-fiche');
+                       if (g) g.remove(); else act.after(grilleFiche(p));
+                   }),
                    bouton('Modifier', 'petit', function () { ouvrirEdition(p.id); }));
         const manquants = p.ingredients.filter(function (i) { return !enStock(i) && !surLaListe(i); });
         const total = manquants.reduce(function (t, i) { const pr = prixDe(i); return t + (pr ? pr[1] : 0); }, 0);
@@ -1409,9 +1462,36 @@ SCRIPT_DINERS = """
         if (p.statut === 'a-tester') act.append(bouton('On l\\'a déjà faite', 'petit', function () {
             enregistrerPlat(Object.assign({}, p, { statut: 'carnet' })); fermer(); }));
         c.append(act);
+        const barre = el('div', 'barre-fiche');
+        barre.append(bouton('Fermer', 'plein', fermer));
+        c.append(barre);
         document.getElementById('panneau').hidden = false;
         document.getElementById('panneau').scrollTop = 0;
         verrouiller();                                     // l'écran reste allumé pendant qu'on cuisine
+    }
+    // Ajouter la recette à un repas des 7 jours (pas seulement ce soir) : la grille Midi / Soir, un appui = ajoutée
+    function grilleFiche(p) {
+        const g = el('div', 'grille-fiche');
+        const t = el('div', 'tableau'), msg = el('p', 'message');
+        t.append(el('span'));
+        d.semaine.forEach(function (iso) { t.append(el('span', 'jour', 'LMMJVSD'[jourDeSemaine(iso)] + ' ' + parseInt(iso.slice(8), 10))); });
+        [['dejeuner', 'Midi'], ['diner', 'Soir']].forEach(function (m) {
+            t.append(el('span', 'moment', m[1]));
+            d.semaine.forEach(function (iso) {
+                const r = repas(iso, m[0]), deja = r.plats.indexOf(p.id) >= 0;
+                const passe = iso === d.aujourd_hui && m[0] === 'dejeuner' && new Date().getHours() >= MIDI_PASSE_A;
+                const b = bouton(deja ? '\u2713' : r.plats.length ? String(r.plats.length) : '+', 'case' + (deja ? ' pris' : ''), function () {
+                    ajouterPlat(iso, m[0], p.id);
+                    msg.textContent = 'Ajouté : ' + enClair(iso) + ' · ' + m[1];
+                    b.textContent = '\u2713'; b.disabled = true; b.classList.add('pris');
+                });
+                b.disabled = deja || passe || r.plats.length >= 8;
+                b.setAttribute('aria-label', m[1] + ' ' + enClair(iso) + (r.plats.length ? ', ' + r.plats.length + ' plat(s) déjà' : ''));
+                t.append(b);
+            });
+        });
+        g.append(el('p', 'aide', 'Touche un repas pour y ajouter la recette (un chiffre : des plats y sont déjà).'), t, msg);
+        return g;
     }
     // Les accords d'un plat : les accompagnements (carnet et à tester), 6 au plus ; un appui coche ou décoche
     function ouvrirAccords(id) {
@@ -1473,9 +1553,12 @@ SCRIPT_DINERS = """
         const note = el('input'); note.value = p.note; note.maxLength = 500;
         const pour = el('select'); [['nous', 'Nous deux'], ['julien', 'Julien seul'], ['laetitia', 'Laetitia seule']].forEach(function (x) { pour.append(new Option(x[1], x[0])); });
         pour.value = p.pour || 'nous';
+        const cuisine = el('select'); cuisine.append(new Option('Pas classée', ''));
+        CUISINES.forEach(function (x) { cuisine.append(new Option(x[1], x[0])); });
+        cuisine.value = p.cuisine || '';
         const deux = el('div', 'deux'); deux.append(champ('Genre', 'genre', genre), champ('Temps (min)', 'minutes', minutes));
         const msg = el('p', 'message');
-        f.append(champ('Nom', 'nom', nom), deux, champ('Pour qui', 'pour', pour), champ('Ingrédients, séparés par des virgules', 'ingredients', ing),
+        f.append(champ('Nom', 'nom', nom), deux, champ('Pour qui', 'pour', pour), champ('Cuisine', 'cuisine', cuisine), champ('Ingrédients, séparés par des virgules', 'ingredients', ing),
                  champ('Recette', 'recette', rec), champ('Lien', 'lien', lien), champ('Note', 'note', note), msg);
         const act = el('div', 'actions');
         const ok = el('button', 'plein', 'Enregistrer'); ok.type = 'submit';
@@ -1487,7 +1570,7 @@ SCRIPT_DINERS = """
             ev.preventDefault();
             const n = Object.assign({}, p, { nom: nom.value.trim(), genre: genre.value, minutes: parseInt(minutes.value, 10) || 0,
                 ingredients: ing.value.split(',').map(function (x) { return x.trim(); }).filter(Boolean),
-                recette: rec.value, lien: lien.value.trim(), note: note.value.trim(), pour: pour.value });
+                recette: rec.value, lien: lien.value.trim(), note: note.value.trim(), pour: pour.value, cuisine: cuisine.value });
             enregistrerPlat(n).then(function () { ouvrirFiche(n.id); },
                                     function (e) { msg.textContent = 'Refusé par le serveur (' + e.message + ') : vérifie le temps (1 à 600) et le lien.'; });
         });
@@ -1707,6 +1790,7 @@ def diners_en_html(page="diners"):
     import json
     from prix_paris import PRIX
     genres = json.dumps(GENRES, ensure_ascii=False)
+    cuisines = json.dumps(CUISINES, ensure_ascii=False)
     prix = json.dumps(PRIX, ensure_ascii=False)
     reperes = "".join(svg.replace("<svg ", f'<svg data-icone="{cle}" ', 1) for cle, svg in ICONES_REPERE.items())
     titre = "Recettes" if page == "recettes" else "Dîners"
@@ -1732,6 +1816,7 @@ def diners_en_html(page="diners"):
 {nav_hub(page)}
 <template id="reperes">{reperes}</template>
 <script type="application/json" id="genres">{genres}</script>
+<script type="application/json" id="cuisines">{cuisines}</script>
 <script type="application/json" id="prix">{prix}</script>
 <script>{SCRIPT_FILE}
 window.addEventListener('online', function () {{ majHorsLigne(); viderFile(); }});

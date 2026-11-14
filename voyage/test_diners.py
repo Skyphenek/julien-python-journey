@@ -736,3 +736,25 @@ def test_ajouts_volontaires_etiquetes_fiche():
     assert "'fiche:' + p.id" in SCRIPT_DINERS and "'fiche:' + pp.id" in SCRIPT_DINERS
     assert "'plat:' + p.id)" not in SCRIPT_DINERS.replace("cle: 'plat:' + p.id", "")
     assert "Mettre la liste à jour avec la semaine" in SCRIPT_DINERS and "r.retires" in SCRIPT_DINERS
+
+
+# --- Cuisine (14/11/2026) ---
+
+def test_valider_plat_cuisine():
+    from diners import CUISINES
+    base = {"id": "plat-test-0001", "nom": "Test", "genre": "plat", "minutes": 20}
+    assert [c for c, _ in CUISINES] == ["france", "italie", "mediterranee", "maghreb", "asie", "ameriques", "autres"]
+    assert valider_plat({**base, "cuisine": "asie"})["cuisine"] == "asie"
+    assert valider_plat({**base, "cuisine": ""})["cuisine"] == ""             # pas encore classée
+    assert valider_plat(base)["cuisine"] is None                               # page d'avant : celle en base reste
+    with pytest.raises(ValueError):
+        valider_plat({**base, "cuisine": "lune"})
+
+
+def test_fiche_autre_repas_fermer_en_bas_et_cuisines():
+    from diners import SCRIPT_DINERS
+    html = diners_en_html("recettes")
+    assert '<script type="application/json" id="cuisines">' in html and '"mediterranee"' in html
+    for texte in ("'Autre repas…'", "function grilleFiche", "div.barre-fiche", "history.pushState", "popstate",
+                  "function fermerPanneau", "cuisineChoisie", "'Cuisine'", "cuisine: cuisine.value"):
+        assert texte in SCRIPT_DINERS or texte in html, texte
