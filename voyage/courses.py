@@ -269,6 +269,48 @@ function suiviEnvois() {
 }
 """
 
+# Les règles de la page Courses, sans DOM : exécutées telles quelles par les tests (node)
+SCRIPT_REGLES_COURSES = r"""
+function normaliser(nom) {
+    return nom.trim().toLowerCase().replace(/œ/g, 'oe').replace(/æ/g, 'ae')
+        .normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
+}
+// Même clé que catalogue.cle_catalogue : « tomate cerise » = « tomates cerises »
+function cleCatalogue(nom) {
+    return normaliser(nom).split(' ').map(function (m) { return m.length > 3 && /[sx]$/.test(m) ? m.slice(0, -1) : m; }).join(' ');
+}
+// Où l'acheter, en pastille : les épiceries spécialisées se partagent entre l'italienne et l'asiatique
+function pastille(a, italien) {
+    if (a.rayon !== 'specialise') return null;
+    return italien.has(cleCatalogue(a.nom)) ? 'Italien' : 'Asie';
+}
+// À la maison : le placard en stock (bientôt fini compris) et les habituels rangés, un seul par nom,
+// sans ce qui est sur la liste à prendre
+function aLaMaison(placard, articles) {
+    const surLaListe = new Set(articles.filter(function (a) { return a.actif && !a.pris; })
+        .map(function (a) { return normaliser(a.nom); }));
+    const vus = {};
+    placard.forEach(function (p) {
+        if (p.en_stock && !surLaListe.has(p.cle))
+            vus[p.cle] = { cle: p.cle, nom: p.nom, rayon: p.rayon || 'autre', placard: p, article: null };
+    });
+    articles.forEach(function (a) {
+        const cle = normaliser(a.nom);
+        if (!a.recurrent || a.actif || surLaListe.has(cle)) return;
+        if (vus[cle]) vus[cle].article = a;
+        else vus[cle] = { cle: cle, nom: a.nom, rayon: a.rayon || 'autre', placard: null, article: a };
+    });
+    return Object.keys(vus).map(function (k) { return vus[k]; })
+        .sort(function (x, y) { return x.nom.localeCompare(y.nom, 'fr'); });
+}
+// La recherche : le début d'un des mots du nom (« parm » -> parmesan, « olive » -> huile d'olive)
+function correspond(nom, recherche) {
+    const mots = function (s) { return normaliser(s).replace(/['’-]/g, ' '); };
+    const r = mots(recherche).trim();
+    return !r || (' ' + mots(nom)).indexOf(' ' + r) >= 0;
+}
+"""
+
 SCRIPT_COURSES = """
 (function () {
     const ICONE_HABITUEL = '""" + ICONE_HABITUEL + """';
@@ -289,14 +331,6 @@ SCRIPT_COURSES = """
     let magasinActif = 'supermarche';
     try { magasinActif = localStorage.getItem(CLE_MAGASIN) || 'supermarche'; } catch (e) {}
 
-    function normaliser(nom) {
-        return nom.trim().toLowerCase().replace(/œ/g, 'oe').replace(/æ/g, 'ae')
-            .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').replace(/\\s+/g, ' ');
-    }
-    // Même clé que catalogue.cle_catalogue : « tomate cerise » = « tomates cerises »
-    function cleCatalogue(nom) {
-        return normaliser(nom).split(' ').map(function (m) { return m.length > 3 && /[sx]$/.test(m) ? m.slice(0, -1) : m; }).join(' ');
-    }
     const ITALIEN = new Set(JSON.parse(document.getElementById('italien').textContent).map(cleCatalogue));
     // Où l'acheter : les épiceries spécialisées se partagent entre l'asiatique et l'italienne
     // Prix d'un panier parisien (prix_paris.py) : unité type et prix, par la clé du catalogue
@@ -698,6 +732,7 @@ majHorsLigne();
 viderFile();
 </script>
 <script>{SCRIPT_RELECTURE}</script>
+<script>{SCRIPT_REGLES_COURSES}</script>
 <script>{SCRIPT_COURSES}</script>
 </body>
 </html>"""
