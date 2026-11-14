@@ -1526,7 +1526,13 @@ SCRIPT_DINERS = """
     }
     function platParNom(nom) {
         const cle = normaliser(nom.replace(/’/g, "'"));
-        return cle ? (d.plats || []).find(function (p) { return !p.archive && normaliser(p.nom.replace(/’/g, "'")) === cle; }) : null;
+        if (!cle) return null;
+        const actifs = (d.plats || []).filter(function (p) { return !p.archive; });
+        const nomDe = function (p) { return normaliser(p.nom.replace(/’/g, "'")); };
+        const exact = actifs.find(function (p) { return nomDe(p) === cle; });
+        if (exact) return exact;
+        const contient = actifs.filter(function (p) { return nomDe(p).indexOf(cle) >= 0; });
+        return contient.length === 1 ? contient[0] : null;          // « carbonara » : la seule recette qui le contient
     }
     // Modifier un repas passé : ce qui s'est passé, les plats mangés, ou le supprimer (une erreur de saisie)
     function panneauEdition(semaine, j, cleLigne, moment) {
