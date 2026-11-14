@@ -1,32 +1,15 @@
-# Casa — Cucina : correctif « Fini », onglet Recettes, refonte Courses
+# Casa — Cucina : onglet Recettes, refonte Courses
 
-Date : 14/11/2026, validé par Julien en session. Trois livraisons, dans cet ordre, une PR chacune, démo sur une
+Date : 14/11/2026, validé par Julien en session. Deux livraisons (§2 puis §3), une PR chacune, démo sur une
 copie de prod (Mac + iPhone) avant chaque push.
 
-## 1. Correctif : un produit [Fini] reste « Faisable tout de suite »
+## 1. Raviolis « Faisable tout de suite » après [Fini] : pas de bug, livraison abandonnée
 
-### Constat
-
-Julien tape [Fini] dans « À finir » (Aujourd'hui) sur les raviolis frais. Dîners > Ce soir propose ensuite
-« Raviolis au bœuf, beurre et parmesan » et « Tortellini au jambon cru… » en **Faisable tout de suite**.
-
-### Cause (hypothèse, à confirmer par le test et sur la copie de prod)
-
-- `db.finir` passe la ligne du placard (zone frigo) à `en_stock = false`. Il ne remet l'article sur la liste que si
-  c'est un habituel. Les raviolis n'en sont pas un.
-- `serveur.articles_et_achats_recents` ajoute au stock tout ce qui a été acheté ces `FRAIS_JOURS` (3) derniers jours,
-  sauf ce qui est revenu sur la liste à prendre. L'achat récent rend donc le produit disponible malgré [Fini].
-
-### Correction
-
-Un produit que le placard marque **épuisé** (`en_stock = false`) n'est pas ajouté par les achats récents.
-L'exclusion se fait dans `articles_et_achats_recents`, au même endroit que celle des articles revenus sur la liste.
-Le cas « acheté, puis rangé » ne change pas : un achat remet le placard en stock (`db.enregistrer_article`).
-
-Tests :
-- un test qui reproduit le cas (achat de la veille, placard épuisé : le plat n'est ni faisable ni dans les
-  alertes) ;
-- un test qui garde le cas normal (achat de la veille, placard en stock : le plat est faisable).
+Julien tape [Fini] sur les raviolis frais (Aujourd'hui > À finir), puis Dîners > Ce soir propose les plats raviolis
+et tortellini en **Faisable tout de suite**. L'achat datait de plus de 3 jours : la piste des achats récents
+(`serveur.articles_et_achats_recents`) est écartée. Cause retenue avec Julien le 14/11 : un tap dans Courses > Placard
+sur l'article épuisé l'a remis **en stock** (le cycle de `basculerPlacard`, `courses.py:410`).
+Pas de correctif à part : la refonte Courses (§3) supprime ce cycle (1 tap = « il en manque », jamais un retour en stock).
 
 ## 2. Cucina : le nouveau nom, et Recettes au même niveau
 
