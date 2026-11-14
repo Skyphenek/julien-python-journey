@@ -78,3 +78,21 @@ def test_biscuits_a_la_cuillere_pour_le_tiramisu():
     assert chercher("biscuits à la cuillère") == chercher("boudoirs") and prix_de("biscuits à la cuillère")
     tiramisu = next(p for p in CARNET_DEPART if p["id"] == "dessert-tiramisu")
     assert "biscuits à la cuillère" in tiramisu["ingredients"] and "boudoir" not in tiramisu["recette"]
+
+
+# Ingrédients des recettes en prod sans rangement ni prix (contrôle du 14/11/2026, copie de prod)
+@pytest.mark.parametrize("nom, rayon, zone", [
+    ("oignons grelots", "fruits-legumes", "placard-sec"),     # bourguignon, blanquette
+    ("courgettes rondes", "fruits-legumes", "frigo"),        # légumes farcis
+    ("veau haché", "boucherie", "frigo"),
+    ("agneau haché", "boucherie", "frigo"),                  # boulettes d'agneau
+    ("os à moelle", "boucherie", "frigo"),                   # pot-au-feu
+    ("piment de la Jamaïque", "epicerie", "epices"),         # kokkinisto
+    ("citron confit", "epicerie", "placard-sec"),            # tajine poulet citron
+    ("taboulé", "frais", "frigo"),                           # rôti de bœuf froid et taboulé
+    ("flammekueche", "frais", "frigo"),                      # plats tout prêts
+    ("pommes dauphines", "surgeles", "congelateur"),
+])
+def test_ingredients_des_recettes_en_prod(nom, rayon, zone):
+    from prix_paris import prix_de
+    assert chercher(nom) == (rayon, zone) and prix_de(nom)

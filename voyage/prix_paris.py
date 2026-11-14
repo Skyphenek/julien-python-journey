@@ -19,6 +19,7 @@ ail | 3 têtes | 2.20
 ail rose | tresse de 500 g | 6.50
 échalotes | filet de 250 g | 1.90
 échalotes grises | barquette de 250 g | 3.50
+oignons grelots | barquette de 250 g | 2.90
 courge butternut | 1 pièce (1 kg) | 2.90
 potimarron | 1 pièce (1,2 kg) | 3.90
 citrouille | tranche de 1 kg | 3.50
@@ -29,6 +30,7 @@ tomates grappe | 1 kg | 4.50
 carottes | sachet de 1 kg | 1.90
 carottes fanes | botte | 2.90
 courgettes | 1 kg | 3.20
+courgettes rondes | 4 pièces (800 g) | 3.90
 aubergines | 2 pièces (600 g) | 2.90
 poivrons | lot de 3 | 3.50
 poivrons rouges | 2 pièces | 2.80
@@ -281,6 +283,8 @@ levure boulangère fraîche | cube de 42 g | 0.60
 galettes de sarrasin | paquet de 6 | 2.90
 crêpes | paquet de 6 | 2.50
 blinis | paquet de 16 | 2.30
+taboulé | barquette de 500 g | 4.50
+flammekueche | 1 pièce (350 g) | 3.90
 bœuf | 500 g | 9.90
 bœuf haché | 500 g (15 % MG) | 7.50
 steak | 2 pièces (250 g) | 6.90
@@ -351,6 +355,9 @@ pintade | 1 pièce (1,2 kg) | 12.90
 caille | barquette de 2 | 6.90
 chair à saucisse | 500 g | 5.50
 foies de volaille | barquette de 400 g | 3.50
+veau haché | barquette de 400 g | 8.90
+agneau haché | barquette de 400 g | 9.50
+os à moelle | 2 pièces | 3.50
 saumon | 2 pavés (250 g) | 7.90
 pavés de saumon | 2 pavés (250 g) | 7.90
 filets de saumon | 2 pièces (250 g) | 7.90
@@ -496,6 +503,7 @@ olives | pot de 200 g | 2.50
 olives vertes | pot de 200 g | 2.30
 olives noires | pot de 200 g | 2.50
 câpres | pot de 90 g | 1.90
+citron confit | bocal de 4 | 3.90
 cornichons | bocal de 350 g | 2.20
 champignons en conserve | boîte de 230 g | 1.50
 lait de coco | boîte de 400 ml | 1.90
@@ -604,6 +612,7 @@ clous de girofle | flacon de 30 g | 3.20
 badiane | flacon de 15 g | 3.20
 anis vert | flacon de 30 g | 2.90
 cardamome | flacon de 25 g | 4.50
+piment de la Jamaïque | flacon de 30 g | 3.20
 fenugrec | flacon de 40 g | 2.90
 graines de moutarde | flacon de 50 g | 2.50
 graines de fenouil | flacon de 30 g | 2.50
@@ -744,6 +753,7 @@ crevettes surgelées | sachet de 400 g | 7.90
 galettes de pommes de terre | sachet de 10 | 3.20
 rösti | sachet de 8 | 3.20
 croquettes de pommes de terre | sachet de 600 g | 2.90
+pommes dauphines | sachet de 450 g | 3.20
 pommes noisettes | sachet de 750 g | 3.20
 glaçons | sachet de 2 kg | 2.20
 petits pois surgelés | sachet de 1 kg | 3.20
