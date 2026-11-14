@@ -349,7 +349,7 @@ def proposer_cases(plats, repas, cases, aujourd_hui, remplacer=(), hasard=None, 
 
     def libre(case):
         jour, moment = case
-        if jour < aujourd_hui:
+        if jour < aujourd_hui or jour > fin:                                # hors de la fenêtre de 7 jours
             return False
         occupes = [r for r in repas_de(jour, moment) if r["plats"] or r["issue"]]
         if not occupes:
@@ -528,8 +528,8 @@ ul.plats-soir li { display: flex; justify-content: space-between; align-items: c
 ul.plats-soir button { padding: 6px 12px !important; font-size: 13px !important; }
 div.proposer { display: flex; gap: 8px; flex-wrap: wrap; }
 div.proposer button.plein { flex: 1 1 220px; }
-div.grille-proposer { background: var(--carte); border: 1px solid var(--ligne); border-radius: 12px; padding: 10px; margin: 8px 0; }
-div.grille-proposer .rang { display: grid; grid-template-columns: 2.6rem repeat(7, minmax(0, 1fr)); gap: 3px; margin-bottom: 3px; align-items: center; }
+div.grille-proposer { background: var(--carte); border: 1px solid var(--ligne); border-radius: 12px; padding: 6px; margin: 8px 0; }
+div.grille-proposer .rang { display: grid; grid-template-columns: 2.2rem repeat(7, minmax(0, 1fr)); gap: 3px; margin-bottom: 3px; align-items: center; }
 div.grille-proposer .rang > span { text-align: center; font-size: .75rem; color: var(--doux); line-height: 1.15; }
 div.grille-proposer .rang > span.etiq { text-align: left; font-weight: 600; color: var(--texte); }
 div.grille-proposer button.case { min-height: 44px; min-width: 0; padding: 0; border-radius: 8px; border: 1px solid var(--ligne);
@@ -613,7 +613,8 @@ SCRIPT_DINERS = """
     const PAGE = document.body.dataset.page || 'diners';
     let vue = PAGE === 'recettes' ? 'recettes' : 'ce-soir', filtre = 'tout', recherche = '';
     const etiquette = { recettes: 'tout', choix: 'nous' };   // un filtre par liste ; un soir : à deux
-    let derniereProposition = {};                         // {jour: 'plat accompagnement'} : ce que « Reproposer » peut changer
+    let derniereProposition = {};                         // {'<iso>|<moment>': 'plat accompagnement'} : ce que « Reproposer » peut changer
+    let proposeEnCours = false;                           // une demande à Proposer est partie : on n'en lance pas une seconde
     let messageSemaine = '';
     // La grille « Proposer ma semaine » : ouverte ou non, repas cochés (« <0-6>|<moment> », 0 = lundi) ; hors du rendu pour survivre à afficher()
     const CLE_GRILLE = 'diners:grille';
@@ -845,12 +846,16 @@ SCRIPT_DINERS = """
     // « Proposer ma semaine » : le serveur propose un menu pour chaque case cochée (diners.proposer_cases) ;
     // « Reproposer » ne change que les repas qu'il a proposés et qu'on n'a pas modifiés depuis (cases vide)
     function proposerSemaine(msg, cases, remplacer) {
-        msg.textContent = 'Je cherche…';
+        if (proposeEnCours) return;
+        proposeEnCours = true;
+        messageSemaine = 'Je cherche…'; msg.textContent = messageSemaine;
+        afficher();                                       // grise Proposer et Reproposer pendant la demande
         chaine.then(function () {
             return fetch('api/diners/proposer', { method: 'POST', headers: { 'Content-Type': 'application/json' },
                                                   body: JSON.stringify({ cases: cases, remplacer: remplacer || [] }) });
-        }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+        }).then(function (r) { if (!r.ok) { const e = new Error(r.status); e.code = r.status; throw e; } return r.json(); })
           .then(function (r) {
+              proposeEnCours = false;
               const cles = Object.keys(r.menus || {}), poses = {};
               cles.forEach(function (cle) {
                   const jour = cle.split('|')[0], moment = cle.split('|')[1], plats = r.menus[cle];
@@ -858,13 +863,18 @@ SCRIPT_DINERS = """
                                    .concat([{ jour: jour, moment: moment, plats: plats, issue: null }]);
                   poses[cle] = plats.join(' ');
               });
-              derniereProposition = remplacer && remplacer.length ? Object.assign({}, derniereProposition, poses) : poses;
+              derniereProposition = Object.assign({}, derniereProposition, poses);
               grilleOuverte = false;
               garder();
               messageSemaine = cles.length ? cles.length + ' repas proposé(s), avec un accompagnement quand le plat en a. Change-les ou ajoute un dessert, puis envoie aux courses.'
                                            : 'Rien à proposer : aucun plat ne convient pour ces repas.';
               afficher(); relire();
-          }, function () { msg.textContent = 'Pas de réseau : réessaie une fois connecté.'; });
+          }, function (e) {
+              proposeEnCours = false;
+              // un code : le serveur a répondu mais refusé ; sinon la requête n'a pas abouti
+              messageSemaine = e && e.code ? 'Le serveur a refusé (code ' + e.code + ').' : 'Pas de réseau : réessaie une fois connecté.';
+              afficher();
+          });
     }
     function lireGrille() {
         if (grille) return grille;
@@ -926,7 +936,7 @@ SCRIPT_DINERS = """
         g.append(el('p', 'decompte', cases.length + ' repas à proposer'));
         const act = el('div', 'actions');
         const ok = bouton('Proposer', 'plein', function () { proposerSemaine(msg, casesCochees(), []); });
-        ok.disabled = !cases.length;
+        ok.disabled = !cases.length || proposeEnCours;
         act.append(ok, bouton('Annuler', 'petit', function () { grilleOuverte = false; afficher(); }));
         g.append(act);
         return g;
@@ -1006,9 +1016,13 @@ SCRIPT_DINERS = """
         const prop = el('div', 'proposer');
         prop.append(bouton('Proposer ma semaine', 'plein', function () { grilleOuverte = !grilleOuverte; afficher(); }));
         const aRefaire = Object.keys(derniereProposition).filter(function (cle) {
-            return repas(cle.split('|')[0], cle.split('|')[1]).plats.join(' ') === derniereProposition[cle]; })
+            return cle.split('|')[0] >= d.aujourd_hui && repas(cle.split('|')[0], cle.split('|')[1]).plats.join(' ') === derniereProposition[cle]; })
             .map(function (cle) { return { jour: cle.split('|')[0], moment: cle.split('|')[1] }; });
-        if (aRefaire.length) prop.append(bouton('Reproposer', 'petit', function () { proposerSemaine(msgP, [], aRefaire); }));
+        if (aRefaire.length) {
+            const re = bouton('Reproposer', 'petit', function () { proposerSemaine(msgP, [], aRefaire); });
+            if (proposeEnCours) re.disabled = true;
+            prop.append(re);
+        }
         zone.append(prop);
         if (grilleOuverte) zone.append(grilleProposer(msgP));
         zone.append(msgP, e);

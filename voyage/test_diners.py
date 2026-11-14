@@ -593,3 +593,26 @@ def test_page_diners_grille_proposer():
     assert "repas à proposer" in SCRIPT_DINERS
     from valise import VERSION_PAGE
     assert VERSION_PAGE >= 57
+
+
+def test_proposer_cases_hors_fenetre_jamais_propose():
+    # une case à aujourd'hui + 10 est hors de la fenêtre de 7 jours : jamais proposée
+    assert proposer_cases(carte(), [], [(LUN + timedelta(days=10), "diner")], LUN, hasard=Random(4)) == {}
+
+
+def test_script_proposer_semaine_garde_anti_double_envoi_et_erreurs():
+    from diners import SCRIPT_DINERS
+    s = SCRIPT_DINERS
+    assert "let proposeEnCours = false;" in s
+    assert "if (proposeEnCours) return;" in s and "proposeEnCours = true;" in s
+    assert s.count("proposeEnCours = false;") >= 3                      # déclaration + les deux branches du .then final
+    assert "ok.disabled = !cases.length || proposeEnCours;" in s
+    assert "if (proposeEnCours) re.disabled = true;" in s
+    # « Proposer » mémorise toujours en fusionnant, et Reproposer ignore les jours passés
+    assert "derniereProposition = Object.assign({}, derniereProposition, poses);" in s
+    assert "cle.split('|')[0] >= d.aujourd_hui" in s
+    # erreur serveur distincte de la panne réseau
+    assert "Le serveur a refusé (code ' + e.code + ').'" in s
+    # largeur des cases à 390 px
+    from diners import STYLE_DINERS
+    assert "padding: 6px; margin: 8px 0;" in STYLE_DINERS and "grid-template-columns: 2.2rem repeat(7" in STYLE_DINERS
