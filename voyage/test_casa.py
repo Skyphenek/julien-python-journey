@@ -270,3 +270,17 @@ def test_bloc_sortir():
     assert 'href="sortir#tirage"' in bloc_sortir({**vide, "weekend": True}, j)
     assert 'class="bloc-sortir"' not in aujourdhui_en_html([], j)
     assert 'class="bloc-sortir"' in aujourdhui_en_html([], j, sortir=r)
+
+
+def test_bloc_hier_fait_maison_demande_le_plat():
+    from datetime import date
+    from casa import bloc_hier, SCRIPT_HIER
+    hier = {"jour": date(2026, 11, 13), "moment": "diner", "plats": ["plat-a"], "issue": None}
+    html = bloc_hier(hier, [{"id": "plat-a", "nom": "Carbonara"}, {"id": "plat-b", "nom": "Burger"}])
+    assert 'data-prevus="[&quot;Carbonara&quot;]"' in html or "data-prevus='[\"Carbonara\"]'" in html
+    assert '<datalist id="plats-hier">' in html and '<option value="Burger">' in html
+    assert 'id="plats-hier-json"' in html
+    for texte in ("C'était bien", "Autre chose", "Qu'avez-vous mangé ?", "Je ne sais plus",
+                  "Choisis une recette de la liste."):
+        assert texte in SCRIPT_HIER
+    assert bloc_hier({**hier, "issue": "fait"}, []) == ""

@@ -97,6 +97,9 @@ def creer_app(nom_base="valise", secret=None):
                 ce_soir = ranger([plats[i] for i in diners.get(jour, {"plats": []})["plats"] if i in plats], "diner")
                 veille = jour - timedelta(days=1)
                 hier = diners.get(veille, {"jour": veille, "moment": "diner", "plats": [], "issue": None})
+                hier = {**hier, "plats": [p["id"] for p in ranger([plats[i] for i in hier["plats"] if i in plats], "diner")]}
+                plats_hier = sorted(({"id": p["id"], "nom": p["nom"]} for p in plats.values() if not p.get("archive")),
+                                    key=lambda p: p["nom"].casefold())
                 du_jour = [plats[i] for r in repas if r["jour"] == jour and not r["issue"] for i in r["plats"] if i in plats]
                 lu = lire_courses(conn)
                 # Une seule lecture du journal : la semaine en cours (budget) et les derniers jours (à la maison)
@@ -121,7 +124,7 @@ def creer_app(nom_base="valise", secret=None):
                 html = aujourdhui_en_html(lister_voyages(conn), jour,
                                           a_acheter_aujourd_hui(du_jour, lu["placard"], articles),
                                           ce_soir, hier, compteur(repas, jour), cette_semaine, a_finir, vins, belle,
-                                          sortir=sortir)
+                                          sortir=sortir, plats_hier=plats_hier)
             finally:
                 conn.close()
             return Response(html, mimetype="text/html")
