@@ -92,6 +92,7 @@ def test_biscuits_a_la_cuillere_pour_le_tiramisu():
     ("taboulé", "frais", "frigo"),                           # rôti de bœuf froid et taboulé
     ("flammekueche", "frais", "frigo"),                      # plats tout prêts
     ("pommes dauphines", "surgeles", "congelateur"),
+    ("épaule de veau", "boucherie", "frigo"),                # blanquette : épaule + tendron
 ])
 def test_ingredients_des_recettes_en_prod(nom, rayon, zone):
     from prix_paris import prix_de

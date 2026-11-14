@@ -67,10 +67,10 @@ def test_planifier_et_courses_de_la_semaine(client):
     assert client.post("/api/repas", json=corps).status_code == 200
     assert client.post("/api/repas", json={**corps, "plats": ["plat-inconnu-01"]}).status_code == 400
     assert client.post("/api/repas", json={**corps, "moment": "gouter"}).status_code == 400
-    r = client.post("/api/diners/courses").get_json()
-    assert r["ajoutes"] == ["vin blanc"]                              # le reste est au placard
-    assert client.post("/api/diners/courses").get_json()["ajoutes"] == []     # deux fois : pas de doublon
-    assert [a["nom"] for a in client.get("/api/courses").get_json()["articles"]] == ["vin blanc"]
+    # le repas posé a déjà mis ce qui manque sur la liste (le reste est au placard) : le bouton n'a plus rien à ajouter
+    assert [(a["nom"], a["source"]) for a in client.get("/api/courses").get_json()["articles"]] == [
+        ("vin blanc", "repas:plat-amatriciana")]
+    assert client.post("/api/diners/courses").get_json()["ajoutes"] == []     # pas de doublon
 
 
 def test_api_repas_compose_et_brunch(client):
@@ -254,3 +254,53 @@ def test_api_passe_avant_un_mardi_refuse(client):
     mardi = J + timedelta(days=(1 - J.weekday()) % 7)
     assert mardi.weekday() == 1
     assert client.get(f"/api/diners/passe?avant={mardi.isoformat()}").status_code == 400
+
+
+# --- Courses des repas prévus, automatiques (14/11/2026) ---
+
+def _sans_placard(conn):
+    with conn.cursor() as cur:                       # rien à la maison : tous les ingrédients manquent
+        cur.execute("TRUNCATE placard, a_finir")
+    conn.commit()
+
+
+def _a_prendre(client):
+    return {a["nom"]: a["source"] for a in client.get("/api/courses").get_json()["articles"] if a["actif"] and not a["pris"]}
+
+
+def test_poser_un_repas_met_ses_ingredients_aux_courses_et_le_retirer_les_enleve(client, conn):
+    _sans_placard(conn)
+    demain = (J + timedelta(days=1)).isoformat()
+    client.post("/api/repas", json={"jour": demain, "moment": "dejeuner", "plats": ["plat-carbonara"], "issue": None})
+    poses = _a_prendre(client)
+    assert poses and all(src == "repas:plat-carbonara" for src in poses.values())
+    client.post("/api/courses", json={"id": "garder-0001", "nom": "pain", "source": "plat:plat-carbonara"})   # Aux courses : intouchable
+    client.post("/api/repas", json={"jour": demain, "moment": "dejeuner", "plats": [], "issue": None})
+    assert _a_prendre(client) == {"pain": "plat:plat-carbonara"}
+
+
+def test_un_repas_hors_des_7_jours_ne_touche_pas_les_courses(client):
+    loin = (J + timedelta(days=10)).isoformat()
+    client.post("/api/repas", json={"jour": loin, "moment": "diner", "plats": ["plat-carbonara"], "issue": None})
+    assert _a_prendre(client) == {}
+
+
+def test_un_article_coche_reste_quand_on_retire_le_repas(client, conn):
+    _sans_placard(conn)
+    demain = (J + timedelta(days=1)).isoformat()
+    client.post("/api/repas", json={"jour": demain, "moment": "diner", "plats": ["plat-carbonara"], "issue": None})
+    a = next(a for a in client.get("/api/courses").get_json()["articles"] if a["source"] == "repas:plat-carbonara")
+    client.post("/api/courses", json={**a, "pris": True})
+    client.post("/api/repas", json={"jour": demain, "moment": "diner", "plats": [], "issue": None})
+    assert any(x["id"] == a["id"] for x in client.get("/api/courses").get_json()["articles"])
+
+
+def test_la_viande_perimee_repart_aux_courses(client, conn):
+    _sans_placard(conn)
+    client.post("/api/placard", json={"nom": "guanciale ou pancetta", "en_stock": True, "zone": "frigo"})
+    with conn.cursor() as cur:                       # entré au frigo il y a un mois : passé (il se garde 21 jours)
+        cur.execute("UPDATE placard SET maj_le = now() - interval '30 days'")
+    conn.commit()
+    demain = (J + timedelta(days=1)).isoformat()
+    client.post("/api/repas", json={"jour": demain, "moment": "diner", "plats": ["plat-carbonara"], "issue": None})
+    assert "guanciale ou pancetta" in _a_prendre(client)

@@ -713,3 +713,19 @@ def test_journal_un_midi_sur_chaque_jour():
     from diners import SCRIPT_DINERS
     assert "lignePassee(s, j, 'midi', 'Midi'), lignePassee(s, j, 'soir', 'Soir')" in SCRIPT_DINERS   # midi avant soir
     assert "if (!j.midi) j.midi = { plats: [], issue: null, non_note: false, moment: 'dejeuner' };" in SCRIPT_DINERS
+
+
+# --- Frais périmé et courses des repas prévus (14/11/2026) ---
+
+def test_un_frais_perime_n_est_plus_disponible():
+    from diners import disponibles, a_acheter, secours, a_acheter_aujourd_hui
+    placard = [{"cle": "veau", "nom": "veau", "en_stock": True, "zone": "frigo"},
+               {"cle": "riz", "nom": "riz", "en_stock": True, "zone": "placard-sec"}]
+    assert disponibles(placard) == {"veau", "riz"}
+    assert disponibles(placard, perimes={"veau"}) == {"riz"}
+    blanquette = {**plat("plat-blanquette", "Blanquette", ingredients=["veau", "riz"]), "recette": "1.", "pour": "nous"}
+    assert a_acheter([blanquette], placard, []) == []
+    assert a_acheter([blanquette], placard, [], perimes={"veau"}) == [("veau", "plat-blanquette")]
+    assert a_acheter_aujourd_hui([blanquette], placard, [], perimes={"veau"}) == ["veau"]
+    faisables, presque = secours([blanquette], placard, [], perimes={"veau"})
+    assert faisables == [] and presque[0]["manquants"] == ["veau"]

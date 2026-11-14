@@ -59,7 +59,7 @@ _GROUPES = [
     ("boucherie", "frigo", """bœuf, bœuf haché, steak, steaks hachés, pièce du boucher, entrecôte, faux-filet,
         bavette, onglet, rumsteck, côte de bœuf, rôti de bœuf, paleron, joue de bœuf, paleron ou joue de bœuf,
         bœuf à bourguignon, plat de côtes, queue de bœuf, carpaccio, tartare, veau, escalopes de veau,
-        blanquette de veau, osso buco de veau, tendron de veau, rôti de veau, côtes de veau, porc, porc haché,
+        blanquette de veau, osso buco de veau, tendron de veau, épaule de veau, rôti de veau, côtes de veau, porc, porc haché,
         échine de porc, filet mignon, côtes de porc, rôti de porc, travers de porc, poitrine de porc,
         palette de porc, jarret, saucisses, chipolatas, merguez, saucisses de Toulouse, salsiccia, boudin noir,
         boudin blanc, andouillette, agneau, gigot d'agneau, épaule d'agneau, côtelettes d'agneau,
