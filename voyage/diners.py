@@ -901,8 +901,10 @@ SCRIPT_DINERS = """
     function ecrireGrille() { try { localStorage.setItem(CLE_GRILLE, JSON.stringify(grille)); } catch (e) {} }
     function jourDeSemaine(iso) { return (new Date(iso + 'T12:00:00').getDay() + 6) % 7; }   // 0 = lundi
     // Un repas est pris s'il a des plats ou une issue (le midi : aussi un brunch) ; un jour passé ne se remplit plus
+    const MIDI_PASSE_A = 15;                              // après 15 h, le déjeuner du jour est passé : pas à proposer
     function caseOccupee(iso, moment) {
         if (iso < d.aujourd_hui) return true;
+        if (iso === d.aujourd_hui && moment === 'dejeuner' && new Date().getHours() >= MIDI_PASSE_A) return true;
         const moments = moment === 'dejeuner' ? ['dejeuner', 'brunch'] : [moment];
         return moments.some(function (m) { return repas(iso, m).plats.length || repas(iso, m).issue; });
     }

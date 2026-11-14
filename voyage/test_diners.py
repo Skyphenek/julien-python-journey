@@ -624,3 +624,9 @@ def test_page_diners_vider_la_semaine():
     assert "'Oui, vider '" in SCRIPT_DINERS                         # confirmation dans la page, pas de confirm()
     assert "confirm(" not in SCRIPT_DINERS
     assert "!r.issue && r.plats.length" in SCRIPT_DINERS             # fait, commandé, dehors : gardés
+
+
+def test_grille_midi_du_jour_passe_apres_15_h():
+    from diners import SCRIPT_DINERS
+    assert "MIDI_PASSE_A = 15" in SCRIPT_DINERS
+    assert "new Date().getHours() >= MIDI_PASSE_A" in SCRIPT_DINERS
