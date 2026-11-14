@@ -630,3 +630,34 @@ def test_grille_midi_du_jour_passe_apres_15_h():
     from diners import SCRIPT_DINERS
     assert "MIDI_PASSE_A = 15" in SCRIPT_DINERS
     assert "new Date().getHours() >= MIDI_PASSE_A" in SCRIPT_DINERS
+
+
+# --- Journal des semaines passées ---
+
+from diners import journal, SEMAINES_JOURNAL
+
+
+def test_journal_semaines_et_bilan():
+    plats = [plat("plat-a", "Carbonara"), plat("plat-b", "Burger"), plat("acc-c", "Purée", genre="accompagnement")]
+    jeu = LUN + timedelta(days=3)
+    repas = [diner(LUN, "plat-a", "acc-c", issue="fait"), diner(LUN + timedelta(days=1), issue="commande"),
+             diner(LUN + timedelta(days=2), "plat-b"), diner(jeu, "plat-b", moment="dejeuner", issue="fait"),
+             diner(LUN - timedelta(days=7), "plat-a", issue="dehors")]
+    j = journal(repas, plats, LUN + timedelta(days=5))                     # samedi : la semaine s'arrête à vendredi
+    s = j["semaines"]
+    assert [x["lundi"] for x in s] == [LUN, LUN - timedelta(days=7)] and j["suite"] is None
+    assert [d["jour"] for d in s[0]["jours"]] == [LUN + timedelta(days=i) for i in range(5)]
+    assert s[0]["bilan"] == {"fait": 2, "commande": 1, "dehors": 0, "autre": 0, "non_note": 1}
+    lundi = s[0]["jours"][0]["soir"]
+    assert [p["nom"] for p in lundi["plats"]] == ["Carbonara", "Purée"] and lundi["issue"] == "fait"
+    assert s[0]["jours"][2]["soir"]["non_note"] and s[0]["jours"][3]["midi"]["issue"] == "fait"
+    assert s[0]["jours"][4]["soir"] == {"plats": [], "issue": None, "non_note": False}
+
+
+def test_journal_pagination():
+    repas = [diner(LUN - timedelta(days=7 * k), issue="fait") for k in range(10)]
+    j = journal(repas, [], LUN + timedelta(days=1), n=4)
+    assert len(j["semaines"]) == 4 and j["suite"] == LUN - timedelta(days=21)
+    k = journal(repas, [], LUN + timedelta(days=1), avant=j["suite"], n=8)
+    assert [x["lundi"] for x in k["semaines"]][0] == LUN - timedelta(days=28) and k["suite"] is None
+    assert SEMAINES_JOURNAL == 8

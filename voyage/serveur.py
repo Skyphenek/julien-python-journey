@@ -47,7 +47,7 @@ from sortir import sortir_en_html
 from courses import valider_article, valider_placard, courses_en_html, normaliser, deviner_rayon
 from prix_paris import cout_repas
 from fiche_recette import decouper
-from diners import (avec_achats_recents, FRAIS_JOURS, disponibles, a_acheter_aujourd_hui, valider_plat, valider_repas, secours, a_acheter, compteur, semaine, diners_en_html,
+from diners import (avec_achats_recents, FRAIS_JOURS, disponibles, a_acheter_aujourd_hui, valider_plat, valider_repas, secours, a_acheter, compteur, journal, semaine, diners_en_html,
                     proposer, proposer_cases, accompagner, cout_semaine, repas_prevus, ranger, nettoyer_accords, LIVRAISON_DEUX, FENETRE_PASSE, FENETRE_FUTUR)
 from a_finir import suivis, alertes, plats_qui_utilisent, ENCORE_BON_JOURS
 from uuid import uuid4
@@ -149,6 +149,31 @@ def creer_app(nom_base="valise", secret=None):
     @routes.get("/recettes")
     def page_recettes():
         return Response(diners_en_html("recettes"), mimetype="text/html")
+
+    @routes.get("/api/diners/passe")
+    def lire_le_passe():
+        """Le journal des semaines passées (diners.journal), `?avant=` : un lundi ISO pour la page suivante."""
+        jour = aujourd_hui_paris()
+        avant = request.args.get("avant")
+        if avant is not None:
+            try:
+                avant = date.fromisoformat(avant)
+            except ValueError:
+                return jsonify({"erreur": "avant doit être une date ISO"}), 400
+            if avant.weekday() != 0:
+                return jsonify({"erreur": "avant doit être un lundi"}), 400
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            plats = lire_plats(conn)
+            repas = lire_repas(conn, date(2000, 1, 1), jour - timedelta(days=1))
+        finally:
+            conn.close()
+        j = journal(repas, plats, jour, avant=avant)
+        return jsonify({
+            "suite": j["suite"].isoformat() if j["suite"] else None,
+            "semaines": [{**s, "lundi": s["lundi"].isoformat(),
+                          "jours": [{**d, "jour": d["jour"].isoformat()} for d in s["jours"]]}
+                         for s in j["semaines"]]})
 
     @routes.get("/api/diners")
     def lire_les_diners():

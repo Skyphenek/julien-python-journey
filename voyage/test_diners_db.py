@@ -238,3 +238,13 @@ def test_api_proposer_cases_invalides(client):
     assert client.post("/api/diners/proposer", json={"cases": [{"jour": "x", "moment": "diner"}]}).status_code == 400
     assert client.post("/api/diners/proposer",
                        json={"cases": [{"jour": J.isoformat(), "moment": "brunch"}]}).status_code == 400
+
+
+def test_api_passe(client):
+    hier = (J - timedelta(days=1)).isoformat()
+    client.post("/api/repas", json={"jour": hier, "moment": "diner", "plats": ["plat-carbonara"], "issue": "fait"})
+    r = client.get("/api/diners/passe")
+    assert r.status_code == 200
+    jours = [d for s in r.get_json()["semaines"] for d in s["jours"]]
+    assert any(d["jour"] == hier and d["soir"]["issue"] == "fait" for d in jours)
+    assert client.get("/api/diners/passe?avant=pas-une-date").status_code == 400

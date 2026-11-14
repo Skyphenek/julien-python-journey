@@ -431,6 +431,67 @@ def compteur(repas, aujourd_hui):
             "renseignes": len(recents)}
 
 
+SEMAINES_JOURNAL = 8        # semaines passées rendues par page du journal
+
+
+def journal(repas, plats, aujourd_hui, avant=None, n=SEMAINES_JOURNAL):
+    """Les `n` semaines calendaires qui précèdent `avant` (un lundi, exclu ; par défaut le lundi qui suit la
+    semaine en cours), de la plus récente à la plus ancienne, sans dépasser la semaine du plus ancien repas.
+    Chaque semaine : bilan des issues (soirs et midis), coût des repas faits maison, et ses jours passés
+    (strictement avant aujourd'hui) avec le soir et le midi (déjeuner, sinon brunch). `suite` : le lundi à
+    passer en `avant` pour la page suivante, None s'il n'y a pas de repas plus ancien."""
+    from prix_paris import cout_repas
+    par_id = {p["id"]: p for p in plats}
+    par_case = {(r["jour"], r["moment"]): r for r in repas}
+    if avant is None:
+        avant = aujourd_hui - timedelta(days=aujourd_hui.weekday()) + timedelta(days=7)
+    if not repas:
+        return {"semaines": [], "suite": None}
+    plus_ancien = min(r["jour"] for r in repas)
+    premier = plus_ancien - timedelta(days=plus_ancien.weekday())
+
+    def ligne(jour, moment):
+        r = par_case.get((jour, moment))
+        if r is None:
+            return None
+        trouves = [par_id[i] for i in r["plats"] if i in par_id]
+        return {"plats": [{"id": p["id"], "nom": p["nom"]} for p in ranger(trouves, moment)],
+                "issue": r["issue"], "non_note": bool(trouves) and r["issue"] is None}, trouves
+
+    semaines, lundi_ = [], avant - timedelta(days=7)
+    while len(semaines) < n and lundi_ >= premier:
+        bilan = {"fait": 0, "commande": 0, "dehors": 0, "autre": 0, "non_note": 0}
+        cout, jours = 0.0, []
+        for i in range(7):
+            jour = lundi_ + timedelta(days=i)
+            if jour >= aujourd_hui:
+                break
+            lignes = {}
+            for cle, moments in (("soir", ("diner",)), ("midi", ("dejeuner", "brunch"))):
+                lignes[cle] = None
+                for m in moments:
+                    trouve = ligne(jour, m)
+                    if trouve:
+                        lignes[cle] = trouve
+                        break
+            for cle in ("soir", "midi"):
+                if lignes[cle] is None:
+                    continue
+                l, trouves = lignes[cle]
+                if l["issue"]:
+                    bilan[l["issue"]] += 1
+                elif l["non_note"]:
+                    bilan["non_note"] += 1
+                if l["issue"] == "fait":
+                    cout += sum(cout_repas(p["ingredients"], p.get("recette", "")) for p in trouves)
+            soir = lignes["soir"][0] if lignes["soir"] else {"plats": [], "issue": None, "non_note": False}
+            jours.append({"jour": jour, "soir": soir, "midi": lignes["midi"][0] if lignes["midi"] else None})
+        semaines.append({"lundi": lundi_, "bilan": bilan, "cout_maison": round(cout, 2), "jours": jours})
+        lundi_ -= timedelta(days=7)
+    suite = semaines[-1]["lundi"] if semaines and semaines[-1]["lundi"] > premier else None
+    return {"semaines": semaines, "suite": suite}
+
+
 # --- Page ---------------------------------------------------------------------------------------
 
 STYLE_DINERS = """
