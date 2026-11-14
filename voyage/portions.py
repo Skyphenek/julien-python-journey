@@ -71,3 +71,28 @@ def segmenter(texte, premier=False):
     if i < len(texte):
         segments.append({"t": texte[i:]})
     return segments
+
+
+SCRIPT_PORTIONS = r"""
+    // --- Portions (portions.py) : multiplier les quantités repérées en Python, arrondir pour la cuisine ---
+    function arrondiPortion(q, u) {
+        if (u === 'g' || u === 'ml') { const pas = q < 100 ? 5 : 10; return Math.max(Math.round(q / pas) * pas, pas); }
+        if (u === 'kg' || u === 'l') return Math.max(Math.round(q * 10) / 10, 0.1);
+        if (u === 'cl') return Math.max(Math.round(q), 1);
+        return Math.max(Math.round(q * 2) / 2, 0.5);                 // à la pièce, à la cuillère : à la demie
+    }
+    function ecrirePortion(n, u) {
+        if (u !== '') return String(n).replace('.', ',');
+        const entier = Math.floor(n), demi = n - entier >= 0.5;
+        if (!entier) return '1/2';
+        return demi ? entier + ' 1/2' : String(entier);
+    }
+    function texteAjuste(segments, facteur) {
+        return segments.map(function (s) {
+            if (s.q === undefined || facteur === 1) return s.t;
+            let t = ecrirePortion(arrondiPortion(s.q * facteur, s.u), s.u);
+            if (s.q2 !== undefined) t += s.sep + ecrirePortion(arrondiPortion(s.q2 * facteur, s.u), s.u);
+            return t;
+        }).join('');
+    }
+"""

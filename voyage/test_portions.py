@@ -90,3 +90,34 @@ def test_seconds_nombres_d_une_ligne_d_ingredient():
 def test_fraction_impossible_reste_du_texte():
     s = segmenter("1/0 citron", premier=True)
     assert quantites(s) == [] and bout_a_bout(s) == "1/0 citron"
+
+
+VERIFS_JS = r"""
+const echecs = [];
+function ok(obtenu, attendu) { if (obtenu !== attendu) echecs.push(JSON.stringify(obtenu) + ' au lieu de ' + JSON.stringify(attendu)); }
+const penne = [{t: '320', q: 320, u: 'g'}, {t: ' g de penne'}];
+ok(texteAjuste(penne, 1), '320 g de penne');
+ok(texteAjuste(penne, 3), '960 g de penne');
+ok(texteAjuste([{t: '43', q: 43, u: 'g'}, {t: ' g'}], 3), '130 g');
+ok(texteAjuste([{t: '32', q: 32, u: 'g'}, {t: ' g'}], 3), '95 g');
+ok(texteAjuste([{t: '1', q: 1, u: 'g'}, {t: ' g'}], 0.5), '5 g');
+ok(texteAjuste([{t: '1,2', q: 1.2, u: 'kg'}, {t: ' kg'}], 3), '3,6 kg');
+ok(texteAjuste([{t: '80', q: 80, u: 'cl'}, {t: ' cl'}], 1.5), '120 cl');
+ok(texteAjuste([{t: '1/2', q: 0.5, u: ''}, {t: ' citron'}], 3), '1 1/2 citron');
+ok(texteAjuste([{t: '1/4', q: 0.25, u: ''}, {t: ' de chou'}], 0.5), '1/2 de chou');
+ok(texteAjuste([{t: '12', q: 12, u: ''}, {t: ' oignons'}], 3), '36 oignons');
+ok(texteAjuste([{t: '2–3', q: 2, u: '', q2: 3, sep: '–'}, {t: ' c. à s.'}], 2), '4–6 c. à s.');
+ok(texteAjuste([{t: 'Sel'}], 3), 'Sel');
+if (echecs.length) { console.error(echecs.join('\n')); process.exit(1); }
+"""
+
+
+def test_script_portions_sous_node(tmp_path):
+    from portions import SCRIPT_PORTIONS
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node absent")
+    fichier = tmp_path / "portions.js"
+    fichier.write_text(SCRIPT_PORTIONS + VERIFS_JS, encoding="utf-8")
+    r = subprocess.run([node, str(fichier)], capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
