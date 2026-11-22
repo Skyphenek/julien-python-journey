@@ -1345,6 +1345,7 @@ Le jeton ROUTINE_TOKEN ne part que vers ROUTINE_API. N'affiche jamais sa valeur.
    - Ouvre la page source avant d'écrire un prix ou un horaire. Vérifie le jour d'ouverture. Page illisible : laisse
      prix, horaires et source vides et remplis a_confirmer.
    - trajet : depuis l'ancre, avec « estimé ».
+   - adresse : toujours remplie, car Maps s'ouvre dessus. Recoupe-la sur deux pages ; sinon « nom du lieu, ville ».
    - J-7, J-2 et soir : météo Open-Meteo avec latitude et longitude ; évite le plein air sous la pluie.
 4. Dépose chaque fiche : POST "$ROUTINE_API/routine/propositions", même en-tête, JSON :
    voyage, palier, creneau (id), titre (200), pourquoi (500), genre (voir|faire),
