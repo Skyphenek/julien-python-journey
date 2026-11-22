@@ -295,7 +295,7 @@ def lire_passeports(conn):
 
 def remplacer_voyage(conn, ancien, nouveau):
     """Voyage modifié dont le code a changé (date ou étapes) : les cases cochées, le bilan et les
-    infos des étapes, les dépenses, les réservations, les envies « à voir » et les souvenirs suivent le nouveau code, puis l'ancien est archivé (rien n'est supprimé)."""
+    infos des étapes, les dépenses, les réservations, les envies « à voir », les propositions et les souvenirs suivent le nouveau code, puis l'ancien est archivé (rien n'est supprimé)."""
     with conn.cursor() as cur:
         cur.execute("""INSERT INTO etat_case (voyage, proprietaire, theme, objet, coche, maj_le)
                        SELECT %s, proprietaire, theme, objet, coche, maj_le FROM etat_case WHERE voyage = %s
@@ -313,6 +313,11 @@ def remplacer_voyage(conn, ancien, nouveau):
         cur.execute("UPDATE depenses SET voyage = %s WHERE voyage = %s", (nouveau, ancien))
         cur.execute("UPDATE reservations SET voyage = %s WHERE voyage = %s", (nouveau, ancien))
         cur.execute("UPDATE a_voir SET voyage = %s WHERE voyage = %s", (nouveau, ancien))
+        cur.execute("UPDATE propositions SET voyage = %s WHERE voyage = %s", (nouveau, ancien))
+        cur.execute("""INSERT INTO propositions_passages (voyage, palier, fait_le)
+                       SELECT %s, palier, fait_le FROM propositions_passages WHERE voyage = %s
+                       ON CONFLICT DO NOTHING""", (nouveau, ancien))
+        cur.execute("DELETE FROM propositions_passages WHERE voyage = %s", (ancien,))
         cur.execute("UPDATE souvenirs SET voyage = %s WHERE voyage = %s", (nouveau, ancien))
         cur.execute("UPDATE voyages SET archive = true WHERE code = %s", (ancien,))
     conn.commit()
@@ -1264,3 +1269,52 @@ def poser_sorties(conn, nom_reprise, sorties):
     with conn.cursor() as cur:
         cur.execute("INSERT INTO reprises (nom) VALUES (%s)", (nom_reprise,))
     return n
+
+
+# --- Vadrouille : Propositions (idées par créneau libre) ----------------------------------------
+CHAMPS_PROPOSITION = ("creneau", "jour", "periode", "debut", "fin", "ancre", "destination", "rang", "genre", "titre",
+                      "pourquoi", "adresse", "trajet", "duree", "prix", "horaires", "reservation", "a_confirmer",
+                      "lien", "source", "verifie_le")
+
+
+def lire_propositions(conn, voyage):
+    """Toutes les propositions du voyage (tout état), dans l'ordre des créneaux."""
+    champs = ("id", "voyage", "passage", "etat", *CHAMPS_PROPOSITION)
+    with conn.cursor() as cur:
+        cur.execute(f"SELECT {', '.join(champs)} FROM propositions WHERE voyage = %s ORDER BY jour, debut, cree_le, id",
+                    (voyage,))
+        return [dict(zip(champs, ligne)) for ligne in cur.fetchall()]
+
+
+def creer_proposition(conn, voyage, passage, p):
+    """Une fiche déjà validée, avec son créneau ; renvoie son id."""
+    import uuid
+    identifiant = "prop-" + uuid.uuid4().hex[:12]
+    champs = ("id", "voyage", "passage", *CHAMPS_PROPOSITION)
+    with conn.cursor() as cur:
+        cur.execute(f"INSERT INTO propositions ({', '.join(champs)}) VALUES ({', '.join(['%s'] * len(champs))})",
+                    (identifiant, voyage, passage, *(p[c] for c in CHAMPS_PROPOSITION)))
+    conn.commit()
+    return identifiant
+
+
+def changer_etat_proposition(conn, identifiant, etat):
+    """Le dernier avis l'emporte (un seul suffit) ; False si la proposition n'existe pas."""
+    with conn.cursor() as cur:
+        cur.execute("UPDATE propositions SET etat = %s, maj_le = now() WHERE id = %s", (etat, identifiant))
+        trouve = cur.rowcount == 1
+    conn.commit()
+    return trouve
+
+
+def lire_passages(conn, voyage):
+    with conn.cursor() as cur:
+        cur.execute("SELECT palier FROM propositions_passages WHERE voyage = %s", (voyage,))
+        return {ligne[0] for ligne in cur.fetchall()}
+
+
+def marquer_passage(conn, voyage, palier):
+    with conn.cursor() as cur:
+        cur.execute("INSERT INTO propositions_passages (voyage, palier) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                    (voyage, palier))
+    conn.commit()
