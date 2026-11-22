@@ -23,7 +23,9 @@ Hors périmètre : GPS, notifications, réservation automatique, avis à deux, r
 
 ## Créneaux (`propositions.py`, sans base ni réseau)
 
-`creneaux(voyage, reservations)` : pour chaque jour du voyage, la fenêtre 9:00 → 22:30 moins ce qui est pris.
+`creneaux(voyage, reservations)` : pour chaque jour du voyage (itinéraire, prolongé
+jusqu'à la dernière réservation : à Marrakech l'itinéraire dit 4 jours, le retour est le 5e), la fenêtre 9:00 → 22:30
+moins ce qui est pris. Le séjour va de l'arrivée au premier hôtel à la fin du dernier (vols de nuit et escales compris).
 
 - **Premier jour** : rien avant l'arrivée du premier vol ou transport + 1 h 30 ; sans heure d'arrivée, rien avant
   l'heure d'arrivée au premier hôtel (15:00 si elle manque).
@@ -35,9 +37,9 @@ Hors périmètre : GPS, notifications, réservation automatique, avis à deux, r
   transmis à la routine comme « déjà prévu ce jour ».
 - **Changement d'hôtel** le même jour : pris du départ du premier (11:00 par défaut) à l'arrivée au second (15:00 par défaut).
 - Un intervalle libre est coupé à 13:00 et à 18:00 ; un morceau de moins de 1 h 30 se rattache à son voisin contigu,
-  sinon il est abandonné. Période d'après l'heure de début : matin (< 13:00), après-midi (< 18:00), soir.
+  sinon il est abandonné. Période d'après l'heure de début : matin (< 12:00), après-midi (< 18:00), soir.
 - **Ancre** : l'hôtel où l'on est à ce moment (avant le changement : celui qu'on quitte). Sans hôtel : l'étape.
-- Identifiant stable : `2026-12-11-matin`.
+- Identifiant stable : `2026-12-11-matin` (`-2` pour un second créneau de la même période).
 
 Attendu pour Marrakech : jeu. 10 après-midi (16:35 → 19:30) ; ven. 11 matin (Dar Baraka), après-midi et soir (Agafay) ;
 sam. 12 matin, après-midi, soir (Agafay) ; dim. 13 matin (9:00 → 11:00, Agafay), après-midi (12:00 → 18:00) et soir
@@ -52,7 +54,7 @@ sam. 12 matin, après-midi, soir (Agafay) ; dim. 13 matin (9:00 → 11:00, Agafa
 - du départ à l'avant-dernier jour : `soir-AAAA-MM-JJ`, uniquement les créneaux du lendemain.
 - plusieurs voyages : le départ le plus proche d'abord, un seul voyage par passage ; voyages archivés ignorés.
 
-Créneaux transmis : ceux qui ont moins de 2 fiches ouvertes (état `proposee`). Aucun → passage marqué fait, rien à faire.
+Créneaux transmis : ceux qui ont moins de 2 fiches ouvertes (état `proposee`). Aucun → rien à faire (le passage reste dû).
 Plafonds tenus par le serveur : **2 fiches ouvertes par créneau, 12 fiches par passage**.
 
 ## Base
@@ -63,7 +65,8 @@ Plafonds tenus par le serveur : **2 fiches ouvertes par créneau, 12 fiches par 
 a-demander), `a_confirmer` (300), `lien` (500), `source` (500), `verifie_le` DATE, `passage`, `etat` (proposee | gardee |
 planifiee | ecartee), `cree_le`, `maj_le`.
 
-`propositions_passages` : (`voyage`, `palier`) clé, `fait_le`.
+`propositions_passages` : (`voyage`, `palier`) clé, `fait_le`. `db.remplacer_voyage` emporte les deux tables (le code d'un
+voyage change avec sa date ou ses étapes).
 
 Validation :
 - `prix` ou `horaires` sans `source` → 400. `lien` et `source` en http(s). `verifie_le` posé par le serveur si `source`.
