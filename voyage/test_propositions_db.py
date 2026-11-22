@@ -7,6 +7,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 import pytest
 from db import (changer_etat_proposition, connecter, creer_proposition, enregistrer_reservation, enregistrer_voyage,
                 lire_passages, lire_propositions, marquer_passage, remplacer_voyage)
+from serveur import creer_app
 
 CODE = "2026-12-10 Marrakech"
 J = lambda n: date(2026, 12, n)
@@ -64,3 +65,27 @@ def test_suivent_un_voyage_modifie(conn):
     remplacer_voyage(conn, CODE, nouveau)
     assert len(lire_propositions(conn, nouveau)) == 1 and lire_passages(conn, nouveau) == {"J-7"}
     assert lire_propositions(conn, CODE) == []
+
+
+@pytest.fixture
+def client(conn):
+    return creer_app("valise_test", secret="", jeton="").test_client()
+
+
+def test_api_propositions(client, conn):
+    ident = creer_proposition(conn, CODE, "J-7", P)
+    d = client.get(f"/api/propositions/{CODE}").get_json()
+    assert d["creneaux"][0]["id"] == "2026-12-10-apres-midi" and d["propositions"][0]["jour"] == "2026-12-11"
+    assert client.get("/api/propositions/inconnu").status_code == 404
+    assert client.post(f"/api/propositions/{ident}/etat", json={"etat": "bizarre"}).status_code == 400
+    assert client.post(f"/api/propositions/{ident}/etat", json=["gardee"]).status_code == 400
+    assert client.post("/api/propositions/prop-inconnue/etat", json={"etat": "gardee"}).status_code == 404
+    for _ in range(2):                                                      # rejoué hors ligne : sans effet
+        assert client.post(f"/api/propositions/{ident}/etat", json={"etat": "gardee"}).status_code == 200
+    assert client.get(f"/api/propositions/{CODE}").get_json()["propositions"] == []
+
+
+def test_api_masque_apres_changement_d_hotel(client, conn):
+    creer_proposition(conn, CODE, "J-7", P)
+    enregistrer_reservation(conn, resa("resa-hotel-1", "hotel", "Riad Neuf", J(10), "14:00", J(11), "12:00"))
+    assert client.get(f"/api/propositions/{CODE}").get_json()["propositions"] == []
