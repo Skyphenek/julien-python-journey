@@ -8,7 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 import pytest
-from propositions import creneaux, jours_du_voyage
+from propositions import a_chercher, creneaux, jours_du_voyage, passage_du, valider_proposition, visibles
 
 J = lambda n: date(2026, 12, n)
 MARRAKECH = {"depart": J(10), "itineraire": [{"destination": "Marrakech", "jours": 4}]}
@@ -88,3 +88,66 @@ def test_vol_interieur_sans_heure_prend_la_journee():
 def test_sans_reservation_ni_itineraire():
     assert vus(MARRAKECH, [])[0] == ("2026-12-10-apres-midi", "15:00", "18:00", "Marrakech")
     assert creneaux({"depart": J(10), "itineraire": []}, []) == []
+
+
+JOURS = [J(n) for n in range(10, 15)]
+
+
+@pytest.mark.parametrize("jour, attendu", [
+    (date(2026, 11, 25), None), (date(2026, 11, 26), "J-14"), (date(2026, 12, 2), "J-14"), (J(3), "J-7"),
+    (J(7), "J-7"), (J(8), "J-2"), (J(9), "J-2"), (J(10), "soir-2026-12-10"), (J(13), "soir-2026-12-13"),
+    (J(14), None), (J(20), None)])
+def test_passage_du(jour, attendu):
+    assert passage_du(JOURS, set(), jour) == attendu
+
+
+def test_passage_rate_repris_et_fait_pas_refait():
+    assert passage_du(JOURS, {"J-14"}, date(2026, 11, 27)) is None
+    assert passage_du(JOURS, {"J-14"}, J(4)) == "J-7"                # J-7 raté le 3 : repris le 4
+    assert passage_du(JOURS, set(), J(8)) == "J-2"                    # les paliers sautés ne reviennent pas
+
+
+def fiche(creneau="2026-12-11-matin", ancre="Dar Baraka", etat="proposee"):
+    return {"id": "prop-1", "creneau": creneau, "ancre": ancre, "etat": etat}
+
+
+def test_visibles_suit_le_programme():
+    c = creneaux(MARRAKECH, RESAS)
+    assert visibles([fiche()], c) == [fiche()]
+    assert visibles([fiche(etat="ecartee")], c) == []
+    assert visibles([fiche(ancre="Autre hôtel")], c) == []             # hôtel changé
+    assert visibles([fiche(creneau="2026-12-14-matin")], c) == []      # créneau disparu
+
+
+def test_a_chercher_places_et_soir():
+    c = creneaux(MARRAKECH, RESAS)
+    places = {x["id"]: x["places"] for x in a_chercher(c, [fiche()], "J-7", J(3))}
+    assert places["2026-12-11-matin"] == 1 and places["2026-12-12-soir"] == 2 and len(places) == 10
+    assert "2026-12-11-matin" not in {x["id"] for x in a_chercher(c, [fiche(), fiche()], "J-7", J(3))}
+    assert {x["jour"] for x in a_chercher(c, [], "soir-2026-12-11", J(11))} == {J(12)}
+
+
+CORPS = {"titre": " Dar el  Bacha ", "pourquoi": "Palais-musée avant Agafay.", "genre": "voir", "reservation": "non",
+         "horaires": "10 h à 18 h, fermé le lundi", "source": "https://fnm.ma/x", "lien": "https://fnm.ma/x"}
+
+
+def test_proposition_valide():
+    p = valider_proposition(CORPS)
+    assert p["titre"] == "Dar el Bacha" and p["prix"] == "" and p["genre"] == "voir"
+    sans = valider_proposition({"titre": "Dromadaire", "pourquoi": "Au couchant.", "genre": "faire",
+                                "reservation": "a-demander", "a_confirmer": "À demander au camp : prix, durée"})
+    assert sans["source"] == ""
+
+
+@pytest.mark.parametrize("champs", [
+    {"titre": ""}, {"titre": "x" * 201}, {"titre": 3}, {"pourquoi": ""}, {"genre": "manger"}, {"reservation": "peut-être"},
+    {"source": ""}, {"prix": "60 MAD", "horaires": "", "source": ""}, {"source": "", "horaires": "", "a_confirmer": ""},
+    {"lien": "javascript:alert(1)"}, {"source": "ftp://x"}, {"trajet": "x" * 101}])
+def test_proposition_refusee(champs):
+    with pytest.raises(ValueError):
+        valider_proposition({**CORPS, **champs})
+
+
+def test_proposition_pas_un_objet():
+    with pytest.raises(ValueError):
+        valider_proposition([CORPS])

@@ -133,3 +133,68 @@ def creneaux(voyage, reservations):
                              "adresse": hotel["lieu"] if hotel else "",
                              "destination": etape["destination"], "rang": etape["rang"]})
     return resultat
+
+
+# --- Passages de la routine -------------------------------------------------------------------
+
+PAR_CRENEAU, PAR_PASSAGE = 2, 12
+ETATS = ("proposee", "gardee", "planifiee", "ecartee")
+
+
+def passage_du(jours, faits, aujourd_hui):
+    """Le passage à faire aujourd'hui (« J-14 », « J-7 », « J-2 », « soir-AAAA-MM-JJ ») ou None. Pas fait : encore dû le lendemain."""
+    avant = (jours[0] - aujourd_hui).days
+    if avant > 14 or aujourd_hui >= jours[-1]:
+        return None
+    palier = ("J-14" if avant > 7 else "J-7" if avant > 2 else "J-2" if avant > 0
+              else f"soir-{aujourd_hui.isoformat()}")
+    return None if palier in faits else palier
+
+
+def visibles(propositions, creneaux):
+    """Les fiches ouvertes dont le créneau existe encore, avec la même ancre."""
+    ancres = {c["id"]: c["ancre"] for c in creneaux}
+    return [p for p in propositions if p["etat"] == "proposee" and ancres.get(p["creneau"]) == p["ancre"]]
+
+
+def a_chercher(creneaux, propositions, palier, aujourd_hui):
+    """Les créneaux à remplir, avec leurs places ; le soir, ceux du lendemain seulement."""
+    ouvertes = [p["creneau"] for p in visibles(propositions, creneaux)]
+    demain = aujourd_hui + timedelta(days=1)
+    return [{**c, "places": PAR_CRENEAU - ouvertes.count(c["id"])} for c in creneaux
+            if ouvertes.count(c["id"]) < PAR_CRENEAU and (not palier.startswith("soir-") or c["jour"] == demain)]
+
+
+# --- Validation : tout ce que dépose la routine est vérifié -----------------------------------
+
+LONGUEURS = {"titre": 200, "pourquoi": 500, "adresse": 300, "trajet": 100, "duree": 60, "prix": 100, "horaires": 150,
+             "a_confirmer": 300, "lien": 500, "source": 500}
+RESERVATIONS = ("non", "conseillee", "obligatoire", "a-demander")
+
+
+def valider_proposition(corps):
+    """Une fiche de la routine -> champs propres ; ValueError sinon. Un prix ou un horaire exige une source."""
+    if not isinstance(corps, dict):
+        raise ValueError("proposition invalide")
+    p = {}
+    for champ, longueur in LONGUEURS.items():
+        valeur = corps.get(champ) or ""
+        if not isinstance(valeur, str):
+            raise ValueError(f"{champ} invalide")
+        p[champ] = " ".join(valeur.split())
+        if len(p[champ]) > longueur:
+            raise ValueError(f"{champ} trop long")
+    if not p["titre"] or not p["pourquoi"]:
+        raise ValueError("titre ou pourquoi manquant")
+    for champ in ("lien", "source"):
+        if p[champ] and not re.match(r"https?://", p[champ], re.IGNORECASE):
+            raise ValueError(f"{champ} : http(s) seulement")
+    if not p["source"] and (p["prix"] or p["horaires"]):
+        raise ValueError("prix ou horaires sans source")
+    if not p["source"] and not p["a_confirmer"]:
+        raise ValueError("sans source : dire ce qui reste à confirmer")
+    if corps.get("genre") not in ("voir", "faire"):
+        raise ValueError("genre inconnu")
+    if corps.get("reservation") not in RESERVATIONS:
+        raise ValueError("réservation inconnue")
+    return {**p, "genre": corps["genre"], "reservation": corps["reservation"]}
