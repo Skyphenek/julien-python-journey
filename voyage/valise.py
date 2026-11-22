@@ -31,6 +31,7 @@ from formalites import FORMALITES, DIPLOMATIE
 from devises import DEVISE_PAR_PAYS
 from urgences import URGENCES
 from pwa import TETE_PWA, SCRIPT_PRECHARGEMENT, SCRIPT_FILE
+from propositions import STYLE_PROPOSITIONS, SCRIPT_PROPOSITIONS
 from programme import etapes_du_voyage, bloc_programme, STYLE_PROGRAMME, SCRIPT_PROGRAMME
 from vocabulaire import langues_du_voyage, bloc_vocabulaire, STYLE_VOCABULAIRE, SCRIPT_VOCABULAIRE
 from a_voir import bloc_a_voir, STYLE_A_VOIR, SCRIPT_A_VOIR
@@ -1658,7 +1659,8 @@ def avant_de_partir(itineraire, depart, aujourd_hui, passeports=None, personnes=
 # 64 = Dîners : « Mettre la liste à jour avec la semaine » ajoute et retire.
 # 65 = Recettes : par cuisine ; fiche : autre repas, Fermer en bas, retour d'iPhone.
 # 66 = Retours de cuisson (avis) ; cuisines : pastille Toutes.
-VERSION_PAGE = 67
+# 68 = Vadrouille : Propositions dans les jours du Programme.
+VERSION_PAGE = 68
 
 # Le hub : chaque page voyage est découpée en rubriques (la première est ouverte à l'arrivée).
 RUBRIQUES = [("valise", "Valise"), ("avant", "Avant"), ("programme", "Programme"), ("sur-place", "Sur place"),
@@ -2096,7 +2098,7 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
 <title>{libelle_voyage} · En Vadrouille</title>
 {TETE_PWA}
 {TETE_POLICE}
-<style>{HTML_STYLE}{STYLE_PROGRAMME}{STYLE_A_VOIR}{STYLE_VOCABULAIRE}{STYLE_SOUVENIRS}{STYLE_COMPTE}{STYLE_D}{STYLE_EPURE}</style>
+<style>{HTML_STYLE}{STYLE_PROGRAMME}{STYLE_A_VOIR}{STYLE_VOCABULAIRE}{STYLE_SOUVENIRS}{STYLE_COMPTE}{STYLE_D}{STYLE_EPURE}{STYLE_PROPOSITIONS}</style>
 </head>
 <body data-rubrique="{RUBRIQUES[0][0]}">
 <header class="entete">
@@ -2113,6 +2115,7 @@ def valise_en_html(valise, libelle_voyage, total, prises, climats=None, code=Non
 </main>
 <script>const VOYAGE = {json.dumps(cle_voyage, ensure_ascii=False)};{dates_js} const METEO_DU = {json.dumps(meteo_du)};</script>
 <script>{HTML_SCRIPT}</script>
+<script>{SCRIPT_PROPOSITIONS}</script>
 <script>{SCRIPT_PROGRAMME}</script>
 <script>{SCRIPT_VOCABULAIRE}</script>
 <script>{SCRIPT_A_VOIR}</script>

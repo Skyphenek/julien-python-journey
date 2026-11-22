@@ -8,7 +8,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 import pytest
-from propositions import a_chercher, creneaux, jours_du_voyage, passage_du, valider_proposition, visibles
+from a_voir import SCRIPT_A_VOIR
+from programme import SCRIPT_PROGRAMME
+from propositions import (SCRIPT_PROPOSITIONS, SCRIPT_REGLES_PROPOSITIONS, STYLE_PROPOSITIONS, a_chercher, creneaux,
+                          jours_du_voyage, passage_du, valider_proposition, visibles)
+from pwa import SCRIPT_PRECHARGEMENT
+from valise import VERSION_PAGE, construire, rendre_page
 
 J = lambda n: date(2026, 12, n)
 MARRAKECH = {"depart": J(10), "itineraire": [{"destination": "Marrakech", "jours": 4}]}
@@ -151,3 +156,52 @@ def test_proposition_refusee(champs):
 def test_proposition_pas_un_objet():
     with pytest.raises(ValueError):
         valider_proposition([CORPS])
+
+
+def _node(appels):
+    if not shutil.which("node"):
+        pytest.skip("node absent")
+    code = SCRIPT_REGLES_PROPOSITIONS + "\nconsole.log(JSON.stringify([" + ",".join(appels) + "]));"
+    return json.loads(subprocess.run(["node", "-e", code], capture_output=True, text=True, check=True).stdout)
+
+
+def test_position_des_lignes():
+    assert _node(["positionLigne(['12:00', '15:00'], '09:00')", "positionLigne(['12:00', '15:00'], '15:00')",
+                  "positionLigne(['12:00', '15:00', ''], '18:00')", "positionLigne(['', ''], '09:00')",
+                  "positionLigne([], '09:00')", "positionLigne(['', '19:30'], '16:35')"]) == [0, 2, 2, 0, 0, 1]
+
+
+def test_etats_en_attente_de_reseau():
+    liste = "[{id: 'prop-a'}, {id: 'prop-b'}]"
+    file = ("[{cle: 'prop-etat:prop-a', corps: {etat: 'gardee'}}, {cle: 'prop-etat:prop-b', corps: {etat: 'proposee'}},"
+            " {cle: 'envie:prop-b', corps: {}}, {}]")
+    assert _node([f"apresFile({liste}, {file}).map(function (p) {{ return p.id; }})"]) == [["prop-b"]]
+
+
+def test_script_propositions():
+    for morceau in ("'api/propositions/'", "'prop-etat:'", "'envie:'", "'resa:'", "envoyerOuGarder", "textContent",
+                    "aria-expanded", "X-Valise-Vite", "propositions-changees", "a-voir-a-recharger",
+                    "programme-a-recharger", "file-videe", "Annuler"):
+        assert morceau in SCRIPT_PROPOSITIONS
+    assert "innerHTML" not in SCRIPT_PROPOSITIONS and "checkbox" not in SCRIPT_PROPOSITIONS
+    assert "min-height: 44px" in STYLE_PROPOSITIONS and "dashed" in STYLE_PROPOSITIONS
+    assert "window.Propositions" in SCRIPT_PROGRAMME and "propositions-changees" in SCRIPT_PROGRAMME
+    assert "a-voir-a-recharger" in SCRIPT_A_VOIR
+    assert "'api/propositions/'" in SCRIPT_PRECHARGEMENT
+
+
+def test_propositions_avant_le_programme_dans_la_page():
+    voyage = {"depart": J(10), "personnes": ["Julien"], "conduit": False, "lessive": None,
+              "itineraire": [{"destination": "Marrakech", "jours": 4, "mois": 12, "activites": [], "normales": None}]}
+    html = rendre_page(voyage, construire(voyage))
+    assert STYLE_PROPOSITIONS in html and VERSION_PAGE >= 68
+    assert html.index(SCRIPT_PROPOSITIONS) < html.index(SCRIPT_PROGRAMME)
+
+
+def test_scripts_syntaxiquement_valides(tmp_path):
+    if not shutil.which("node"):
+        pytest.skip("node absent")
+    fichier = tmp_path / "p.js"
+    fichier.write_text('const VOYAGE="x";\n' + SCRIPT_PROPOSITIONS + SCRIPT_PROGRAMME)
+    r = subprocess.run(["node", "--check", str(fichier)], capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr

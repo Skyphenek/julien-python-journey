@@ -218,6 +218,7 @@ SCRIPT_PROGRAMME = """
     const CLE_COPIE = 'programme:' + VOYAGE;
     let reservations = [];
     let enEdition = null;                                  // pas de rafraîchissement pendant une saisie
+    let lu = false;                                        // les réservations ont été lues une première fois
 
     function iso(d) {
         return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -346,9 +347,12 @@ SCRIPT_PROGRAMME = """
     }
 
     function afficher() {
-        const zone = bloc.querySelector('.jours');
+        lu = true;
+        const zone = bloc.querySelector('.jours'), replies = {};
+        zone.querySelectorAll('details.jour').forEach(function (j) { replies[j.dataset.jour] = !j.open; });   // gardés tels quels
         zone.replaceChildren();
-        const jours = parJour(), liste = Object.keys(jours).sort(), attente = enFile(), auj = iso(new Date());
+        const jours = parJour(), lignes = window.Propositions ? window.Propositions.lignes() : {};
+        const liste = Object.keys(Object.assign({}, jours, lignes)).sort(), attente = enFile(), auj = iso(new Date());
         if (!liste.length) {
             zone.append(para('Rien de réservé pour l\\u2019instant : ajoute tes vols, hôtels, activités, restos…', 'vide-programme'));
             return;
@@ -357,6 +361,7 @@ SCRIPT_PROGRAMME = """
         liste.forEach(function (jour) {
             const details = document.createElement('details'), resume = document.createElement('summary');
             details.className = 'jour';
+            details.dataset.jour = jour;
             const etape = etapeDu(jour);
             resume.textContent = enClair(jour) + (etape ? ' · ' + etape : '');
             if (jour === auj) {
@@ -366,8 +371,17 @@ SCRIPT_PROGRAMME = """
                 ouvert = details;
             }
             if (jour < auj) details.classList.add('passe'); else details.open = true;
+            if (jour in replies) details.open = !replies[jour];
             const ul = document.createElement('ul');
-            jours[jour].forEach(function (e) { ul.append(fiche(e, attente[e.r.id])); });
+            const entrees = (jours[jour] || []).map(function (e) {
+                return { heure: (e.role === 'fin' ? e.r.heure_fin : e.role === 'debut' ? e.r.heure : '') || '',
+                         noeud: fiche(e, attente[e.r.id]) };
+            });
+            (lignes[jour] || []).forEach(function (l) {            // créneaux libres : à leur place dans la journée
+                entrees.splice(positionLigne(entrees.map(function (x) { return x.heure; }), l.debut), 0,
+                               { heure: l.debut, noeud: l.noeud });
+            });
+            entrees.forEach(function (x) { ul.append(x.noeud); });
             details.append(resume, ul);
             zone.append(details);
         });
@@ -375,7 +389,7 @@ SCRIPT_PROGRAMME = """
     }
 
     function charger() {
-        if (enEdition) return;
+        if (enEdition || (window.Propositions && window.Propositions.enEdition())) return;
         fetch('api/reservations/' + encodeURIComponent(VOYAGE), { headers: { 'X-Valise-Vite': '1' } })
             .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
             .then(function (liste) { reservations = avecAttente(liste); garder(); afficher(); })
@@ -522,5 +536,6 @@ SCRIPT_PROGRAMME = """
     document.addEventListener('visibilitychange', function () { if (!document.hidden) charger(); });
     document.addEventListener('file-videe', charger);
     document.addEventListener('programme-a-recharger', charger);           // un lieu « à voir » planifié
+    document.addEventListener('propositions-changees', function () { if (!enEdition && lu) afficher(); });
 })();
 """

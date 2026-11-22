@@ -3,6 +3,7 @@ Règles pures ici (créneaux, passages, validation) ; la base dans db.py, l'acc�
 import re
 from datetime import date, datetime, time, timedelta
 
+from design import sombre
 from programme import etapes_du_voyage
 
 DEBUT_JOUR, FIN_JOUR = time(9), time(22, 30)
@@ -198,3 +199,201 @@ def valider_proposition(corps):
     if corps.get("reservation") not in RESERVATIONS:
         raise ValueError("réservation inconnue")
     return {**p, "genre": corps["genre"], "reservation": corps["reservation"]}
+
+
+# --- Page : les lignes « Matin libre · 2 idées » dans les jours du Programme ------------------
+
+STYLE_PROPOSITIONS = """
+:root { --prop: #b83a16; --confirmer: #8a5200; }
+""" + sombre(":root { --prop: #ff8a63; --confirmer: #f0c24b; }") + """
+div.programme li.libre { list-style: none; border: 2px dashed var(--prop); border-radius: 14px; background: var(--fond);
+    margin: 8px 0; padding: 0 14px; }
+div.programme li.libre > button.ouvrir { width: 100%; min-height: 44px; display: flex; justify-content: space-between;
+    align-items: center; gap: 8px; padding: 0; border: none; background: none; color: var(--prop); font: inherit;
+    font-weight: 800; cursor: pointer; text-align: left; }
+div.programme li.libre .idee { border-top: 1px solid var(--ligne); padding: 12px 0; display: flex; flex-direction: column; gap: 6px; }
+div.programme li.libre .idee h4 { margin: 0; font-size: 19px; }
+div.programme li.libre .idee p { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
+div.programme li.libre .idee p.details { color: var(--doux); font-size: 14px; }
+div.programme li.libre .idee p.confirmer { color: var(--confirmer); font-size: 14px; font-weight: 700; }
+div.programme li.libre .idee a { color: var(--prop); font-size: 14px; font-weight: 700; min-height: 44px;
+    display: inline-flex; align-items: center; margin-right: 14px; }
+div.programme li.libre .gestes { display: flex; flex-wrap: wrap; gap: 6px; }
+div.programme li.libre .gestes button { flex: 1 1 auto; min-height: 44px; padding: 0 14px; border-radius: 999px; font: inherit;
+    font-size: 15px; font-weight: 700; border: 2px solid var(--ligne); background: var(--fond); color: var(--texte); cursor: pointer; }
+div.programme li.libre .gestes button.principal { background: var(--prop); border-color: var(--prop); color: var(--fond); }
+div.programme li.libre form { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+div.programme li.libre form label { flex: 1 1 130px; font-size: 13px; color: var(--doux); }
+div.programme li.libre form input { display: block; width: 100%; box-sizing: border-box; min-height: 44px; font-size: 16px;
+    border: 1px solid var(--ligne); border-radius: 10px; padding: 6px 10px; background: var(--fond); color: var(--texte); }
+"""
+
+SCRIPT_REGLES_PROPOSITIONS = """
+// Où glisser une ligne qui commence à `debut` parmi les heures déjà affichées ('' : sans heure)
+function positionLigne(heures, debut) {
+    const suivante = heures.findIndex(function (h) { return h && h > debut; });
+    if (suivante !== -1) return suivante;
+    for (let i = heures.length - 1; i >= 0; i--) if (heures[i]) return i + 1;
+    return 0;
+}
+// Les fiches encore ouvertes, une fois appliqués les choix qui attendent le réseau
+function apresFile(liste, file) {
+    const etats = {};
+    file.forEach(function (f) { if (f.cle && f.cle.indexOf('prop-etat:') === 0) etats[f.cle.slice(10)] = f.corps.etat; });
+    return liste.filter(function (p) { return !etats[p.id] || etats[p.id] === 'proposee'; });
+}
+"""
+
+# Avant SCRIPT_PROGRAMME, qui place les lignes dans ses jours. Tout le texte passe par textContent.
+SCRIPT_PROPOSITIONS = SCRIPT_REGLES_PROPOSITIONS + """
+(function () {
+    const CLE_COPIE = 'propositions:' + VOYAGE;
+    const RESERVER = { conseillee: 'Réservation conseillée', obligatoire: 'À réserver', 'a-demander': 'Réservation : à demander' };
+    let d = { creneaux: [], propositions: [] };
+    let planifie = null;                                    // fiche dont le formulaire est ouvert
+    const ouverts = {}, ecartees = {}, messages = {};
+
+    function el(nom, classe, texte) {
+        const e = document.createElement(nom); if (classe) e.className = classe; if (texte) e.textContent = texte; return e;
+    }
+    function lien(texte, href) { const a = el('a', '', texte); a.href = href; a.target = '_blank'; a.rel = 'noopener'; return a; }
+    function bouton(texte, action, classe) {
+        const b = el('button', classe, texte); b.type = 'button'; b.addEventListener('click', action); return b;
+    }
+    function garder() { try { localStorage.setItem(CLE_COPIE, JSON.stringify(d)); } catch (e) {} }
+    function changer() { garder(); document.dispatchEvent(new Event('propositions-changees')); }
+    function poser(donnees) { d = donnees; d.propositions = apresFile(d.propositions, lireFile()); changer(); }
+    function charger() {
+        if (planifie) return;
+        fetch('api/propositions/' + encodeURIComponent(VOYAGE), { headers: { 'X-Valise-Vite': '1' } })
+            .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+            .then(poser)
+            .catch(function () {                                    // hors ligne : la dernière copie connue
+                let copie = null;
+                try { copie = JSON.parse(localStorage.getItem(CLE_COPIE)); } catch (e) {}
+                if (copie && copie.propositions) poser(copie);
+            });
+    }
+    function envoyerEtat(p, etat) {
+        return envoyerOuGarder({ url: 'api/propositions/' + encodeURIComponent(p.id) + '/etat', methode: 'POST',
+                                 corps: { etat: etat }, cle: 'prop-etat:' + p.id });
+    }
+    function retirer(p) { d.propositions = d.propositions.filter(function (x) { return x.id !== p.id; }); }
+    function resume(p) {
+        return [p.pourquoi, p.trajet, p.duree, p.prix, p.horaires, RESERVER[p.reservation] || '',
+                p.a_confirmer ? 'À confirmer : ' + p.a_confirmer : ''].filter(Boolean).join(' · ').slice(0, 1000);
+    }
+    function lieu(p) { return (p.adresse || p.titre + ', ' + p.ancre).slice(0, 300); }
+    function refuse(p) { messages[p.id] = 'Refusé par le serveur : réessaie plus tard.'; changer(); }
+
+    function garderEnvie(p) {
+        const envie = { id: p.id, voyage: VOYAGE, destination: p.destination, rang: p.rang, nom: p.titre, adresse: p.adresse,
+                        note: resume(p), lien: p.lien || p.source, genre: p.genre, fait: false, prevu: null };
+        envoyerOuGarder({ url: 'api/a-voir', methode: 'POST', corps: envie, cle: 'envie:' + p.id })
+            .then(function () {
+                document.dispatchEvent(new Event('a-voir-a-recharger'));
+                return envoyerEtat(p, 'gardee');
+            })
+            .then(function () { retirer(p); changer(); }, function () { refuse(p); });
+    }
+    function planifier(p, jour, heure) {
+        const resa = { id: p.id, voyage: VOYAGE, type: 'activite', titre: p.titre, jour: jour, heure: heure, jour_fin: null,
+                       heure_fin: '', lieu: lieu(p), reference: '', telephone: '', lien: p.lien || p.source, notes: resume(p) };
+        envoyerOuGarder({ url: 'api/reservations', methode: 'POST', corps: resa, cle: 'resa:' + p.id })
+            .then(function () { return envoyerEtat(p, 'planifiee'); })
+            .then(function () {
+                planifie = null; retirer(p); changer();
+                document.dispatchEvent(new Event('programme-a-recharger'));
+                charger();
+            }, function () { refuse(p); });
+    }
+    function ecarter(p) { ecartees[p.id] = p; envoyerEtat(p, 'ecartee').catch(function () { refuse(p); }); changer(); }
+    function annuler(p) {
+        delete ecartees[p.id];
+        if (!d.propositions.some(function (x) { return x.id === p.id; })) d.propositions.push(p);
+        envoyerEtat(p, 'proposee').catch(function () { refuse(p); });
+        changer();
+    }
+
+    function formulaire(p) {
+        const form = el('form'), jour = el('input'), heure = el('input'), gestes = el('div', 'gestes');
+        jour.type = 'date'; jour.value = p.jour; jour.required = true;
+        heure.type = 'time'; heure.value = p.debut;
+        const lj = el('label', '', 'Le'), lh = el('label', '', 'Heure');
+        lj.append(jour); lh.append(heure);
+        const ok = el('button', 'principal', 'Ajouter au Programme'); ok.type = 'submit';
+        gestes.append(ok, bouton('Annuler', function () { planifie = null; changer(); }));
+        form.append(lj, lh, gestes);
+        form.addEventListener('submit', function (ev) {
+            ev.preventDefault();
+            ok.disabled = true;
+            planifier(p, jour.value, heure.value);
+        });
+        return form;
+    }
+    function fiche(p) {
+        const bloc = el('div', 'idee');
+        bloc.append(el('h4', '', p.titre));
+        if (ecartees[p.id]) {
+            const gestes = el('div', 'gestes');
+            gestes.append(bouton('Annuler', function () { annuler(p); }));
+            bloc.append(el('p', 'details', 'Écartée : elle ne reviendra pas.'), gestes);
+            return bloc;
+        }
+        bloc.append(el('p', '', p.pourquoi));
+        const details = [p.trajet, p.duree, p.prix, p.horaires, RESERVER[p.reservation]].filter(Boolean).join(' · ');
+        if (details) bloc.append(el('p', 'details', details));
+        if (p.a_confirmer) bloc.append(el('p', 'confirmer', 'À confirmer : ' + p.a_confirmer));
+        const liens = el('div');
+        liens.append(lien('Maps', 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(lieu(p))));
+        if (/^https?:\\/\\//i.test(p.source)) {
+            liens.append(lien('Source' + (p.verifie_le ? ', vue le ' + p.verifie_le.slice(8) + '/' + p.verifie_le.slice(5, 7) : ''), p.source));
+        }
+        bloc.append(liens);
+        if (messages[p.id]) bloc.append(el('p', 'confirmer', messages[p.id]));
+        if (planifie === p.id) { bloc.append(formulaire(p)); return bloc; }
+        const gestes = el('div', 'gestes');
+        gestes.append(bouton('Garder', function () { garderEnvie(p); }, 'principal'),
+                      bouton('Planifier', function () { planifie = p.id; changer(); }),
+                      bouton('Non', function () { ecarter(p); }));
+        bloc.append(gestes);
+        return bloc;
+    }
+    function ligne(creneau, fiches) {
+        const li = el('li', 'libre'), ouvrir = el('button', 'ouvrir'), contenu = el('div');
+        const nom = creneau.periode.charAt(0).toUpperCase() + creneau.periode.slice(1) + ' libre';
+        const n = fiches.filter(function (p) { return !ecartees[p.id]; }).length;
+        ouvrir.type = 'button';
+        ouvrir.append(el('span', '', nom), el('span', '', n + (n > 1 ? ' idées' : ' idée')));
+        ouvrir.setAttribute('aria-expanded', String(!!ouverts[creneau.id]));
+        contenu.hidden = !ouverts[creneau.id];
+        ouvrir.addEventListener('click', function () {
+            ouverts[creneau.id] = !ouverts[creneau.id];
+            contenu.hidden = !ouverts[creneau.id];
+            ouvrir.setAttribute('aria-expanded', String(ouverts[creneau.id]));
+        });
+        fiches.forEach(function (p) { contenu.append(fiche(p)); });
+        li.append(ouvrir, contenu);
+        return li;
+    }
+
+    window.Propositions = {
+        enEdition: function () { return planifie !== null; },
+        // { jour: [{ debut, noeud }] } ; un créneau sans idée n'a pas de ligne
+        lignes: function () {
+            const jours = {};
+            d.creneaux.forEach(function (c) {
+                const fiches = d.propositions.filter(function (p) { return p.creneau === c.id; });
+                Object.keys(ecartees).forEach(function (id) {
+                    if (ecartees[id].creneau === c.id && !fiches.some(function (p) { return p.id === id; })) fiches.push(ecartees[id]);
+                });
+                if (fiches.length) (jours[c.jour] = jours[c.jour] || []).push({ debut: c.debut, noeud: ligne(c, fiches) });
+            });
+            return jours;
+        }
+    };
+    charger();
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) charger(); });
+    document.addEventListener('file-videe', charger);
+})();
+"""

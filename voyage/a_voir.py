@@ -482,5 +482,6 @@ SCRIPT_A_VOIR = """
     charger();
     document.addEventListener('visibilitychange', function () { if (!document.hidden) charger(); });
     document.addEventListener('file-videe', charger);
+    document.addEventListener('a-voir-a-recharger', charger);              // une proposition gardée
 })();
 """
