@@ -13,7 +13,7 @@
 - Spec : `docs/superpowers/specs/2026-11-22-vadrouille-propositions-design.md`.
 - Tout se passe dans `.worktrees/propositions`, branche `feat/vadrouille-propositions`. Commandes lancées depuis `voyage/`, avec `PY=~/Claude/Work/perso/python/julien-python-journey/voyage/.venv/bin/python3` (le worktree n'a pas de venv). Référence avant travaux : 1062 tests verts.
 - Aucun push, PR, merge, ni écriture Neon ou Render sans accord explicite de Julien. Base de test : `valise_test` ; démo : `valise_copie`. Préfixer par `DATABASE_URL=""` toute commande de schéma.
-- Plafonds : 2 fiches ouvertes par créneau, 12 par passage. Jeton : 32 caractères minimum.
+- Plafonds (revus le 22/11, réserve) : 4 fiches ouvertes par créneau dont 2 montrées, 24 par passage. Le code des tâches ci-dessous montre les anciens (2 et 12) : le dépôt fait foi. Jeton : 32 caractères minimum.
 - La routine ne lit jamais : référence, téléphone, prix, notes, lien de réservation, dépenses, passeports, reste de la Casa.
 - Page : texte en `textContent` (jamais `innerHTML`), aucun emoji, aucune `checkbox`, cibles ≥ 44 px, clair et sombre. Apostrophes des chaînes JS : `\\u2019`.
 - Français dans le code et les textes, au ton du code existant. Commits terminés par `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
@@ -1336,7 +1336,7 @@ Le jeton ROUTINE_TOKEN ne part que vers ROUTINE_API. N'affiche jamais sa valeur.
 1. Si ROUTINE_API ou ROUTINE_TOKEN est vide, réponds « variable manquante » et arrête-toi.
 2. curl -s "$ROUTINE_API/routine/travail" -H "Authorization: Bearer $ROUTINE_TOKEN"
    a_faire nul : réponds « rien à faire » et arrête-toi. Pas de réponse 200 : arrête-toi, sans « fini ».
-3. Pour chaque créneau, dans l'ordre des dates, cherche 1 ou 2 idées (au plus « places ») ; 12 au total au plus
+3. Pour chaque créneau, dans l'ordre des dates, cherche 2 à 4 idées (au plus « places ») ; 24 au total au plus
    (« reste »). Couvre d'abord tous les créneaux une fois.
    - Pars de « ancre » et « adresse » (là où ils dorment), pas du centre-ville. Tiens compte de debut, fin et deja_prevu.
    - Une excursion qui part d'ailleurs que l'ancre : écarte-la, ou écris « à demander à l'hôtel ».
@@ -1351,7 +1351,9 @@ Le jeton ROUTINE_TOKEN ne part que vers ROUTINE_API. N'affiche jamais sa valeur.
    voyage, palier, creneau (id), titre (200), pourquoi (500), genre (voir|faire),
    reservation (non|conseillee|obligatoire|a-demander), adresse, trajet (100), duree (60), prix (100),
    horaires (150), a_confirmer (300), lien, source (https). Français, phrases courtes.
-   409 doublon : une autre idée. 400 : corrige. Ne repropose rien de ne_pas_reproposer.
+   409 doublon : une autre idée. 400 : corrige. Ne repropose rien de ne_pas_reproposer ; « ecartee » : pas non plus
+   la même activité sous un autre nom (quad refusé : pas de buggy). Dépose la meilleure idée d'abord : la page montre
+   les 2 premières, les autres sont la réserve. Mieux vaut 1 idée sûre que 4 idées de remplissage.
 5. Au moins une fiche déposée, ou tous les créneaux cherchés sans résultat :
    POST "$ROUTINE_API/routine/fini" {"voyage": …, "palier": …}. En cas de panne : pas de « fini ».
 6. Résume en 5 lignes : fiches par créneau, créneaux vides, sites inaccessibles.

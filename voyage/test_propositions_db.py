@@ -127,13 +127,20 @@ def test_travail_liste_blanche(robot, conn):
     r = robot.get("/routine/travail", headers=ENTETE)
     t = r.get_json()["a_faire"]
     assert set(t) == {"voyage", "palier", "reste", "creneaux", "deja_prevu", "ne_pas_reproposer"}
-    assert (t["voyage"], t["palier"], t["reste"]) == (CODE, "J-7", 12)
+    assert (t["voyage"], t["palier"], t["reste"]) == (CODE, "J-7", 24)
     assert set(t["creneaux"][0]) == {"id", "jour", "periode", "debut", "fin", "ancre", "adresse", "destination",
                                      "latitude", "longitude", "places"}
     assert all(set(x) == {"type", "titre", "lieu", "jour", "heure"} for x in t["deja_prevu"])
-    assert all(set(x) == {"titre", "lien"} for x in t["ne_pas_reproposer"])
+    assert all(set(x) == {"titre", "lien", "ecartee"} for x in t["ne_pas_reproposer"])
     for secret in ("REF-SECRETE", "0600000000", "booking.example", "73 euros", "Laetitia"):
         assert secret not in r.get_data(as_text=True)
+
+
+def test_travail_dit_ce_qui_a_ete_ecarte(robot, conn):
+    deposer(robot)
+    changer_etat_proposition(conn, lire_propositions(conn, CODE)[0]["id"], "ecartee")
+    t = robot.get("/routine/travail", headers=ENTETE).get_json()["a_faire"]
+    assert [x["titre"] for x in t["ne_pas_reproposer"] if x["ecartee"]] == ["Dar el Bacha"]
 
 
 def test_rien_a_faire(robot, conn, monkeypatch):
@@ -169,10 +176,10 @@ def test_doublons(robot, conn):
 
 
 def test_plafonds(robot, conn):
-    assert [deposer(robot, titre=f"Idée {n}", lien="").status_code for n in range(3)] == [201, 201, 409]
-    for n in range(10):
+    assert [deposer(robot, titre=f"Idée {n}", lien="").status_code for n in range(5)] == [201] * 4 + [409]
+    for n in range(20):
         creer_proposition(conn, CODE, "J-7", {**P, "titre": f"Vieille {n}", "creneau": "2026-12-30-soir"})
-    assert deposer(robot, titre="De trop", lien="", creneau="2026-12-12-soir").status_code == 409   # 12 par passage
+    assert deposer(robot, titre="De trop", lien="", creneau="2026-12-12-soir").status_code == 409   # 24 par passage
     assert robot.get("/routine/travail", headers=ENTETE).get_json() == {"a_faire": None}
 
 

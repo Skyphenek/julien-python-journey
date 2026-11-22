@@ -138,7 +138,7 @@ def creneaux(voyage, reservations):
 
 # --- Passages de la routine -------------------------------------------------------------------
 
-PAR_CRENEAU, PAR_PASSAGE = 2, 12
+PAR_CRENEAU, PAR_PASSAGE = 4, 24          # la page en montre 2 par créneau, les autres attendent un « Non »
 ETATS = ("proposee", "gardee", "planifiee", "ecartee")
 
 
@@ -215,6 +215,7 @@ div.programme li.libre .idee { border-top: 1px solid var(--ligne); padding: 12px
 div.programme li.libre .idee h4 { margin: 0; font-size: 19px; }
 div.programme li.libre .idee p { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
 div.programme li.libre .idee p.details { color: var(--doux); font-size: 14px; }
+div.programme li.libre p.reserve { margin: 0; padding: 10px 0; border-top: 1px solid var(--ligne); color: var(--doux); font-size: 14px; }
 div.programme li.libre .idee p.confirmer { color: var(--confirmer); font-size: 14px; font-weight: 700; }
 div.programme li.libre .idee a { color: var(--prop); font-size: 14px; font-weight: 700; min-height: 44px;
     display: inline-flex; align-items: center; margin-right: 14px; }
@@ -235,6 +236,11 @@ function positionLigne(heures, debut) {
     if (suivante !== -1) return suivante;
     for (let i = heures.length - 1; i >= 0; i--) if (heures[i]) return i + 1;
     return 0;
+}
+// Deux fiches ouvertes au plus, dans l'ordre ; une fiche écartée garde sa ligne (Annuler), la suivante arrive
+function montrees(fiches, ecartees) {
+    let ouvertes = 0;
+    return fiches.filter(function (p) { return ecartees[p.id] || ++ouvertes <= 2; });
 }
 // Les fiches encore ouvertes, une fois appliqués les choix qui attendent le réseau
 function apresFile(liste, file) {
@@ -310,7 +316,7 @@ SCRIPT_PROPOSITIONS = SCRIPT_REGLES_PROPOSITIONS + """
     function ecarter(p) { ecartees[p.id] = p; envoyerEtat(p, 'ecartee').catch(function () { refuse(p); }); changer(); }
     function annuler(p) {
         delete ecartees[p.id];
-        if (!d.propositions.some(function (x) { return x.id === p.id; })) d.propositions.push(p);
+        if (!d.propositions.some(function (x) { return x.id === p.id; })) d.propositions.unshift(p);   // visible, pas en réserve
         envoyerEtat(p, 'proposee').catch(function () { refuse(p); });
         changer();
     }
@@ -362,7 +368,8 @@ SCRIPT_PROPOSITIONS = SCRIPT_REGLES_PROPOSITIONS + """
     function ligne(creneau, fiches) {
         const li = el('li', 'libre'), ouvrir = el('button', 'ouvrir'), contenu = el('div');
         const nom = creneau.periode.charAt(0).toUpperCase() + creneau.periode.slice(1) + ' libre';
-        const n = fiches.filter(function (p) { return !ecartees[p.id]; }).length;
+        const vues = montrees(fiches, ecartees), n = vues.filter(function (p) { return !ecartees[p.id]; }).length;
+        const reserve = fiches.length - vues.length;
         ouvrir.type = 'button';
         ouvrir.append(el('span', '', nom), el('span', '', n + (n > 1 ? ' idées' : ' idée')));
         ouvrir.setAttribute('aria-expanded', String(!!ouverts[creneau.id]));
@@ -372,7 +379,8 @@ SCRIPT_PROPOSITIONS = SCRIPT_REGLES_PROPOSITIONS + """
             contenu.hidden = !ouverts[creneau.id];
             ouvrir.setAttribute('aria-expanded', String(ouverts[creneau.id]));
         });
-        fiches.forEach(function (p) { contenu.append(fiche(p)); });
+        vues.forEach(function (p) { contenu.append(fiche(p)); });
+        if (reserve) contenu.append(el('p', 'reserve', reserve + (reserve > 1 ? ' autres idées' : ' autre idée') + ' en réserve : Non, Garder ou Planifier affiche la suivante.'));
         li.append(ouvrir, contenu);
         return li;
     }

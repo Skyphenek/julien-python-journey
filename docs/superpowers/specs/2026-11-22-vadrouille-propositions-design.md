@@ -54,8 +54,8 @@ sam. 12 matin, après-midi, soir (Agafay) ; dim. 13 matin (9:00 → 11:00, Agafa
 - du départ à l'avant-dernier jour : `soir-AAAA-MM-JJ`, uniquement les créneaux du lendemain.
 - plusieurs voyages : le départ le plus proche d'abord, un seul voyage par passage ; voyages archivés ignorés.
 
-Créneaux transmis : ceux qui ont moins de 2 fiches ouvertes (état `proposee`). Aucun → rien à faire (le passage reste dû).
-Plafonds tenus par le serveur : **2 fiches ouvertes par créneau, 12 fiches par passage**.
+Créneaux transmis : ceux qui ont moins de 4 fiches ouvertes (état `proposee`). Aucun → rien à faire (le passage reste dû).
+Plafonds tenus par le serveur : **4 fiches ouvertes par créneau, 24 fiches par passage**. La page en montre 2 ; les autres sont en réserve, déjà dans le téléphone : « Non », « Garder » ou « Planifier » affiche la suivante, même hors ligne (choix B du 22/11). `ne_pas_reproposer` dit ce qui a été écarté : la routine ne repropose pas la même activité sous un autre nom.
 
 ## Base
 

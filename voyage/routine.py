@@ -35,9 +35,9 @@ def _contexte(conn, v, jour):
 
 def _deja_vus(c):
     """Tout ce qui ne doit pas être proposé (à nouveau) ; le lien d'une réservation reste privé."""
-    return ([{"id": p["id"], "titre": p["titre"], "lien": p["lien"]} for p in c["propositions"]]
-            + [{"id": e["id"], "titre": e["nom"], "lien": e["lien"]} for e in c["envies"]]
-            + [{"id": r["id"], "titre": r["titre"], "lien": ""} for r in c["reservations"]])
+    return ([{"id": p["id"], "titre": p["titre"], "lien": p["lien"], "ecartee": p["etat"] == "ecartee"} for p in c["propositions"]]
+            + [{"id": e["id"], "titre": e["nom"], "lien": e["lien"], "ecartee": False} for e in c["envies"]]
+            + [{"id": r["id"], "titre": r["titre"], "lien": "", "ecartee": False} for r in c["reservations"]])
 
 
 def routes_routine(app, jeton):
@@ -72,7 +72,7 @@ def routes_routine(app, jeton):
                                   "longitude": lieux[x["destination"]].get("longitude")} for x in c["creneaux"]],
                     "deja_prevu": [{**{k: r[k] for k in CHAMPS_PREVU}, "jour": r["jour"].isoformat()}
                                    for r in c["reservations"]],
-                    "ne_pas_reproposer": [{"titre": x["titre"], "lien": x["lien"]} for x in _deja_vus(c)]}})
+                    "ne_pas_reproposer": [{k: x[k] for k in ("titre", "lien", "ecartee")} for x in _deja_vus(c)]}})
         finally:
             conn.close()
         return jsonify({"a_faire": None})

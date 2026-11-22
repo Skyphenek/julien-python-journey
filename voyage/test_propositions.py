@@ -127,8 +127,8 @@ def test_visibles_suit_le_programme():
 def test_a_chercher_places_et_soir():
     c = creneaux(MARRAKECH, RESAS)
     places = {x["id"]: x["places"] for x in a_chercher(c, [fiche()], "J-7", J(3))}
-    assert places["2026-12-11-matin"] == 1 and places["2026-12-12-soir"] == 2 and len(places) == 10
-    assert "2026-12-11-matin" not in {x["id"] for x in a_chercher(c, [fiche(), fiche()], "J-7", J(3))}
+    assert places["2026-12-11-matin"] == 3 and places["2026-12-12-soir"] == 4 and len(places) == 10
+    assert "2026-12-11-matin" not in {x["id"] for x in a_chercher(c, [fiche()] * 4, "J-7", J(3))}
     assert {x["jour"] for x in a_chercher(c, [], "soir-2026-12-11", J(11))} == {J(12)}
 
 
@@ -169,6 +169,14 @@ def test_position_des_lignes():
     assert _node(["positionLigne(['12:00', '15:00'], '09:00')", "positionLigne(['12:00', '15:00'], '15:00')",
                   "positionLigne(['12:00', '15:00', ''], '18:00')", "positionLigne(['', ''], '09:00')",
                   "positionLigne([], '09:00')", "positionLigne(['', '19:30'], '16:35')"]) == [0, 2, 2, 0, 0, 1]
+
+
+def test_deux_idees_montrees_le_reste_en_reserve():
+    ids = "[{id: 'a'}, {id: 'b'}, {id: 'c'}, {id: 'd'}]"
+    vus = lambda ecartees: _node([f"montrees({ids}, {ecartees}).map(function (p) {{ return p.id; }})"])[0]
+    assert vus("{}") == ["a", "b"]
+    assert vus("{a: 1}") == ["a", "b", "c"]                       # écartée : sa place reste (Annuler), la suivante arrive
+    assert vus("{a: 1, b: 1, c: 1}") == ["a", "b", "c", "d"]
 
 
 def test_etats_en_attente_de_reseau():
