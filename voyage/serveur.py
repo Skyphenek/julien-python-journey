@@ -39,6 +39,7 @@ from pwa import manifeste, script_service_worker, TAILLES_ICONE
 from programme import valider_reservation
 from a_voir import valider_a_voir, suggestions_depuis_wikitext
 from propositions import ETATS, creneaux, visibles
+from routine import JETON_MINIMUM, routes_routine
 from souvenirs import valider_proche, valider_souvenir
 from vocabulaire import LANGUES
 from casa import aujourdhui_en_html, aujourd_hui_paris
@@ -1094,6 +1095,8 @@ def creer_app(nom_base="valise", secret=None, jeton=None):
 
     # Avec un secret, tout vit sous /v/<secret>/ : sans le code, chaque adresse renvoie 404
     app.register_blueprint(routes, url_prefix=f"/v/{secret}" if secret else None)
+    if len(jeton) >= JETON_MINIMUM:                   # sinon l'accès de la routine n'existe pas (404)
+        app.register_blueprint(routes_routine(app, jeton))
     return app
 
 
