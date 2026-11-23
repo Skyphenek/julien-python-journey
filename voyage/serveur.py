@@ -27,7 +27,8 @@ from db import (emprunter, ajouter_depense, lire_depenses, supprimer_depense, ob
                 enregistrer_placard, retirer_du_placard, enregistrer_plat, lire_plats, plat_existe, enregistrer_repas, lire_repas, compter_faits,
                 lire_frais, finir, corriger_a_finir,
                 lire_cave, enregistrer_bouteille, boire, retirer_bouteille,
-                lire_sorties, creer_sortie, donner_avis, maj_sortie)
+                lire_sorties, creer_sortie, donner_avis, maj_sortie,
+                lire_propositions, changer_etat_proposition)
 from sortir import valider_sortie, tirer_weekend, rappels
 import random
 from valise import (solde_depenses, actualiser_meteo, fenetres_du_voyage, page_du_voyage, accueil_en_html,
@@ -37,6 +38,8 @@ from api_climat import url_geocodage
 from pwa import manifeste, script_service_worker, TAILLES_ICONE
 from programme import valider_reservation
 from a_voir import valider_a_voir, suggestions_depuis_wikitext
+from propositions import ETATS, creneaux, visibles
+from routine import JETON_MINIMUM, routes_routine
 from souvenirs import valider_proche, valider_souvenir
 from vocabulaire import LANGUES
 from casa import aujourdhui_en_html, aujourd_hui_paris
@@ -117,9 +120,11 @@ def synchroniser_courses(conn, jour):
     return ajoutes, retires
 
 
-def creer_app(nom_base="valise", secret=None):
+def creer_app(nom_base="valise", secret=None, jeton=None):
     if secret is None:
         secret = os.environ.get("ACCES_SECRET", "")
+    if jeton is None:
+        jeton = os.environ.get("ROUTINE_TOKEN", "")
     app = Flask(__name__)
     app.config["NOM_BASE"] = nom_base
     routes = Blueprint("valise", __name__)        # le groupe de routes, monté sous le préfixe secret
@@ -916,6 +921,34 @@ def creer_app(nom_base="valise", secret=None):
                     suggestions.append(s)
         return jsonify({"suggestions": suggestions})
 
+    # ---------- Propositions : idées par créneau libre ----------
+    @routes.get("/api/propositions/<voyage>")
+    def propositions_du_voyage(voyage):
+        """Les créneaux libres et les fiches encore valables (gardé hors ligne par la page)."""
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            v = lire_voyage(conn, voyage)
+            if v is None:
+                return jsonify({"erreur": "voyage inconnu"}), 404
+            libres = creneaux(v, lire_reservations(conn, voyage))
+            fiches = visibles(lire_propositions(conn, voyage), libres)
+        finally:
+            conn.close()
+        return jsonify(_en_json({"creneaux": libres, "propositions": fiches}))
+
+    @routes.post("/api/propositions/<identifiant>/etat")
+    def etat_proposition(identifiant):
+        corps = request.get_json(silent=True)
+        etat = corps.get("etat") if isinstance(corps, dict) else None
+        if etat not in ETATS:
+            return jsonify({"erreur": "état inconnu"}), 400
+        conn = emprunter(app.config["NOM_BASE"])
+        try:
+            trouve = changer_etat_proposition(conn, identifiant, etat)
+        finally:
+            conn.close()
+        return (jsonify({"ok": True}), 200) if trouve else (jsonify({"erreur": "proposition inconnue"}), 404)
+
     @routes.get("/api/souvenirs/<voyage>")
     def souvenirs(voyage):
         """🎁 Souvenirs : le carnet de proches, les souvenirs du voyage et ce qui a déjà été rapporté."""
@@ -1062,6 +1095,8 @@ def creer_app(nom_base="valise", secret=None):
 
     # Avec un secret, tout vit sous /v/<secret>/ : sans le code, chaque adresse renvoie 404
     app.register_blueprint(routes, url_prefix=f"/v/{secret}" if secret else None)
+    if len(jeton) >= JETON_MINIMUM:                   # sinon l'accès de la routine n'existe pas (404)
+        app.register_blueprint(routes_routine(app, jeton))
     return app
 
 

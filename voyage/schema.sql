@@ -349,3 +349,43 @@ CREATE TABLE IF NOT EXISTS sorties (
     cree_le       TIMESTAMPTZ NOT NULL DEFAULT now(),
     maj_le        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Vadrouille, Propositions (22/11/2026) : des idées cherchées par une routine, une par créneau libre du Programme.
+-- Jamais effacées : une idée écartée ne doit pas revenir. id « prop-… » : c'est aussi l'id de l'envie ou de la
+-- réservation qu'elle devient (envois rejoués sans doublon).
+CREATE TABLE IF NOT EXISTS propositions (
+    id          TEXT        PRIMARY KEY,
+    voyage      TEXT        NOT NULL REFERENCES voyages(code) ON DELETE CASCADE,
+    passage     TEXT        NOT NULL,
+    creneau     TEXT        NOT NULL,
+    jour        DATE        NOT NULL,
+    periode     TEXT        NOT NULL,
+    debut       TEXT        NOT NULL,
+    fin         TEXT        NOT NULL,
+    ancre       TEXT        NOT NULL,
+    destination TEXT        NOT NULL,
+    rang        SMALLINT    NOT NULL,
+    genre       TEXT        NOT NULL CHECK (genre IN ('voir', 'faire')),
+    titre       TEXT        NOT NULL,
+    pourquoi    TEXT        NOT NULL,
+    adresse     TEXT        NOT NULL DEFAULT '',
+    trajet      TEXT        NOT NULL DEFAULT '',
+    duree       TEXT        NOT NULL DEFAULT '',
+    prix        TEXT        NOT NULL DEFAULT '',
+    horaires    TEXT        NOT NULL DEFAULT '',
+    reservation TEXT        NOT NULL CHECK (reservation IN ('non', 'conseillee', 'obligatoire', 'a-demander')),
+    a_confirmer TEXT        NOT NULL DEFAULT '',
+    lien        TEXT        NOT NULL DEFAULT '',
+    source      TEXT        NOT NULL DEFAULT '',
+    verifie_le  DATE,
+    etat        TEXT        NOT NULL DEFAULT 'proposee' CHECK (etat IN ('proposee', 'gardee', 'planifiee', 'ecartee')),
+    cree_le     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    maj_le      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS propositions_voyage ON propositions (voyage);
+CREATE TABLE IF NOT EXISTS propositions_passages (
+    voyage  TEXT        NOT NULL REFERENCES voyages(code) ON DELETE CASCADE,
+    palier  TEXT        NOT NULL,
+    fait_le TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (voyage, palier)
+);

@@ -136,7 +136,7 @@ if ('serviceWorker' in navigator && navigator.onLine) {
         document.querySelectorAll('a.voyage[data-a-venir]').forEach(function (a) {
             const code = encodeURIComponent(a.dataset.code);
             adresses.push(a.href);
-            ['api/etat/', 'api/reservations/', 'api/a-voir/', 'api/depenses/', 'api/souvenirs/'].forEach(function (api) {
+            ['api/etat/', 'api/reservations/', 'api/a-voir/', 'api/depenses/', 'api/souvenirs/', 'api/propositions/'].forEach(function (api) {
                 adresses.push(new URL(api + code, location.href).href);
             });
         });
