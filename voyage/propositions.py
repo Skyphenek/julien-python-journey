@@ -143,11 +143,11 @@ ETATS = ("proposee", "gardee", "planifiee", "ecartee")
 
 
 def passage_du(jours, faits, aujourd_hui):
-    """Le passage à faire aujourd'hui (« J-14 », « J-7 », « J-2 », « soir-AAAA-MM-JJ ») ou None. Pas fait : encore dû le lendemain."""
+    """Le passage à faire aujourd'hui (« J-30 », « J-14 », « J-7 », « J-2 », « soir-AAAA-MM-JJ ») ou None. Pas fait : encore dû le lendemain."""
     avant = (jours[0] - aujourd_hui).days
-    if avant > 14 or aujourd_hui >= jours[-1]:
+    if avant > 30 or aujourd_hui >= jours[-1]:
         return None
-    palier = ("J-14" if avant > 7 else "J-7" if avant > 2 else "J-2" if avant > 0
+    palier = ("J-30" if avant > 14 else "J-14" if avant > 7 else "J-7" if avant > 2 else "J-2" if avant > 0
               else f"soir-{aujourd_hui.isoformat()}")
     return None if palier in faits else palier
 
