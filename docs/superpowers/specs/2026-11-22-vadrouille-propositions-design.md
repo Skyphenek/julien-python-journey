@@ -49,7 +49,9 @@ sam. 12 matin, après-midi, soir (Agafay) ; dim. 13 matin (9:00 → 11:00, Agafa
 
 `passage_du(voyage, faits, aujourd_hui)` (date de Paris) :
 
-- avant le départ : J-14, J-7, J-2. Le palier atteint le plus proche du départ, s'il n'est pas fait ; les paliers plus
+- à la création : un voyage sans aucun passage en a un tout de suite (« creation »), même à plus de 30 jours du départ :
+  idées prêtes le lendemain au plus tard (ajouté le 23/11).
+- avant le départ : J-30 (ajouté le 23/11 : on réserve parfois longtemps à l'avance), J-14, J-7, J-2. Le palier atteint le plus proche du départ, s'il n'est pas fait ; les paliers plus
   anciens non faits sont sautés. Un passage raté est donc repris le lendemain.
 - du départ à l'avant-dernier jour : `soir-AAAA-MM-JJ`, uniquement les créneaux du lendemain.
 - plusieurs voyages : le départ le plus proche d'abord, un seul voyage par passage ; voyages archivés ignorés.

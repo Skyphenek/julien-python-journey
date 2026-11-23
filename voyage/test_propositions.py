@@ -99,7 +99,7 @@ JOURS = [J(n) for n in range(10, 15)]
 
 
 @pytest.mark.parametrize("jour, attendu", [
-    (date(2026, 11, 25), None), (date(2026, 11, 26), "J-14"), (date(2026, 12, 2), "J-14"), (J(3), "J-7"),
+    (date(2026, 11, 9), "creation"), (date(2026, 11, 10), "J-30"), (date(2026, 11, 25), "J-30"), (date(2026, 11, 26), "J-14"), (date(2026, 12, 2), "J-14"), (J(3), "J-7"),
     (J(7), "J-7"), (J(8), "J-2"), (J(9), "J-2"), (J(10), "soir-2026-12-10"), (J(13), "soir-2026-12-13"),
     (J(14), None), (J(20), None)])
 def test_passage_du(jour, attendu):
@@ -110,6 +110,14 @@ def test_passage_rate_repris_et_fait_pas_refait():
     assert passage_du(JOURS, {"J-14"}, date(2026, 11, 27)) is None
     assert passage_du(JOURS, {"J-14"}, J(4)) == "J-7"                # J-7 raté le 3 : repris le 4
     assert passage_du(JOURS, set(), J(8)) == "J-2"                    # les paliers sautés ne reviennent pas
+    assert passage_du(JOURS, {"J-30"}, date(2026, 11, 25)) is None
+    assert passage_du(JOURS, {"J-30"}, date(2026, 11, 26)) == "J-14"  # un mois avant, puis 2 semaines avant
+
+
+def test_voyage_cree_loin_du_depart_a_ses_idees_tout_de_suite():
+    assert passage_du(JOURS, set(), date(2026, 6, 1)) == "creation"
+    assert passage_du(JOURS, {"creation"}, date(2026, 6, 2)) is None
+    assert passage_du(JOURS, {"creation"}, date(2026, 11, 10)) == "J-30"
 
 
 def fiche(creneau="2026-12-11-matin", ancre="Dar Baraka", etat="proposee"):

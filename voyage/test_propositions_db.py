@@ -145,6 +145,8 @@ def test_travail_dit_ce_qui_a_ete_ecarte(robot, conn):
 
 def test_rien_a_faire(robot, conn, monkeypatch):
     monkeypatch.setattr(routine, "aujourd_hui_paris", lambda: date(2026, 11, 1))
+    assert robot.get("/routine/travail", headers=ENTETE).get_json()["a_faire"]["palier"] == "creation"
+    marquer_passage(conn, CODE, "creation")
     assert robot.get("/routine/travail", headers=ENTETE).get_json() == {"a_faire": None}
     monkeypatch.setattr(routine, "aujourd_hui_paris", lambda: J(3))
     archiver_voyage(conn, CODE)
